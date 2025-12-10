@@ -31,10 +31,10 @@ export interface EntitlementLimits {
   [key: string]: number | undefined;
 }
 
-export const ENTITLEMENTS_VERSION = '1.0' as const;
+export const ENTITLEMENTS_VERSION = '1.0';
 
 export interface Entitlements {
-  entitlementsVersion: typeof ENTITLEMENTS_VERSION;
+  entitlementsVersion: string;
   plan: PlanName;
   features: FeatureFlags;
   limits: EntitlementLimits;

@@ -9,8 +9,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "types": [
-      "node",
-      "jest"
+      "node"
     ],
     "lib": [
       "dom",

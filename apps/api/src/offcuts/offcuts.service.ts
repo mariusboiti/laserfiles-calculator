@@ -346,7 +346,7 @@ export class OffcutsService {
 
       if (usedArea && offcut.estimatedAreaMm2 && offcut.estimatedAreaMm2 > 0) {
         const remaining = Math.max(0, offcut.estimatedAreaMm2 - usedArea);
-        let newStatus = offcut.status;
+        let newStatus: OffcutStatus = offcut.status;
         if (remaining <= 0) {
           newStatus = OffcutStatus.USED;
         } else if (remaining < offcut.estimatedAreaMm2 * 0.15) {
