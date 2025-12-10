@@ -26,8 +26,8 @@ RUN pnpm --filter @laser/shared build && \
     pnpm --filter @laser/pricing-engine build && \
     pnpm --filter ./apps/api... build
 
-# Generate Prisma client for API
-RUN pnpm --filter api exec prisma generate
+# Generate Prisma client for the whole monorepo from root schema
+RUN pnpm exec prisma generate --schema=./prisma/schema.prisma
 
 # Manually wire workspace packages into node_modules so Node can resolve them at runtime
 RUN mkdir -p /app/node_modules/@laser /app/apps/api/node_modules/@laser && \
