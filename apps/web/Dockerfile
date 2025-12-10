@@ -35,6 +35,9 @@ FROM deps AS build
 # Copy full source tree
 COPY . .
 
+# Ensure public folder exists so later COPY never fails
+RUN mkdir -p /app/apps/web/public
+
 # Build only the web app (Next.js)
 RUN pnpm --filter ./apps/web... build
 
@@ -54,6 +57,7 @@ WORKDIR /app/apps/web
 # Copy workspace node_modules and built Next app
 COPY --from=deps /app/node_modules /app/node_modules
 COPY --from=build /app/apps/web/.next ./.next
+RUN mkdir -p ./public
 COPY --from=build /app/apps/web/public ./public
 COPY --from=build /app/apps/web/package.json ./package.json
 COPY --from=build /app/apps/web/next.config.mjs ./next.config.mjs
