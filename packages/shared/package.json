@@ -19,6 +19,16 @@
       "types": "./dist/types.d.ts",
       "require": "./dist/types.js",
       "import": "./dist/types.js"
+    },
+    "./entitlements": {
+      "types": "./dist/entitlements.d.ts",
+      "require": "./dist/entitlements.js",
+      "import": "./dist/entitlements.js"
+    },
+    "./wp-plugin-contract": {
+      "types": "./dist/wp-plugin-contract.d.ts",
+      "require": "./dist/wp-plugin-contract.js",
+      "import": "./dist/wp-plugin-contract.js"
     }
   },
   "scripts": {
