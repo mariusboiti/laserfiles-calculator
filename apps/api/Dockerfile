@@ -29,6 +29,14 @@ RUN pnpm --filter @laser/shared build && \
 # Generate Prisma client for the whole monorepo from root schema
 RUN pnpm exec prisma generate --schema=./prisma/schema.prisma
 
+# Fix nest build output structure: copy modules from dist/ to dist/apps/api/src/
+# so relative imports work correctly at runtime
+RUN cp -r /app/apps/api/dist/entitlements /app/apps/api/dist/apps/api/src/entitlements || true && \
+    cp -r /app/apps/api/dist/production /app/apps/api/dist/apps/api/src/production || true && \
+    cp -r /app/apps/api/dist/sales-channels /app/apps/api/dist/apps/api/src/sales-channels || true && \
+    cp -r /app/apps/api/dist/template-products /app/apps/api/dist/apps/api/src/template-products || true && \
+    cp -r /app/apps/api/dist/offcuts /app/apps/api/dist/apps/api/src/offcuts || true
+
 # Manually wire workspace packages into node_modules so Node can resolve them at runtime
 RUN mkdir -p /app/node_modules/@laser /app/apps/api/node_modules/@laser && \
     [ -e /app/node_modules/@laser/pricing-engine ] || ln -s /app/packages/pricing-engine /app/node_modules/@laser/pricing-engine && \
