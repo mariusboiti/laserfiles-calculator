@@ -84,4 +84,3 @@ exports.FilesController = FilesController = __decorate([
     (0, common_1.Controller)('files'),
     __metadata("design:paramtypes", [files_service_1.FilesService])
 ], FilesController);
-//# sourceMappingURL=files.controller.js.map

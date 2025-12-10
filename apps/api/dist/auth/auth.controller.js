@@ -55,6 +55,7 @@ const swagger_1 = require("@nestjs/swagger");
 const client_1 = require("@prisma/client");
 const bcrypt = __importStar(require("bcryptjs"));
 const jwt = __importStar(require("jsonwebtoken"));
+const entitlements_service_1 = require("../entitlements/entitlements.service");
 class LoginDto {
 }
 __decorate([
@@ -73,10 +74,18 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], RefreshDto.prototype, "refreshToken", void 0);
+class WpSsoDto {
+}
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], WpSsoDto.prototype, "wpToken", void 0);
 const prisma = new client_1.PrismaClient();
 let AuthController = class AuthController {
-    constructor(authService) {
+    constructor(authService, entitlementsService) {
         this.authService = authService;
+        this.entitlementsService = entitlementsService;
     }
     async login(body) {
         const user = await prisma.user.findUnique({ where: { email: body.email } });
@@ -128,6 +137,14 @@ let AuthController = class AuthController {
             throw new common_1.UnauthorizedException('Invalid refresh token');
         }
     }
+    async wpSso(body) {
+        // For now, in dev mode, we treat wpToken as a wpUserId and rely on EntitlementsService
+        // to return a mocked PRO entitlements object. Later this will call the real
+        // WordPress SSO plugin endpoints.
+        const wpUserId = body.wpToken;
+        const entitlements = await this.entitlementsService.getEntitlementsForWpUser(wpUserId);
+        return this.authService.loginWithWp(entitlements);
+    }
     async me(user) {
         return { user };
     }
@@ -158,6 +175,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "refresh", null);
 __decorate([
+    (0, common_1.Post)('wp-sso'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [WpSsoDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "wpSso", null);
+__decorate([
     (0, swagger_1.ApiBearerAuth)('access-token'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)('me'),
@@ -169,6 +193,6 @@ __decorate([
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Controller)('auth'),
-    __metadata("design:paramtypes", [auth_service_1.AuthService])
+    __metadata("design:paramtypes", [auth_service_1.AuthService,
+        entitlements_service_1.EntitlementsService])
 ], AuthController);
-//# sourceMappingURL=auth.controller.js.map

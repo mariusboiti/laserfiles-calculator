@@ -21,6 +21,9 @@ const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const client_1 = require("@prisma/client");
+const prisma_service_1 = require("../prisma/prisma.service");
+const prisma = new prisma_service_1.PrismaService();
+const fallbackMaterialsService = new materials_service_1.MaterialsService(prisma);
 class PaginationQuery {
 }
 __decorate([
@@ -177,26 +180,29 @@ let MaterialsController = class MaterialsController {
     constructor(materialsService) {
         this.materialsService = materialsService;
     }
+    getService() {
+        return this.materialsService ?? fallbackMaterialsService;
+    }
     async list(query) {
-        return this.materialsService.list({
+        return this.getService().list({
             page: query.page,
             pageSize: query.pageSize,
         });
     }
     async get(id) {
-        return this.materialsService.findOne(id);
+        return this.getService().findOne(id);
     }
     async create(body) {
-        return this.materialsService.create(body);
+        return this.getService().create(body);
     }
     async update(id, body) {
-        return this.materialsService.update(id, body);
+        return this.getService().update(id, body);
     }
     async listStockMovements(id) {
-        return this.materialsService.listStockMovements(id);
+        return this.getService().listStockMovements(id);
     }
     async createStockMovement(id, body) {
-        return this.materialsService.createStockMovement(id, body);
+        return this.getService().createStockMovement(id, body);
     }
 };
 exports.MaterialsController = MaterialsController;
@@ -254,4 +260,3 @@ exports.MaterialsController = MaterialsController = __decorate([
     (0, common_1.Controller)('materials'),
     __metadata("design:paramtypes", [materials_service_1.MaterialsService])
 ], MaterialsController);
-//# sourceMappingURL=materials.controller.js.map

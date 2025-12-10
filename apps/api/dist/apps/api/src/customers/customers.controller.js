@@ -70,21 +70,27 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", Object)
 ], UpdateCustomerDto.prototype, "notes", void 0);
+const prisma_service_1 = require("../prisma/prisma.service");
+const prisma = new prisma_service_1.PrismaService();
+const fallbackCustomersService = new customers_service_1.CustomersService(prisma);
 let CustomersController = class CustomersController {
     constructor(customersService) {
         this.customersService = customersService;
     }
+    getService() {
+        return this.customersService ?? fallbackCustomersService;
+    }
     async list(query) {
-        return this.customersService.list({ search: query.search });
+        return this.getService().list({ search: query.search });
     }
     async get(id) {
-        return this.customersService.findOne(id);
+        return this.getService().findOne(id);
     }
     async create(body) {
-        return this.customersService.create(body);
+        return this.getService().create(body);
     }
     async update(id, body) {
-        return this.customersService.update(id, body);
+        return this.getService().update(id, body);
     }
 };
 exports.CustomersController = CustomersController;
@@ -126,4 +132,3 @@ exports.CustomersController = CustomersController = __decorate([
     (0, common_1.Controller)('customers'),
     __metadata("design:paramtypes", [customers_service_1.CustomersService])
 ], CustomersController);
-//# sourceMappingURL=customers.controller.js.map

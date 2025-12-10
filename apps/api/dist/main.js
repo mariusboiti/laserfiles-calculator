@@ -40,10 +40,23 @@ const app_module_1 = require("./app.module");
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const path_1 = require("path");
+const app_globals_1 = require("./app.globals");
+const offcuts_service_1 = require("./offcuts/offcuts.service");
+const sales_channels_connections_service_1 = require("./sales-channels/sales-channels.connections.service");
 async function bootstrap() {
     dotenv.config({ path: (0, path_1.join)(__dirname, '..', '.env') });
     console.log('DATABASE_URL at runtime:', process.env.DATABASE_URL);
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    // Initialize global service references for controllers that cannot rely on normal DI
+    try {
+        app_globals_1.AppGlobals.offcutsService = app.get(offcuts_service_1.OffcutsService, { strict: false });
+        app_globals_1.AppGlobals.salesChannelsConnectionsService = app.get(sales_channels_connections_service_1.SalesChannelsConnectionsService, {
+            strict: false,
+        });
+    }
+    catch (err) {
+        console.error('Failed to initialize AppGlobals services', err);
+    }
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
@@ -76,4 +89,3 @@ async function bootstrap() {
     await app.listen(port);
 }
 bootstrap();
-//# sourceMappingURL=main.js.map

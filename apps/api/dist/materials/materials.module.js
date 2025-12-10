@@ -21,4 +21,3 @@ exports.MaterialsModule = MaterialsModule = __decorate([
         providers: [materials_service_1.MaterialsService],
     })
 ], MaterialsModule);
-//# sourceMappingURL=materials.module.js.map

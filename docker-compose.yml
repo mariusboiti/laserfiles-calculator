@@ -1,4 +1,5 @@
 version: "3.9"
+
 services:
   db:
     image: postgres:16
@@ -11,5 +12,41 @@ services:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+
+  api:
+    # Only start in production profile so local `docker compose up -d`
+    # still behaves as "DB only" for dev, as described in README.
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Prisma connection string pointing to the `db` service
+      # Note: prisma/schema.prisma currently inlines a localhost URL for dev.
+      # For containers, prefer reading DATABASE_URL via env in the future.
+      DATABASE_URL: "postgresql://laser:laser@db:5432/laser?schema=public"
+    ports:
+      - "4000:4000"
+
+  web:
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      # API base URL inside Docker network; override in VPS env if needed.
+      NEXT_PUBLIC_API_URL: "http://api:4000"
+    ports:
+      - "3000:3000"
+
 volumes:
   db-data:

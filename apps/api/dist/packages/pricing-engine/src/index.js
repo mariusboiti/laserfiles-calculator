@@ -159,4 +159,3 @@ function ruleLabel(type) {
             return 'Rule';
     }
 }
-//# sourceMappingURL=index.js.map

@@ -21,4 +21,3 @@ exports.QuotesModule = QuotesModule = __decorate([
         providers: [quotes_service_1.QuotesService],
     })
 ], QuotesModule);
-//# sourceMappingURL=quotes.module.js.map

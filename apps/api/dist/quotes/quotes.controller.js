@@ -21,6 +21,9 @@ const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const user_decorator_1 = require("../common/decorators/user.decorator");
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
+const prisma_service_1 = require("../prisma/prisma.service");
+const prisma = new prisma_service_1.PrismaService();
+const fallbackQuotesService = new quotes_service_1.QuotesService(prisma);
 class QuotesPaginationQuery {
 }
 __decorate([
@@ -50,17 +53,20 @@ let QuotesController = class QuotesController {
     constructor(quotesService) {
         this.quotesService = quotesService;
     }
+    getService() {
+        return this.quotesService ?? fallbackQuotesService;
+    }
     async list(query) {
-        return this.quotesService.list(query);
+        return this.getService().list(query);
     }
     async get(id) {
-        return this.quotesService.findOne(id);
+        return this.getService().findOne(id);
     }
     async create(body) {
-        return this.quotesService.create(body);
+        return this.getService().create(body);
     }
     async createOrderFromQuote(id, user) {
-        return this.quotesService.createOrderFromQuote(id, user.sub);
+        return this.getService().createOrderFromQuote(id, user.sub);
     }
 };
 exports.QuotesController = QuotesController;
@@ -104,4 +110,3 @@ exports.QuotesController = QuotesController = __decorate([
     (0, common_1.Controller)('quotes'),
     __metadata("design:paramtypes", [quotes_service_1.QuotesService])
 ], QuotesController);
-//# sourceMappingURL=quotes.controller.js.map

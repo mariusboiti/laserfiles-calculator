@@ -360,6 +360,9 @@ let TemplatesService = class TemplatesService {
             },
         });
     }
+    async countTemplates() {
+        return this.prisma.productTemplate.count();
+    }
     async ensureTemplateExists(id) {
         const template = await this.prisma.productTemplate.findUnique({ where: { id } });
         if (!template) {
@@ -373,4 +376,3 @@ exports.TemplatesService = TemplatesService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], TemplatesService);
-//# sourceMappingURL=templates.service.js.map

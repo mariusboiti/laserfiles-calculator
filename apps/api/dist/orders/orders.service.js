@@ -8,15 +8,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrdersService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
+const sales_channels_status_sync_service_1 = require("../sales-channels/sales-channels.status-sync.service");
 const pricing_engine_1 = require("@laser/pricing-engine");
 let OrdersService = class OrdersService {
-    constructor(prisma) {
+    constructor(prisma, statusSync) {
         this.prisma = prisma;
+        this.statusSync = statusSync;
     }
     async list(params) {
         const page = params.page && params.page > 0 ? params.page : 1;
@@ -71,6 +76,7 @@ let OrdersService = class OrdersService {
                         material: true,
                         template: true,
                         templateVariant: true,
+                        templateProduct: true,
                         timeLogs: {
                             include: { user: true },
                         },
@@ -80,6 +86,12 @@ let OrdersService = class OrdersService {
                 activityLog: {
                     include: { user: true },
                     orderBy: { createdAt: 'desc' },
+                },
+                externalLinks: {
+                    include: {
+                        externalOrder: true,
+                        connection: true,
+                    },
                 },
             },
         });
@@ -172,10 +184,31 @@ let OrdersService = class OrdersService {
                 },
             })),
         ]);
+        if (data.status && data.status === client_1.OrderStatus.SHIPPED && existing.status !== client_1.OrderStatus.SHIPPED) {
+            if (this.statusSync) {
+                this.statusSync
+                    .pushShippedStatusForOrder(id)
+                    .catch(() => {
+                    // Best-effort: ignore errors from external status sync.
+                });
+            }
+        }
         return updated;
     }
     async updateStatus(id, status, userId) {
         return this.update(id, { status }, userId);
+    }
+    async getExternalSyncStatus(orderId) {
+        if (!this.statusSync) {
+            return { links: [] };
+        }
+        return this.statusSync.getStatusForOrder(orderId);
+    }
+    async retryExternalStatus(orderId) {
+        if (!this.statusSync) {
+            return { attempts: 0, successes: 0, failures: 0, results: [] };
+        }
+        return this.statusSync.pushShippedStatusForOrder(orderId, { force: true });
     }
     async addItem(orderId, item, userId) {
         const order = await this.prisma.order.findUnique({ where: { id: orderId } });
@@ -310,6 +343,7 @@ let OrdersService = class OrdersService {
         const personalization = input.personalization ?? {};
         const widthMm = variant?.widthMm ?? template.baseWidthMm ?? 100;
         const heightMm = variant?.heightMm ?? template.baseHeightMm ?? 100;
+        const hasPriceOverride = typeof input.priceOverride === 'number' && !Number.isNaN(input.priceOverride);
         const metrics = this.buildTemplateMetrics(personalization, template.fields.map((f) => ({
             key: f.key,
             fieldType: f.fieldType,
@@ -344,6 +378,9 @@ let OrdersService = class OrdersService {
                 }
                 : undefined,
         });
+        const finalBreakdown = hasPriceOverride
+            ? { ...breakdown, recommendedPrice: input.priceOverride }
+            : breakdown;
         const derivedFields = {
             templateId: template.id,
             templateVariantId: variant ? variant.id : null,
@@ -367,7 +404,7 @@ let OrdersService = class OrdersService {
                 title,
                 personalization,
                 derivedFields,
-                price: breakdown,
+                price: finalBreakdown,
             };
         }
         const created = await this.prisma.orderItem.create({
@@ -378,11 +415,12 @@ let OrdersService = class OrdersService {
                 quantity,
                 widthMm,
                 heightMm,
+                templateProductId: input.templateProductId,
                 templateId: template.id,
                 templateVariantId: variant ? variant.id : null,
                 personalizationJson: personalization,
                 derivedFieldsJson: derivedFields,
-                priceSnapshotJson: breakdown,
+                priceSnapshotJson: finalBreakdown,
             },
         });
         await this.prisma.orderActivityLog.create({
@@ -538,6 +576,7 @@ let OrdersService = class OrdersService {
 exports.OrdersService = OrdersService;
 exports.OrdersService = OrdersService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __param(1, (0, common_1.Optional)()),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        sales_channels_status_sync_service_1.SalesChannelsStatusSyncService])
 ], OrdersService);
-//# sourceMappingURL=orders.service.js.map

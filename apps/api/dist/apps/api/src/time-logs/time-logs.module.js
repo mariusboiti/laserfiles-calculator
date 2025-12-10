@@ -21,4 +21,3 @@ exports.TimeLogsModule = TimeLogsModule = __decorate([
         providers: [time_logs_service_1.TimeLogsService],
     })
 ], TimeLogsModule);
-//# sourceMappingURL=time-logs.module.js.map

@@ -23,6 +23,9 @@ const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const client_1 = require("@prisma/client");
+const prisma_service_1 = require("../prisma/prisma.service");
+const prisma = new prisma_service_1.PrismaService();
+const fallbackOrdersService = new orders_service_1.OrdersService(prisma);
 class PaginationQuery {
 }
 __decorate([
@@ -175,6 +178,16 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], AddItemFromTemplateDto.prototype, "dryRun", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AddItemFromTemplateDto.prototype, "templateProductId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], AddItemFromTemplateDto.prototype, "priceOverride", void 0);
 class BulkAddFromTemplateItemDto {
 }
 __decorate([
@@ -219,6 +232,9 @@ let OrdersController = class OrdersController {
     constructor(ordersService) {
         this.ordersService = ordersService;
     }
+    getService() {
+        return this.ordersService ?? fallbackOrdersService;
+    }
     async list(query) {
         const params = {
             page: query.page ? Number(query.page) : undefined,
@@ -228,32 +244,38 @@ let OrdersController = class OrdersController {
             priority: query.priority,
             search: query.search,
         };
-        return this.ordersService.list(params);
+        return this.getService().list(params);
     }
     async get(id) {
-        return this.ordersService.findOne(id);
+        return this.getService().findOne(id);
+    }
+    async getExternalStatus(id) {
+        return this.getService().getExternalSyncStatus(id);
     }
     async create(body, user) {
-        return this.ordersService.create(body, user.sub);
+        return this.getService().create(body, user.sub);
     }
     async update(id, body, user) {
-        return this.ordersService.update(id, body, user.sub);
+        return this.getService().update(id, body, user.sub);
     }
     // Quick status change for workers (mobile)
     async updateStatus(id, body, user) {
-        return this.ordersService.updateStatus(id, body.status, user.sub);
+        return this.getService().updateStatus(id, body.status, user.sub);
+    }
+    async retryExternalStatus(id) {
+        return this.getService().retryExternalStatus(id);
     }
     async addItem(id, body, user) {
-        return this.ordersService.addItem(id, body, user.sub);
+        return this.getService().addItem(id, body, user.sub);
     }
     async updateItem(orderId, itemId, body, user) {
-        return this.ordersService.updateItem(orderId, itemId, body, user.sub);
+        return this.getService().updateItem(orderId, itemId, body, user.sub);
     }
     async addItemFromTemplate(id, body, user) {
-        return this.ordersService.addItemFromTemplate(id, body, user.sub);
+        return this.getService().addItemFromTemplate(id, body, user.sub);
     }
     async bulkAddFromTemplate(id, body, user) {
-        return this.ordersService.bulkAddFromTemplate(id, body, user.sub);
+        return this.getService().bulkAddFromTemplate(id, body, user.sub);
     }
 };
 exports.OrdersController = OrdersController;
@@ -271,6 +293,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "get", null);
+__decorate([
+    (0, common_1.Get)(':id/external-status'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getExternalStatus", null);
 __decorate([
     (0, roles_decorator_1.Roles)('ADMIN'),
     (0, common_1.Post)(),
@@ -299,6 +328,14 @@ __decorate([
     __metadata("design:paramtypes", [String, UpdateStatusDto, Object]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "updateStatus", null);
+__decorate([
+    (0, roles_decorator_1.Roles)('ADMIN'),
+    (0, common_1.Post)(':id/external-status/retry'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "retryExternalStatus", null);
 __decorate([
     (0, roles_decorator_1.Roles)('ADMIN'),
     (0, common_1.Post)(':id/items'),
@@ -345,4 +382,3 @@ exports.OrdersController = OrdersController = __decorate([
     (0, common_1.Controller)('orders'),
     __metadata("design:paramtypes", [orders_service_1.OrdersService])
 ], OrdersController);
-//# sourceMappingURL=orders.controller.js.map

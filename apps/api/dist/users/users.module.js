@@ -14,4 +14,3 @@ exports.UsersModule = UsersModule;
 exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({})
 ], UsersModule);
-//# sourceMappingURL=users.module.js.map

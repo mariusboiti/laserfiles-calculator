@@ -67,4 +67,3 @@ exports.TimeLogsController = TimeLogsController = __decorate([
     (0, common_1.Controller)('time-logs'),
     __metadata("design:paramtypes", [time_logs_service_1.TimeLogsService])
 ], TimeLogsController);
-//# sourceMappingURL=time-logs.controller.js.map

@@ -21,6 +21,12 @@ const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const client_1 = require("@prisma/client");
+const prisma_service_1 = require("../prisma/prisma.service");
+const entitlements_guard_1 = require("../common/guards/entitlements.guard");
+const features_decorator_1 = require("../common/decorators/features.decorator");
+const entitlements_decorator_1 = require("../common/decorators/entitlements.decorator");
+const prisma = new prisma_service_1.PrismaService();
+const fallbackTemplatesService = new templates_service_1.TemplatesService(prisma);
 class TemplatesListQuery {
 }
 __decorate([
@@ -348,51 +354,84 @@ let TemplatesController = class TemplatesController {
     constructor(templatesService) {
         this.templatesService = templatesService;
     }
+    getService() {
+        return this.templatesService ?? fallbackTemplatesService;
+    }
     async list(query) {
-        return this.templatesService.list({
+        return this.getService().list({
             search: query.search,
             categoryId: query.categoryId,
             isActive: query.isActive,
         });
     }
     async get(id) {
-        return this.templatesService.findOne(id);
+        return this.getService().findOne(id);
     }
-    async create(body) {
-        return this.templatesService.create(body);
+    async create(body, entitlements) {
+        const limit = entitlements?.limits?.max_templates;
+        const ignoreLimit = !!entitlements?.features?.templates_unlimited;
+        if (!ignoreLimit && typeof limit === 'number' && limit > 0) {
+            const currentCount = await this.getService().countTemplates();
+            if (currentCount + 1 > limit) {
+                throw new common_1.ForbiddenException({
+                    statusCode: 403,
+                    code: 'LIMIT_REACHED',
+                    limitKey: 'max_templates',
+                    limit,
+                    current: currentCount,
+                    attemptedToAdd: 1,
+                });
+            }
+        }
+        return this.getService().create(body);
     }
     async update(id, body) {
-        return this.templatesService.update(id, body);
+        return this.getService().update(id, body);
     }
-    async duplicate(id) {
-        return this.templatesService.duplicate(id);
+    async duplicate(id, entitlements) {
+        const limit = entitlements?.limits?.max_templates;
+        const ignoreLimit = !!entitlements?.features?.templates_unlimited;
+        if (!ignoreLimit && typeof limit === 'number' && limit > 0) {
+            const currentCount = await this.getService().countTemplates();
+            if (currentCount + 1 > limit) {
+                throw new common_1.ForbiddenException({
+                    statusCode: 403,
+                    code: 'LIMIT_REACHED',
+                    limitKey: 'max_templates',
+                    limit,
+                    current: currentCount,
+                    attemptedToAdd: 1,
+                });
+            }
+        }
+        return this.getService().duplicate(id);
     }
     async listVariants(id) {
-        return this.templatesService.listVariants(id);
+        return this.getService().listVariants(id);
     }
     async createVariant(id, body) {
-        return this.templatesService.createVariant(id, body);
+        return this.getService().createVariant(id, body);
     }
     async updateVariant(id, variantId, body) {
-        return this.templatesService.updateVariant(id, variantId, body);
+        return this.getService().updateVariant(id, variantId, body);
     }
     async listFields(id) {
-        return this.templatesService.listFields(id);
+        return this.getService().listFields(id);
     }
     async createField(id, body) {
-        return this.templatesService.createField(id, body);
+        return this.getService().createField(id, body);
     }
     async updateField(id, fieldId, body) {
-        return this.templatesService.updateField(id, fieldId, body);
+        return this.getService().updateField(id, fieldId, body);
     }
     async listPricingRules(id) {
-        return this.templatesService.listPricingRules(id);
+        return this.getService().listPricingRules(id);
     }
     async createPricingRule(id, body) {
-        return this.templatesService.createPricingRule(id, body);
+        return this.getService().createPricingRule(id, body);
     }
     async updatePricingRule(id, ruleId, body) {
-        return this.templatesService.updatePricingRule(id, ruleId, body);
+        return this.getService().updatePricingRule(id, ruleId, body);
     }
 };
 exports.TemplatesController = TemplatesController;
@@ -414,8 +453,9 @@ __decorate([
     (0, roles_decorator_1.Roles)('ADMIN'),
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, entitlements_decorator_1.Entitlements)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [CreateTemplateDto]),
+    __metadata("design:paramtypes", [CreateTemplateDto, Object]),
     __metadata("design:returntype", Promise)
 ], TemplatesController.prototype, "create", null);
 __decorate([
@@ -431,8 +471,9 @@ __decorate([
     (0, roles_decorator_1.Roles)('ADMIN'),
     (0, common_1.Post)(':id/duplicate'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, entitlements_decorator_1.Entitlements)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], TemplatesController.prototype, "duplicate", null);
 __decorate([
@@ -516,8 +557,8 @@ __decorate([
 exports.TemplatesController = TemplatesController = __decorate([
     (0, swagger_1.ApiTags)('templates'),
     (0, swagger_1.ApiBearerAuth)('access-token'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, entitlements_guard_1.EntitlementsGuard, roles_guard_1.RolesGuard),
+    (0, features_decorator_1.RequiresFeatures)('templates_basic'),
     (0, common_1.Controller)('templates'),
     __metadata("design:paramtypes", [templates_service_1.TemplatesService])
 ], TemplatesController);
-//# sourceMappingURL=templates.controller.js.map

@@ -21,4 +21,3 @@ exports.TemplatesModule = TemplatesModule = __decorate([
         providers: [templates_service_1.TemplatesService],
     })
 ], TemplatesModule);
-//# sourceMappingURL=templates.module.js.map

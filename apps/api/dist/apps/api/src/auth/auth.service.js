@@ -85,6 +85,78 @@ let AuthService = class AuthService {
             ...tokens,
         };
     }
+    async loginWithWp(entitlements) {
+        const { wpUserId, email, displayName, plan, entitlementsVersion, features, limits, validUntil } = entitlements;
+        // Find or create user
+        let user = await this.prisma.user.findFirst({ where: { email } });
+        if (!user) {
+            const randomPassword = Math.random().toString(36).slice(2);
+            const hashed = await bcrypt.hash(randomPassword, 10);
+            user = await this.prisma.user.create({
+                data: {
+                    email,
+                    name: displayName,
+                    role: 'ADMIN',
+                    password: hashed,
+                },
+            });
+        }
+        // Upsert UserIdentityLink to link this user to the WordPress identity
+        await this.prisma.userIdentityLink.upsert({
+            where: {
+                provider_externalUserId: {
+                    provider: 'WORDPRESS',
+                    externalUserId: wpUserId,
+                },
+            },
+            update: {
+                userId: user.id,
+                externalEmail: email,
+                displayName,
+                updatedAt: new Date(),
+            },
+            create: {
+                userId: user.id,
+                provider: 'WORDPRESS',
+                externalUserId: wpUserId,
+                externalEmail: email,
+                displayName,
+            },
+        });
+        // Save a WorkspacePlanSnapshot for audit and offline validation
+        await this.prisma.workspacePlanSnapshot.create({
+            data: {
+                wpUserId,
+                plan: plan, // PlanName enum
+                entitlementsVersion,
+                featuresJson: features,
+                limitsJson: limits,
+                validUntil: validUntil ? new Date(validUntil) : null,
+                fetchedAt: new Date(),
+            },
+        });
+        const payload = {
+            sub: user.id,
+            email: user.email,
+            role: user.role,
+            wpUserId,
+            plan,
+            entitlementsVersion,
+        };
+        const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET || 'dev-access-secret', { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' });
+        const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret', { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' });
+        return {
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+            },
+            entitlements,
+            accessToken,
+            refreshToken,
+        };
+    }
     async refresh(refreshToken) {
         try {
             const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret');
@@ -113,4 +185,3 @@ exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], AuthService);
-//# sourceMappingURL=auth.service.js.map

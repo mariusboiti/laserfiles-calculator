@@ -110,4 +110,3 @@ exports.PricingController = PricingController = __decorate([
     (0, common_1.Controller)('pricing'),
     __metadata("design:paramtypes", [pricing_service_1.PricingService])
 ], PricingController);
-//# sourceMappingURL=pricing.controller.js.map

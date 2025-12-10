@@ -12,8 +12,8 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@laser/shared/*": ["packages/shared/src/*"],
-      "@laser/pricing-engine": ["packages/pricing-engine/src"]
+      "@laser/shared/*": ["packages/shared/dist/*"],
+      "@laser/pricing-engine": ["packages/pricing-engine/dist"]
     }
   }
 }

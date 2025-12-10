@@ -16,3 +16,5 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./types"), exports);
 __exportStar(require("./validation"), exports);
+__exportStar(require("./entitlements"), exports);
+__exportStar(require("./wp-plugin-contract"), exports);

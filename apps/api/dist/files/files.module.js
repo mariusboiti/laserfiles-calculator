@@ -21,4 +21,3 @@ exports.FilesModule = FilesModule = __decorate([
         providers: [files_service_1.FilesService],
     })
 ], FilesModule);
-//# sourceMappingURL=files.module.js.map

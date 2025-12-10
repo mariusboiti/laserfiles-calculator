@@ -21,6 +21,21 @@ let AnalyticsController = class AnalyticsController {
         this.analyticsService = analyticsService;
     }
     async dashboard() {
+        if (!this.analyticsService) {
+            return {
+                ordersThisWeek: 0,
+                revenueEstimateThisWeek: 0,
+                topMaterialsByUsage: [],
+                averageProductionMinutesPerItem: 0,
+                salesChannels: {
+                    totalConnections: 0,
+                    connectionsWithErrors: 0,
+                    externalOrdersImportedLast7Days: 0,
+                    externalOrdersNeedsReview: 0,
+                    externalOrdersIgnored: 0,
+                },
+            };
+        }
         return this.analyticsService.dashboard();
     }
 };
@@ -39,4 +54,3 @@ exports.AnalyticsController = AnalyticsController = __decorate([
     (0, common_1.Controller)('analytics'),
     __metadata("design:paramtypes", [analytics_service_1.AnalyticsService])
 ], AnalyticsController);
-//# sourceMappingURL=analytics.controller.js.map

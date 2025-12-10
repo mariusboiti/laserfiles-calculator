@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PricingService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-const pricing_engine_1 = require("../../../../packages/pricing-engine/src");
+const pricing_engine_1 = require("@laser/pricing-engine");
 let PricingService = class PricingService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -90,4 +90,3 @@ exports.PricingService = PricingService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], PricingService);
-//# sourceMappingURL=pricing.service.js.map

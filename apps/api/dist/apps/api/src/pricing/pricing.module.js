@@ -21,4 +21,3 @@ exports.PricingModule = PricingModule = __decorate([
         providers: [pricing_service_1.PricingService],
     })
 ], PricingModule);
-//# sourceMappingURL=pricing.module.js.map

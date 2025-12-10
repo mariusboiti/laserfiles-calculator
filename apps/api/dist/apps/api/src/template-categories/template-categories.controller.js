@@ -20,6 +20,9 @@ const roles_guard_1 = require("../common/guards/roles.guard");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
+const prisma_service_1 = require("../prisma/prisma.service");
+const prisma = new prisma_service_1.PrismaService();
+const fallbackTemplateCategoriesService = new template_categories_service_1.TemplateCategoriesService(prisma);
 class CreateTemplateCategoryDto {
 }
 __decorate([
@@ -47,17 +50,20 @@ let TemplateCategoriesController = class TemplateCategoriesController {
     constructor(categoriesService) {
         this.categoriesService = categoriesService;
     }
+    getService() {
+        return this.categoriesService ?? fallbackTemplateCategoriesService;
+    }
     async list() {
-        return this.categoriesService.list();
+        return this.getService().list();
     }
     async get(id) {
-        return this.categoriesService.findOne(id);
+        return this.getService().findOne(id);
     }
     async create(body) {
-        return this.categoriesService.create(body);
+        return this.getService().create(body);
     }
     async update(id, body) {
-        return this.categoriesService.update(id, body);
+        return this.getService().update(id, body);
     }
 };
 exports.TemplateCategoriesController = TemplateCategoriesController;
@@ -98,4 +104,3 @@ exports.TemplateCategoriesController = TemplateCategoriesController = __decorate
     (0, common_1.Controller)('template-categories'),
     __metadata("design:paramtypes", [template_categories_service_1.TemplateCategoriesService])
 ], TemplateCategoriesController);
-//# sourceMappingURL=template-categories.controller.js.map

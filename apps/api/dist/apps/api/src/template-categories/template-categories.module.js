@@ -21,4 +21,3 @@ exports.TemplateCategoriesModule = TemplateCategoriesModule = __decorate([
         providers: [template_categories_service_1.TemplateCategoriesService],
     })
 ], TemplateCategoriesModule);
-//# sourceMappingURL=template-categories.module.js.map

@@ -19,10 +19,18 @@ let AnalyticsService = class AnalyticsService {
     async dashboard() {
         const now = new Date();
         const startOfWeek = this.getStartOfWeek(now);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         let ordersThisWeek = 0;
         let revenueEstimateThisWeek = 0;
         let topMaterialsByUsage = [];
         let averageProductionMinutesPerItem = 0;
+        let salesChannelsOverview = {
+            totalConnections: 0,
+            connectionsWithErrors: 0,
+            externalOrdersImportedLast7Days: 0,
+            externalOrdersNeedsReview: 0,
+            externalOrdersIgnored: 0,
+        };
         try {
             const [ordersCount, topMaterials, avgProduction] = await this.prisma.$transaction([
                 // Orders this week
@@ -71,6 +79,34 @@ let AnalyticsService = class AnalyticsService {
             }));
             averageProductionMinutesPerItem =
                 avgProduction._avg.durationMinutes ?? 0;
+            const [totalConnections, connectionsWithErrors, externalOrdersImportedLast7Days, externalOrdersNeedsReview, externalOrdersIgnored,] = await this.prisma.$transaction([
+                this.prisma.storeConnection.count(),
+                this.prisma.storeConnection.count({ where: { status: 'ERROR' } }),
+                this.prisma.externalOrder.count({
+                    where: {
+                        importedAt: {
+                            gte: sevenDaysAgo,
+                        },
+                    },
+                }),
+                this.prisma.externalOrder.count({
+                    where: {
+                        processedState: 'NEEDS_REVIEW',
+                    },
+                }),
+                this.prisma.externalOrder.count({
+                    where: {
+                        processedState: 'IGNORED',
+                    },
+                }),
+            ]);
+            salesChannelsOverview = {
+                totalConnections,
+                connectionsWithErrors,
+                externalOrdersImportedLast7Days,
+                externalOrdersNeedsReview,
+                externalOrdersIgnored,
+            };
         }
         catch (err) {
             console.error('Error in AnalyticsService.dashboard', err);
@@ -80,6 +116,7 @@ let AnalyticsService = class AnalyticsService {
             revenueEstimateThisWeek,
             topMaterialsByUsage,
             averageProductionMinutesPerItem,
+            salesChannels: salesChannelsOverview,
         };
     }
     getStartOfWeek(date) {
@@ -96,4 +133,3 @@ exports.AnalyticsService = AnalyticsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], AnalyticsService);
-//# sourceMappingURL=analytics.service.js.map

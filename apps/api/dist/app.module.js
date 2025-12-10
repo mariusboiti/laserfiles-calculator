@@ -21,6 +21,10 @@ const quotes_module_1 = require("./quotes/quotes.module");
 const pricing_module_1 = require("./pricing/pricing.module");
 const template_categories_module_1 = require("./template-categories/template-categories.module");
 const templates_module_1 = require("./templates/templates.module");
+const template_products_module_1 = require("./template-products/template-products.module");
+const sales_channels_module_1 = require("./sales-channels/sales-channels.module");
+const production_module_1 = require("./production/production.module");
+const offcuts_module_1 = require("./offcuts/offcuts.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -40,7 +44,10 @@ exports.AppModule = AppModule = __decorate([
             pricing_module_1.PricingModule,
             template_categories_module_1.TemplateCategoriesModule,
             templates_module_1.TemplatesModule,
+            template_products_module_1.TemplateProductsModule,
+            sales_channels_module_1.SalesChannelsModule,
+            production_module_1.ProductionModule,
+            offcuts_module_1.OffcutsModule,
         ],
     })
 ], AppModule);
-//# sourceMappingURL=app.module.js.map

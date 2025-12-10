@@ -59,4 +59,3 @@ exports.priceCalculationInputSchema = zod_1.z.object({
     addOnIds: zod_1.z.array(zod_1.z.string()).default([]),
     targetMarginPercent: zod_1.z.number().min(0).max(95).default(40),
 });
-//# sourceMappingURL=validation.js.map

@@ -85,4 +85,3 @@ exports.TimeLogsService = TimeLogsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], TimeLogsService);
-//# sourceMappingURL=time-logs.service.js.map
