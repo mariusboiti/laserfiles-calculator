@@ -46,6 +46,11 @@ RUN pnpm --filter ./apps/api... build
 # This resolves workspace: links to actual packages
 RUN pnpm --filter api deploy --prod /app/deployed
 
+# Copy built workspace packages dist into deployed node_modules
+# pnpm deploy copies package.json but not the built dist/ folders
+RUN cp -r /app/packages/shared/dist /app/deployed/node_modules/@laser/shared/dist && \
+    cp -r /app/packages/pricing-engine/dist /app/deployed/node_modules/@laser/pricing-engine/dist
+
 # ------------------------
 # Stage 3: runtime image
 # ------------------------
@@ -67,5 +72,4 @@ RUN npx prisma generate
 EXPOSE 4000
 
 # Start the API
-# Note: pnpm deploy flattens the structure, so dist is at root level
 CMD ["node", "dist/apps/api/src/main.js"]
