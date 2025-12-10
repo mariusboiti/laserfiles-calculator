@@ -1,75 +1,53 @@
-# Multi-stage Dockerfile for NestJS API (apps/api)
-# Build with pnpm workspace from monorepo root
-# Uses pnpm deploy for standalone production bundle
+# Simple Dockerfile for NestJS API in pnpm monorepo
+# Keeps full workspace structure for reliable module resolution
 
-FROM node:20-alpine AS base
+FROM node:20-alpine AS builder
 
-# Enable pnpm via corepack
-ENV PNPM_HOME="/usr/local/share/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 WORKDIR /app
 
-# ------------------------
-# Stage 1: install all deps
-# ------------------------
-FROM base AS deps
-
-# Copy workspace manifests first (for layer caching)
+# Copy everything needed for install and build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY tsconfig.base.json ./
-
-# Copy all package.json files for workspace packages
-COPY apps/api/package.json ./apps/api/package.json
+COPY apps/api ./apps/api
 COPY apps/web/package.json ./apps/web/package.json
 COPY apps/mobile/package.json ./apps/mobile/package.json
-COPY packages/shared/package.json ./packages/shared/package.json
-COPY packages/pricing-engine/package.json ./packages/pricing-engine/package.json
+COPY packages ./packages
+COPY prisma ./prisma
 
-# Install all dependencies (dev + prod)
+# Install all dependencies
 RUN pnpm install --frozen-lockfile
 
-# ------------------------
-# Stage 2: build everything
-# ------------------------
-FROM deps AS build
-
-# Copy full source tree
-COPY . .
-
-# Build workspace packages first, then API
-# The ... suffix builds all dependencies of apps/api
+# Build workspace packages and API
 RUN pnpm --filter ./apps/api... build
 
-# Deploy API with all its dependencies to a standalone folder
-# This resolves workspace: links to actual packages
-RUN pnpm --filter api deploy --prod /app/deployed
+# Generate Prisma client
+RUN pnpm --filter api exec prisma generate
 
-# Copy built workspace packages dist into deployed node_modules
-# pnpm deploy copies package.json but not the built dist/ folders
-RUN cp -r /app/packages/shared/dist /app/deployed/node_modules/@laser/shared/dist && \
-    cp -r /app/packages/pricing-engine/dist /app/deployed/node_modules/@laser/pricing-engine/dist
+# ----------------------------
+# Production image
+# ----------------------------
+FROM node:20-alpine AS production
 
-# ------------------------
-# Stage 3: runtime image
-# ------------------------
-FROM node:20-alpine AS api
-
-ENV NODE_ENV="production"
 WORKDIR /app
 
-# Copy the deployed standalone bundle (includes node_modules with resolved workspace deps)
-COPY --from=build /app/deployed ./
+# Copy the entire built workspace (simple and reliable)
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=builder /app/packages/pricing-engine/dist ./packages/pricing-engine/dist
+COPY --from=builder /app/packages/pricing-engine/package.json ./packages/pricing-engine/package.json
+COPY --from=builder /app/prisma ./prisma
 
-# Copy Prisma schema/migrations if needed
-COPY --from=build /app/prisma ./prisma
-
-# Generate Prisma client in production image
-RUN npx prisma generate
-
-# Expose API port
+ENV NODE_ENV=production
 EXPOSE 4000
 
-# Start the API
-CMD ["node", "dist/apps/api/src/main.js"]
+# Run directly with node - no pnpm needed at runtime
+CMD ["node", "apps/api/dist/apps/api/src/main.js"]
