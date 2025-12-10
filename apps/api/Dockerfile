@@ -50,21 +50,23 @@ RUN corepack enable
 
 WORKDIR /app
 
-# Copy node_modules for the whole workspace
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copy workspace package manifests (needed for pnpm to resolve workspace: links)
+# Copy workspace manifests (needed for pnpm to resolve workspace: links)
 COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=deps /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
-# Copy built workspace packages
+# Copy built workspace packages (full package with dist)
 COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/pricing-engine/package.json ./packages/pricing-engine/package.json
 COPY --from=build /app/packages/pricing-engine/dist ./packages/pricing-engine/dist
 
-# Copy built API dist
+# Copy API package.json and built dist
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
 COPY --from=build /app/apps/api/dist ./apps/api/dist
+
+# Install production dependencies only (this properly links workspace packages)
+RUN pnpm install --prod --frozen-lockfile
 
 # (Optional) copy Prisma schema/migrations if you run migrations inside the container
 COPY prisma ./prisma
