@@ -53,6 +53,16 @@ WORKDIR /app
 # Copy node_modules for the whole workspace
 COPY --from=deps /app/node_modules ./node_modules
 
+# Copy workspace package manifests (needed for pnpm to resolve workspace: links)
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+
+# Copy built workspace packages
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/pricing-engine/package.json ./packages/pricing-engine/package.json
+COPY --from=build /app/packages/pricing-engine/dist ./packages/pricing-engine/dist
+
 # Copy built API dist
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 
