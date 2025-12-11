@@ -32,6 +32,7 @@ RUN pnpm exec prisma generate --schema=./prisma/schema.prisma
 # Fix nest build output structure: copy modules from dist/ to dist/apps/api/src/
 # so relative imports work correctly at runtime
 RUN cp -r /app/apps/api/dist/entitlements /app/apps/api/dist/apps/api/src/entitlements || true && \
+    cp /app/apps/api/dist/app.globals.* /app/apps/api/dist/apps/api/src/ || true && \
     cp -r /app/apps/api/dist/production /app/apps/api/dist/apps/api/src/production || true && \
     cp -r /app/apps/api/dist/sales-channels /app/apps/api/dist/apps/api/src/sales-channels || true && \
     cp -r /app/apps/api/dist/template-products /app/apps/api/dist/apps/api/src/template-products || true && \
