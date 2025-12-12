@@ -57,4 +57,4 @@ EXPOSE 4000
 
 # Run directly with node from /app root
 WORKDIR /app
-CMD ["node", "apps/api/dist/apps/api/src/main.js"]
+CMD ["node", "apps/api/dist/main.js"]
