@@ -3,6 +3,8 @@
 
 FROM node:20-alpine
 
+RUN apk add --no-cache openssl
+
 # Install pnpm via corepack
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
