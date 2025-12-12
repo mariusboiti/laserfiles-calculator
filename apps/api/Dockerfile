@@ -29,7 +29,7 @@ RUN pnpm --filter @laser/shared build && \
     pnpm --filter ./apps/api... build
 
 # Generate Prisma client for the whole monorepo from root schema
-RUN pnpm exec prisma generate --schema=./prisma/schema.prisma
+RUN DATABASE_URL="postgresql://laser:laser@db:5432/laser?schema=public" pnpm exec prisma generate --schema=./prisma/schema.prisma
 
 # Fix nest build output structure: copy modules from dist/ to dist/apps/api/src/
 # so relative imports work correctly at runtime
