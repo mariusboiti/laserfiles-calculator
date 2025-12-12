@@ -38,8 +38,10 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: [/http:\/\/localhost:\d+$/],
+    origin: ['http://77.42.38.96:3000', 'http://localhost:3000'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
@@ -63,7 +65,7 @@ async function bootstrap() {
   }
 
   const port = process.env.PORT || 4000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 }
 
 bootstrap();
