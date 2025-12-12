@@ -56,6 +56,7 @@ WORKDIR /app/apps/web
 
 # Copy workspace node_modules and built Next app
 COPY --from=deps /app/node_modules /app/node_modules
+COPY --from=deps /app/apps/web/node_modules ./node_modules
 COPY --from=build /app/apps/web/.next ./.next
 RUN mkdir -p ./public
 COPY --from=build /app/apps/web/public ./public
@@ -66,4 +67,4 @@ COPY --from=build /app/apps/web/next.config.mjs ./next.config.mjs
 EXPOSE 3000
 
 # Start Next.js in production mode
-CMD ["node", "/app/node_modules/next/dist/bin/next", "start", "-p", "3000"]
+CMD ["node", "/app/apps/web/node_modules/next/dist/bin/next", "start", "-p", "3000"]
