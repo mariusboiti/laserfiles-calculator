@@ -74,6 +74,8 @@ The web app uses:
 
 Defaults to `http://localhost:4000` if the variable is not set.
 
+In production (Docker), `NEXT_PUBLIC_API_URL` must be reachable from the user's browser (public host/IP), not a Docker-internal hostname like `http://api:4000`. Because it is a `NEXT_PUBLIC_` variable, it is inlined into the Next.js client build, so changing it requires rebuilding the web image.
+
 ---
 
 ## 3. Default login
@@ -289,5 +291,6 @@ Two Prisma models support the entitlements system:
 - **`WorkspacePlanSnapshot`** – Audit trail of entitlements at login time (plan, features, limits)
 
 These enable offline entitlements validation and identity federation.
-#   l a s e r f i l e s - c a l c u l a t o r  
+#   l a s e r f i l e s - c a l c u l a t o r 
+ 
  
