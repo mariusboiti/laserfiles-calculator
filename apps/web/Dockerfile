@@ -32,10 +32,10 @@ RUN pnpm install --frozen-lockfile
 # ------------------------
 FROM deps AS build
 
-ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG NEXT_PUBLIC_API_URL=http://77.42.38.96:4000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Copy full source tree
+# Copy full source tree.
 COPY . .
 
 # Ensure public folder exists so later COPY never fails
