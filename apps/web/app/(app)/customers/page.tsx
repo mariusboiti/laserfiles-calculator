@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface Customer {
   id: string;
@@ -22,6 +23,7 @@ interface CustomersListResponse {
 }
 
 export default function CustomersPage() {
+  const t = useT();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export default function CustomersPage() {
       });
       setCustomers(res.data.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load customers';
+      const message = err?.response?.data?.message || t('customers.failed_to_load');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -62,7 +64,7 @@ export default function CustomersPage() {
   async function handleCreateCustomer(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setSaveError('Name is required');
+      setSaveError(t('customers.validation.name_required'));
       return;
     }
 
@@ -81,7 +83,7 @@ export default function CustomersPage() {
       setPhone('');
       setNotes('');
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create customer';
+      const message = err?.response?.data?.message || t('customers.failed_to_create');
       setSaveError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setSaving(false);
@@ -92,15 +94,15 @@ export default function CustomersPage() {
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Customers</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t('customers.title')}</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Manage your customers so you can attach them to orders.
+            {t('customers.subtitle')}
           </p>
         </div>
         <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center gap-2 text-sm">
           <input
             type="text"
-            placeholder="Search name, email or phone..."
+            placeholder={t('customers.search_placeholder')}
             className="w-40 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 md:w-60"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -109,7 +111,7 @@ export default function CustomersPage() {
             type="submit"
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600"
           >
-            Search
+            {t('customers.search')}
           </button>
         </form>
       </div>
@@ -117,13 +119,14 @@ export default function CustomersPage() {
       <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <form
           onSubmit={handleCreateCustomer}
+          data-tour="customers-add-form"
           className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
           <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Add customer
+            {t('customers.add_customer')}
           </div>
           <label className="flex flex-col gap-1">
-            <span>Name *</span>
+            <span>{t('customers.form.name')}</span>
             <input
               type="text"
               value={name}
@@ -133,7 +136,7 @@ export default function CustomersPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Email</span>
+            <span>{t('customers.form.email')}</span>
             <input
               type="email"
               value={email}
@@ -142,7 +145,7 @@ export default function CustomersPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Phone</span>
+            <span>{t('customers.form.phone')}</span>
             <input
               type="text"
               value={phone}
@@ -151,7 +154,7 @@ export default function CustomersPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Notes</span>
+            <span>{t('customers.form.notes')}</span>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -165,23 +168,25 @@ export default function CustomersPage() {
             disabled={saving}
             className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? 'Saving…' : 'Save customer'}
+            {saving ? t('customers.saving') : t('customers.save_customer')}
           </button>
         </form>
 
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between gap-2">
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Customers list
+              {t('customers.list_title')}
             </div>
-            <div className="text-[11px] text-slate-500">Total: {customers.length}</div>
+            <div className="text-[11px] text-slate-500">
+              {t('customers.total')}: {customers.length}
+            </div>
           </div>
 
-          {loading && <p className="text-xs text-slate-400">Loading customers...</p>}
+          {loading && <p className="text-xs text-slate-400">{t('customers.loading')}</p>}
           {error && !loading && <p className="text-xs text-red-400">{error}</p>}
 
           {!loading && !error && customers.length === 0 && (
-            <p className="text-xs text-slate-400">No customers found.</p>
+            <p className="text-xs text-slate-400">{t('customers.none_found')}</p>
           )}
 
           {!loading && !error && customers.length > 0 && (
@@ -189,10 +194,10 @@ export default function CustomersPage() {
               <table className="min-w-full text-left text-xs text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Name</th>
-                    <th className="px-3 py-2">Contact</th>
-                    <th className="px-3 py-2">Notes</th>
-                    <th className="px-3 py-2">Created</th>
+                    <th className="px-3 py-2">{t('customers.table.name')}</th>
+                    <th className="px-3 py-2">{t('customers.table.contact')}</th>
+                    <th className="px-3 py-2">{t('customers.table.notes')}</th>
+                    <th className="px-3 py-2">{t('customers.table.created')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -211,16 +216,16 @@ export default function CustomersPage() {
                         {c.phone && (
                           <div className="text-[11px] text-slate-400">{c.phone}</div>
                         )}
-                        {!c.email && !c.phone && <div className="text-slate-400">-</div>}
+                        {!c.email && !c.phone && <div className="text-slate-400">{t('common.none')}</div>}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300 max-w-xs">
-                        {c.notes ?? '-'}
+                        {c.notes ?? t('common.none')}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-400">
                         <div>{new Date(c.createdAt).toLocaleString()}</div>
                         {typeof c._count?.orders === 'number' && (
                           <div className="text-[11px] text-slate-500">
-                            Orders: {c._count.orders}
+                            {t('customers.orders')}: {c._count.orders}
                           </div>
                         )}
                       </td>

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface MaterialListItem {
   id: string;
@@ -55,6 +56,7 @@ interface PricePreviewResult {
 }
 
 export default function PricingPage() {
+  const t = useT();
   const [materials, setMaterials] = useState<MaterialListItem[]>([]);
   const [materialsLoading, setMaterialsLoading] = useState(true);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export default function PricingPage() {
           setMaterialId(res.data.data[0].id);
         }
       } catch (err: any) {
-        const message = err?.response?.data?.message || 'Failed to load materials';
+        const message = err?.response?.data?.message || t('materials.failed_to_load');
         setMaterialsError(Array.isArray(message) ? message.join(', ') : String(message));
       } finally {
         setMaterialsLoading(false);
@@ -110,7 +112,7 @@ export default function PricingPage() {
         const res = await apiClient.get<CustomersListResponse>('/customers');
         setCustomers(res.data.data);
       } catch (err: any) {
-        const message = err?.response?.data?.message || 'Failed to load customers';
+        const message = err?.response?.data?.message || t('customers.failed_to_load');
         setCustomersError(
           Array.isArray(message) ? message.join(', ') : String(message),
         );
@@ -125,7 +127,7 @@ export default function PricingPage() {
   async function handleCalculate(e: FormEvent) {
     e.preventDefault();
     if (!materialId) {
-      setPreviewError('Please select a material');
+      setPreviewError(t('pricing.validation.select_material'));
       return;
     }
 
@@ -151,7 +153,7 @@ export default function PricingPage() {
       const res = await apiClient.post<PricePreviewResult>('/pricing/preview', body);
       setPreview(res.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to calculate price';
+      const message = err?.response?.data?.message || t('pricing.failed_to_calculate');
       setPreviewError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setPreviewLoading(false);
@@ -160,7 +162,7 @@ export default function PricingPage() {
 
   async function handleSaveQuote() {
     if (!preview) {
-      setSaveError('Nothing to save yet. Calculate a price first.');
+      setSaveError(t('pricing.validation.nothing_to_save'));
       return;
     }
 
@@ -183,9 +185,9 @@ export default function PricingPage() {
       }
 
       const res = await apiClient.post<{ id: string }>('/quotes', payload);
-      setSaveMessage(`Quote saved (ID: ${res.data.id.slice(0, 8)}...)`);
+      setSaveMessage(`${t('pricing.quote_saved_prefix')} (ID: ${res.data.id.slice(0, 8)}...)`);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to save quote';
+      const message = err?.response?.data?.message || t('pricing.failed_to_save_quote');
       setSaveError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setSavingQuote(false);
@@ -196,20 +198,20 @@ export default function PricingPage() {
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Pricing &amp; Quotes</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t('pricing.title')}</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Estimate cost for a laser job based on material, size, time and margin.
+            {t('pricing.subtitle')}
           </p>
         </div>
       </div>
 
-      {materialsLoading && <p className="text-sm text-slate-400">Loading materials...</p>}
+      {materialsLoading && <p className="text-sm text-slate-400">{t('pricing.loading_materials')}</p>}
       {materialsError && !materialsLoading && (
         <p className="text-sm text-red-400">{materialsError}</p>
       )}
 
       {!materialsLoading && !materialsError && materials.length === 0 && (
-        <p className="text-sm text-slate-400">No materials available. Add a material first.</p>
+        <p className="text-sm text-slate-400">{t('pricing.no_materials_available')}</p>
       )}
 
       {materials.length > 0 && (
@@ -221,12 +223,13 @@ export default function PricingPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Job parameters
+                  {t('pricing.job_parameters')}
                 </div>
                 <label className="flex flex-col gap-1">
-                  <span>Material</span>
+                  <span>{t('pricing.material')}</span>
                   <select
                     value={materialId}
+                    data-tour="pricing-material-select"
                     onChange={(e) => setMaterialId(e.target.value)}
                     className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                   >
@@ -238,13 +241,13 @@ export default function PricingPage() {
                   </select>
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span>Customer (optional)</span>
+                  <span>{t('pricing.customer_optional')}</span>
                   <select
                     value={customerId}
                     onChange={(e) => setCustomerId(e.target.value)}
                     className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                   >
-                    <option value="">(none)</option>
+                    <option value="">{t('common.none')}</option>
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.email ? `(${c.email})` : ''}
@@ -253,7 +256,7 @@ export default function PricingPage() {
                   </select>
                   {customersLoading && (
                     <span className="mt-1 text-[11px] text-slate-500">
-                      Loading customers...
+                      {t('pricing.loading_customers')}
                     </span>
                   )}
                   {customersError && (
@@ -263,7 +266,7 @@ export default function PricingPage() {
                   )}
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span>Quantity</span>
+                  <span>{t('pricing.quantity')}</span>
                   <input
                     type="number"
                     min={1}
@@ -274,7 +277,7 @@ export default function PricingPage() {
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="flex flex-col gap-1">
-                    <span>Width (mm)</span>
+                    <span>{t('pricing.width_mm')}</span>
                     <input
                       type="number"
                       min={1}
@@ -284,7 +287,7 @@ export default function PricingPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Height (mm)</span>
+                    <span>{t('pricing.height_mm')}</span>
                     <input
                       type="number"
                       min={1}
@@ -298,10 +301,10 @@ export default function PricingPage() {
 
               <div className="space-y-2">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Costs &amp; margin
+                  {t('pricing.costs_margin')}
                 </div>
                 <label className="flex flex-col gap-1">
-                  <span>Waste (%)</span>
+                  <span>{t('pricing.waste_percent')}</span>
                   <input
                     type="number"
                     min={0}
@@ -312,7 +315,7 @@ export default function PricingPage() {
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="flex flex-col gap-1">
-                    <span>Machine minutes</span>
+                    <span>{t('pricing.machine_minutes')}</span>
                     <input
                       type="number"
                       min={0}
@@ -322,7 +325,7 @@ export default function PricingPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Machine hourly cost</span>
+                    <span>{t('pricing.machine_hourly_cost')}</span>
                     <input
                       type="number"
                       min={0}
@@ -333,7 +336,7 @@ export default function PricingPage() {
                   </label>
                 </div>
                 <label className="flex flex-col gap-1">
-                  <span>Target margin (%)</span>
+                  <span>{t('pricing.target_margin_percent')}</span>
                   <input
                     type="number"
                     min={0}
@@ -354,9 +357,10 @@ export default function PricingPage() {
             <button
               type="submit"
               disabled={previewLoading}
+              data-tour="pricing-calc-button"
               className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {previewLoading ? 'Calculating…' : 'Calculate price'}
+              {previewLoading ? t('pricing.calculating') : t('pricing.calculate_price')}
             </button>
           </form>
 
@@ -364,55 +368,56 @@ export default function PricingPage() {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Breakdown
+                  {t('pricing.breakdown')}
                 </div>
                 <p className="mt-1 text-[11px] text-slate-400">
-                  See cost components and recommended selling price.
+                  {t('pricing.breakdown_subtitle')}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleSaveQuote}
                 disabled={!preview || savingQuote}
+                data-tour="pricing-save-quote"
                 className="rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {savingQuote ? 'Saving…' : 'Save quote'}
+                {savingQuote ? t('pricing.saving') : t('pricing.save_quote')}
               </button>
             </div>
 
             {!preview && !previewLoading && (
-              <p className="text-xs text-slate-400">Fill in the form and calculate to see a breakdown.</p>
+              <p className="text-xs text-slate-400">{t('pricing.fill_form_to_breakdown')}</p>
             )}
 
             {preview && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3 text-xs md:grid-cols-3">
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
-                    <div className="text-[11px] text-slate-400">Material cost</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.material_cost')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {preview.breakdown.materialCost.toFixed(2)}
                     </div>
                   </div>
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
-                    <div className="text-[11px] text-slate-400">Machine cost</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.machine_cost')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {preview.breakdown.machineCost.toFixed(2)}
                     </div>
                   </div>
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
-                    <div className="text-[11px] text-slate-400">Labor / add-ons</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.labor_addons')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {preview.breakdown.laborCost.toFixed(2)}
                     </div>
                   </div>
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2 md:col-span-2">
-                    <div className="text-[11px] text-slate-400">Total cost</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.total_cost')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {preview.breakdown.totalCost.toFixed(2)}
                     </div>
                   </div>
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
-                    <div className="text-[11px] text-slate-400">Margin</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.margin')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {preview.breakdown.marginPercent.toFixed(1)}%
                     </div>
@@ -423,10 +428,10 @@ export default function PricingPage() {
                   <div className="flex items-baseline justify-between gap-2">
                     <div>
                       <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                        Recommended price
+                        {t('pricing.recommended_price')}
                       </div>
                       <p className="text-[11px] text-slate-400">
-                        Based on total cost and target margin.
+                        {t('pricing.based_on_total_cost')}
                       </p>
                     </div>
                     <div className="text-lg font-semibold text-emerald-400">
@@ -437,10 +442,10 @@ export default function PricingPage() {
 
                 <div className="space-y-1">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                    Add-ons applied
+                    {t('pricing.addons_applied')}
                   </div>
                   {preview.breakdown.addOns.length === 0 ? (
-                    <p className="text-[11px] text-slate-400">No add-ons applied.</p>
+                    <p className="text-[11px] text-slate-400">{t('pricing.no_addons_applied')}</p>
                   ) : (
                     <ul className="space-y-1 text-[11px]">
                       {preview.breakdown.addOns.map((a) => (

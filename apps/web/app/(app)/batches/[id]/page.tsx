@@ -494,7 +494,7 @@ export default function BatchDetailPage() {
             {offcutSuggestions && offcutSuggestions.length === 0 && !offcutSuggestionsError && (
               <p className="text-[11px] text-slate-500">
                 Nu există încă offcuts disponibile care să acopere aria necesară pentru acest
-                batch. Poți înregistra resturi în secțiunea "Scrap & Offcuts".
+                batch. Poți înregistra resturi în secțiunea &quot;Scrap &amp; Offcuts&quot;.
               </p>
             )}
             {offcutSuggestions && offcutSuggestions.length > 0 && (
@@ -536,7 +536,7 @@ export default function BatchDetailPage() {
                               <div className="text-slate-400">{s.fitReason}</div>
                             </div>
                             <span className="text-[10px] text-slate-500">
-                              Vezi detalii și acțiuni în panoul "Scrap & Offcuts" sau la nivel de
+                              Vezi detalii și acțiuni în panoul &#34;Scrap &amp; Offcuts&#34; sau la nivel de
                               item de comandă.
                             </span>
                           </li>
