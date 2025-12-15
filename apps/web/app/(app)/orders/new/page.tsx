@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient } from '../../../../lib/api-client';
+import { useT } from '../../i18n';
 
 interface CustomerOption {
   id: string;
@@ -67,6 +68,7 @@ const emptyItem: ItemForm = {
 };
 
 export default function NewOrderPage() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromQuoteId = searchParams.get('fromQuote');
@@ -100,7 +102,7 @@ export default function NewOrderPage() {
           setCustomerId(customersRes.data.data[0].id);
         }
       } catch (err: any) {
-        const message = err?.response?.data?.message || 'Failed to load customers/materials';
+        const message = err?.response?.data?.message || t('new_order.failed_to_load_meta');
         setMetaError(Array.isArray(message) ? message.join(', ') : String(message));
       } finally {
         setLoadingMeta(false);
@@ -133,7 +135,7 @@ export default function NewOrderPage() {
           setItems([
             {
               ...emptyItem,
-              title: `From quote ${quote.id.slice(0, 8)}...`,
+              title: `${t('new_order.from_quote')} ${quote.id.slice(0, 8)}...`,
               materialId: material.id,
               quantity: String(pricingInput.quantity ?? 1),
               widthMm:
@@ -189,7 +191,7 @@ export default function NewOrderPage() {
     setSaveError(null);
 
     if (!customerId) {
-      setSaveError('Please select a customer');
+      setSaveError(t('new_order.validation.select_customer'));
       return;
     }
 
@@ -205,7 +207,7 @@ export default function NewOrderPage() {
       .filter((item) => item.title && item.quantity && item.quantity > 0);
 
     if (preparedItems.length === 0) {
-      setSaveError('Please define at least one valid item (title + quantity).');
+      setSaveError(t('new_order.validation.define_item'));
       return;
     }
 
@@ -229,7 +231,7 @@ export default function NewOrderPage() {
       const res = await apiClient.post<CreateOrderResponse>('/orders', body);
       router.push(`/orders/${res.data.id}`);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create order';
+      const message = err?.response?.data?.message || t('new_order.failed_to_create');
       setSaveError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setSaving(false);
@@ -246,7 +248,7 @@ export default function NewOrderPage() {
 
     if (!item.materialId || !quantity || quantity <= 0 || !widthMm || widthMm <= 0 || !heightMm || heightMm <= 0) {
       updateItem(index, {
-        pricePreviewError: 'Set material, quantity, width and height before pricing.',
+        pricePreviewError: t('new_order.validation.item_pricing_requirements'),
         pricePreviewLoading: false,
       });
       return;
@@ -270,7 +272,7 @@ export default function NewOrderPage() {
 
       if (!breakdown || typeof breakdown.recommendedPrice !== 'number') {
         updateItem(index, {
-          pricePreviewError: 'Pricing service did not return a valid result.',
+          pricePreviewError: t('new_order.validation.pricing_invalid_result'),
           pricePreviewLoading: false,
         });
         return;
@@ -288,7 +290,7 @@ export default function NewOrderPage() {
         },
       });
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to preview price';
+      const message = err?.response?.data?.message || t('new_order.failed_to_preview_price');
       updateItem(index, {
         pricePreviewError: Array.isArray(message) ? message.join(', ') : String(message),
         pricePreviewLoading: false,
@@ -302,14 +304,14 @@ export default function NewOrderPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Link href="/orders" className="text-sky-400 hover:underline">
-              Orders
+              {t('new_order.breadcrumb_orders')}
             </Link>
             <span>/</span>
-            <span>New order</span>
+            <span>{t('new_order.breadcrumb_new')}</span>
           </div>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">New order</h1>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">{t('new_order.title')}</h1>
           <p className="text-xs text-slate-400">
-            Create a new order for an existing customer.
+            {t('new_order.subtitle')}
           </p>
         </div>
       </div>
@@ -319,12 +321,12 @@ export default function NewOrderPage() {
       )}
 
       {loadingMeta && !metaError && (
-        <p className="text-sm text-slate-400">Loading customers and materials...</p>
+        <p className="text-sm text-slate-400">{t('new_order.loading_meta')}</p>
       )}
 
       {!loadingMeta && !metaError && customers.length === 0 && (
         <p className="text-sm text-slate-400">
-          You do not have any customers yet. Go to the Customers page to add one, then come back here.
+          {t('new_order.no_customers_yet')}
         </p>
       )}
 
@@ -336,10 +338,10 @@ export default function NewOrderPage() {
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
               <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Customer &amp; meta
+                {t('new_order.customer_meta')}
               </div>
               <label className="flex flex-col gap-1">
-                <span>Customer</span>
+                <span>{t('new_order.customer')}</span>
                 <select
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
@@ -353,34 +355,34 @@ export default function NewOrderPage() {
                 </select>
               </label>
               <label className="flex flex-col gap-1">
-                <span>Priority</span>
+                <span>{t('new_order.priority')}</span>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as OrderPriority)}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 >
-                  <option value="NORMAL">NORMAL</option>
-                  <option value="URGENT">URGENT</option>
+                  <option value="NORMAL">{t('new_order.priority.normal')}</option>
+                  <option value="URGENT">{t('new_order.priority.urgent')}</option>
                 </select>
               </label>
               <label className="flex flex-col gap-1">
-                <span>Notes</span>
+                <span>{t('new_order.notes')}</span>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                  placeholder="Optional notes for this order"
+                  placeholder={t('new_order.notes_placeholder')}
                 />
               </label>
             </div>
 
             <div className="space-y-2">
               <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Items
+                {t('new_order.items')}
               </div>
               <p className="text-[11px] text-slate-400">
-                Add one or more items. At minimum, set a title and quantity.
+                {t('new_order.items_subtitle')}
               </p>
             </div>
           </div>
@@ -393,7 +395,7 @@ export default function NewOrderPage() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                    Item {index + 1}
+                    {t('new_order.item')} {index + 1}
                   </div>
                   {items.length > 1 && (
                     <button
@@ -401,13 +403,13 @@ export default function NewOrderPage() {
                       onClick={() => removeItem(index)}
                       className="text-[11px] text-red-300 hover:text-red-200"
                     >
-                      Remove
+                      {t('new_order.remove')}
                     </button>
                   )}
                 </div>
                 <div className="grid gap-2 md:grid-cols-3">
                   <label className="flex flex-col gap-1 md:col-span-2">
-                    <span>Title *</span>
+                    <span>{t('new_order.item_title')}</span>
                     <input
                       type="text"
                       value={item.title}
@@ -416,7 +418,7 @@ export default function NewOrderPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Quantity *</span>
+                    <span>{t('new_order.item_quantity')}</span>
                     <input
                       type="number"
                       min={1}
@@ -428,13 +430,13 @@ export default function NewOrderPage() {
                 </div>
                 <div className="grid gap-2 md:grid-cols-3">
                   <label className="flex flex-col gap-1">
-                    <span>Material</span>
+                    <span>{t('new_order.item_material')}</span>
                     <select
                       value={item.materialId}
                       onChange={(e) => updateItem(index, { materialId: e.target.value })}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
-                      <option value="">(none)</option>
+                      <option value="">{t('common.none')}</option>
                       {materials.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name} {m.thicknessMm}mm {m.unitType}
@@ -443,7 +445,7 @@ export default function NewOrderPage() {
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Width (mm)</span>
+                    <span>{t('pricing.width_mm')}</span>
                     <input
                       type="number"
                       min={1}
@@ -453,7 +455,7 @@ export default function NewOrderPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Height (mm)</span>
+                    <span>{t('pricing.height_mm')}</span>
                     <input
                       type="number"
                       min={1}
@@ -465,7 +467,7 @@ export default function NewOrderPage() {
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   <label className="flex flex-col gap-1">
-                    <span>Customization text</span>
+                    <span>{t('new_order.item_customization')}</span>
                     <input
                       type="text"
                       value={item.customizationText}
@@ -474,7 +476,7 @@ export default function NewOrderPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Estimated minutes</span>
+                    <span>{t('new_order.item_estimated_minutes')}</span>
                     <input
                       type="number"
                       min={1}
@@ -492,15 +494,17 @@ export default function NewOrderPage() {
                       disabled={item.pricePreviewLoading}
                       className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {item.pricePreviewLoading ? 'Calculating price…' : 'Preview price'}
+                      {item.pricePreviewLoading
+                        ? t('new_order.calculating_price')
+                        : t('new_order.preview_price')}
                     </button>
                     {item.pricePreview && (
                       <div className="text-right text-[11px] text-slate-200">
                         <div>
-                          Recommended: {item.pricePreview.recommendedPrice.toFixed(2)}
+                          {t('new_order.recommended')}: {item.pricePreview.recommendedPrice.toFixed(2)}
                         </div>
                         <div className="text-slate-500">
-                          Cost: {item.pricePreview.totalCost.toFixed(2)}
+                          {t('new_order.cost')}: {item.pricePreview.totalCost.toFixed(2)}
                         </div>
                       </div>
                     )}
@@ -518,7 +522,7 @@ export default function NewOrderPage() {
               onClick={addItem}
               className="rounded-md border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-800"
             >
-              Add another item
+              {t('new_order.add_another_item')}
             </button>
           </div>
 
@@ -529,7 +533,7 @@ export default function NewOrderPage() {
             disabled={saving}
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? 'Creating order…' : 'Create order'}
+            {saving ? t('new_order.creating') : t('new_order.create')}
           </button>
         </form>
       )}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface QuoteItem {
   id: string;
@@ -24,6 +25,7 @@ interface QuotesListResponse {
 }
 
 export default function QuotesPage() {
+  const t = useT();
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export default function QuotesPage() {
         const res = await apiClient.get<QuotesListResponse>('/quotes');
         setQuotes(res.data.data);
       } catch (err: any) {
-        const message = err?.response?.data?.message || 'Failed to load quotes';
+        const message = err?.response?.data?.message || t('quotes.failed_to_load');
         setError(Array.isArray(message) ? message.join(', ') : String(message));
       } finally {
         setLoading(false);
@@ -49,35 +51,38 @@ export default function QuotesPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-        <h1 className="text-xl font-semibold tracking-tight">Quotes</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t('quotes.title')}</h1>
         <p className="text-xs text-slate-400">
-          Saved pricing calculations you can refer back to.
+          {t('quotes.subtitle')}
         </p>
       </div>
 
-      {loading && <p className="text-sm text-slate-400">Loading quotes...</p>}
+      {loading && <p className="text-sm text-slate-400">{t('quotes.loading')}</p>}
       {error && !loading && <p className="text-sm text-red-400">{error}</p>}
 
       {!loading && !error && quotes.length === 0 && (
-        <p className="text-sm text-slate-400">No quotes found yet. Use the Pricing screen to save one.</p>
+        <p className="text-sm text-slate-400">{t('quotes.none_found')}</p>
       )}
 
       {!loading && !error && quotes.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
+        <div
+          className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60"
+          data-tour="quotes-table"
+        >
           <table className="min-w-full text-left text-xs text-slate-200">
             <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
               <tr>
-                <th className="px-3 py-2">Quote</th>
-                <th className="px-3 py-2">Customer</th>
-                <th className="px-3 py-2">Material</th>
-                <th className="px-3 py-2">Recommended price</th>
-                <th className="px-3 py-2">Created</th>
+                <th className="px-3 py-2">{t('quotes.table.quote')}</th>
+                <th className="px-3 py-2">{t('quotes.table.customer')}</th>
+                <th className="px-3 py-2">{t('quotes.table.material')}</th>
+                <th className="px-3 py-2">{t('quotes.table.recommended_price')}</th>
+                <th className="px-3 py-2">{t('quotes.table.created')}</th>
               </tr>
             </thead>
             <tbody>
               {quotes.map((q) => {
                 const data = q.dataJson || {};
-                const materialName = data.material?.name ?? '-';
+                const materialName = data.material?.name ?? t('common.none');
                 const breakdown = data.breakdown ?? null;
                 let recommended: number | null = null;
                 if (breakdown && breakdown.recommendedPrice != null) {
@@ -104,7 +109,7 @@ export default function QuotesPage() {
                           )}
                         </div>
                       ) : (
-                        <span className="text-slate-400">No customer</span>
+                        <span className="text-slate-400">{t('quotes.no_customer')}</span>
                       )}
                     </td>
                     <td className="px-3 py-2 align-top text-xs text-slate-300">{materialName}</td>
@@ -112,7 +117,7 @@ export default function QuotesPage() {
                       {recommended != null ? (
                         <span>{recommended.toFixed(2)}</span>
                       ) : (
-                        <span className="text-slate-400">N/A</span>
+                        <span className="text-slate-400">{t('quotes.na')}</span>
                       )}
                     </td>
                     <td className="px-3 py-2 align-top text-xs text-slate-400">

@@ -547,8 +547,8 @@ export default function SalesChannelsMappingsPage() {
             )}
             {!suggestionsLoading && suggestions.length === 0 && !suggestionsError && (
               <p className="text-[11px] text-slate-400">
-                No suggestions yet. Import some orders for this connection and run "Suggest
-                mappings".
+                No suggestions yet. Import some orders for this connection and run &quot;Suggest
+                mappings&quot;.
               </p>
             )}
             {!suggestionsLoading && suggestions.length > 0 && (

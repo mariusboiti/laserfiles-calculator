@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface OrderListItem {
   id: string;
@@ -30,6 +31,7 @@ interface OrdersListResponse {
 const STATUS_OPTIONS = ['ALL', 'NEW', 'IN_PROGRESS', 'WAITING_MATERIALS', 'READY', 'SHIPPED', 'COMPLETED', 'CANCELED'] as const;
 
 export default function OrdersPage() {
+  const t = useT();
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export default function OrdersPage() {
       });
       setOrders(res.data.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load orders';
+      const message = err?.response?.data?.message || t('orders.failed_to_load');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -69,47 +71,51 @@ export default function OrdersPage() {
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">Orders</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t('orders.title')}</h1>
           <Link
             href="/orders/new"
+            data-tour="orders-new-order"
             className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600"
           >
-            New order
+            {t('orders.new_order')}
           </Link>
         </div>
         <form onSubmit={handleFilterSubmit} className="flex flex-wrap items-center gap-2 text-sm">
           <select
             value={status}
+            data-tour="orders-status-filter"
             onChange={(e) => setStatus(e.target.value)}
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s === 'ALL' ? 'All statuses' : s.replace('_', ' ')}
+                {s === 'ALL' ? t('orders.filter.all_statuses') : s.replace('_', ' ')}
               </option>
             ))}
           </select>
           <input
             type="text"
-            placeholder="Search customer or notes..."
+            placeholder={t('orders.search_placeholder')}
             className="w-40 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 md:w-60"
+            data-tour="orders-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <button
             type="submit"
+            data-tour="orders-apply-filter"
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600"
           >
-            Apply
+            {t('orders.apply')}
           </button>
         </form>
       </div>
 
-      {loading && <p className="text-sm text-slate-400">Loading orders...</p>}
+      {loading && <p className="text-sm text-slate-400">{t('orders.loading')}</p>}
       {error && !loading && <p className="text-sm text-red-400">{error}</p>}
 
       {!loading && !error && orders.length === 0 && (
-        <p className="text-sm text-slate-400">No orders found.</p>
+        <p className="text-sm text-slate-400">{t('orders.none_found')}</p>
       )}
 
       {!loading && !error && orders.length > 0 && (
@@ -117,13 +123,13 @@ export default function OrdersPage() {
           <table className="min-w-full text-left text-xs text-slate-200">
             <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
               <tr>
-                <th className="px-3 py-2">Order</th>
-                <th className="px-3 py-2">Customer</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Priority</th>
-                <th className="px-3 py-2">Items</th>
-                <th className="px-3 py-2">Created</th>
-                <th className="px-3 py-2">Notes</th>
+                <th className="px-3 py-2">{t('orders.table.order')}</th>
+                <th className="px-3 py-2">{t('orders.table.customer')}</th>
+                <th className="px-3 py-2">{t('orders.table.status')}</th>
+                <th className="px-3 py-2">{t('orders.table.priority')}</th>
+                <th className="px-3 py-2">{t('orders.table.items')}</th>
+                <th className="px-3 py-2">{t('orders.table.created')}</th>
+                <th className="px-3 py-2">{t('orders.table.notes')}</th>
               </tr>
             </thead>
             <tbody>
@@ -164,7 +170,7 @@ export default function OrdersPage() {
                     {new Date(order.createdAt).toLocaleString()}
                   </td>
                   <td className="px-3 py-2 align-top max-w-xs text-xs text-slate-300">
-                    {order.notes ?? '-'}
+                    {order.notes ?? t('common.none')}
                   </td>
                 </tr>
               ))}

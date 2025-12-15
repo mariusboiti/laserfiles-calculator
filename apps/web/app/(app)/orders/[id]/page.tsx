@@ -4,6 +4,7 @@ import { FormEvent, Fragment, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api-client';
+import { useT } from '../../i18n';
 
 interface OrderItem {
   id: string;
@@ -241,6 +242,7 @@ interface OffcutSuggestion {
 }
 
 export default function OrderDetailPage() {
+  const t = useT();
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
@@ -312,7 +314,8 @@ export default function OrderDetailPage() {
       );
       setExternalStatus(res.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load external sync status';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_load_external_sync_status');
       setExternalStatusError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setExternalStatusLoading(false);
@@ -327,7 +330,7 @@ export default function OrderDetailPage() {
       const res = await apiClient.get<OrderDetail>(`/orders/${id}`);
       setOrder(res.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load order';
+      const message = err?.response?.data?.message || t('order_detail.failed_to_load_order');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -342,7 +345,8 @@ export default function OrderDetailPage() {
       await loadExternalStatus();
       // We keep UI minimal; details are visible in the status card.
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to retry external status push';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_retry_external_status_push');
       setExternalStatusError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setExternalStatusRetryLoading(false);
@@ -374,7 +378,7 @@ export default function OrderDetailPage() {
         setTemplateProducts(templateProductsRes.data.data);
       } catch (err: any) {
         const message =
-          err?.response?.data?.message || 'Failed to load templates/materials';
+          err?.response?.data?.message || t('order_detail.failed_to_load_templates_materials');
         setMetaError(Array.isArray(message) ? message.join(', ') : String(message));
       } finally {
         setMetaLoading(false);
@@ -413,7 +417,7 @@ export default function OrderDetailPage() {
         setBulkNameFieldKey(tmpl.fields[0].key);
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load template';
+      const message = err?.response?.data?.message || t('order_detail.failed_to_load_template');
       setTemplateError(Array.isArray(message) ? message.join(', ') : String(message));
       setSelectedTemplate(null);
     } finally {
@@ -468,7 +472,10 @@ export default function OrderDetailPage() {
 
     const qty = Number(singleQuantity) || 1;
     if (!qty || qty <= 0) {
-      setSinglePreview((prev) => ({ ...prev, error: 'Quantity must be at least 1.' }));
+      setSinglePreview((prev) => ({
+        ...prev,
+        error: t('order_detail.validation.quantity_at_least_1'),
+      }));
       return;
     }
 
@@ -493,7 +500,7 @@ export default function OrderDetailPage() {
     if (missingRequired) {
       setSinglePreview((prev) => ({
         ...prev,
-        error: 'Please fill all required personalization fields.',
+        error: t('order_detail.validation.fill_required_personalization'),
       }));
       return;
     }
@@ -518,7 +525,8 @@ export default function OrderDetailPage() {
       );
       setSinglePreview({ loading: false, error: null, result: res.data });
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to preview template item';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_preview_template_item');
       setSinglePreview({
         loading: false,
         error: Array.isArray(message) ? message.join(', ') : String(message),
@@ -528,6 +536,7 @@ export default function OrderDetailPage() {
   }
 
   async function loadOffcutSuggestionsForItem(itemId: string) {
+    if (!order) return;
     setOffcutSuggestions((prev) => ({
       ...prev,
       [itemId]: {
@@ -553,7 +562,8 @@ export default function OrderDetailPage() {
         },
       }));
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load offcut suggestions';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_load_offcut_suggestions');
       setOffcutSuggestions((prev) => ({
         ...prev,
         [itemId]: {
@@ -574,14 +584,14 @@ export default function OrderDetailPage() {
       });
       await loadOffcutSuggestionsForItem(itemId);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to reserve offcut';
+      const message = err?.response?.data?.message || t('order_detail.failed_to_reserve_offcut');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setOffcutActionKey((current) => (current === key ? null : current));
     }
   }
 
-  async function useFullOffcutForItem(itemId: string, offcutId: string) {
+  async function markFullOffcutUsedForItem(itemId: string, offcutId: string) {
     const key = `usefull:${itemId}:${offcutId}`;
     setOffcutActionKey(key);
     try {
@@ -590,22 +600,23 @@ export default function OrderDetailPage() {
       });
       await loadOffcutSuggestionsForItem(itemId);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to mark offcut as used';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_mark_offcut_used');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setOffcutActionKey((current) => (current === key ? null : current));
     }
   }
 
-  async function usePartialOffcutForItem(itemId: string, offcutId: string) {
+  async function logPartialOffcutUsageForItem(itemId: string, offcutId: string) {
     const key = `usepartial:${itemId}:${offcutId}`;
-    const input = window.prompt('Approximate used area (mm²) pentru acest item?');
+    const input = window.prompt(t('order_detail.offcut_prompt_used_area'));
     if (!input) {
       return;
     }
     const usedArea = Number(input.replace(/[^0-9.]/g, ''));
     if (!usedArea || usedArea <= 0) {
-      alert('Valoare de arie invalidă.');
+      alert(t('order_detail.offcut_invalid_area'));
       return;
     }
 
@@ -617,7 +628,8 @@ export default function OrderDetailPage() {
       });
       await loadOffcutSuggestionsForItem(itemId);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to log partial usage';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_log_partial_usage');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setOffcutActionKey((current) => (current === key ? null : current));
@@ -631,19 +643,19 @@ export default function OrderDetailPage() {
     setTpError(null);
 
     if (!selectedTemplateProductId) {
-      setTpError('Select a template product.');
+      setTpError(t('order_detail.validation.select_template_product'));
       return;
     }
 
     const tp = templateProducts.find((p) => p.id === selectedTemplateProductId);
     if (!tp) {
-      setTpError('Selected template product not found.');
+      setTpError(t('order_detail.validation.template_product_not_found'));
       return;
     }
 
     const qty = Number(tpQuantity || tp.defaultQuantity);
     if (!qty || qty <= 0) {
-      setTpError('Quantity must be at least 1.');
+      setTpError(t('order_detail.validation.quantity_at_least_1'));
       return;
     }
 
@@ -651,7 +663,7 @@ export default function OrderDetailPage() {
     if (tpPriceOverride.trim()) {
       const parsed = Number(tpPriceOverride.trim());
       if (Number.isNaN(parsed)) {
-        setTpError('Price override must be a number.');
+        setTpError(t('order_detail.validation.price_override_number'));
         return;
       }
       priceOverrideValue = parsed;
@@ -685,7 +697,7 @@ export default function OrderDetailPage() {
       setTpPriceOverride('');
     } catch (err: any) {
       const message =
-        err?.response?.data?.message || 'Failed to add item from template product';
+        err?.response?.data?.message || t('order_detail.failed_to_add_item_from_template_product');
       setTpError(Array.isArray(message) ? message.join(', ') : String(message));
       setTpLoading(false);
     }
@@ -697,7 +709,10 @@ export default function OrderDetailPage() {
 
     const qty = Number(singleQuantity) || 1;
     if (!qty || qty <= 0) {
-      setSinglePreview((prev) => ({ ...prev, error: 'Quantity must be at least 1.' }));
+      setSinglePreview((prev) => ({
+        ...prev,
+        error: t('order_detail.validation.quantity_at_least_1'),
+      }));
       return;
     }
 
@@ -722,7 +737,7 @@ export default function OrderDetailPage() {
     if (missingRequired) {
       setSinglePreview((prev) => ({
         ...prev,
-        error: 'Please fill all required personalization fields.',
+        error: t('order_detail.validation.fill_required_personalization'),
       }));
       return;
     }
@@ -744,7 +759,8 @@ export default function OrderDetailPage() {
       await reloadOrder();
       setSinglePreview({ loading: false, error: null, result: null });
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to add template item';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_add_template_item');
       setSinglePreview({
         loading: false,
         error: Array.isArray(message) ? message.join(', ') : String(message),
@@ -760,7 +776,7 @@ export default function OrderDetailPage() {
     if (!bulkNameFieldKey) {
       setBulkPreview((prev) => ({
         ...prev,
-        error: 'Select a personalization field for the names.',
+        error: t('order_detail.validation.select_personalization_field_for_names'),
       }));
       return;
     }
@@ -769,7 +785,7 @@ export default function OrderDetailPage() {
     if (items.length === 0) {
       setBulkPreview((prev) => ({
         ...prev,
-        error: 'Enter at least one non-empty line (optionally with |qty).',
+        error: t('order_detail.validation.enter_at_least_one_line'),
       }));
       return;
     }
@@ -791,7 +807,8 @@ export default function OrderDetailPage() {
       );
       setBulkPreview({ loading: false, error: null, result: res.data });
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to preview bulk items';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_preview_bulk_items');
       setBulkPreview({
         loading: false,
         error: Array.isArray(message) ? message.join(', ') : String(message),
@@ -807,7 +824,7 @@ export default function OrderDetailPage() {
     if (!bulkNameFieldKey) {
       setBulkPreview((prev) => ({
         ...prev,
-        error: 'Select a personalization field for the names.',
+        error: t('order_detail.validation.select_personalization_field_for_names'),
       }));
       return;
     }
@@ -816,7 +833,7 @@ export default function OrderDetailPage() {
     if (items.length === 0) {
       setBulkPreview((prev) => ({
         ...prev,
-        error: 'Enter at least one non-empty line (optionally with |qty).',
+        error: t('order_detail.validation.enter_at_least_one_line'),
       }));
       return;
     }
@@ -835,7 +852,7 @@ export default function OrderDetailPage() {
       await reloadOrder();
       setBulkPreview({ loading: false, error: null, result: null });
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to add bulk items';
+      const message = err?.response?.data?.message || t('order_detail.failed_to_add_bulk_items');
       setBulkPreview({
         loading: false,
         error: Array.isArray(message) ? message.join(', ') : String(message),
@@ -860,7 +877,7 @@ export default function OrderDetailPage() {
         ...prev,
         [itemId]: {
           loading: false,
-          error: 'Set material, quantity, width and height before pricing.',
+          error: t('order_detail.validation.pricing_requirements'),
         },
       }));
       return;
@@ -901,7 +918,8 @@ export default function OrderDetailPage() {
         [itemId]: { loading: false, error: null },
       }));
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to recalculate price';
+      const message =
+        err?.response?.data?.message || t('order_detail.failed_to_recalculate_price');
       setPricingState((prev) => ({
         ...prev,
         [itemId]: {
@@ -913,11 +931,11 @@ export default function OrderDetailPage() {
   }
 
   if (!id) {
-    return <p className="text-sm text-red-400">Missing order id in URL.</p>;
+    return <p className="text-sm text-red-400">{t('order_detail.missing_id')}</p>;
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-400">Loading order...</p>;
+    return <p className="text-sm text-slate-400">{t('order_detail.loading')}</p>;
   }
 
   if (error) {
@@ -925,7 +943,7 @@ export default function OrderDetailPage() {
   }
 
   if (!order) {
-    return <p className="text-sm text-slate-400">Order not found.</p>;
+    return <p className="text-sm text-slate-400">{t('order_detail.not_found')}</p>;
   }
 
   const totalItems = order.items.length;
@@ -949,7 +967,7 @@ export default function OrderDetailPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Link href="/orders" className="text-sky-400 hover:underline">
-              Orders
+              {t('orders.title')}
             </Link>
             <span>/</span>
             <span>{order.id.slice(0, 8)}...</span>
@@ -963,7 +981,7 @@ export default function OrderDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
-            Status: {order.status.replace('_', ' ')}
+            {t('order_detail.status')}: {order.status.replace('_', ' ')}
           </span>
           <span
             className={`inline-flex rounded-full px-2 py-0.5 ${
@@ -972,13 +990,13 @@ export default function OrderDetailPage() {
                 : 'bg-slate-800 text-slate-200'
             }`}
           >
-            Priority: {order.priority}
+            {t('order_detail.priority')}: {order.priority}
           </span>
           <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
-            Items: {totalItems}
+            {t('order_detail.items')}: {totalItems}
           </span>
           <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
-            Created: {new Date(order.createdAt).toLocaleString()}
+            {t('order_detail.created')}: {new Date(order.createdAt).toLocaleString()}
           </span>
         </div>
       </div>
@@ -987,10 +1005,10 @@ export default function OrderDetailPage() {
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between gap-2">
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              External status sync
+              {t('order_detail.external_sync_title')}
             </div>
             {externalStatusLoading && (
-              <div className="text-[11px] text-slate-400">Checking…</div>
+              <div className="text-[11px] text-slate-400">{t('order_detail.external_checking')}</div>
             )}
           </div>
           {externalStatusError && (
@@ -1016,7 +1034,7 @@ export default function OrderDetailPage() {
                   </div>
                   {link.lastSync ? (
                     <div className="text-[11px] text-slate-400">
-                      Last push:{' '}
+                      {t('order_detail.external_last_push')}{' '}
                       <span
                         className={
                           link.lastSync.status === 'SUCCESS'
@@ -1026,7 +1044,7 @@ export default function OrderDetailPage() {
                       >
                         {link.lastSync.status}
                       </span>{' '}
-                      at {new Date(link.lastSync.createdAt).toLocaleString()}
+                      {t('order_detail.external_at')} {new Date(link.lastSync.createdAt).toLocaleString()}
                       {link.lastSync.errorMessage && (
                         <span className="ml-1 text-[11px] text-red-300">
                           · {link.lastSync.errorMessage}
@@ -1034,7 +1052,7 @@ export default function OrderDetailPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="text-[11px] text-slate-400">No status push yet.</div>
+                    <div className="text-[11px] text-slate-400">{t('order_detail.external_no_push')}</div>
                   )}
                 </div>
                 <div>
@@ -1044,7 +1062,9 @@ export default function OrderDetailPage() {
                     disabled={externalStatusRetryLoading}
                     className="rounded-md border border-sky-600 px-3 py-1 text-[11px] text-sky-300 hover:bg-sky-900/40 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {externalStatusRetryLoading ? 'Retrying…' : 'Retry push'}
+                    {externalStatusRetryLoading
+                      ? t('order_detail.external_retrying')
+                      : t('order_detail.external_retry_push')}
                   </button>
                 </div>
               </div>
@@ -1056,28 +1076,27 @@ export default function OrderDetailPage() {
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
           <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Pricing summary
+            {t('order_detail.pricing_summary')}
           </div>
           <div className="space-y-1">
             <div>
-              Total recommended price:{' '}
+              {t('order_detail.total_recommended_price')}:{' '}
               <span className="font-semibold">
                 {totalRecommendedPrice.toFixed(2)}
               </span>
             </div>
             <div className="text-slate-400">
-              Items priced: {pricedItems.length} / {totalItems}
+              {t('order_detail.items_priced')}: {pricedItems.length} / {totalItems}
             </div>
             {unpricedItemsCount > 0 && (
               <div className="text-[11px] text-amber-300">
-                {unpricedItemsCount} item(s) have no saved price yet. Use the
-                "Recalculate" button on each item after setting material and size.
+                {unpricedItemsCount} {t('order_detail.unpriced_notice')}
               </div>
             )}
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
-            <div className="mb-2 text-sm font-medium">Add item from template</div>
+            <div className="mb-2 text-sm font-medium">{t('order_detail.add_item_from_template')}</div>
             {metaError && (
               <p className="mb-2 text-[11px] text-red-400">{metaError}</p>
             )}
@@ -1085,22 +1104,22 @@ export default function OrderDetailPage() {
               <p className="mb-2 text-[11px] text-red-400">{templateError}</p>
             )}
             {metaLoading && (
-              <p className="text-[11px] text-slate-400">Loading templates and materials...</p>
+              <p className="text-[11px] text-slate-400">{t('order_detail.loading_templates_materials')}</p>
             )}
             {!metaLoading && templates.length === 0 && !metaError && (
-              <p className="text-[11px] text-slate-400">No active templates available.</p>
+              <p className="text-[11px] text-slate-400">{t('order_detail.no_active_templates')}</p>
             )}
             {!metaLoading && templates.length > 0 && (
               <form className="space-y-2" onSubmit={handleAddSingleFromTemplate}>
                 <div className="grid gap-2 md:grid-cols-3">
                   <label className="flex flex-col gap-1">
-                    <span>Template</span>
+                    <span>{t('order_detail.template')}</span>
                     <select
                       value={selectedTemplateId}
                       onChange={(e) => loadTemplateDetails(e.target.value)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
-                      <option value="">Select template</option>
+                      <option value="">{t('order_detail.select_template')}</option>
                       {templates.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name}
@@ -1109,14 +1128,14 @@ export default function OrderDetailPage() {
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Variant</span>
+                    <span>{t('order_detail.variant')}</span>
                     <select
                       value={singleVariantId}
                       onChange={(e) => setSingleVariantId(e.target.value)}
                       disabled={!selectedTemplate || selectedTemplate.variants.length === 0}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none disabled:opacity-60 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
-                      <option value="">Default</option>
+                      <option value="">{t('order_detail.default')}</option>
                       {selectedTemplate?.variants.map((v) => (
                         <option key={v.id} value={v.id}>
                           {v.name}
@@ -1128,13 +1147,13 @@ export default function OrderDetailPage() {
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Material</span>
+                    <span>{t('order_detail.material')}</span>
                     <select
                       value={singleMaterialId}
                       onChange={(e) => setSingleMaterialId(e.target.value)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
-                      <option value="">Use default from template/variant</option>
+                      <option value="">{t('order_detail.use_default_from_template_variant')}</option>
                       {materials.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name} {m.thicknessMm}mm {m.unitType}
@@ -1145,7 +1164,7 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="grid gap-2 md:grid-cols-4">
                   <label className="flex flex-col gap-1">
-                    <span>Quantity</span>
+                    <span>{t('order_detail.quantity')}</span>
                     <input
                       type="number"
                       min={1}
@@ -1158,7 +1177,7 @@ export default function OrderDetailPage() {
                 {selectedTemplate && selectedTemplate.fields.length > 0 && (
                   <div className="space-y-1 border-t border-slate-800 pt-2">
                     <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                      Personalization
+                      {t('order_detail.personalization')}
                     </div>
                     <div className="grid gap-2 md:grid-cols-2">
                       {selectedTemplate.fields.map((field) => (
@@ -1195,25 +1214,27 @@ export default function OrderDetailPage() {
                     disabled={singlePreview.loading || !selectedTemplateId}
                     className="rounded-md border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {singlePreview.loading ? 'Previewing…' : 'Preview price'}
+                    {singlePreview.loading
+                      ? t('order_detail.previewing')
+                      : t('order_detail.preview_price')}
                   </button>
                   <button
                     type="submit"
                     disabled={singlePreview.loading || !selectedTemplateId}
                     className="rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Add item
+                    {t('order_detail.add_item')}
                   </button>
                   {singlePreview.result && (
                     <div className="ml-auto text-right text-[11px] text-slate-200">
                       <div>
-                        Recommended: {(
+                        {t('order_detail.recommended')}: {(
                           singlePreview.result.price.recommendedPrice ?? 0
                         ).toFixed(2)}
                       </div>
                       {typeof singlePreview.result.price.totalCost === 'number' && (
                         <div className="text-slate-500">
-                          Cost: {singlePreview.result.price.totalCost.toFixed(2)}
+                          {t('order_detail.cost')}: {singlePreview.result.price.totalCost.toFixed(2)}
                         </div>
                       )}
                     </div>
@@ -1223,12 +1244,12 @@ export default function OrderDetailPage() {
             )}
           </div>
           <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
-            <div className="mb-2 text-sm font-medium">Add item from Template Product</div>
+            <div className="mb-2 text-sm font-medium">{t('order_detail.add_item_from_template_product')}</div>
             {templateProducts.length === 0 && !metaLoading && (
               <p className="text-[11px] text-slate-400">
-                No template products defined yet. You can create them in{' '}
+                {t('order_detail.no_template_products_defined')}{' '}
                 <Link href="/template-products" className="text-sky-400 hover:underline">
-                  Template Products
+                  {t('order_detail.template_products')}
                 </Link>
                 .
               </p>
@@ -1238,13 +1259,13 @@ export default function OrderDetailPage() {
                 {tpError && <p className="text-[11px] text-red-400">{tpError}</p>}
                 <div className="grid gap-2 md:grid-cols-3">
                   <label className="flex flex-col gap-1">
-                    <span>Template product</span>
+                    <span>{t('order_detail.template_product')}</span>
                     <select
                       value={selectedTemplateProductId}
                       onChange={(e) => setSelectedTemplateProductId(e.target.value)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
-                      <option value="">Select template product</option>
+                      <option value="">{t('order_detail.select_template_product')}</option>
                       {templateProducts.map((tp) => (
                         <option key={tp.id} value={tp.id}>
                           {tp.name}
@@ -1254,25 +1275,25 @@ export default function OrderDetailPage() {
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Quantity</span>
+                    <span>{t('order_detail.quantity')}</span>
                     <input
                       type="number"
                       min={1}
                       value={tpQuantity}
                       onChange={(e) => setTpQuantity(e.target.value)}
-                      placeholder="Use default"
+                      placeholder={t('order_detail.use_default')}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Price override</span>
+                    <span>{t('order_detail.price_override')}</span>
                     <input
                       type="number"
                       min={0}
                       step="0.01"
                       value={tpPriceOverride}
                       onChange={(e) => setTpPriceOverride(e.target.value)}
-                      placeholder="Use preset or engine"
+                      placeholder={t('order_detail.use_preset_or_engine')}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     />
                   </label>
@@ -1283,7 +1304,7 @@ export default function OrderDetailPage() {
                     disabled={tpLoading || !selectedTemplateProductId}
                     className="rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {tpLoading ? 'Adding…' : 'Add from preset'}
+                    {tpLoading ? t('order_detail.adding') : t('order_detail.add_from_preset')}
                   </button>
                 </div>
               </form>
@@ -1294,7 +1315,7 @@ export default function OrderDetailPage() {
 
       {order.notes && (
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
-          <div className="mb-1 font-medium">Notes</div>
+          <div className="mb-1 font-medium">{t('order_detail.notes')}</div>
           <p>{order.notes}</p>
         </div>
       )}
@@ -1302,21 +1323,21 @@ export default function OrderDetailPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-            <div className="mb-2 text-sm font-medium">Items</div>
+            <div className="mb-2 text-sm font-medium">{t('order_detail.items_title')}</div>
             {order.items.length === 0 && (
-              <p className="text-xs text-slate-400">No items on this order.</p>
+              <p className="text-xs text-slate-400">{t('order_detail.no_items_on_order')}</p>
             )}
             {order.items.length > 0 && (
               <div className="overflow-x-auto text-xs">
                 <table className="min-w-full text-left">
                   <thead className="border-b border-slate-800 text-[11px] uppercase tracking-wide text-slate-400">
                     <tr>
-                      <th className="px-2 py-1">Title</th>
-                      <th className="px-2 py-1">Material</th>
-                      <th className="px-2 py-1">Qty</th>
-                      <th className="px-2 py-1">Size (mm)</th>
-                      <th className="px-2 py-1">Est. min</th>
-                      <th className="px-2 py-1">Price</th>
+                      <th className="px-2 py-1">{t('order_detail.table.title')}</th>
+                      <th className="px-2 py-1">{t('order_detail.table.material')}</th>
+                      <th className="px-2 py-1">{t('order_detail.table.qty')}</th>
+                      <th className="px-2 py-1">{t('order_detail.table.size_mm')}</th>
+                      <th className="px-2 py-1">{t('order_detail.table.est_min')}</th>
+                      <th className="px-2 py-1">{t('order_detail.table.price')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1338,7 +1359,7 @@ export default function OrderDetailPage() {
                                 <div className="mt-0.5 space-y-0.5 text-[11px] text-slate-500">
                                   {item.template && item.template.name && (
                                     <div>
-                                      Template: {item.template.name}
+                                      {t('order_detail.template_prefix')} {item.template.name}
                                       {item.templateVariant && item.templateVariant.name && (
                                         <span>
                                           {' '}- {item.templateVariant.name}
@@ -1347,12 +1368,14 @@ export default function OrderDetailPage() {
                                     </div>
                                   )}
                                   {item.templateProduct && item.templateProduct.name && (
-                                    <div>From preset: {item.templateProduct.name}</div>
+                                    <div>
+                                      {t('order_detail.from_preset_prefix')} {item.templateProduct.name}
+                                    </div>
                                   )}
                                   {item.personalizationJson &&
                                     typeof item.personalizationJson === 'object' && (
                                       <div>
-                                        Personalization:{' '}
+                                        {t('order_detail.personalization')}:{' '}
                                         {Object.entries(item.personalizationJson)
                                           .slice(0, 3)
                                           .map(([key, value], idx) => (
@@ -1372,7 +1395,7 @@ export default function OrderDetailPage() {
                               )}
                             </td>
                             <td className="px-2 py-1 align-top text-slate-300">
-                              {item.material ? item.material.name : '-'}
+                              {item.material ? item.material.name : t('common.none')}
                             </td>
                             <td className="px-2 py-1 align-top text-slate-300">
                               {item.quantity}
@@ -1380,10 +1403,10 @@ export default function OrderDetailPage() {
                             <td className="px-2 py-1 align-top text-slate-300">
                               {item.widthMm && item.heightMm
                                 ? `${item.widthMm} × ${item.heightMm}`
-                                : '-'}
+                                : t('common.none')}
                             </td>
                             <td className="px-2 py-1 align-top text-slate-300">
-                              {item.estimatedMinutes ?? '-'}
+                              {item.estimatedMinutes ?? t('common.none')}
                             </td>
                             <td className="px-2 py-1 align-top text-slate-300">
                               {(() => {
@@ -1405,13 +1428,13 @@ export default function OrderDetailPage() {
                                       <div>
                                         <div>
                                           {recommended !== null
-                                            ? `Recommended: ${recommended.toFixed(2)}`
-                                            : '-'}
+                                            ? `${t('order_detail.recommended')}: ${recommended.toFixed(2)}`
+                                            : t('common.none')}
                                         </div>
                                         {breakdown &&
                                           typeof breakdown.totalCost === 'number' && (
                                             <div className="text-[11px] text-slate-500">
-                                              Cost: {breakdown.totalCost.toFixed(2)}
+                                              {t('order_detail.cost')}: {breakdown.totalCost.toFixed(2)}
                                             </div>
                                           )}
                                       </div>
@@ -1421,7 +1444,9 @@ export default function OrderDetailPage() {
                                         disabled={state.loading}
                                         className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                                       >
-                                        {state.loading ? 'Recalculating…' : 'Recalculate'}
+                                        {state.loading
+                                          ? t('order_detail.recalculating')
+                                          : t('order_detail.recalculate')}
                                       </button>
                                     </div>
                                     {state.error && (
@@ -1437,18 +1462,18 @@ export default function OrderDetailPage() {
                           <tr className="border-t border-slate-900 bg-slate-950/80">
                             <td className="px-2 pb-2 pt-1" colSpan={6}>
                               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-                                <span>Sugestii offcuts pentru acest item</span>
+                                <span>{t('order_detail.offcuts_title')}</span>
                                 <button
                                   type="button"
                                   onClick={() => loadOffcutSuggestionsForItem(item.id)}
                                   className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
                                 >
-                                  Vezi sugestii
+                                  {t('order_detail.offcuts_view_suggestions')}
                                 </button>
                               </div>
                               {suggestionState?.loading && (
                                 <p className="mt-1 text-[11px] text-slate-400">
-                                  Se caută sugestii de resturi reutilizabile…
+                                  {t('order_detail.offcuts_loading')}
                                 </p>
                               )}
                               {suggestionState?.error && !suggestionState.loading && (
@@ -1461,8 +1486,7 @@ export default function OrderDetailPage() {
                                 !suggestionState.error &&
                                 suggestionState.items.length === 0 && (
                                   <p className="mt-1 text-[11px] text-slate-500">
-                                    Nu există offcuts potrivite pentru acest item (în funcție de
-                                    material, grosime și dimensiuni).
+                                    {t('order_detail.offcuts_none_found')}
                                   </p>
                                 )}
                               {suggestionState &&
@@ -1480,7 +1504,7 @@ export default function OrderDetailPage() {
                                             2,
                                           )} m²`;
                                         }
-                                        return 'dimensiuni aproximative';
+                                        return t('order_detail.offcuts_approx_dimensions');
                                       })();
                                       const reserveKey = `reserve:${item.id}:${s.offcutId}`;
                                       const fullKey = `usefull:${item.id}:${s.offcutId}`;
@@ -1492,12 +1516,13 @@ export default function OrderDetailPage() {
                                         >
                                           <div className="space-y-0.5 text-slate-200">
                                             <div>
-                                              {item.material?.name || 'Material'} · {s.thicknessMm}
+                                              {item.material?.name || t('order_detail.material_fallback')} · {s.thicknessMm}
                                               mm
                                             </div>
                                             <div className="text-slate-400">
                                               {sizeLabel}
-                                              {s.locationLabel && ` · Locație: ${s.locationLabel}`}
+                                              {s.locationLabel &&
+                                                ` · ${t('order_detail.location_prefix')} ${s.locationLabel}`}
                                             </div>
                                             <div className="text-slate-400">{s.fitReason}</div>
                                           </div>
@@ -1508,23 +1533,23 @@ export default function OrderDetailPage() {
                                               disabled={offcutActionKey === reserveKey}
                                               className="rounded-md border border-slate-700 px-2 py-0.5 text-[10px] text-slate-200 hover:bg-slate-800 disabled:opacity-60"
                                             >
-                                              Rezervă
+                                              {t('order_detail.reserve')}
                                             </button>
                                             <button
                                               type="button"
-                                              onClick={() => useFullOffcutForItem(item.id, s.offcutId)}
+                                              onClick={() => markFullOffcutUsedForItem(item.id, s.offcutId)}
                                               disabled={offcutActionKey === fullKey}
                                               className="rounded-md border border-emerald-500 px-2 py-0.5 text-[10px] text-emerald-300 hover:bg-emerald-900/40 disabled:opacity-60"
                                             >
-                                              Folosește tot
+                                              {t('order_detail.use_full')}
                                             </button>
                                             <button
                                               type="button"
-                                              onClick={() => usePartialOffcutForItem(item.id, s.offcutId)}
+                                              onClick={() => logPartialOffcutUsageForItem(item.id, s.offcutId)}
                                               disabled={offcutActionKey === partialKey}
                                               className="rounded-md border border-sky-500 px-2 py-0.5 text-[10px] text-sky-300 hover:bg-sky-900/40 disabled:opacity-60"
                                             >
-                                              Folosește parțial
+                                              {t('order_detail.use_partial')}
                                             </button>
                                           </div>
                                         </li>
@@ -1544,9 +1569,9 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-            <div className="mb-2 text-sm font-medium">Files</div>
+            <div className="mb-2 text-sm font-medium">{t('order_detail.files')}</div>
             {order.files.length === 0 && (
-              <p className="text-xs text-slate-400">No files uploaded yet.</p>
+              <p className="text-xs text-slate-400">{t('order_detail.no_files_uploaded')}</p>
             )}
             {order.files.length > 0 && (
               <ul className="space-y-1 text-xs">
@@ -1572,25 +1597,24 @@ export default function OrderDetailPage() {
 
         <div className="space-y-3">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
-            <div className="mb-2 text-sm font-medium">Bulk add from template</div>
+            <div className="mb-2 text-sm font-medium">{t('order_detail.bulk_add_from_template')}</div>
             {!selectedTemplate && (
               <p className="text-[11px] text-slate-400">
-                Select a template in the "Add item from template" card to enable bulk
-                add.
+                {t('order_detail.bulk_select_template_notice')}
               </p>
             )}
             {selectedTemplate && (
               <form className="space-y-2" onSubmit={handleAddBulkFromTemplate}>
                 <div className="grid gap-2 md:grid-cols-2">
                   <label className="flex flex-col gap-1">
-                    <span>Variant</span>
+                    <span>{t('order_detail.variant')}</span>
                     <select
                       value={bulkVariantId}
                       onChange={(e) => setBulkVariantId(e.target.value)}
                       disabled={selectedTemplate.variants.length === 0}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none disabled:opacity-60 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
-                      <option value="">Default</option>
+                      <option value="">{t('order_detail.default')}</option>
                       {selectedTemplate.variants.map((v) => (
                         <option key={v.id} value={v.id}>
                           {v.name}
@@ -1599,13 +1623,13 @@ export default function OrderDetailPage() {
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Material</span>
+                    <span>{t('order_detail.material')}</span>
                     <select
                       value={bulkMaterialId}
                       onChange={(e) => setBulkMaterialId(e.target.value)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
-                      <option value="">Use default from template/variant</option>
+                      <option value="">{t('order_detail.use_default_from_template_variant')}</option>
                       {materials.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name} {m.thicknessMm}mm {m.unitType}
@@ -1614,13 +1638,13 @@ export default function OrderDetailPage() {
                     </select>
                   </label>
                   <label className="flex flex-col gap-1 md:col-span-2">
-                    <span>Name field</span>
+                    <span>{t('order_detail.name_field')}</span>
                     <select
                       value={bulkNameFieldKey}
                       onChange={(e) => setBulkNameFieldKey(e.target.value)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
-                      <option value="">Select field to fill from each line</option>
+                      <option value="">{t('order_detail.select_field_to_fill')}</option>
                       {selectedTemplate.fields.map((f) => (
                         <option key={f.id} value={f.key}>
                           {f.label} ({f.key})
@@ -1630,13 +1654,13 @@ export default function OrderDetailPage() {
                   </label>
                 </div>
                 <label className="flex flex-col gap-1">
-                  <span>Lines (one per item, optional `|qty`)</span>
+                  <span>{t('order_detail.lines_label')}</span>
                   <textarea
                     rows={5}
                     value={bulkLines}
                     onChange={(e) => setBulkLines(e.target.value)}
                     className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    placeholder={"e.g.\nAna\nBogdan|2\nClaudia"}
+                    placeholder={t('order_detail.lines_placeholder')}
                   />
                 </label>
                 {bulkPreview.error && (
@@ -1649,19 +1673,19 @@ export default function OrderDetailPage() {
                     disabled={bulkPreview.loading}
                     className="rounded-md border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {bulkPreview.loading ? 'Previewing…' : 'Preview bulk'}
+                    {bulkPreview.loading ? t('order_detail.previewing') : t('order_detail.preview_bulk')}
                   </button>
                   <button
                     type="submit"
                     disabled={bulkPreview.loading}
                     className="rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Add items
+                    {t('order_detail.add_items')}
                   </button>
                 </div>
                 {bulkPreview.result && bulkPreview.result.items.length > 0 && (
                   <div className="mt-2 space-y-1 rounded-lg border border-slate-800 bg-slate-900/60 p-2 text-[11px]">
-                    <div className="mb-1 font-medium text-slate-200">Preview items</div>
+                    <div className="mb-1 font-medium text-slate-200">{t('order_detail.preview_items')}</div>
                     <ul className="space-y-1">
                       {bulkPreview.result.items.map((it, idx) => (
                         <li key={idx} className="flex items-center justify-between gap-2">
@@ -1681,9 +1705,9 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-            <div className="mb-2 text-sm font-medium">Activity log</div>
+            <div className="mb-2 text-sm font-medium">{t('order_detail.activity_log')}</div>
             {order.activityLog.length === 0 && (
-              <p className="text-xs text-slate-400">No activity yet.</p>
+              <p className="text-xs text-slate-400">{t('order_detail.no_activity_yet')}</p>
             )}
             {order.activityLog.length > 0 && (
               <ul className="space-y-2 text-xs">
@@ -1700,7 +1724,7 @@ export default function OrderDetailPage() {
                     </div>
                     {entry.user && (
                       <div className="text-[11px] text-slate-500">
-                        by {entry.user.name || entry.user.email}
+                        {t('order_detail.by')} {entry.user.name || entry.user.email}
                       </div>
                     )}
                   </li>

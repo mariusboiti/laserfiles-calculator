@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api-client';
+import { useT } from '../../i18n';
 
 interface QuoteDetail {
   id: string;
@@ -18,6 +19,7 @@ interface QuoteDetail {
 }
 
 export default function QuoteDetailPage() {
+  const t = useT();
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
@@ -39,7 +41,7 @@ export default function QuoteDetailPage() {
         const res = await apiClient.get<QuoteDetail>(`/quotes/${id}`);
         setQuote(res.data);
       } catch (err: any) {
-        const message = err?.response?.data?.message || 'Failed to load quote';
+        const message = err?.response?.data?.message || t('quote_detail.failed_to_load');
         setError(Array.isArray(message) ? message.join(', ') : String(message));
       } finally {
         setLoading(false);
@@ -50,11 +52,11 @@ export default function QuoteDetailPage() {
   }, [id]);
 
   if (!id) {
-    return <p className="text-sm text-red-400">Missing quote id in URL.</p>;
+    return <p className="text-sm text-red-400">{t('quote_detail.missing_id')}</p>;
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-400">Loading quote...</p>;
+    return <p className="text-sm text-slate-400">{t('quote_detail.loading')}</p>;
   }
 
   if (error) {
@@ -62,7 +64,7 @@ export default function QuoteDetailPage() {
   }
 
   if (!quote) {
-    return <p className="text-sm text-slate-400">Quote not found.</p>;
+    return <p className="text-sm text-slate-400">{t('quote_detail.not_found')}</p>;
   }
 
   const data = quote.dataJson || {};
@@ -93,7 +95,7 @@ export default function QuoteDetailPage() {
         }
       } catch (err: any) {
         const message =
-          err?.response?.data?.message || 'Failed to create order from quote';
+          err?.response?.data?.message || t('quote_detail.failed_to_create_order');
         setCreateOrderError(
           Array.isArray(message) ? message.join(', ') : String(message),
         );
@@ -112,14 +114,15 @@ export default function QuoteDetailPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Link href="/quotes" className="text-sky-400 hover:underline">
-              Quotes
+              {t('quotes.title')}
             </Link>
             <span>/</span>
             <span>{quote.id.slice(0, 8)}...</span>
           </div>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">Quote detail</h1>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">{t('quote_detail.title')}</h1>
           <p className="text-xs text-slate-400">
-            Created at {new Date(quote.createdAt).toLocaleString()}
+            {t('quote_detail.created_at_prefix')}{' '}
+            {new Date(quote.createdAt).toLocaleString()}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1 text-xs">
@@ -130,15 +133,14 @@ export default function QuoteDetailPage() {
             className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {creatingOrder
-              ? 'Creating order…'
+              ? t('new_order.creating')
               : quote.customer
-              ? 'Create order from quote'
-              : 'Start order from quote'}
+              ? t('quote_detail.create_order_from_quote')
+              : t('quote_detail.start_order_from_quote')}
           </button>
           {!quote.customer && (
             <p className="max-w-xs text-right text-[11px] text-amber-300">
-              This quote is not linked to a customer. You will choose the customer on
-              the New order page.
+              {t('quote_detail.not_linked_notice')}
             </p>
           )}
           {createOrderError && (
@@ -152,10 +154,10 @@ export default function QuoteDetailPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
-            <div className="mb-2 text-sm font-medium">Job &amp; material</div>
+            <div className="mb-2 text-sm font-medium">{t('quote_detail.job_and_material')}</div>
             <div className="grid gap-2 md:grid-cols-2">
               <div>
-                <div className="text-slate-400">Customer</div>
+                <div className="text-slate-400">{t('quote_detail.customer_label')}</div>
                 {quote.customer ? (
                   <div>
                     <div className="font-medium">{quote.customer.name}</div>
@@ -164,11 +166,11 @@ export default function QuoteDetailPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="text-slate-400">No customer linked</div>
+                  <div className="text-slate-400">{t('quote_detail.no_customer_linked')}</div>
                 )}
               </div>
               <div>
-                <div className="text-slate-400">Material</div>
+                <div className="text-slate-400">{t('quote_detail.material_label')}</div>
                 {material ? (
                   <div>
                     <div className="font-medium">{material.name}</div>
@@ -177,48 +179,53 @@ export default function QuoteDetailPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-slate-400">N/A</div>
+                  <div className="text-slate-400">{t('quotes.na')}</div>
                 )}
               </div>
               <div>
-                <div className="text-slate-400">Dimensions &amp; quantity</div>
+                <div className="text-slate-400">{t('quote_detail.dimensions_quantity')}</div>
                 {pricingInput ? (
                   <div>
                     <div>
                       {pricingInput.widthMm} × {pricingInput.heightMm} mm
                     </div>
-                    <div>Qty: {pricingInput.quantity}</div>
+                    <div>
+                      {t('quote_detail.qty_prefix')} {pricingInput.quantity}
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-slate-400">N/A</div>
+                  <div className="text-slate-400">{t('quotes.na')}</div>
                 )}
               </div>
               <div>
-                <div className="text-slate-400">Machine &amp; margin</div>
+                <div className="text-slate-400">{t('quote_detail.machine_margin')}</div>
                 {pricingInput ? (
                   <div>
                     <div>
-                      Machine: {pricingInput.machineMinutes ?? pricingInput.machineMinutes === 0
+                      {t('quote_detail.machine_prefix')}{' '}
+                      {pricingInput.machineMinutes ?? pricingInput.machineMinutes === 0
                         ? pricingInput.machineMinutes
                         : '-'}{' '}
-                      min
+                      {t('quote_detail.min_suffix')}
                     </div>
                     <div>
-                      Hourly cost: {pricingInput.machineHourlyCost ?? '-'}
+                      {t('quote_detail.hourly_cost')}{' '}
+                      {pricingInput.machineHourlyCost ?? '-'}
                     </div>
                     <div>
-                      Target margin: {pricingInput.targetMarginPercent ?? '-'}%
+                      {t('quote_detail.target_margin')}{' '}
+                      {pricingInput.targetMarginPercent ?? '-'}%
                     </div>
                   </div>
                 ) : (
-                  <div className="text-slate-400">N/A</div>
+                  <div className="text-slate-400">{t('quotes.na')}</div>
                 )}
               </div>
             </div>
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
-            <div className="mb-2 text-sm font-medium">Raw data</div>
+            <div className="mb-2 text-sm font-medium">{t('quote_detail.raw_data')}</div>
             <pre className="max-h-72 overflow-auto rounded-md bg-slate-950/80 p-2 text-[11px] text-slate-300">
               {JSON.stringify(data, null, 2)}
             </pre>
@@ -227,32 +234,32 @@ export default function QuoteDetailPage() {
 
         <div className="space-y-3">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
-            <div className="mb-2 text-sm font-medium">Breakdown</div>
+            <div className="mb-2 text-sm font-medium">{t('pricing.breakdown')}</div>
             {!breakdown ? (
-              <p className="text-xs text-slate-400">No breakdown stored for this quote.</p>
+              <p className="text-xs text-slate-400">{t('quote_detail.no_breakdown')}</p>
             ) : (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
-                    <div className="text-[11px] text-slate-400">Material cost</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.material_cost')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {Number(breakdown.materialCost).toFixed(2)}
                     </div>
                   </div>
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
-                    <div className="text-[11px] text-slate-400">Machine cost</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.machine_cost')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {Number(breakdown.machineCost).toFixed(2)}
                     </div>
                   </div>
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
-                    <div className="text-[11px] text-slate-400">Labor / add-ons</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.labor_addons')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {Number(breakdown.laborCost).toFixed(2)}
                     </div>
                   </div>
                   <div className="space-y-1 rounded-lg border border-slate-800 bg-slate-900/80 p-2">
-                    <div className="text-[11px] text-slate-400">Total cost</div>
+                    <div className="text-[11px] text-slate-400">{t('pricing.total_cost')}</div>
                     <div className="text-sm font-semibold text-slate-50">
                       {Number(breakdown.totalCost).toFixed(2)}
                     </div>
@@ -263,24 +270,24 @@ export default function QuoteDetailPage() {
                   <div className="flex items-baseline justify-between gap-2">
                     <div>
                       <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                        Recommended price
+                        {t('pricing.recommended_price')}
                       </div>
                       <p className="text-[11px] text-slate-400">
-                        Based on total cost and target margin.
+                        {t('pricing.based_on_total_cost')}
                       </p>
                     </div>
                     <div className="text-lg font-semibold text-emerald-400">
-                      {recommended != null ? recommended.toFixed(2) : 'N/A'}
+                      {recommended != null ? recommended.toFixed(2) : t('quotes.na')}
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-1">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                    Add-ons applied
+                    {t('pricing.addons_applied')}
                   </div>
                   {!breakdown.addOns || breakdown.addOns.length === 0 ? (
-                    <p className="text-[11px] text-slate-400">No add-ons applied.</p>
+                    <p className="text-[11px] text-slate-400">{t('pricing.no_addons_applied')}</p>
                   ) : (
                     <ul className="space-y-1 text-[11px]">
                       {breakdown.addOns.map((a: any) => (
