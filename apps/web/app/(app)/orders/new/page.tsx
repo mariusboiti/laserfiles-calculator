@@ -174,6 +174,13 @@ export default function NewOrderPage() {
     materials,
   ]);
 
+  function formatUnitType(value: string) {
+    const upper = String(value).toUpperCase();
+    if (upper === 'SHEET') return t('unit.sheet');
+    if (upper === 'M2') return t('unit.m2');
+    return String(value);
+  }
+
   function updateItem(index: number, patch: Partial<ItemForm>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   }
@@ -439,7 +446,7 @@ export default function NewOrderPage() {
                       <option value="">{t('common.none')}</option>
                       {materials.map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.name} {m.thicknessMm}mm {m.unitType}
+                          {m.name} {m.thicknessMm}mm {formatUnitType(m.unitType)}
                         </option>
                       ))}
                     </select>

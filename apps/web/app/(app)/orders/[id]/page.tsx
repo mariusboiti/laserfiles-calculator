@@ -388,6 +388,31 @@ export default function OrderDetailPage() {
     loadMeta();
   }, []);
 
+  function formatOrderStatus(value: string) {
+    const key = `order.status.${String(value).toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? String(value).replace(/_/g, ' ') : translated;
+  }
+
+  function formatOrderPriority(value: string) {
+    const key = `order.priority.${String(value).toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? String(value) : translated;
+  }
+
+  function formatSyncStatus(value: string) {
+    const key = `sync.status.${String(value).toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? String(value) : translated;
+  }
+
+  function formatUnitType(value: string) {
+    const upper = String(value).toUpperCase();
+    if (upper === 'SHEET') return t('unit.sheet');
+    if (upper === 'M2') return t('unit.m2');
+    return String(value);
+  }
+
   async function loadTemplateDetails(templateId: string) {
     setSelectedTemplateId(templateId);
     setSelectedTemplate(null);
@@ -981,7 +1006,7 @@ export default function OrderDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
-            {t('order_detail.status')}: {order.status.replace('_', ' ')}
+            {t('order_detail.status')}: {formatOrderStatus(order.status)}
           </span>
           <span
             className={`inline-flex rounded-full px-2 py-0.5 ${
@@ -990,7 +1015,7 @@ export default function OrderDetailPage() {
                 : 'bg-slate-800 text-slate-200'
             }`}
           >
-            {t('order_detail.priority')}: {order.priority}
+            {t('order_detail.priority')}: {formatOrderPriority(order.priority)}
           </span>
           <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
             {t('order_detail.items')}: {totalItems}
@@ -1042,7 +1067,7 @@ export default function OrderDetailPage() {
                             : 'text-red-300'
                         }
                       >
-                        {link.lastSync.status}
+                        {formatSyncStatus(link.lastSync.status)}
                       </span>{' '}
                       {t('order_detail.external_at')} {new Date(link.lastSync.createdAt).toLocaleString()}
                       {link.lastSync.errorMessage && (
@@ -1156,7 +1181,7 @@ export default function OrderDetailPage() {
                       <option value="">{t('order_detail.use_default_from_template_variant')}</option>
                       {materials.map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.name} {m.thicknessMm}mm {m.unitType}
+                          {m.name} {m.thicknessMm}mm {formatUnitType(m.unitType)}
                         </option>
                       ))}
                     </select>
@@ -1632,7 +1657,7 @@ export default function OrderDetailPage() {
                       <option value="">{t('order_detail.use_default_from_template_variant')}</option>
                       {materials.map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.name} {m.thicknessMm}mm {m.unitType}
+                          {m.name} {m.thicknessMm}mm {formatUnitType(m.unitType)}
                         </option>
                       ))}
                     </select>

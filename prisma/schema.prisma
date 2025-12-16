@@ -12,6 +12,16 @@ enum UserRole {
   WORKER
 }
 
+enum UserPlan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum UsageAction {
+  EXPORT
+}
+
 enum OrderStatus {
   NEW
   IN_PROGRESS
@@ -168,6 +178,7 @@ model User {
   password  String
   name      String
   role      UserRole         @default(WORKER)
+  plan      UserPlan         @default(FREE)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -178,6 +189,7 @@ model User {
   offcutUsages        OffcutUsage[]   @relation("UserOffcutUsages")
   offcutReservations  OffcutReservation[] @relation("UserOffcutReservations")
   identityLinks       UserIdentityLink[]
+  usageEvents         UsageEvent[]
 }
 
 // Identity provider types for SSO linking
@@ -791,4 +803,15 @@ model TemplateMaterialHint {
   updatedAt               DateTime         @updatedAt
 
   @@index([templateId])
+}
+
+model UsageEvent {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  toolKey   String
+  action    UsageAction
+  createdAt DateTime    @default(now())
+
+  @@index([userId, toolKey, action, createdAt])
 }
