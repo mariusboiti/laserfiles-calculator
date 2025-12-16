@@ -16,6 +16,7 @@ import { TemplateProductsModule } from './template-products/template-products.mo
 import { SalesChannelsModule } from './sales-channels/sales-channels.module';
 import { ProductionModule } from './production/production.module';
 import { OffcutsModule } from './offcuts/offcuts.module';
+import { UsageModule } from './usage/usage.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { OffcutsModule } from './offcuts/offcuts.module';
     SalesChannelsModule,
     ProductionModule,
     OffcutsModule,
+    UsageModule,
   ],
 })
 export class AppModule {}

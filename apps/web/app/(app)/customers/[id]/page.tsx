@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api-client';
+import { useT } from '../../i18n';
 
 interface CustomerDetailOrder {
   id: string;
@@ -28,6 +29,7 @@ interface CustomerDetail {
 }
 
 export default function CustomerDetailPage() {
+  const t = useT();
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
@@ -41,6 +43,18 @@ export default function CustomerDetailPage() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  function formatOrderStatus(value: string) {
+    const key = `order.status.${String(value).toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? String(value).replace(/_/g, ' ') : translated;
+  }
+
+  function formatOrderPriority(value: string) {
+    const key = `order.priority.${String(value).toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? String(value) : translated;
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -56,7 +70,7 @@ export default function CustomerDetailPage() {
         setPhone(res.data.phone ?? '');
         setNotes(res.data.notes ?? '');
       } catch (err: any) {
-        const message = err?.response?.data?.message || 'Failed to load customer';
+        const message = err?.response?.data?.message || t('customer_detail.failed_to_load');
         setError(Array.isArray(message) ? message.join(', ') : String(message));
       } finally {
         setLoading(false);
@@ -70,7 +84,7 @@ export default function CustomerDetailPage() {
     e.preventDefault();
     if (!id || !customer) return;
     if (!name.trim()) {
-      setSaveError('Name is required');
+      setSaveError(t('customers.validation.name_required'));
       return;
     }
 
@@ -87,7 +101,7 @@ export default function CustomerDetailPage() {
       const res = await apiClient.patch<CustomerDetail>(`/customers/${id}`, body);
       setCustomer(res.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update customer';
+      const message = err?.response?.data?.message || t('customer_detail.failed_to_update');
       setSaveError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setSaving(false);
@@ -95,11 +109,11 @@ export default function CustomerDetailPage() {
   }
 
   if (!id) {
-    return <p className="text-sm text-red-400">Missing customer id in URL.</p>;
+    return <p className="text-sm text-red-400">{t('customer_detail.missing_id')}</p>;
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-400">Loading customer...</p>;
+    return <p className="text-sm text-slate-400">{t('customer_detail.loading')}</p>;
   }
 
   if (error) {
@@ -107,7 +121,7 @@ export default function CustomerDetailPage() {
   }
 
   if (!customer) {
-    return <p className="text-sm text-slate-400">Customer not found.</p>;
+    return <p className="text-sm text-slate-400">{t('customer_detail.not_found')}</p>;
   }
 
   const totalOrders = customer.orders.length;
@@ -118,7 +132,7 @@ export default function CustomerDetailPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Link href="/customers" className="text-sky-400 hover:underline">
-              Customers
+              {t('customers.title')}
             </Link>
             <span>/</span>
             <span>{customer.name}</span>
@@ -130,10 +144,10 @@ export default function CustomerDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
-            Orders: {totalOrders}
+            {t('customer_detail.orders_label')}: {totalOrders}
           </span>
           <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
-            Created: {new Date(customer.createdAt).toLocaleString()}
+            {t('customer_detail.created_label')}: {new Date(customer.createdAt).toLocaleString()}
           </span>
         </div>
       </div>
@@ -144,10 +158,10 @@ export default function CustomerDetailPage() {
           className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
           <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Edit customer
+            {t('customer_detail.edit_customer')}
           </div>
           <label className="flex flex-col gap-1">
-            <span>Name *</span>
+            <span>{t('customers.form.name')}</span>
             <input
               type="text"
               value={name}
@@ -157,7 +171,7 @@ export default function CustomerDetailPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Email</span>
+            <span>{t('customers.form.email')}</span>
             <input
               type="email"
               value={email}
@@ -166,7 +180,7 @@ export default function CustomerDetailPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Phone</span>
+            <span>{t('customers.form.phone')}</span>
             <input
               type="text"
               value={phone}
@@ -175,7 +189,7 @@ export default function CustomerDetailPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Notes</span>
+            <span>{t('customers.form.notes')}</span>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -189,20 +203,22 @@ export default function CustomerDetailPage() {
             disabled={saving}
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? t('customer_detail.saving') : t('customer_detail.save_changes')}
           </button>
         </form>
 
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between gap-2">
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Orders for this customer
+              {t('customer_detail.orders_for_customer')}
             </div>
-            <div className="text-[11px] text-slate-500">Total: {totalOrders}</div>
+            <div className="text-[11px] text-slate-500">
+              {t('customers.total')}: {totalOrders}
+            </div>
           </div>
 
           {totalOrders === 0 && (
-            <p className="text-xs text-slate-400">No orders for this customer yet.</p>
+            <p className="text-xs text-slate-400">{t('customer_detail.no_orders_yet')}</p>
           )}
 
           {totalOrders > 0 && (
@@ -210,11 +226,11 @@ export default function CustomerDetailPage() {
               <table className="min-w-full text-left text-xs text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Order</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Priority</th>
-                    <th className="px-3 py-2">Items</th>
-                    <th className="px-3 py-2">Created</th>
+                    <th className="px-3 py-2">{t('orders.table.order')}</th>
+                    <th className="px-3 py-2">{t('orders.table.status')}</th>
+                    <th className="px-3 py-2">{t('orders.table.priority')}</th>
+                    <th className="px-3 py-2">{t('orders.table.items')}</th>
+                    <th className="px-3 py-2">{t('orders.table.created')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,7 +252,7 @@ export default function CustomerDetailPage() {
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[11px]">
-                          {order.status.replace('_', ' ')}
+                          {formatOrderStatus(order.status)}
                         </span>
                       </td>
                       <td className="px-3 py-2 align-top">
@@ -247,7 +263,7 @@ export default function CustomerDetailPage() {
                               : 'bg-slate-800 text-slate-200'
                           }`}
                         >
-                          {order.priority}
+                          {formatOrderPriority(order.priority)}
                         </span>
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">

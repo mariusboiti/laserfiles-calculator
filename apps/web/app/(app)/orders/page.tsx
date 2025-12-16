@@ -38,6 +38,18 @@ export default function OrdersPage() {
   const [status, setStatus] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
 
+  function formatOrderStatus(value: string) {
+    const key = `order.status.${String(value).toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? String(value).replace(/_/g, ' ') : translated;
+  }
+
+  function formatOrderPriority(value: string) {
+    const key = `order.priority.${String(value).toLowerCase()}`;
+    const translated = t(key);
+    return translated === key ? String(value) : translated;
+  }
+
   async function loadOrders(params?: { status?: string; search?: string }) {
     setLoading(true);
     setError(null);
@@ -89,7 +101,7 @@ export default function OrdersPage() {
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s === 'ALL' ? t('orders.filter.all_statuses') : s.replace('_', ' ')}
+                {s === 'ALL' ? t('orders.filter.all_statuses') : formatOrderStatus(s)}
               </option>
             ))}
           </select>
@@ -151,7 +163,7 @@ export default function OrdersPage() {
                   </td>
                   <td className="px-3 py-2 align-top">
                     <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[11px]">
-                      {order.status.replace('_', ' ')}
+                      {formatOrderStatus(order.status)}
                     </span>
                   </td>
                   <td className="px-3 py-2 align-top">
@@ -162,7 +174,7 @@ export default function OrdersPage() {
                           : 'bg-slate-800 text-slate-200'
                       }`}
                     >
-                      {order.priority}
+                      {formatOrderPriority(order.priority)}
                     </span>
                   </td>
                   <td className="px-3 py-2 align-top text-xs text-slate-300">{order._count.items}</td>

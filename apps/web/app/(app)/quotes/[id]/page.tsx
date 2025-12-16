@@ -31,6 +31,13 @@ export default function QuoteDetailPage() {
 
   const router = useRouter();
 
+  function formatUnitType(value: string) {
+    const upper = String(value).toUpperCase();
+    if (upper === 'SHEET') return t('unit.sheet');
+    if (upper === 'M2') return t('unit.m2');
+    return String(value);
+  }
+
   useEffect(() => {
     if (!id) return;
 
@@ -175,7 +182,7 @@ export default function QuoteDetailPage() {
                   <div>
                     <div className="font-medium">{material.name}</div>
                     <div className="text-[11px] text-slate-400">
-                      {material.category} • {material.thicknessMm} mm • {material.unitType}
+                      {material.category} • {material.thicknessMm} mm • {formatUnitType(material.unitType)}
                     </div>
                   </div>
                 ) : (

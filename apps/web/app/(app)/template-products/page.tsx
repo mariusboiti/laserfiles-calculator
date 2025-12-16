@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface TemplateSummary {
   id: string;
@@ -67,6 +68,7 @@ interface TemplateVariantSummary {
 }
 
 export default function TemplateProductsPage() {
+  const t = useT();
   const [templateProducts, setTemplateProducts] = useState<TemplateProductListItem[]>([]);
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [materials, setMaterials] = useState<MaterialOption[]>([]);
@@ -85,6 +87,13 @@ export default function TemplateProductsPage() {
   const [newPriceOverride, setNewPriceOverride] = useState('');
   const [newIsActive, setNewIsActive] = useState(true);
   const [newPersonalizationText, setNewPersonalizationText] = useState('');
+
+  function formatUnitType(value: string) {
+    const upper = String(value).toUpperCase();
+    if (upper === 'SHEET') return t('unit.sheet');
+    if (upper === 'M2') return t('unit.m2');
+    return String(value);
+  }
 
   const [variantsForTemplate, setVariantsForTemplate] = useState<TemplateVariantSummary[]>([]);
 
@@ -437,7 +446,7 @@ export default function TemplateProductsPage() {
               <option value="">Use default from template/variant</option>
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name} {m.thicknessMm}mm {m.unitType}
+                  {m.name} {m.thicknessMm}mm {formatUnitType(m.unitType)}
                 </option>
               ))}
             </select>
@@ -623,7 +632,7 @@ export default function TemplateProductsPage() {
                   <option value="">Use default from template/variant</option>
                   {materials.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.name} {m.thicknessMm}mm {m.unitType}
+                      {m.name} {m.thicknessMm}mm {formatUnitType(m.unitType)}
                     </option>
                   ))}
                 </select>

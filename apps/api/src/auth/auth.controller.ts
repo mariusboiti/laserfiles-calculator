@@ -116,7 +116,17 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@User() user: any) {
-    return { user };
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        plan: true,
+      },
+    });
+    return { user: fullUser };
   }
 
   private signTokens(user: { id: string; email: string; role: string }) {

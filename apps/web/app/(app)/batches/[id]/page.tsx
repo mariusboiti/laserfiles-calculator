@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api-client';
+import { useT } from '../../i18n';
 
 type BatchStatus =
   | 'PLANNED'
@@ -101,7 +102,8 @@ interface BatchOffcutSuggestionGroup {
 }
 
 export default function BatchDetailPage() {
-  const params = useParams();
+  const t = useT();
+  const params = useParams<{ id: string }>();
   const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
 
   const [batch, setBatch] = useState<BatchDetail | null>(null);
@@ -119,6 +121,13 @@ export default function BatchDetailPage() {
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [creatingTask, setCreatingTask] = useState(false);
+
+  function formatUnitType(value: string) {
+    const upper = String(value).toUpperCase();
+    if (upper === 'SHEET') return t('unit.sheet');
+    if (upper === 'M2') return t('unit.m2');
+    return String(value);
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -659,13 +668,15 @@ export default function BatchDetailPage() {
                     <tr key={m.materialId} className="border-t border-slate-800">
                       <td className="px-3 py-2 align-top text-xs text-slate-200">
                         <div className="font-medium">{m.materialName}</div>
-                        <div className="text-[11px] text-slate-400">Unit: {m.unitType}</div>
+                        <div className="text-[11px] text-slate-400">
+                          {t('materials.table.unit')}: {formatUnitType(m.unitType)}
+                        </div>
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">
                         {m.estimatedUnits != null
                           ? m.unitType === 'SHEET'
-                            ? `${m.estimatedUnits.toFixed(2)} sheets`
-                            : `${m.estimatedUnits.toFixed(3)} m²`
+                            ? `${m.estimatedUnits.toFixed(2)} ${t('unit.sheet')}`
+                            : `${m.estimatedUnits.toFixed(3)} ${t('unit.m2')}`
                           : '-'}
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">

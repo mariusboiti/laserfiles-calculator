@@ -96,6 +96,13 @@ export default function MaterialsPage() {
     setSaveError(null);
   }
 
+  function formatUnitType(value: string) {
+    const upper = String(value).toUpperCase();
+    if (upper === 'SHEET') return t('unit.sheet');
+    if (upper === 'M2') return t('unit.m2');
+    return String(value);
+  }
+
   async function handleCreateMaterial(e: FormEvent) {
     e.preventDefault();
     setSaveError(null);
@@ -280,8 +287,8 @@ export default function MaterialsPage() {
                 }}
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
               >
-                <option value="SHEET">SHEET</option>
-                <option value="M2">M2</option>
+                <option value="SHEET">{formatUnitType('SHEET')}</option>
+                <option value="M2">{formatUnitType('M2')}</option>
               </select>
             </label>
 
@@ -439,7 +446,7 @@ export default function MaterialsPage() {
                   <td className="px-3 py-2 align-top text-xs text-slate-300">
                     {m.thicknessMm} mm
                   </td>
-                  <td className="px-3 py-2 align-top text-xs text-slate-300">{m.unitType}</td>
+                  <td className="px-3 py-2 align-top text-xs text-slate-300">{formatUnitType(m.unitType)}</td>
                   <td className="px-3 py-2 align-top text-xs text-slate-300">
                     {m.sheetWidthMm && m.sheetHeightMm
                       ? `${m.sheetWidthMm} × ${m.sheetHeightMm} mm`
