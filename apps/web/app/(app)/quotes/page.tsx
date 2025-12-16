@@ -24,11 +24,20 @@ interface QuotesListResponse {
   pageSize: number;
 }
 
+interface UsageResponse {
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+}
+
 export default function QuotesPage() {
   const t = useT();
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [usageInfo, setUsageInfo] = useState<UsageResponse | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -47,6 +56,81 @@ export default function QuotesPage() {
 
     load();
   }, []);
+
+  function generateCSV(quote: QuoteItem): string {
+    const data = quote.dataJson || {};
+    const breakdown = data.breakdown || {};
+    const input = data.input || {};
+    
+    const rows = [
+      ['Quote ID', quote.id],
+      ['Created At', new Date(quote.createdAt).toLocaleString()],
+      ['Customer', quote.customer?.name || 'N/A'],
+      ['Customer Email', quote.customer?.email || 'N/A'],
+      [''],
+      ['Material', data.material?.name || 'N/A'],
+      ['Material Category', data.material?.category || 'N/A'],
+      ['Thickness (mm)', data.material?.thicknessMm || 'N/A'],
+      [''],
+      ['Quantity', input.quantity || 'N/A'],
+      ['Width (mm)', input.widthMm || 'N/A'],
+      ['Height (mm)', input.heightMm || 'N/A'],
+      ['Waste Percent', input.wastePercent || 'N/A'],
+      ['Machine Minutes', input.machineMinutes || 'N/A'],
+      ['Machine Hourly Cost', input.machineHourlyCost || 'N/A'],
+      ['Target Margin Percent', input.targetMarginPercent || 'N/A'],
+      [''],
+      ['Material Cost', breakdown.materialCost?.toFixed(2) || 'N/A'],
+      ['Machine Cost', breakdown.machineCost?.toFixed(2) || 'N/A'],
+      ['Labor Cost', breakdown.laborCost?.toFixed(2) || 'N/A'],
+      ['Total Cost', breakdown.totalCost?.toFixed(2) || 'N/A'],
+      ['Margin Percent', breakdown.marginPercent || 'N/A'],
+      ['Recommended Price', breakdown.recommendedPrice?.toFixed(2) || 'N/A'],
+    ];
+
+    return rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+  }
+
+  function downloadCSV(content: string, filename: string) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleExport(quote: QuoteItem) {
+    setExporting(quote.id);
+    try {
+      // Check usage limit BEFORE exporting
+      const usageRes = await apiClient.post<UsageResponse>('/usage/export', {
+        toolKey: 'price-calculator',
+      });
+
+      setUsageInfo(usageRes.data);
+
+      if (!usageRes.data.allowed) {
+        // Show upgrade modal if limit reached
+        setShowUpgradeModal(true);
+        return;
+      }
+
+      // Generate and download CSV
+      const csv = generateCSV(quote);
+      const filename = `quote-${quote.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.csv`;
+      downloadCSV(csv, filename);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || t('quotes.export_failed');
+      setError(Array.isArray(message) ? message.join(', ') : String(message));
+    } finally {
+      setExporting(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -77,6 +161,7 @@ export default function QuotesPage() {
                 <th className="px-3 py-2">{t('quotes.table.material')}</th>
                 <th className="px-3 py-2">{t('quotes.table.recommended_price')}</th>
                 <th className="px-3 py-2">{t('quotes.table.created')}</th>
+                <th className="px-3 py-2">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -123,11 +208,48 @@ export default function QuotesPage() {
                     <td className="px-3 py-2 align-top text-xs text-slate-400">
                       {new Date(q.createdAt).toLocaleString()}
                     </td>
+                    <td className="px-3 py-2 align-top">
+                      <button
+                        onClick={() => handleExport(q)}
+                        disabled={exporting === q.id}
+                        className="inline-flex items-center rounded-md border border-sky-500 bg-sky-500/10 px-2 py-1 text-[11px] font-medium text-sky-400 hover:bg-sky-500/20 disabled:opacity-50"
+                      >
+                        {exporting === q.id ? t('quotes.exporting') : t('quotes.export_csv')}
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-100">{t('quotes.export_limit_reached')}</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {t('quotes.export_limit_message')
+                .replace('{0}', String(usageInfo?.limit || 0))
+                .replace('{1}', String(usageInfo?.limit || 0))}
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="flex-1 rounded-md border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-700"
+              >
+                {t('quotes.cancel')}
+              </button>
+              <a
+                href="/pricing"
+                className="flex-1 rounded-md border border-sky-500 bg-sky-500 px-4 py-2 text-center text-sm font-medium text-slate-950 hover:bg-sky-400"
+              >
+                {t('quotes.upgrade_to_pro')}
+              </a>
+            </div>
+          </div>
         </div>
       )}
     </div>

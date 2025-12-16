@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface OffcutListItem {
   id: string;
@@ -53,6 +54,7 @@ const OFFCUT_CONDITIONS = ['GOOD', 'OK', 'DAMAGED'] as const;
 const MATERIAL_CATEGORIES = ['PLYWOOD', 'MDF', 'ACRYLIC', 'MIRROR_ACRYLIC', 'OTHER'] as const;
 
 export default function OffcutsPage() {
+  const t = useT();
   const [offcuts, setOffcuts] = useState<OffcutListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -235,37 +237,36 @@ export default function OffcutsPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Scrap &amp; Offcuts</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t('offcuts.title')}</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Resturi reutilizabile din materiale (lemn, MDF, acril) pentru a reduce pierderile. Dimensiunile
-            și aria sunt aproximative.
+            {t('offcuts.subtitle')}
           </p>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs">
-          <div className="text-[11px] uppercase tracking-wide text-slate-400">Offcuts disponibile</div>
+          <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('offcuts.status.available')}</div>
           <div className="mt-1 text-2xl font-semibold text-slate-50">{stats.availableCount}</div>
           <p className="mt-2 text-[11px] text-slate-400">
-            Număr de bucăți în stare bună sau ok, marcate ca disponibile.
+            {t('offcuts.none_found')}
           </p>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs">
-          <div className="text-[11px] uppercase tracking-wide text-slate-400">Arie reutilizabilă</div>
+          <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('offcuts.total_area')}</div>
           <div className="mt-1 text-2xl font-semibold text-slate-50">
             {(stats.totalAreaMm2 / 1_000_000 || 0).toFixed(2)}
-            <span className="ml-1 text-xs text-slate-400">m² (aprox.)</span>
+            <span className="ml-1 text-xs text-slate-400">{t('offcuts.approx_suffix')}</span>
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
-            Estimare bazată pe dimensiuni/arie și cantitate. Valorile sunt orientative.
+            {t('offcuts.estimate_note')}
           </p>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs">
-          <div className="text-[11px] uppercase tracking-wide text-slate-400">Pe categorii</div>
+          <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('materials.table.category')}</div>
           <div className="mt-2 space-y-1">
             {Array.from(stats.byCategory.entries()).length === 0 && (
-              <div className="text-[11px] text-slate-500">Nu există offcuts disponibile.</div>
+              <div className="text-[11px] text-slate-500">{t('offcuts.none_found')}</div>
             )}
             {Array.from(stats.byCategory.entries()).map(([cat, area]) => (
               <div key={cat} className="flex items-center justify-between text-[11px] text-slate-300">
@@ -284,9 +285,9 @@ export default function OffcutsPage() {
         >
           <div className="flex items-center justify-between gap-2">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Adaugă offcut</div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('offcuts.add_offcut_title')}</div>
               <div className="mt-1 text-[11px] text-slate-500">
-                Înregistrează rapid o bucată rămasă de material.
+                {t('offcuts.add_offcut_subtitle')}
               </div>
             </div>
             <div className="inline-flex rounded-full bg-slate-800 p-1 text-[11px]">
@@ -297,7 +298,7 @@ export default function OffcutsPage() {
                   createMode === 'RECTANGLE' ? 'bg-sky-500 text-slate-950' : 'text-slate-300'
                 }`}
               >
-                Dreptunghi
+                {t('offcuts.rectangle')}
               </button>
               <button
                 type="button"
@@ -306,20 +307,20 @@ export default function OffcutsPage() {
                   createMode === 'IRREGULAR' ? 'bg-sky-500 text-slate-950' : 'text-slate-300'
                 }`}
               >
-                Neregulată
+                {t('offcuts.irregular')}
               </button>
             </div>
           </div>
 
           <div className="space-y-2">
             <label className="block text-[11px] text-slate-300">
-              Material
+              {t('offcuts.table.material')}
               <select
                 value={createMaterialId}
                 onChange={(e) => setCreateMaterialId(e.target.value)}
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
               >
-                <option value="">Alege materialul…</option>
+                <option value="">{t('order_detail.select_template')}</option>
                 {materials.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name} · {m.category} · {m.thicknessMm}mm
@@ -331,7 +332,7 @@ export default function OffcutsPage() {
             {createMode === 'RECTANGLE' && (
               <div className="grid grid-cols-2 gap-2">
                 <label className="block text-[11px] text-slate-300">
-                  Lățime (mm)
+                  {t('offcuts.form.width')}
                   <input
                     type="number"
                     min={1}
@@ -341,7 +342,7 @@ export default function OffcutsPage() {
                   />
                 </label>
                 <label className="block text-[11px] text-slate-300">
-                  Înălțime (mm)
+                  {t('offcuts.form.height')}
                   <input
                     type="number"
                     min={1}
@@ -356,7 +357,7 @@ export default function OffcutsPage() {
             {createMode === 'IRREGULAR' && (
               <div className="grid grid-cols-2 gap-2">
                 <label className="block text-[11px] text-slate-300">
-                  Bounding box lățime (mm)
+                  {t('offcuts.form.bbox_width')}
                   <input
                     type="number"
                     min={1}
@@ -366,7 +367,7 @@ export default function OffcutsPage() {
                   />
                 </label>
                 <label className="block text-[11px] text-slate-300">
-                  Bounding box înălțime (mm)
+                  {t('offcuts.form.bbox_height')}
                   <input
                     type="number"
                     min={1}
@@ -379,7 +380,7 @@ export default function OffcutsPage() {
             )}
 
             <label className="block text-[11px] text-slate-300">
-              Arie estimată (mm², opțional)
+              {t('offcuts.form.estimated_area')}
               <input
                 type="number"
                 min={1}
@@ -391,7 +392,7 @@ export default function OffcutsPage() {
 
             <div className="grid grid-cols-2 gap-2">
               <label className="block text-[11px] text-slate-300">
-                Cantitate bucăți
+                {t('offcuts.form.quantity')}
                 <input
                   type="number"
                   min={1}
@@ -401,7 +402,7 @@ export default function OffcutsPage() {
                 />
               </label>
               <label className="block text-[11px] text-slate-300">
-                Stare
+                {t('offcuts.form.condition')}
                 <select
                   value={createCondition}
                   onChange={(e) => setCreateCondition(e.target.value as any)}
@@ -417,24 +418,24 @@ export default function OffcutsPage() {
             </div>
 
             <label className="block text-[11px] text-slate-300">
-              Locație (raft/polita)
+              {t('offcuts.form.location')}
               <input
                 type="text"
                 value={createLocation}
                 onChange={(e) => setCreateLocation(e.target.value)}
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
-                placeholder="ex: Raft A2, Polita 3"
+                placeholder={t('offcuts.form.location_placeholder')}
               />
             </label>
 
             <label className="block text-[11px] text-slate-300">
-              Note (opțional)
+              {t('offcuts.form.notes')}
               <textarea
                 value={createNotes}
                 onChange={(e) => setCreateNotes(e.target.value)}
                 rows={2}
                 className="mt-1 w-full resize-none rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
-                placeholder="ex: rest după comanda X, margini ușor arse"
+                placeholder={t('offcuts.form.notes_placeholder')}
               />
             </label>
 
@@ -445,7 +446,7 @@ export default function OffcutsPage() {
               disabled={creating}
               className="mt-1 inline-flex items-center justify-center rounded-md border border-sky-500 bg-sky-500 px-3 py-1.5 text-[11px] font-medium text-slate-950 hover:bg-sky-400 disabled:opacity-60"
             >
-              {creating ? 'Se salvează…' : 'Salvează offcut'}
+              {creating ? t('offcuts.saving') : t('offcuts.save_offcut')}
             </button>
           </div>
         </form>
@@ -453,14 +454,14 @@ export default function OffcutsPage() {
         <div className="space-y-3">
           <div className="flex flex-wrap items-end gap-2 text-xs">
             <div className="flex flex-col gap-1">
-              <span className="text-[11px] text-slate-400">Filtre</span>
+              <span className="text-[11px] text-slate-400">{t('offcuts.filters')}</span>
               <div className="flex flex-wrap gap-2">
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                   className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] text-slate-100"
                 >
-                  <option value="">Categorie</option>
+                  <option value="">{t('offcuts.filter.category')}</option>
                   {MATERIAL_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -472,7 +473,7 @@ export default function OffcutsPage() {
                   min={1}
                   value={filterThickness}
                   onChange={(e) => setFilterThickness(e.target.value)}
-                  placeholder="Grosime (mm)"
+                  placeholder={t('offcuts.filter.thickness')}
                   className="w-28 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] text-slate-100"
                 />
                 <select
@@ -480,7 +481,7 @@ export default function OffcutsPage() {
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] text-slate-100"
                 >
-                  <option value="">Status</option>
+                  <option value="">{t('offcuts.filter.status')}</option>
                   {OFFCUT_STATUSES.map((s) => (
                     <option key={s} value={s}>
                       {s}
@@ -492,7 +493,7 @@ export default function OffcutsPage() {
                   onChange={(e) => setFilterCondition(e.target.value)}
                   className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] text-slate-100"
                 >
-                  <option value="">Stare</option>
+                  <option value="">{t('offcuts.filter.condition')}</option>
                   {OFFCUT_CONDITIONS.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -502,31 +503,31 @@ export default function OffcutsPage() {
               </div>
             </div>
             <div className="flex flex-1 flex-col gap-1">
-              <span className="text-[11px] text-slate-400">Căutare</span>
+              <span className="text-[11px] text-slate-400">{t('offcuts.search')}</span>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={filterLocation}
                   onChange={(e) => setFilterLocation(e.target.value)}
-                  placeholder="Locație (ex: Raft A)"
+                  placeholder={t('offcuts.filter.location_placeholder')}
                   className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] text-slate-100"
                 />
                 <input
                   type="text"
                   value={filterSearch}
                   onChange={(e) => setFilterSearch(e.target.value)}
-                  placeholder="Note/etichete"
+                  placeholder={t('offcuts.filter.notes_placeholder')}
                   className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] text-slate-100"
                 />
               </div>
             </div>
           </div>
 
-          {loading && <p className="text-xs text-slate-400">Se încarcă offcuts…</p>}
+          {loading && <p className="text-xs text-slate-400">{t('offcuts.loading')}</p>}
           {error && !loading && <p className="text-xs text-red-400">{error}</p>}
 
           {!loading && !error && offcuts.length === 0 && (
-            <p className="text-xs text-slate-400">Nu există offcuts pentru filtrele curente.</p>
+            <p className="text-xs text-slate-400">{t('offcuts.none_found')}</p>
           )}
 
           {!loading && !error && offcuts.length > 0 && (
@@ -534,13 +535,13 @@ export default function OffcutsPage() {
               <table className="min-w-full text-left text-[11px] text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Material</th>
-                    <th className="px-3 py-2">Formă / dimensiuni</th>
-                    <th className="px-3 py-2">Cant.</th>
-                    <th className="px-3 py-2">Locație</th>
-                    <th className="px-3 py-2">Stare</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Creat</th>
+                    <th className="px-3 py-2">{t('offcuts.table.material')}</th>
+                    <th className="px-3 py-2">{t('offcuts.table.shape_dimensions')}</th>
+                    <th className="px-3 py-2">{t('offcuts.table.qty')}</th>
+                    <th className="px-3 py-2">{t('offcuts.table.location')}</th>
+                    <th className="px-3 py-2">{t('customers.table.contact')}</th>
+                    <th className="px-3 py-2">{t('offcuts.table.status')}</th>
+                    <th className="px-3 py-2">{t('customers.table.created')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -553,9 +554,9 @@ export default function OffcutsPage() {
                         return `${o.widthMm} × ${o.heightMm} mm`;
                       }
                       if (o.boundingBoxWidthMm && o.boundingBoxHeightMm) {
-                        return `Neregulată (bbox ${o.boundingBoxWidthMm} × ${o.boundingBoxHeightMm} mm)`;
+                        return t('offcuts.shape.irregular').replace('{0}', String(o.boundingBoxWidthMm)).replace('{1}', String(o.boundingBoxHeightMm));
                       }
-                      return o.shapeType === 'RECTANGLE' ? 'Dreptunghi (dimensiuni necunoscute)' : 'Neregulată';
+                      return o.shapeType === 'RECTANGLE' ? t('offcuts.shape.rectangle_unknown') : t('offcuts.shape.irregular_unknown');
                     })();
                     const created = new Date(o.createdAt);
                     return (
@@ -583,7 +584,7 @@ export default function OffcutsPage() {
                                 : 'bg-red-500/15 text-red-300'
                             }`}
                           >
-                            {o.condition}
+                            {t(`offcuts.condition.${o.condition.toLowerCase()}` as any)}
                           </span>
                         </td>
                         <td className="px-3 py-2 align-top text-[11px]">
@@ -598,7 +599,7 @@ export default function OffcutsPage() {
                                 : 'bg-slate-500/15 text-slate-300'
                             }`}
                           >
-                            {o.status}
+                            {t(`offcuts.status.${o.status.toLowerCase()}` as any)}
                           </span>
                         </td>
                         <td className="px-3 py-2 align-top text-[11px] text-slate-300">
