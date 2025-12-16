@@ -22,7 +22,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { StockMovementType } from '@prisma/client';
+import { StockMovementType, MaterialCategory } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const prisma = new PrismaService();
@@ -45,9 +45,8 @@ class CreateMaterialDto {
   @IsNotEmpty()
   name!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  category!: string;
+  @IsEnum(MaterialCategory)
+  category!: MaterialCategory;
 
   @IsInt()
   @Min(1)
@@ -95,8 +94,8 @@ class UpdateMaterialDto {
   name?: string;
 
   @IsOptional()
-  @IsString()
-  category?: string;
+  @IsEnum(MaterialCategory)
+  category?: MaterialCategory;
 
   @IsOptional()
   @IsInt()
@@ -162,6 +161,17 @@ export class MaterialsController {
 
   private getService(): MaterialsService {
     return this.materialsService ?? fallbackMaterialsService;
+  }
+
+  @Get('categories')
+  async getCategories() {
+    return [
+      { label: 'Plywood', value: 'PLYWOOD' },
+      { label: 'MDF', value: 'MDF' },
+      { label: 'Acrylic', value: 'ACRYLIC' },
+      { label: 'Mirror Acrylic', value: 'MIRROR_ACRYLIC' },
+      { label: 'Other', value: 'OTHER' },
+    ];
   }
 
   @Get()

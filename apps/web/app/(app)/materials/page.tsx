@@ -27,18 +27,24 @@ interface MaterialsListResponse {
   pageSize: number;
 }
 
+interface CategoryOption {
+  label: string;
+  value: string;
+}
+
 export default function MaterialsPage() {
   const t = useT();
   const [materials, setMaterials] = useState<MaterialListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [onlyLowStock, setOnlyLowStock] = useState(false);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
 
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('PLYWOOD');
   const [thicknessMm, setThicknessMm] = useState('');
   const [unitType, setUnitType] = useState<'SHEET' | 'M2'>('SHEET');
   const [costPerSheet, setCostPerSheet] = useState('');
@@ -64,6 +70,26 @@ export default function MaterialsPage() {
   }, []);
 
   useEffect(() => {
+    async function loadCategories() {
+      try {
+        const res = await apiClient.get<CategoryOption[]>('/materials/categories');
+        setCategories(res.data);
+      } catch (err) {
+        // Use default categories if API fails
+        setCategories([
+          { label: 'Plywood', value: 'PLYWOOD' },
+          { label: 'MDF', value: 'MDF' },
+          { label: 'Acrylic', value: 'ACRYLIC' },
+          { label: 'Mirror Acrylic', value: 'MIRROR_ACRYLIC' },
+          { label: 'Other', value: 'OTHER' },
+        ]);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
     async function load() {
       setLoading(true);
       setError(null);
@@ -83,7 +109,7 @@ export default function MaterialsPage() {
 
   function resetForm() {
     setName('');
-    setCategory('');
+    setCategory('PLYWOOD');
     setThicknessMm('');
     setUnitType('SHEET');
     setCostPerSheet('');
@@ -101,6 +127,11 @@ export default function MaterialsPage() {
     if (upper === 'SHEET') return t('unit.sheet');
     if (upper === 'M2') return t('unit.m2');
     return String(value);
+  }
+
+  function formatCategory(value: string) {
+    const cat = categories.find((c) => c.value === value);
+    return cat ? cat.label : value;
   }
 
   async function handleCreateMaterial(e: FormEvent) {
@@ -252,13 +283,18 @@ export default function MaterialsPage() {
             </label>
             <label className="flex flex-col gap-1">
               <span>{t('materials.form.category')}</span>
-              <input
-                type="text"
+              <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 required
-              />
+              >
+                {categories.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
 
@@ -442,7 +478,7 @@ export default function MaterialsPage() {
                       {m.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-2 align-top text-xs text-slate-300">{m.category}</td>
+                  <td className="px-3 py-2 align-top text-xs text-slate-300">{formatCategory(m.category)}</td>
                   <td className="px-3 py-2 align-top text-xs text-slate-300">
                     {m.thicknessMm} mm
                   </td>
