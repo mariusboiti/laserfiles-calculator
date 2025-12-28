@@ -48,11 +48,11 @@ const DEFAULT_OPTIONS: TraceOptions = {
   removeBackground: true,
 };
 
-// Max dimensions for performance - reduced to prevent freezing
+// Max dimensions for performance - very conservative to prevent freezing
 const MAX_TRACE_DIMENSIONS: Record<TraceOptions['detail'], number> = {
-  low: 300,
-  medium: 500,
-  high: 700,
+  low: 250,
+  medium: 350,
+  high: 500,
 };
 
 // Max path commands before warning - reduced for safety
@@ -670,7 +670,8 @@ function traceContour(
   let y = startY;
   let dir = 0; // 0=right, 1=down, 2=left, 3=up
 
-  const maxSteps = width * height;
+  // Strict limit to prevent infinite loops on complex contours
+  const maxSteps = Math.min(width * height, 50000);
   let steps = 0;
 
   do {

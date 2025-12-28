@@ -34,8 +34,8 @@ export async function traceFromDataUrl(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas context not available');
 
-  // Reduced max sizes to prevent page freezing
-  const maxSize = options.detail === 'high' ? 700 : options.detail === 'medium' ? 500 : 300;
+  // Very conservative max sizes to prevent page freezing
+  const maxSize = options.detail === 'high' ? 500 : options.detail === 'medium' ? 350 : 250;
   const scaleToMax = Math.min(1, maxSize / Math.max(img.width, img.height));
 
   canvas.width = Math.round(img.width * scaleToMax);
@@ -48,29 +48,57 @@ export async function traceFromDataUrl(
 
   const threshold = clamp(options.threshold, 0, 255);
 
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+  // Process grayscale in chunks to avoid freezing
+  const chunkSize = 40000;
+  for (let start = 0; start < data.length; start += chunkSize * 4) {
+    const end = Math.min(start + chunkSize * 4, data.length);
+    for (let i = start; i < end; i += 4) {
+      const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
 
-    const isTransparent = options.removeBackground && data[i + 3] < 128;
+      const isTransparent = options.removeBackground && data[i + 3] < 128;
 
-    let value = gray > threshold ? 255 : 0;
-    if (options.invert) value = 255 - value;
-    if (isTransparent) value = 255;
+      let value = gray > threshold ? 255 : 0;
+      if (options.invert) value = 255 - value;
+      if (isTransparent) value = 255;
 
-    data[i] = data[i + 1] = data[i + 2] = value;
-    data[i + 3] = 255;
+      data[i] = data[i + 1] = data[i + 2] = value;
+      data[i + 3] = 255;
+    }
+    // Yield to UI thread between chunks
+    if (start + chunkSize * 4 < data.length) {
+      await new Promise(r => setTimeout(r, 0));
+    }
   }
 
-  const paths = traceContours(imageDataObj, options.smoothing);
+  // Yield to UI before heavy tracing
+  await new Promise(r => setTimeout(r, 0));
+
+  const paths = await traceContoursAsync(imageDataObj, options.smoothing);
   if (paths.length === 0) {
     throw new Error('No contours found. Try adjusting threshold.');
   }
 
+  // Check complexity
+  if (paths.length > 150) {
+    throw new Error(`Too many paths (${paths.length}). Try adjusting threshold or use simpler image.`);
+  }
+
   const scaledPaths = scalePathsCentered(paths, canvas.width, canvas.height, targetWidthMm, targetHeightMm);
-  return scaledPaths.join(' ');
+  const result = scaledPaths.join(' ');
+  
+  // Check command count
+  const commandCount = (result.match(/[MLHVCSQTAZ]/gi) || []).length;
+  if (commandCount > 15000) {
+    throw new Error(`Path too complex (${commandCount} commands). Try lower detail.`);
+  }
+  
+  return result;
 }
 
-function traceContours(imageData: ImageData, smoothing: number): string[] {
+/**
+ * Async contour tracing with yielding to prevent UI freeze
+ */
+async function traceContoursAsync(imageData: ImageData, smoothing: number): Promise<string[]> {
   const { data, width, height } = imageData;
   const paths: string[] = [];
   const visited = new Set<string>();
@@ -80,6 +108,9 @@ function traceContours(imageData: ImageData, smoothing: number): string[] {
     const idx = (y * width + x) * 4;
     return data[idx] < 128 ? 1 : 0;
   };
+
+  let processedRows = 0;
+  const yieldInterval = 15; // Yield frequently for responsiveness
 
   for (let y = 0; y < height - 1; y++) {
     for (let x = 0; x < width - 1; x++) {
@@ -97,6 +128,12 @@ function traceContours(imageData: ImageData, smoothing: number): string[] {
           paths.push(contourToPath(smoothed));
         }
       }
+    }
+    
+    processedRows++;
+    if (processedRows % yieldInterval === 0) {
+      // Yield to UI thread
+      await new Promise(r => setTimeout(r, 0));
     }
   }
 
@@ -116,7 +153,8 @@ function traceContour(
   let y = startY;
   let dir = 0;
 
-  const maxSteps = width * height;
+  // Strict limit to prevent infinite loops on complex contours
+  const maxSteps = Math.min(width * height, 50000);
   let steps = 0;
 
   do {
