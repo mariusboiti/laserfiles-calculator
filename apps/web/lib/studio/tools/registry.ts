@@ -3,7 +3,7 @@ import { BoxMakerTool } from '@/lib/tools/boxmaker/ui/BoxMakerTool';
 import { PanelSplitterTool } from '@/lib/tools/panel-splitter/ui/PanelSplitterTool';
 import { BulkNameTagsTool } from '@/lib/tools/bulk-name-tags/ui/BulkNameTagsTool';
 import { ProductLabelTool } from '@/lib/tools/product-label-generator/ui/ProductLabelTool';
-import { RoundCoasterToolV2 } from '@/lib/tools/round-coaster-badge-generator/ui/RoundCoasterToolV2';
+import { RoundCoasterToolPro } from '@/lib/tools/round-coaster-badge-generator/ui/RoundCoasterToolPro';
 import { OrnamentLayoutTool } from '@/lib/tools/ornament-layout-planner/ui/OrnamentLayoutTool';
 import { InlayOffsetTool } from '@/lib/tools/inlay-offset-calculator/ui/InlayOffsetTool';
 import { JigFixtureTool } from '@/lib/tools/jig-fixture-generator/ui/JigFixtureTool';
@@ -57,10 +57,10 @@ export const studioTools: StudioTool[] = [
   },
   {
     slug: 'round-coaster-generator',
-    title: 'Round Coaster & Badge Generator V2',
-    description: 'Create laser-ready coasters and badges with CUT/ENGRAVE layers, auto text-fit, and production controls.',
-    proFeatures: ['Curved text', 'Batch export', 'Advanced shapes', 'Holes', 'Layer colors'],
-    Component: RoundCoasterToolV2,
+    title: 'Round Coaster & Badge Generator PRO',
+    description: 'Canvas-based coaster designer with undo/redo, selection, CUT/ENGRAVE layers, and laser-safe SVG export.',
+    proFeatures: ['Canvas editor', 'Undo/redo', 'Advanced shapes', 'Layer colors', 'Batch export'],
+    Component: RoundCoasterToolPro,
   },
   {
     slug: 'ornament-layout-planner',

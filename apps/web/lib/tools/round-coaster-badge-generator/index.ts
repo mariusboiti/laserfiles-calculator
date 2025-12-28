@@ -15,5 +15,8 @@ export * from './core/generateSvgV2';
 // V2 UI
 export { RoundCoasterToolV2 } from './ui/RoundCoasterToolV2';
 
+// PRO UI (Canvas-based)
+export { RoundCoasterToolPro } from './ui/RoundCoasterToolPro';
+
 // Legacy V1 (for compatibility)
 export { RoundCoasterTool } from './ui/RoundCoasterTool';
