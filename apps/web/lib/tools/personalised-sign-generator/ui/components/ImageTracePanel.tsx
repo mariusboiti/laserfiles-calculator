@@ -210,19 +210,32 @@ export function ImageTracePanel({
       // Combine all paths
       const combinedPath = scaledPaths.join(' ');
       
-      // Check complexity - paths count
+      // Check complexity - paths count with auto-fallback suggestion
       if (paths.length > MAX_PATHS) {
-        setError(`Too many paths (${paths.length}). Try lower detail, adjust threshold, or use a simpler image.`);
+        // If on high/medium detail, suggest lowering
+        if (options.detail !== 'low') {
+          setError(`Too many paths (${paths.length}). Switching to Low detail is recommended.`);
+        } else {
+          setError(`Too many paths (${paths.length}). Try adjusting threshold or use a simpler image with cleaner edges.`);
+        }
         setPreviewPath(null);
         return;
       }
       
-      // Check complexity - command count
+      // Check complexity - command count with helpful message
       const commandCount = (combinedPath.match(/[MLHVCSQTAZ]/gi) || []).length;
       if (commandCount > MAX_PATH_COMMANDS) {
-        setError(`Path too complex (${commandCount} commands). Try lower detail or simpler image.`);
+        const suggestion = options.detail !== 'low' 
+          ? 'Try Low detail setting.' 
+          : 'Use a simpler image with cleaner edges.';
+        setError(`Path too complex (${commandCount} commands). ${suggestion}`);
         setPreviewPath(null);
         return;
+      }
+      
+      // Warn about moderate complexity but still allow
+      if (commandCount > MAX_PATH_COMMANDS * 0.7) {
+        console.warn(`[ImageTrace] High complexity: ${commandCount} commands, ${paths.length} paths`);
       }
       
       setPreviewPath(combinedPath);
