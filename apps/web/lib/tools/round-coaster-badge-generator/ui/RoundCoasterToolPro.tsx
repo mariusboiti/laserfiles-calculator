@@ -178,6 +178,13 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
   const [bottomText, setBottomText] = useState('');
   const [uppercase, setUppercase] = useState(false);
 
+  // Border state
+  const [borderEnabled, setBorderEnabled] = useState(true);
+  const [borderInset, setBorderInset] = useState(3);
+  const [borderThickness, setBorderThickness] = useState(0.4);
+  const [doubleBorder, setDoubleBorder] = useState(false);
+  const [doubleBorderGap, setDoubleBorderGap] = useState(1.2);
+
   // Reset function
   const resetToDefaults = useCallback(() => {
     const newDoc = createCoasterDocument('circle', 90, undefined, undefined, 'COASTER');
@@ -189,6 +196,11 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
     setCenterText('COASTER');
     setTopText('');
     setBottomText('');
+    setBorderEnabled(true);
+    setBorderInset(3);
+    setBorderThickness(0.4);
+    setDoubleBorder(false);
+    setDoubleBorderGap(1.2);
   }, []);
 
   // Register reset callback
@@ -198,16 +210,28 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
     }
   }, [onResetCallback, resetToDefaults]);
 
-  // Rebuild document when shape/dimensions change
+  // Rebuild document when shape/dimensions/border/text change
   const rebuildDocument = useCallback(() => {
     const size = shape === 'shield' ? Math.max(width, height) : diameter;
     const w = shape === 'shield' ? width : undefined;
     const h = shape === 'shield' ? height : undefined;
     const text = uppercase ? centerText.toUpperCase() : centerText;
+    const top = uppercase ? topText.toUpperCase() : topText;
+    const bottom = uppercase ? bottomText.toUpperCase() : bottomText;
 
-    const newDoc = createCoasterDocument(shape, size, w, h, text);
+    const newDoc = createCoasterDocument(shape, size, w, h, text, {
+      topText: top,
+      bottomText: bottom,
+      border: {
+        enabled: borderEnabled,
+        inset: borderInset,
+        thickness: borderThickness,
+        doubleBorder,
+        doubleBorderGap,
+      },
+    });
     dispatch({ type: 'RESET', doc: newDoc });
-  }, [shape, diameter, width, height, centerText, uppercase]);
+  }, [shape, diameter, width, height, centerText, topText, bottomText, uppercase, borderEnabled, borderInset, borderThickness, doubleBorder, doubleBorderGap]);
 
   // Debounced rebuild
   useEffect(() => {
@@ -421,6 +445,54 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
                     max={300}
                     step={stepSize}
                   />
+                </div>
+              )}
+            </Section>
+
+            {/* Border */}
+            <Section title="Border">
+              <Checkbox
+                label="Enable border"
+                checked={borderEnabled}
+                onChange={setBorderEnabled}
+              />
+
+              {borderEnabled && (
+                <div className="space-y-3 mt-2">
+                  <NumberInput
+                    label="Border inset"
+                    value={borderInset}
+                    onChange={setBorderInset}
+                    min={1}
+                    max={20}
+                    step={0.5}
+                  />
+
+                  <NumberInput
+                    label="Stroke thickness"
+                    value={borderThickness}
+                    onChange={setBorderThickness}
+                    min={0.2}
+                    max={1.2}
+                    step={0.1}
+                  />
+
+                  <Checkbox
+                    label="Double border"
+                    checked={doubleBorder}
+                    onChange={setDoubleBorder}
+                  />
+
+                  {doubleBorder && (
+                    <NumberInput
+                      label="Double border gap"
+                      value={doubleBorderGap}
+                      onChange={setDoubleBorderGap}
+                      min={0.8}
+                      max={2.5}
+                      step={0.1}
+                    />
+                  )}
                 </div>
               )}
             </Section>

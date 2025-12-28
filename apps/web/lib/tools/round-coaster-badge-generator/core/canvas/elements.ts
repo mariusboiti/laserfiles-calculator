@@ -154,12 +154,30 @@ export function createEmptyDocument(
   };
 }
 
+export interface CoasterDocumentOptions {
+  shapeType: ShapeType;
+  size: number;
+  width?: number;
+  height?: number;
+  centerText?: string;
+  topText?: string;
+  bottomText?: string;
+  border?: {
+    enabled: boolean;
+    inset: number;
+    thickness: number;
+    doubleBorder: boolean;
+    doubleBorderGap: number;
+  };
+}
+
 export function createCoasterDocument(
   shapeType: ShapeType,
   size: number,
   width?: number,
   height?: number,
-  centerText: string = ''
+  centerText: string = '',
+  options?: Partial<CoasterDocumentOptions>
 ): CanvasDocument {
   const doc = createEmptyDocument(shapeType, size, width, height);
   const cx = doc.artboard.widthMm / 2;
@@ -171,10 +189,67 @@ export function createCoasterDocument(
   shapeEl.transform.yMm = cy;
   doc.elements.push(shapeEl);
 
+  // Add border if enabled
+  if (options?.border?.enabled) {
+    const borderInset = options.border.inset;
+    const borderSize = size - borderInset * 2;
+    const borderW = width ? width - borderInset * 2 : undefined;
+    const borderH = height ? height - borderInset * 2 : undefined;
+    
+    // First border
+    const borderPathD = generateShapePath(shapeType, cx, cy, borderSize, borderW, borderH);
+    const borderEl = createBorderElement(
+      borderPathD,
+      doc.artboard.widthMm,
+      doc.artboard.heightMm,
+      options.border.thickness,
+      false,
+      'CUT'
+    );
+    borderEl.transform.xMm = cx;
+    borderEl.transform.yMm = cy;
+    doc.elements.push(borderEl);
+
+    // Double border if enabled
+    if (options.border.doubleBorder) {
+      const doubleInset = borderInset + options.border.doubleBorderGap;
+      const doubleSize = size - doubleInset * 2;
+      const doubleW = width ? width - doubleInset * 2 : undefined;
+      const doubleH = height ? height - doubleInset * 2 : undefined;
+      
+      const doubleBorderPathD = generateShapePath(shapeType, cx, cy, doubleSize, doubleW, doubleH);
+      const doubleBorderEl = createBorderElement(
+        doubleBorderPathD,
+        doc.artboard.widthMm,
+        doc.artboard.heightMm,
+        options.border.thickness,
+        true,
+        'CUT'
+      );
+      doubleBorderEl.transform.xMm = cx;
+      doubleBorderEl.transform.yMm = cy;
+      doc.elements.push(doubleBorderEl);
+    }
+  }
+
   // Add center text if provided
   if (centerText) {
     const textEl = createTextElement(centerText, cx, cy, 16, 'Arial, Helvetica, sans-serif', 'ENGRAVE');
     doc.elements.push(textEl);
+  }
+
+  // Add top text if provided
+  if (options?.topText) {
+    const topY = cy - (size / 2) * 0.55;
+    const topTextEl = createTextElement(options.topText, cx, topY, 10, 'Arial, Helvetica, sans-serif', 'ENGRAVE');
+    doc.elements.push(topTextEl);
+  }
+
+  // Add bottom text if provided
+  if (options?.bottomText) {
+    const bottomY = cy + (size / 2) * 0.55;
+    const bottomTextEl = createTextElement(options.bottomText, cx, bottomY, 10, 'Arial, Helvetica, sans-serif', 'ENGRAVE');
+    doc.elements.push(bottomTextEl);
   }
 
   return doc;
