@@ -155,41 +155,9 @@ function generateInnerShapePath(
   }
 }
 
-// Generate hole path
-function generateHolePath(
-  cx: number, 
-  cy: number, 
-  holeConfig: CoasterStateV2['hole'],
-  size: number
-): string[] {
-  if (!holeConfig.enabled || holeConfig.position === 'none') {
-    return [];
-  }
-  
-  const r = holeConfig.diameter / 2;
-  const offset = holeConfig.offset;
-  
-  if (holeConfig.position === 'top') {
-    const holeY = cy - size / 2 + offset + r;
-    return [circleToPath(cx, holeY, r)];
-  }
-  
-  if (holeConfig.position === 'sides') {
-    const holeY = cy;
-    const leftX = cx - size / 2 + offset + r;
-    const rightX = cx + size / 2 - offset - r;
-    return [
-      circleToPath(leftX, holeY, r),
-      circleToPath(rightX, holeY, r),
-    ];
-  }
-  
-  return [];
-}
-
 // Build SVG from state
 export function buildCoasterSvgV2(state: CoasterStateV2): BuildResultV2 {
-  const { shape, dimensions, border, text, textFit, hole, safeArea, preview, export: exportConfig } = state;
+  const { shape, dimensions, border, text, textFit, safeArea, preview, export: exportConfig } = state;
   
   // Calculate effective size
   const isRound = shape === 'circle' || shape === 'hex' || shape === 'octagon' || shape === 'scalloped';
@@ -235,14 +203,6 @@ export function buildCoasterSvgV2(state: CoasterStateV2): BuildResultV2 {
         `<path d="${doublePath}" fill="none" stroke="${preview.layerColors ? LAYER_COLORS.CUT : '#000'}" stroke-width="${safeBorder.thickness}"/>`
       );
     }
-  }
-  
-  // Holes (cut)
-  const holePaths = generateHolePath(cx, cy, hole, size);
-  for (const holePath of holePaths) {
-    cutElements.push(
-      `<path d="${holePath}" fill="none" stroke="${preview.layerColors ? LAYER_COLORS.CUT : '#000'}" stroke-width="${safeBorder.thickness}"/>`
-    );
   }
   
   // --- ENGRAVE LAYER (text) ---

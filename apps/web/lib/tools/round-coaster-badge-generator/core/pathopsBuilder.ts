@@ -22,13 +22,6 @@ export interface BadgeBuilderConfig {
     widthMm: number;
   };
   
-  // Holes
-  holes?: Array<{
-    cx: number;
-    cy: number;
-    r: number;
-  }>;
-  
   // Base shape (for round/shield badges)
   baseShape?: {
     type: 'circle' | 'shield' | 'custom';
@@ -158,17 +151,7 @@ export async function buildBadgeWithPathOps(
   }
   
   // =========================================================================
-  // STEP 4: Subtract holes
-  // =========================================================================
-  if (config.holes && config.holes.length > 0) {
-    for (const hole of config.holes) {
-      const holePath = pk.makeCircle(hole.cx, hole.cy, hole.r);
-      basePath = pk.difference(basePath, holePath);
-    }
-  }
-  
-  // =========================================================================
-  // STEP 5: Calculate bounds and translate to origin
+  // STEP 4: Calculate bounds and translate to origin
   // =========================================================================
   const finalBounds = pk.getBounds(basePath);
   
@@ -193,7 +176,7 @@ export async function buildBadgeWithPathOps(
   const finalHeight = finalBounds.height + margin * 2;
   
   // =========================================================================
-  // STEP 6: Convert to SVG
+  // STEP 5: Convert to SVG
   // =========================================================================
   const cutPath = pk.toSVG(finalBasePath);
   const engravePath = pk.toSVG(finalTopPath);
@@ -217,8 +200,7 @@ export async function buildBadgeWithPathOps(
  */
 export async function buildShapeWithBorder(
   shapePath: string,
-  borderWidthMm: number,
-  holes?: Array<{ cx: number; cy: number; r: number }>
+  borderWidthMm: number
 ): Promise<{ cutPath: string; bounds: { x: number; y: number; width: number; height: number } }> {
   const pk = await loadPathOps();
   
@@ -232,14 +214,6 @@ export async function buildShapeWithBorder(
       cap: 'round',
     });
     basePath = pk.union(strokePath, basePath);
-  }
-  
-  // Subtract holes
-  if (holes && holes.length > 0) {
-    for (const hole of holes) {
-      const holePath = pk.makeCircle(hole.cx, hole.cy, hole.r);
-      basePath = pk.difference(basePath, holePath);
-    }
   }
   
   const bounds = pk.getBounds(basePath);

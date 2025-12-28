@@ -51,13 +51,6 @@ export interface DimensionConfig {
   aspectRatio: number;    // height/width for shield
 }
 
-export interface HoleConfig {
-  enabled: boolean;
-  position: 'none' | 'top' | 'sides';
-  diameter: number;
-  offset: number;         // distance from edge
-}
-
 export interface SafeAreaConfig {
   padding: number;        // mm from border
   showGuide: boolean;
@@ -83,7 +76,6 @@ export interface CoasterStateV2 {
   border: BorderConfig;
   text: TextConfig;
   textFit: TextFitConfig;
-  hole: HoleConfig;
   safeArea: SafeAreaConfig;
   preview: PreviewConfig;
   export: ExportConfig;
@@ -144,8 +136,6 @@ export const CONSTRAINTS = {
   fontSize: { min: 6, max: 40 },
   fontSizeCenter: { min: 10, max: 32 },
   fontSizeSmall: { min: 6, max: 16 },
-  holeDiameter: { min: 2, max: 8, default: 4 },
-  holeOffset: { min: 3, max: 15, default: 5 },
   zoom: { min: 0.5, max: 2.5, default: 1 },
   letterSpacing: { min: -2, max: 5, default: 0 },
 };

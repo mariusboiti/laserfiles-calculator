@@ -45,12 +45,6 @@ export const DEFAULTS_V2: CoasterStateV2 = {
     fontMaxSmall: 14,
     letterSpacing: 0,
   },
-  hole: {
-    enabled: false,
-    position: 'none',
-    diameter: 4,
-    offset: 5,
-  },
   safeArea: {
     padding: 5,
     showGuide: false,
@@ -150,8 +144,6 @@ export const LIMITS = {
   fontSize: { min: 6, max: 40 },
   fontSizeCenter: { min: 10, max: 32 },
   fontSizeSmall: { min: 6, max: 16 },
-  holeDiameter: { min: 2, max: 8, default: 4 },
-  holeOffset: { min: 3, max: 15, default: 5 },
   zoom: { min: 0.5, max: 2.5, default: 1 },
   letterSpacing: { min: -2, max: 5, default: 0 },
 };

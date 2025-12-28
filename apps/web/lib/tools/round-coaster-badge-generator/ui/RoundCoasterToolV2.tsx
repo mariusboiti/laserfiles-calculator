@@ -606,49 +606,6 @@ export function RoundCoasterToolV2({ onResetCallback }: RoundCoasterToolV2Props)
               />
             </Section>
             
-            {/* Hole (Badge) */}
-            <Section title="Hole (Badge)" defaultOpen={false}>
-              <Checkbox
-                label="Enable hole"
-                checked={state.hole.enabled}
-                onChange={(v) => updateState('hole', { enabled: v })}
-              />
-              
-              {state.hole.enabled && (
-                <div className="space-y-3 mt-2">
-                  <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Position</div>
-                    <select
-                      value={state.hole.position}
-                      onChange={(e) => updateState('hole', { position: e.target.value as 'none' | 'top' | 'sides' })}
-                      className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs"
-                    >
-                      <option value="top">Top (lanyard)</option>
-                      <option value="sides">Sides (2 holes)</option>
-                    </select>
-                  </label>
-                  
-                  <NumberInput
-                    label="Hole diameter"
-                    value={state.hole.diameter}
-                    onChange={(v) => updateState('hole', { diameter: v })}
-                    min={LIMITS.holeDiameter.min}
-                    max={LIMITS.holeDiameter.max}
-                    step={0.5}
-                  />
-                  
-                  <NumberInput
-                    label="Offset from edge"
-                    value={state.hole.offset}
-                    onChange={(v) => updateState('hole', { offset: v })}
-                    min={LIMITS.holeOffset.min}
-                    max={LIMITS.holeOffset.max}
-                    step={1}
-                  />
-                </div>
-              )}
-            </Section>
-            
             {/* Export Options */}
             <Section title="Export" defaultOpen={false}>
               <div className="space-y-2">
