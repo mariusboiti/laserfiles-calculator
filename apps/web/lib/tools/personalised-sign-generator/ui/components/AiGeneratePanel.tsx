@@ -21,6 +21,7 @@ import type {
   AiComplexity,
   ShapeElement,
   EngraveSketchElement,
+  EngraveImageElement,
 } from '../../types/signPro';
 import { generateId } from '../../types/signPro';
 import { PROMPT_SUGGESTIONS } from '../../core/ai/promptTemplates';
@@ -34,6 +35,7 @@ interface AiGeneratePanelProps {
   targetHeightMm: number;
   onGenerated: (result: { mode: AiGenerationMode; svg?: string; pngDataUrl?: string }) => void;
   onTraceResult?: (element: ShapeElement | EngraveSketchElement, targetLayer: 'CUT' | 'ENGRAVE') => void;
+  onInsertImage?: (element: EngraveImageElement) => void;
   disabled?: boolean;
 }
 
@@ -42,6 +44,7 @@ export function AiGeneratePanel({
   targetHeightMm,
   onGenerated,
   onTraceResult,
+  onInsertImage,
   disabled,
 }: AiGeneratePanelProps) {
   const [mode, setMode] = useState<PanelMode>('engravingSketchImage');
@@ -207,6 +210,33 @@ export function AiGeneratePanel({
     mode,
     prompt,
   ]);
+
+  // Insert image directly without tracing
+  const handleInsertAsImage = useCallback(() => {
+    if (!imagePreviewDataUrl || !onInsertImage) return;
+
+    const maxWidthMm = targetWidthMm * 0.7;
+    const maxHeightMm = targetHeightMm * 0.7;
+    const sizeMm = Math.min(maxWidthMm, maxHeightMm);
+
+    const element: EngraveImageElement = {
+      id: generateId(),
+      kind: 'engraveImage',
+      pngDataUrl: imagePreviewDataUrl,
+      widthMm: sizeMm,
+      heightMm: sizeMm,
+      transform: {
+        xMm: targetWidthMm / 2,
+        yMm: targetHeightMm / 2,
+        rotateDeg: 0,
+        scaleX: 1,
+        scaleY: 1,
+      },
+    };
+    
+    onInsertImage(element);
+    setImagePreviewDataUrl(null);
+  }, [imagePreviewDataUrl, onInsertImage, targetWidthMm, targetHeightMm]);
 
   return (
     <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 space-y-4">
@@ -430,6 +460,26 @@ export function AiGeneratePanel({
           <div className="bg-slate-900 border border-slate-700 rounded p-2">
             <img src={imagePreviewDataUrl} alt="AI preview" className="w-full h-auto rounded" />
           </div>
+          
+          {/* Insert as Image - no trace needed */}
+          {onInsertImage && (
+            <button
+              onClick={handleInsertAsImage}
+              disabled={disabled || loading || traceLoading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors bg-green-600 hover:bg-green-500 text-white disabled:opacity-50"
+            >
+              <Pencil className="w-4 h-4" />
+              Insert as Image (no trace)
+            </button>
+          )}
+
+          {/* Divider */}
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="flex-1 h-px bg-slate-700" />
+            <span>or trace to vectors</span>
+            <div className="flex-1 h-px bg-slate-700" />
+          </div>
+
           <button
             onClick={handleTraceInsert}
             disabled={disabled || loading || traceLoading || !onTraceResult}

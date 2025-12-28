@@ -34,6 +34,7 @@ import type {
   TextElement,
   ShapeElement,
   EngraveSketchElement,
+  EngraveImageElement,
   AiGenerationMode,
   BaseShapeType,
 } from '../types/signPro';
@@ -414,6 +415,17 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
     setEditor({ doc: nextDoc, selection: nextSelection }, true);
   }, [doc, setEditor]);
 
+  // Insert image without tracing (as EngraveImage)
+  const handleInsertImage = useCallback((element: EngraveImageElement) => {
+    const layer = findLayerByType(doc, 'ENGRAVE');
+    if (!layer) return;
+
+    const cur = editorRef.current;
+    const nextDoc = addElement(cur.doc, layer.id, element);
+    const nextSelection = selectionReducer(cur.selection, selectSingle(element.id));
+    setEditor({ doc: nextDoc, selection: nextSelection }, true);
+  }, [doc, setEditor]);
+
   const handleOrnamentInsert = useCallback((assetId: string, targetLayer: OrnamentLayerType, widthPct: number) => {
     const activeLayer = findLayerByType(doc, targetLayer);
     if (!activeLayer) return;
@@ -610,6 +622,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
             targetHeightMm={doc.artboard.hMm}
             onGenerated={handleAiGenerated}
             onTraceResult={handleTraceResult}
+            onInsertImage={handleInsertImage}
           />
         </Section>
 
@@ -637,6 +650,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
             targetWidthMm={doc.artboard.wMm}
             targetHeightMm={doc.artboard.hMm}
             onTraceResult={handleTraceResult}
+            onInsertImage={handleInsertImage}
           />
         </Section>
 

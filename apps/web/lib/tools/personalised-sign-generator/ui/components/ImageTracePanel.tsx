@@ -18,7 +18,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import type { ShapeElement, EngraveSketchElement } from '../../types/signPro';
+import type { ShapeElement, EngraveSketchElement, EngraveImageElement } from '../../types/signPro';
 import { generateId } from '../../types/signPro';
 
 export type TraceMode = 'silhouette' | 'sketch';
@@ -27,6 +27,7 @@ interface ImageTracePanelProps {
   targetWidthMm: number;
   targetHeightMm: number;
   onTraceResult: (element: ShapeElement | EngraveSketchElement, targetLayer: 'CUT' | 'ENGRAVE') => void;
+  onInsertImage?: (element: EngraveImageElement) => void;
   disabled?: boolean;
 }
 
@@ -64,6 +65,7 @@ export function ImageTracePanel({
   targetWidthMm,
   targetHeightMm,
   onTraceResult,
+  onInsertImage,
   disabled = false,
 }: ImageTracePanelProps) {
   const [options, setOptions] = useState<TraceOptions>(DEFAULT_OPTIONS);
@@ -312,15 +314,45 @@ export function ImageTracePanel({
     }
   }, []);
 
-  // Auto-trace when image or options change
-  useEffect(() => {
-    if (imageData) {
-      const timer = setTimeout(() => {
-        traceImage();
-      }, 300);
-      return () => clearTimeout(timer);
+  // Insert image directly without tracing (as EngraveImage)
+  const handleInsertAsImage = useCallback(() => {
+    if (!imageData || !onInsertImage) return;
+
+    // Calculate size - fit within 70% of artboard
+    const maxWidthMm = targetWidthMm * 0.7;
+    const maxHeightMm = targetHeightMm * 0.7;
+    
+    // Default to square, will be corrected when image loads
+    const sizeMm = Math.min(maxWidthMm, maxHeightMm);
+
+    const element: EngraveImageElement = {
+      id: generateId(),
+      kind: 'engraveImage',
+      pngDataUrl: imageData,
+      widthMm: sizeMm,
+      heightMm: sizeMm,
+      transform: {
+        xMm: targetWidthMm / 2,
+        yMm: targetHeightMm / 2,
+        rotateDeg: 0,
+        scaleX: 1,
+        scaleY: 1,
+      },
+    };
+    
+    onInsertImage(element);
+
+    // Reset state
+    setImageData(null);
+    setPreviewPath(null);
+    setImageName('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-  }, [imageData, options, traceImage]);
+  }, [imageData, onInsertImage, targetWidthMm, targetHeightMm]);
+
+  // NO auto-trace - user must click button manually
+  // This prevents page freeze on complex images
 
   return (
     <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 space-y-4">
@@ -362,6 +394,30 @@ export function ImageTracePanel({
           <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-700/50 rounded p-2">
             <ImageIcon className="w-4 h-4" />
             <span className="truncate flex-1">{imageName}</span>
+          </div>
+
+          {/* Image preview */}
+          <div className="bg-slate-900 rounded border border-slate-600 p-2 aspect-video flex items-center justify-center">
+            <img src={imageData} alt="Preview" className="max-w-full max-h-full object-contain" />
+          </div>
+
+          {/* Quick action: Insert as Image (no trace) */}
+          {onInsertImage && (
+            <button
+              onClick={handleInsertAsImage}
+              disabled={disabled || loading}
+              className="w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white disabled:opacity-50"
+            >
+              <ImageIcon className="w-4 h-4" />
+              Insert as Image (no trace)
+            </button>
+          )}
+
+          {/* Divider */}
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="flex-1 h-px bg-slate-700" />
+            <span>or trace to vectors</span>
+            <div className="flex-1 h-px bg-slate-700" />
           </div>
 
           {/* Mode selection */}
@@ -499,8 +555,20 @@ export function ImageTracePanel({
             </div>
           )}
 
+          {/* Start Trace button - only show if no preview yet */}
+          {!previewPath && !loading && (
+            <button
+              onClick={traceImage}
+              disabled={disabled}
+              className="w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50"
+            >
+              <Wand2 className="w-4 h-4" />
+              Start Trace
+            </button>
+          )}
+
           {/* Progress bar during tracing */}
-          {loading && progress > 0 && (
+          {loading && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Tracing... {progress}%</span>
@@ -520,28 +588,17 @@ export function ImageTracePanel({
             </div>
           )}
 
-          {/* Apply button */}
-          <button
-            onClick={handleApply}
-            disabled={!previewPath || loading || disabled}
-            className={`w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-              previewPath && !loading && !disabled
-                ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-            }`}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Tracing...
-              </>
-            ) : (
-              <>
-                <Wand2 className="w-4 h-4" />
-                Insert Traced Shape
-              </>
-            )}
-          </button>
+          {/* Insert traced shape - only show after trace complete */}
+          {previewPath && !loading && (
+            <button
+              onClick={handleApply}
+              disabled={disabled}
+              className="w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50"
+            >
+              <Wand2 className="w-4 h-4" />
+              Insert Traced Shape
+            </button>
+          )}
         </>
       )}
 
