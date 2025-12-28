@@ -140,6 +140,25 @@ const SHAPE_ICONS: Record<ShapeType, React.ElementType> = {
 // ============ Presets ============
 const DIAMETER_PRESETS = [60, 70, 80, 90, 100];
 
+interface QuickPreset {
+  id: string;
+  name: string;
+  shape: ShapeType;
+  diameter: number;
+  width?: number;
+  height?: number;
+  text: string;
+}
+
+const QUICK_PRESETS: QuickPreset[] = [
+  { id: 'coaster-90', name: 'Coaster 90mm', shape: 'circle', diameter: 90, text: 'COASTER' },
+  { id: 'coaster-100', name: 'Coaster 100mm', shape: 'circle', diameter: 100, text: 'COASTER' },
+  { id: 'badge-60', name: 'Badge 60mm', shape: 'circle', diameter: 60, text: 'NAME' },
+  { id: 'badge-70', name: 'Badge 70mm', shape: 'circle', diameter: 70, text: 'NAME' },
+  { id: 'hex-90', name: 'Hex 90mm', shape: 'hex', diameter: 90, text: 'HEX' },
+  { id: 'shield-80', name: 'Shield', shape: 'shield', diameter: 80, width: 80, height: 92, text: 'BADGE' },
+];
+
 // ============ Main Component ============
 
 interface RoundCoasterToolProProps {
@@ -252,6 +271,14 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
     setDiameter(d);
   }, []);
 
+  const handleQuickPreset = useCallback((preset: QuickPreset) => {
+    setShape(preset.shape);
+    setDiameter(preset.diameter);
+    if (preset.width) setWidth(preset.width);
+    if (preset.height) setHeight(preset.height);
+    setCenterText(preset.text);
+  }, []);
+
   const handleSelect = useCallback((ids: string[], additive?: boolean) => {
     dispatch({ type: 'SELECT', ids, additive });
   }, []);
@@ -361,6 +388,22 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
         {/* Controls Panel */}
         <section className="w-full md:w-80 lg:w-96">
           <div className="max-h-[calc(100vh-96px)] overflow-y-auto space-y-3 pr-1">
+
+            {/* Quick Presets */}
+            <Section title="Quick Presets">
+              <div className="flex flex-wrap gap-2">
+                {QUICK_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handleQuickPreset(preset)}
+                    className="px-2.5 py-1.5 text-[11px] border border-slate-700 bg-slate-900 rounded hover:bg-slate-800 hover:border-slate-600"
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+            </Section>
 
             {/* Shape */}
             <Section title="Shape">
