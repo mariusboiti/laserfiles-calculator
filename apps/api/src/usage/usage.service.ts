@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -21,7 +21,7 @@ export class UsageService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new UnauthorizedException('User not found');
     }
 
     // PRO and BUSINESS plans: always allowed

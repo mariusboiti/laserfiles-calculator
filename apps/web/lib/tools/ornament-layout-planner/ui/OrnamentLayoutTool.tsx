@@ -1,0 +1,516 @@
+'use client';
+
+import { useMemo, useState, useCallback, useEffect } from 'react';
+import { downloadTextFile } from '@/lib/studio/export/download';
+import { DEFAULTS, SHEET_PRESETS } from '../config/defaults';
+import { parseSvgSize } from '../core/parseSvgSize';
+import { buildLayoutsV2 } from '../core/layoutEngine';
+import { computeLabels } from '../core/labeling';
+import { validateLayout } from '../core/validateLayout';
+import { generateSheetSvg, generateSheetFilename, generateZipFilename } from '../core/exportSvg';
+import { generateZipExport, downloadZip } from '../core/exportZip';
+import type { TemplateItem, LayoutSettings, SheetLayout } from '../types/layout';
+
+interface OrnamentLayoutToolProps {
+  onResetCallback?: (callback: () => void) => void;
+}
+
+export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps) {
+  // Templates
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  
+  // Settings
+  const [settings, setSettings] = useState<LayoutSettings>(DEFAULTS);
+  
+  // UI state
+  const [currentSheetIndex, setCurrentSheetIndex] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Generate layout
+  const layoutResult = useMemo(() => {
+    if (templates.length === 0) {
+      return { sheets: [], summaryWarnings: [], errors: ['No templates loaded'] };
+    }
+
+    const result = buildLayoutsV2({ templates, settings });
+    
+    // Add labels if enabled
+    if (settings.showLabels || settings.exportLabels) {
+      result.sheets = computeLabels(result.sheets, {
+        style: settings.labelStyle,
+        templates,
+      });
+    }
+
+    // Validate
+    const validation = validateLayout(result.sheets, settings);
+    result.summaryWarnings.push(...validation.warnings);
+    result.errors.push(...validation.errors);
+
+    return result;
+  }, [templates, settings]);
+
+  // Current sheet for preview
+  const currentSheet = useMemo(() => {
+    return layoutResult.sheets.find(s => s.sheetIndex === currentSheetIndex);
+  }, [layoutResult.sheets, currentSheetIndex]);
+
+  // Preview SVG
+  const previewSvg = useMemo(() => {
+    if (!currentSheet) return '';
+    
+    return generateSheetSvg({
+      sheetIndex: currentSheet.sheetIndex,
+      sheet: currentSheet,
+      templates,
+      settings: {
+        ...settings,
+        exportLabels: settings.showLabels, // Preview uses showLabels
+      },
+    });
+  }, [currentSheet, templates, settings]);
+
+  // Reset
+  const resetToDefaults = useCallback(() => {
+    setTemplates([]);
+    setSettings(DEFAULTS);
+    setCurrentSheetIndex(1);
+  }, []);
+
+  useEffect(() => {
+    if (onResetCallback) {
+      onResetCallback(resetToDefaults);
+    }
+  }, [onResetCallback, resetToDefaults]);
+
+  // Add template
+  const handleAddTemplate = useCallback(async (file: File) => {
+    try {
+      const svgText = await file.text();
+      const parsed = parseSvgSize(svgText, {
+        pxDpi: settings.pxDpi,
+        sanitize: settings.sanitizeSvg,
+      });
+
+      const newTemplate: TemplateItem = {
+        id: `tpl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        svgText,
+        innerSvg: parsed.innerSvg,
+        width: parsed.width,
+        height: parsed.height,
+        viewBox: parsed.viewBox,
+        qty: 1,
+        rotateDeg: 0,
+      };
+
+      setTemplates(prev => [...prev, newTemplate]);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to load SVG');
+    }
+  }, [settings.pxDpi, settings.sanitizeSvg]);
+
+  // Remove template
+  const handleRemoveTemplate = useCallback((id: string) => {
+    setTemplates(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // Update template
+  const handleUpdateTemplate = useCallback((id: string, updates: Partial<TemplateItem>) => {
+    setTemplates(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  }, []);
+
+  // Export current sheet
+  const handleExportSheet = useCallback(() => {
+    if (!currentSheet) return;
+
+    const svg = generateSheetSvg({
+      sheetIndex: currentSheet.sheetIndex,
+      sheet: currentSheet,
+      templates,
+      settings,
+    });
+
+    const filename = generateSheetFilename(
+      currentSheet.sheetIndex,
+      layoutResult.sheets.length,
+      currentSheet.items.length,
+      settings,
+      templates[0]?.name
+    );
+
+    downloadTextFile(filename, svg, 'image/svg+xml');
+  }, [currentSheet, templates, settings, layoutResult.sheets.length]);
+
+  // Export ZIP
+  const handleExportZip = useCallback(async () => {
+    if (layoutResult.sheets.length === 0) return;
+
+    setIsExporting(true);
+    try {
+      const blob = await generateZipExport({
+        sheets: layoutResult.sheets,
+        templates,
+        settings,
+      });
+
+      const totalItems = layoutResult.sheets.reduce((sum, s) => sum + s.items.length, 0);
+      const filename = generateZipFilename(totalItems, layoutResult.sheets.length, settings);
+
+      downloadZip(blob, filename);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to export ZIP');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [layoutResult.sheets, templates, settings]);
+
+  const totalQty = templates.reduce((sum, t) => sum + t.qty, 0);
+  const totalItems = layoutResult.sheets.reduce((sum, s) => sum + s.items.length, 0);
+
+  return (
+    <div className="lfs-tool lfs-tool-ornament-layout-planner-v2">
+      <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+        {/* Left Panel - Controls */}
+        <div className="space-y-4">
+          {/* Templates */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-medium text-slate-100">Templates</div>
+              <div className="text-xs text-slate-400">Total qty: {totalQty}</div>
+            </div>
+            
+            <input
+              type="file"
+              accept="image/svg+xml,.svg"
+              onChange={(e) => e.target.files?.[0] && handleAddTemplate(e.target.files[0])}
+              className="mb-3 block w-full text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:text-slate-200 hover:file:bg-slate-800"
+            />
+
+            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              {templates.map(tpl => (
+                <div key={tpl.id} className="rounded-md border border-slate-800 bg-slate-900/50 p-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={tpl.name}
+                      onChange={(e) => handleUpdateTemplate(tpl.id, { name: e.target.value })}
+                      className="flex-1 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
+                    />
+                    <button
+                      onClick={() => handleRemoveTemplate(tpl.id)}
+                      className="rounded bg-red-900/30 px-2 py-1 text-xs text-red-400 hover:bg-red-900/50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                    <span>{tpl.width.toFixed(1)}×{tpl.height.toFixed(1)}mm</span>
+                    <input
+                      type="number"
+                      value={tpl.qty}
+                      min={0}
+                      onChange={(e) => handleUpdateTemplate(tpl.id, { qty: Number(e.target.value) })}
+                      className="w-16 rounded border border-slate-700 bg-slate-950 px-1 py-0.5 text-[10px]"
+                      placeholder="Qty"
+                    />
+                    <select
+                      value={tpl.rotateDeg}
+                      onChange={(e) => handleUpdateTemplate(tpl.id, { rotateDeg: Number(e.target.value) as 0 | 90 | 180 | 270 })}
+                      className="rounded border border-slate-700 bg-slate-950 px-1 py-0.5 text-[10px]"
+                    >
+                      <option value={0}>0°</option>
+                      <option value={90}>90°</option>
+                      <option value={180}>180°</option>
+                      <option value={270}>270°</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sheet Presets */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="text-sm font-medium text-slate-100 mb-3">Sheet Presets</div>
+            <div className="flex flex-wrap gap-2">
+              {SHEET_PRESETS.map(preset => (
+                <button
+                  key={preset.name}
+                  onClick={() => setSettings(s => ({ ...s, sheetW: preset.widthMm, sheetH: preset.heightMm }))}
+                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+                  title={preset.description}
+                >
+                  {preset.name}
+                </button>
+              ))}
+            </div>
+            
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <label className="grid gap-1">
+                <div className="text-[10px] text-slate-300">Width (mm)</div>
+                <input
+                  type="number"
+                  value={settings.sheetW}
+                  onChange={(e) => setSettings(s => ({ ...s, sheetW: Number(e.target.value) }))}
+                  className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                />
+              </label>
+              <label className="grid gap-1">
+                <div className="text-[10px] text-slate-300">Height (mm)</div>
+                <input
+                  type="number"
+                  value={settings.sheetH}
+                  onChange={(e) => setSettings(s => ({ ...s, sheetH: Number(e.target.value) }))}
+                  className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                />
+              </label>
+              <label className="grid gap-1">
+                <div className="text-[10px] text-slate-300">Margin (mm)</div>
+                <input
+                  type="number"
+                  value={settings.margin}
+                  onChange={(e) => setSettings(s => ({ ...s, margin: Number(e.target.value) }))}
+                  className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Mode & Layout */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="text-sm font-medium text-slate-100 mb-3">Layout Mode</div>
+            
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => setSettings(s => ({ ...s, mode: 'grid' }))}
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-medium ${
+                  settings.mode === 'grid'
+                    ? 'bg-sky-500 text-white'
+                    : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                Grid
+              </button>
+              <button
+                onClick={() => setSettings(s => ({ ...s, mode: 'pack' }))}
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-medium ${
+                  settings.mode === 'pack'
+                    ? 'bg-sky-500 text-white'
+                    : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                Pack
+              </button>
+            </div>
+
+            {settings.mode === 'grid' ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="grid gap-1">
+                    <div className="text-[10px] text-slate-300">Rows</div>
+                    <input
+                      type="number"
+                      value={settings.rows}
+                      disabled={settings.autoFit}
+                      onChange={(e) => setSettings(s => ({ ...s, rows: Number(e.target.value) }))}
+                      className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <div className="text-[10px] text-slate-300">Columns</div>
+                    <input
+                      type="number"
+                      value={settings.cols}
+                      disabled={settings.autoFit}
+                      onChange={(e) => setSettings(s => ({ ...s, cols: Number(e.target.value) }))}
+                      className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                    />
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoFit}
+                    onChange={(e) => setSettings(s => ({ ...s, autoFit: e.target.checked }))}
+                  />
+                  Auto-fit
+                </label>
+                <label className="flex items-center gap-2 text-xs text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={settings.center}
+                    onChange={(e) => setSettings(s => ({ ...s, center: e.target.checked }))}
+                  />
+                  Center layout
+                </label>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={settings.groupByTemplate}
+                    onChange={(e) => setSettings(s => ({ ...s, groupByTemplate: e.target.checked }))}
+                  />
+                  Group by template
+                </label>
+                <label className="flex items-center gap-2 text-xs text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={settings.allowRotateInPack}
+                    onChange={(e) => setSettings(s => ({ ...s, allowRotateInPack: e.target.checked }))}
+                  />
+                  Allow auto-rotate
+                </label>
+              </div>
+            )}
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <label className="grid gap-1">
+                <div className="text-[10px] text-slate-300">Gap X (mm)</div>
+                <input
+                  type="number"
+                  value={settings.gapX}
+                  onChange={(e) => setSettings(s => ({ ...s, gapX: Number(e.target.value) }))}
+                  className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                />
+              </label>
+              <label className="grid gap-1">
+                <div className="text-[10px] text-slate-300">Gap Y (mm)</div>
+                <input
+                  type="number"
+                  value={settings.gapY}
+                  onChange={(e) => setSettings(s => ({ ...s, gapY: Number(e.target.value) }))}
+                  className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Labels */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="text-sm font-medium text-slate-100 mb-3">Labels</div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-xs text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={settings.showLabels}
+                  onChange={(e) => setSettings(s => ({ ...s, showLabels: e.target.checked }))}
+                />
+                Show in preview
+              </label>
+              <label className="flex items-center gap-2 text-xs text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={settings.exportLabels}
+                  onChange={(e) => setSettings(s => ({ ...s, exportLabels: e.target.checked }))}
+                />
+                Export labels
+              </label>
+              <select
+                value={settings.labelStyle}
+                onChange={(e) => setSettings(s => ({ ...s, labelStyle: e.target.value as any }))}
+                className="w-full rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+              >
+                <option value="index">Index (#1, #2...)</option>
+                <option value="templateName">Template name</option>
+                <option value="templateName+index">Name + Index</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Export */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="text-sm font-medium text-slate-100 mb-3">Export</div>
+            <div className="space-y-2">
+              <button
+                onClick={handleExportSheet}
+                disabled={!currentSheet}
+                className="w-full rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
+              >
+                Export Current Sheet SVG
+              </button>
+              {layoutResult.sheets.length > 1 && (
+                <button
+                  onClick={handleExportZip}
+                  disabled={isExporting}
+                  className="w-full rounded-md bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 disabled:opacity-50"
+                >
+                  {isExporting ? 'Exporting...' : `Export All Sheets (ZIP)`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Preview */}
+        <div className="space-y-4">
+          {/* Summary */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="text-xs space-y-1">
+              <div className="text-slate-100">
+                <span className="font-medium">Total items:</span> {totalItems} / {totalQty}
+              </div>
+              <div className="text-slate-100">
+                <span className="font-medium">Sheets:</span> {layoutResult.sheets.length}
+              </div>
+              <div className="text-slate-100">
+                <span className="font-medium">Mode:</span> {settings.mode}
+              </div>
+            </div>
+
+            {layoutResult.summaryWarnings.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {layoutResult.summaryWarnings.map((w, i) => (
+                  <div key={i} className="text-[10px] text-amber-400">⚠ {w}</div>
+                ))}
+              </div>
+            )}
+
+            {layoutResult.errors.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {layoutResult.errors.map((e, i) => (
+                  <div key={i} className="text-[10px] text-red-400">✕ {e}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Sheet Tabs */}
+          {layoutResult.sheets.length > 1 && (
+            <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+              <div className="flex gap-1 overflow-x-auto">
+                {layoutResult.sheets.map(sheet => (
+                  <button
+                    key={sheet.sheetIndex}
+                    onClick={() => setCurrentSheetIndex(sheet.sheetIndex)}
+                    className={`rounded px-3 py-1 text-xs whitespace-nowrap ${
+                      currentSheetIndex === sheet.sheetIndex
+                        ? 'bg-sky-500 text-white'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    Sheet {sheet.sheetIndex} ({sheet.items.length})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Preview */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="mb-2 text-xs text-slate-300">Preview</div>
+            <div className="overflow-auto rounded-lg border border-slate-800 bg-white p-3 max-h-[600px]">
+              {previewSvg ? (
+                <div dangerouslySetInnerHTML={{ __html: previewSvg }} />
+              ) : (
+                <div className="text-sm text-slate-500">No preview available</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,26 @@
+/* BoxMaker CSS Module - Scoped styles */
+
+.boxmaker_root {
+  min-height: 100vh;
+  background-color: #020617;
+  color: #e5e7eb;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.boxmaker_root a {
+  color: #38bdf8;
+  text-decoration: none;
+  text-underline-offset: 0.15em;
+}
+
+.boxmaker_root a:hover {
+  text-decoration: underline;
+}
+
+.boxmaker_root input,
+.boxmaker_root select,
+.boxmaker_root button,
+.boxmaker_root textarea {
+  outline: none;
+}

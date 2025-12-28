@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+@layer components {
+  .lfs-tool-panel-splitter .btn-primary {
+    @apply bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .lfs-tool-panel-splitter .btn-secondary {
+    @apply bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium py-2 px-4 rounded-lg border border-slate-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .lfs-tool-panel-splitter .btn-danger {
+    @apply bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+
+  .lfs-tool-panel-splitter .input-field {
+    @apply w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-200;
+  }
+
+  .lfs-tool-panel-splitter .card {
+    @apply bg-slate-900/60 rounded-xl border border-slate-800 p-4;
+  }
+
+  .lfs-tool-panel-splitter .tooltip-trigger {
+    @apply inline-flex items-center justify-center w-4 h-4 ml-1 text-xs text-slate-400 bg-slate-800 rounded-full cursor-help hover:bg-slate-700;
+  }
+}
+
+/* Custom scrollbar */
+.lfs-tool-panel-splitter ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.lfs-tool-panel-splitter ::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+.lfs-tool-panel-splitter ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.lfs-tool-panel-splitter ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

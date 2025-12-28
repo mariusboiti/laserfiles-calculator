@@ -66,8 +66,10 @@ async function bootstrap() {
         },
     }));
     app.enableCors({
-        origin: [/http:\/\/localhost:\d+$/],
+        origin: ['http://77.42.38.96:3000', 'http://localhost:3000'],
         credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
     });
     app.useStaticAssets((0, path_1.join)(process.cwd(), 'uploads'), {
         prefix: '/uploads',
@@ -86,6 +88,6 @@ async function bootstrap() {
         console.error('Failed to set up Swagger docs', error);
     }
     const port = process.env.PORT || 4000;
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');
 }
 bootstrap();

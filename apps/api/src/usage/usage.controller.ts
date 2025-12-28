@@ -4,6 +4,7 @@ import {
   Body,
   UseGuards,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UsageService } from './usage.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -30,8 +31,12 @@ export class UsageController {
       throw new BadRequestException('toolKey is required');
     }
 
-    // Track export and get result
-    const result = await this.usageService.trackExport(user.id, body.toolKey);
+    const userId = user?.id || user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Missing user id in token');
+    }
+
+    const result = await this.usageService.trackExport(String(userId), body.toolKey);
 
     return result;
   }

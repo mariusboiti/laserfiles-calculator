@@ -64,6 +64,7 @@ function AppShell({ children }: { children: ReactNode }) {
 
   const navItems = [
     { href: '/', label: t('nav.dashboard') },
+    { href: '/studio', label: 'Studio' },
     { href: '/orders', label: t('nav.orders') },
     { href: '/customers', label: t('nav.customers') },
     { href: '/materials', label: t('nav.materials') },
@@ -73,7 +74,6 @@ function AppShell({ children }: { children: ReactNode }) {
     { href: '/sales-channels', label: t('nav.sales_channels') },
     { href: '/today-queue', label: t('nav.today_queue') },
     { href: '/seasons', label: t('nav.seasons_batches') },
-    { href: '/pricing', label: t('nav.pricing') },
     { href: '/quotes', label: t('nav.quotes') },
     { href: '/tutorial', label: t('nav.tutorial') },
   ];
@@ -147,7 +147,7 @@ function AppShell({ children }: { children: ReactNode }) {
             </button>
           </div>
         </header>
-        <div className="flex-1 bg-slate-950 px-4 py-4 md:px-6 md:py-6">{children}</div>
+        <div className="flex-1 bg-slate-950 px-6 py-4 md:px-8 md:py-6">{children}</div>
       </main>
 
       <GuidedTour />
