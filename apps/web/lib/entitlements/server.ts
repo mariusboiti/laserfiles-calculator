@@ -121,9 +121,10 @@ export async function getEntitlementStatus(userId: string): Promise<EntitlementS
     entitlement.trialEndsAt && 
     entitlement.trialEndsAt > now;
 
-  const isActive = 
+  const isActive: boolean = Boolean(
     entitlement.plan === 'ACTIVE' || 
-    (isTrialValid && aiCreditsRemaining > 0);
+    (isTrialValid && aiCreditsRemaining > 0)
+  );
 
   return {
     plan: entitlement.plan,

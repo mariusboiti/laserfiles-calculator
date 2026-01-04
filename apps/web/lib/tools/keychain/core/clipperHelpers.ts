@@ -445,8 +445,8 @@ export function polygonsToSvgPath(polygons: Point[][]): string {
 // Clipper Operations
 // ============================================================================
 
-type ClipperPath = ClipperLib.Path;
-type ClipperPaths = ClipperLib.Paths;
+type ClipperPath = any;
+type ClipperPaths = any;
 
 /**
  * Convert Point[] to Clipper integer path
@@ -462,7 +462,7 @@ function toClipperPath(polygon: Point[]): ClipperPath {
  * Convert Clipper integer path to Point[]
  */
 function fromClipperPath(path: ClipperPath): Point[] {
-  return path.map(p => ({
+  return path.map((p: any) => ({
     x: p.x / CLIPPER_SCALE,
     y: p.y / CLIPPER_SCALE
   }));

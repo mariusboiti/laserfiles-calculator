@@ -54,14 +54,6 @@ export const toolsRegistry: Tool[] = [
 
   // Soon Tools
   {
-    key: 'multilayer-maker',
-    name: 'MultiLayer Maker',
-    versionLabel: '',
-    status: 'stable',
-    href: '/studio/tools/multilayer-maker',
-    description: 'Design multi-layered projects with automatic alignment and spacing',
-  },
-  {
     key: 'product-label-generator',
     name: 'Product Label Generator',
     versionLabel: '',

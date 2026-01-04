@@ -762,7 +762,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
   useEffect(() => {
     if (!faceKeys.length) return;
-    if (faceKeys.includes(selectedArtworkFace)) return;
+    if (faceKeys.includes(selectedArtworkFace as any)) return;
     setSelectedArtworkFace(faceKeys[0]);
   }, [faceKeys, selectedArtworkFace]);
 
@@ -801,7 +801,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
       return;
     }
 
-    const targets = faceArtworkTargets.filter((t) => faceKeys.includes(t));
+    const targets = faceArtworkTargets.filter((t) => faceKeys.includes(t as any));
     if (targets.length === 0) {
       setArtworkError('Select at least one face');
       return;

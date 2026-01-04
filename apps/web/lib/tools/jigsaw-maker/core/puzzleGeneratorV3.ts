@@ -95,10 +95,9 @@ export async function generatePuzzleV3(inputs: JigsawInputs): Promise<PuzzleResu
     rows,
     columns,
     randomSeed,
-    knobSize = 0.75,
-    roundness = 0.85,
-    jitter = 0.18,
-    flatRatio = 0.12,
+    knobSizePct = 75,
+    knobRoundness = 0.85,
+    knobJitter = 0.18,
     marginMm = 0,
   } = inputs;
   
@@ -112,10 +111,10 @@ export async function generatePuzzleV3(inputs: JigsawInputs): Promise<PuzzleResu
   const edgeParams: EdgeParams = {
     cellW,
     cellH,
-    knobSize,
-    roundness,
-    jitter,
-    flatRatio,
+    knobSize: knobSizePct / 100,
+    roundness: knobRoundness,
+    jitter: knobJitter,
+    flatRatio: 0.12,
     seed: randomSeed,
   };
   

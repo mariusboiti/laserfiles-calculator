@@ -142,7 +142,7 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
     async function reprocessImage() {
       try {
         const { processImageForPuzzle } = await import('../utils/imageProcessing');
-        const processedUrl = await processImageForPuzzle(originalImageUrl, photoProcessing);
+        const processedUrl = await processImageForPuzzle(originalImageUrl!, photoProcessing);
         setImageDataUrl(processedUrl);
       } catch (error) {
         console.error('Error reprocessing image:', error);

@@ -1,12 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import type { AspectRatio, BackgroundStyle, DepthStyle, PlaqueShape, ReliefMaterial, EngravingMaterial, DepthZones } from '../types';
-import { ASPECT_RATIOS, STYLE_PRESETS, PLAQUE_SHAPES, RELIEF_MATERIALS, ENGRAVING_MATERIALS } from '../types';
+import type { AspectRatio, BackgroundStyle, DepthStyle, PlaqueShape, ReliefMaterial, DepthZones } from '../types';
+import { ASPECT_RATIOS, STYLE_PRESETS, PLAQUE_SHAPES, RELIEF_MATERIALS } from '../types';
+import { useAnalytics } from '@/lib/analytics/useAnalytics';
 
 type TabView = 'final' | 'depth' | 'layers';
 
 export function AIDepthPhotoTool() {
+  const analytics = useAnalytics('ai-depth-photo');
+  
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState<DepthStyle>('bas-relief-engraving');
   const [ratio, setRatio] = useState<AspectRatio>('1:1');
@@ -21,7 +24,7 @@ export function AIDepthPhotoTool() {
   const [bottomNotch, setBottomNotch] = useState(false);
   
   // V2 Engraving specific options
-  const [engravingMaterial, setEngravingMaterial] = useState<EngravingMaterial>('plywood');
+  const [engravingMaterial, setEngravingMaterial] = useState<ReliefMaterial>('wood');
   const [depthZones, setDepthZones] = useState<DepthZones>(3);
   const [detailLevel, setDetailLevel] = useState(0.5);
   const [enableValidation, setEnableValidation] = useState(true);
@@ -46,6 +49,9 @@ export function AIDepthPhotoTool() {
     setFinalImage(null);
     setDepthMap(null);
     setSeed(null);
+    
+    // Track AI generation
+    analytics.trackAIGeneration();
 
     try {
       const requestBody: any = {
@@ -56,8 +62,8 @@ export function AIDepthPhotoTool() {
         background,
       };
 
-      // Add bas-relief options if style is bas-relief-cameo
-      if (style === 'bas-relief-cameo') {
+      // Add bas-relief options if style is bas-relief-engraving
+      if (style === 'bas-relief-engraving') {
         requestBody.basReliefOptions = {
           plaqueShape,
           reliefStrength,
@@ -127,6 +133,9 @@ export function AIDepthPhotoTool() {
   };
 
   const downloadImage = (base64: string, filename: string) => {
+    // Track export
+    analytics.trackExport();
+    
     const link = document.createElement('a');
     link.href = `data:image/png;base64,${base64}`;
     link.download = filename;
@@ -220,10 +229,10 @@ export function AIDepthPhotoTool() {
                 <label className="block text-sm font-medium text-slate-200">Engraving Material</label>
                 <select
                   value={engravingMaterial}
-                  onChange={(e) => setEngravingMaterial(e.target.value as EngravingMaterial)}
+                  onChange={(e) => setEngravingMaterial(e.target.value as ReliefMaterial)}
                   className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                 >
-                  {Object.entries(ENGRAVING_MATERIALS).map(([key, { label }]) => (
+                  {Object.entries(RELIEF_MATERIALS).map(([key, { label }]) => (
                     <option key={key} value={key}>
                       {label}
                     </option>
@@ -298,7 +307,7 @@ export function AIDepthPhotoTool() {
         )}
 
         {/* Bas-Relief Cameo Specific Controls */}
-        {style === 'bas-relief-cameo' && (
+        {style === 'bas-relief-engraving' && (
           <>
             <div className="border-t border-slate-700 pt-4">
               <h3 className="mb-3 text-sm font-semibold text-slate-200">Bas-Relief Options</h3>

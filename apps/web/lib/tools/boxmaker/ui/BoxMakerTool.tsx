@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import styles from '../boxmaker.module.css';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
+import { useAnalytics } from '@/lib/analytics/useAnalytics';
 
 // Dynamic import to avoid SSR issues with Three.js
 const App = dynamic(() => import('../boxmaker/ui/BoxMakerApp'), {
@@ -22,6 +23,7 @@ const App = dynamic(() => import('../boxmaker/ui/BoxMakerApp'), {
  * Uses dynamic import to avoid SSR issues with Three.js/WebGL.
  */
 export function BoxMakerTool() {
+  const analytics = useAnalytics('boxmaker');
   const { api } = useToolUx();
 
   // BoxMaker always has content, so report isEmpty: false

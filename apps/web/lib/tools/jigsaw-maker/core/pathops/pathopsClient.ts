@@ -159,6 +159,30 @@ export class PathOps {
       return path.copy();
     }
   }
+
+  /**
+   * Offset path by given distance
+   */
+  offset(path: any, distance: number): any {
+    if (!path) return this.pk.NewPath();
+    try {
+      const copy = path.copy();
+      copy.stroke({
+        width: Math.abs(distance) * 2,
+        miter_limit: 4,
+        join: this.pk.StrokeJoin.ROUND,
+        cap: this.pk.StrokeCap.BUTT
+      });
+      if (distance < 0) {
+        // For negative offsets, we need to invert the stroke
+        copy.op(path, this.pk.PathOp.DIFFERENCE);
+      }
+      return copy;
+    } catch (e) {
+      console.warn('[PathOps] Offset failed:', e);
+      return path.copy();
+    }
+  }
   
   /**
    * Create rectangle path

@@ -4,7 +4,7 @@
  */
 
 import JSZip from 'jszip';
-import type { BoxType, HingedBoxSvgs, SlidingDrawerSvgs } from '../core/types';
+import { BoxType, HingedBoxSvgs, SlidingDrawerSvgs } from '../core/types';
 
 /**
  * Generate standardized ZIP filename
@@ -18,7 +18,7 @@ export function generateZipFilename(
   thicknessMm: number,
   kerfMm: number
 ): string {
-  const modeSlug = mode === 'sliding_drawer' ? 'sliding-drawer' : mode;
+  const modeSlug = mode === BoxType.slidingDrawer ? 'sliding-drawer' : mode;
   const kerfStr = kerfMm.toFixed(2).replace('.', 'p');
   return `boxmaker-${modeSlug}-${widthMm}x${depthMm}x${heightMm}-t${thicknessMm}-kerf${kerfStr}.zip`;
 }
@@ -28,7 +28,7 @@ export function generateZipFilename(
  * Format: boxmaker-{mode}-{panel}.svg
  */
 export function generatePanelFilename(mode: BoxType, panelName: string): string {
-  const modeSlug = mode === 'sliding_drawer' ? 'sliding-drawer' : mode;
+  const modeSlug = mode === BoxType.slidingDrawer ? 'sliding-drawer' : mode;
   return `boxmaker-${modeSlug}-${panelName}.svg`;
 }
 
@@ -45,12 +45,12 @@ export async function exportSimpleBoxZip(
   if (!folder) return;
 
   for (const p of panels) {
-    const filename = generatePanelFilename('simple', p.name);
+    const filename = generatePanelFilename(BoxType.simple, p.name);
     folder.file(filename, p.svg);
   }
 
   const blob = await zip.generateAsync({ type: 'blob' });
-  const zipFilename = generateZipFilename('simple', widthMm, depthMm, heightMm, thicknessMm, kerfMm);
+  const zipFilename = generateZipFilename(BoxType.simple, widthMm, depthMm, heightMm, thicknessMm, kerfMm);
 
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -82,13 +82,13 @@ export async function exportHingedBoxZip(
   const panels: (keyof HingedBoxSvgs)[] = ['front', 'back', 'left', 'right', 'bottom', 'lid'];
   
   for (const panel of panels) {
-    const filename = generatePanelFilename('hinged', panel);
+    const filename = generatePanelFilename(BoxType.hinged, panel);
     folder.file(filename, svgs[panel]);
   }
 
   // Generate ZIP
   const blob = await zip.generateAsync({ type: 'blob' });
-  const zipFilename = generateZipFilename('hinged', widthMm, depthMm, heightMm, thicknessMm, kerfMm);
+  const zipFilename = generateZipFilename(BoxType.hinged, widthMm, depthMm, heightMm, thicknessMm, kerfMm);
   
   // Download
   const url = URL.createObjectURL(blob);
@@ -121,40 +121,40 @@ export async function exportSlidingDrawerZip(
   // Add outer panels
   const outerPanels: (keyof typeof svgs.outer)[] = ['back', 'left', 'right', 'bottom'];
   for (const panel of outerPanels) {
-    const filename = generatePanelFilename('sliding_drawer', `outer-${panel}`);
+    const filename = generatePanelFilename(BoxType.slidingDrawer, `outer-${panel}`);
     const svg = svgs.outer[panel];
     if (svg) folder.file(filename, svg);
   }
   
   if (svgs.outer.top) {
-    const filename = generatePanelFilename('sliding_drawer', 'outer-top');
+    const filename = generatePanelFilename(BoxType.slidingDrawer, 'outer-top');
     folder.file(filename, svgs.outer.top);
   }
 
   // Add drawer panels
   const drawerPanels: (keyof typeof svgs.drawer)[] = ['front', 'back', 'left', 'right', 'bottom'];
   for (const panel of drawerPanels) {
-    const filename = generatePanelFilename('sliding_drawer', `drawer-${panel}`);
+    const filename = generatePanelFilename(BoxType.slidingDrawer, `drawer-${panel}`);
     const svg = svgs.drawer[panel];
     if (svg) folder.file(filename, svg);
   }
 
   // Add front face if exists
   if (svgs.frontFace) {
-    const filename = generatePanelFilename('sliding_drawer', 'frontface');
+    const filename = generatePanelFilename(BoxType.slidingDrawer, 'frontface');
     folder.file(filename, svgs.frontFace);
   }
 
   if (extraPanels && extraPanels.length > 0) {
     for (const p of extraPanels) {
-      const filename = generatePanelFilename('sliding_drawer', p.name);
+      const filename = generatePanelFilename(BoxType.slidingDrawer, p.name);
       folder.file(filename, p.svg);
     }
   }
 
   // Generate ZIP
   const blob = await zip.generateAsync({ type: 'blob' });
-  const zipFilename = generateZipFilename('sliding_drawer', widthMm, depthMm, heightMm, thicknessMm, kerfMm);
+  const zipFilename = generateZipFilename(BoxType.slidingDrawer, widthMm, depthMm, heightMm, thicknessMm, kerfMm);
   
   // Download
   const url = URL.createObjectURL(blob);

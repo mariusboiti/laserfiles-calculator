@@ -6,12 +6,7 @@
  */
 
 // Dynamic import to handle case where stripe is not installed
-let Stripe: any;
-try {
-  Stripe = require('stripe').default || require('stripe');
-} catch (e) {
-  console.warn('Stripe package not installed. Run: pnpm add stripe');
-}
+import Stripe from 'stripe';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   console.warn('STRIPE_SECRET_KEY is not set. Stripe functionality will be disabled.');
@@ -19,7 +14,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 export const stripe = (process.env.STRIPE_SECRET_KEY && Stripe)
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2024-06-20',
+      apiVersion: '2023-10-16',
       typescript: true,
     })
   : null;

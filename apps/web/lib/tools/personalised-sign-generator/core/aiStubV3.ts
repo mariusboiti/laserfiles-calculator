@@ -58,6 +58,22 @@ const SHAPE_KEYWORDS: Record<SignShapeV3, string[]> = {
   'shield': ['shield', 'badge', 'crest', 'royal', 'heraldic'],
   'tag': ['tag', 'label', 'pet', 'name'],
   'plaque': ['plaque', 'address', 'classic', 'traditional'],
+  'ornate-01': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-02': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-03': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-04': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-05': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-06': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-07': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-08': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-09': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-10': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-11': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-12': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-13': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-14': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-15': ['ornate', 'decorative', 'elegant', 'vintage'],
+  'ornate-16': ['ornate', 'decorative', 'elegant', 'vintage'],
 };
 
 export async function generateSignFromPrompt(request: AISignRequest): Promise<AISignResult> {

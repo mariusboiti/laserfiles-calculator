@@ -239,17 +239,17 @@ function generateBackPanel(params: ParametricBoxParams): BoxPanel {
   
   // Right edge (male fingers)
   current = pt(W, 0);
-  const rightPoints = generateFingerJoints(current, pt(0, 1), pt(1, 0), H, T, fingerWidthMm, autoFitFingers, true);
+  const rightPoints = generateFingerJoints(current, pt(0, 1), pt(1, 0), H, T, fingerWidthMm, autoFitFingers, undefined, true);
   points.push(...rightPoints.slice(1));
   
   // Bottom edge (male fingers)
   current = pt(W, H);
-  const bottomPoints = generateFingerJoints(current, pt(-1, 0), pt(0, 1), W, T, fingerWidthMm, autoFitFingers, true);
+  const bottomPoints = generateFingerJoints(current, pt(-1, 0), pt(0, 1), W, T, fingerWidthMm, autoFitFingers, undefined, true);
   points.push(...bottomPoints.slice(1));
   
   // Left edge (male fingers)
   current = pt(0, H);
-  const leftPoints = generateFingerJoints(current, pt(0, -1), pt(-1, 0), H, T, fingerWidthMm, autoFitFingers, true);
+  const leftPoints = generateFingerJoints(current, pt(0, -1), pt(-1, 0), H, T, fingerWidthMm, autoFitFingers, undefined, true);
   points.push(...leftPoints.slice(1));
   
   const path = pointsToPath(points);

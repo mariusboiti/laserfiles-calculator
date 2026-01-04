@@ -1,4 +1,4 @@
-import type { BoxType } from './types';
+import { BoxType } from './types';
 
 /**
  * Generate standardized export filename for BoxMaker
@@ -9,7 +9,7 @@ export function generateExportFilename(
   panelName?: string,
   includeTimestamp = false
 ): string {
-  const modeSlug = boxType === 'sliding_drawer' ? 'sliding-drawer' : boxType;
+  const modeSlug = boxType === BoxType.slidingDrawer ? 'sliding-drawer' : boxType;
   const timestamp = includeTimestamp ? `_${Date.now()}` : '';
   const panel = panelName ? `_${panelName}` : '';
   
@@ -23,7 +23,7 @@ export function generateAllPanelsFilename(
   boxType: BoxType,
   includeTimestamp = false
 ): string {
-  const modeSlug = boxType === 'sliding_drawer' ? 'sliding-drawer' : boxType;
+  const modeSlug = boxType === BoxType.slidingDrawer ? 'sliding-drawer' : boxType;
   const timestamp = includeTimestamp ? `_${Date.now()}` : '';
   
   return `boxmaker_${modeSlug}_all${timestamp}.zip`;
