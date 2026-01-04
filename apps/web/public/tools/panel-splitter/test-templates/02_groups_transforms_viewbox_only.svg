@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <!-- NOTE: no width/height on purpose (viewBox-only) to test fallback + unit mode -->
+  <rect x="0" y="0" width="1200" height="800" fill="white"/>
+
+  <!-- Strokes-only artwork + nested groups/transforms -->
+  <g transform="translate(100,80)">
+    <g transform="scale(1.05) rotate(2 500 300)">
+      <!-- Frame -->
+      <rect x="0" y="0" width="1000" height="600" fill="none" stroke="#111" stroke-width="3"/>
+
+      <!-- Dense-ish pattern to stress trimming -->
+      <g stroke="#0b5" fill="none" stroke-width="2">
+        <path d="M 50 300 C 200 50, 400 50, 550 300 S 900 550, 950 300"/>
+        <path d="M 50 320 C 220 80, 420 80, 560 320 S 880 560, 950 320"/>
+        <path d="M 50 340 C 240 110, 440 110, 570 340 S 860 570, 950 340"/>
+      </g>
+
+      <!-- Thin lines crossing boundaries -->
+      <g stroke="#00f" fill="none" stroke-width="0.6">
+        <line x1="0" y1="0" x2="1000" y2="600"/>
+        <line x1="0" y1="600" x2="1000" y2="0"/>
+        <line x1="500" y1="-50" x2="500" y2="650"/>
+      </g>
+
+      <!-- Small circles to test boolean ops -->
+      <g stroke="#f00" fill="none" stroke-width="1">
+        <circle cx="200" cy="150" r="60"/>
+        <circle cx="800" cy="450" r="90"/>
+        <circle cx="500" cy="300" r="140"/>
+      </g>
+    </g>
+  </g>
+
+  <text x="20" y="40" font-family="sans-serif" font-size="22" fill="#111">Template 02: viewBox-only + transforms + strokes</text>
+</svg>

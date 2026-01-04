@@ -1,0 +1,61 @@
+import type { TourConfig } from '../types';
+
+export const boxmakerTour: TourConfig = {
+  toolSlug: 'boxmaker',
+  steps: [
+    {
+      id: 'intro',
+      target: 'settings',
+      titleKey: 'tour.boxmaker.intro.title',
+      bodyKey: 'tour.boxmaker.intro.body',
+      titleFallback: 'Welcome to BoxMaker',
+      bodyFallback: 'Create custom laser-cut boxes with finger joints. Set your dimensions, material thickness, and joint style to generate production-ready files.',
+      placement: 'right',
+    },
+    {
+      id: 'presets',
+      target: 'presets',
+      titleKey: 'tour.boxmaker.presets.title',
+      bodyKey: 'tour.boxmaker.presets.body',
+      titleFallback: 'Quick Start Presets',
+      bodyFallback: 'Choose from pre-configured box sizes to get started quickly. Click any preset to apply its dimensions.',
+      placement: 'right',
+    },
+    {
+      id: 'dimensions',
+      target: 'dimensions',
+      titleKey: 'tour.boxmaker.dimensions.title',
+      bodyKey: 'tour.boxmaker.dimensions.body',
+      titleFallback: 'Set Box Dimensions',
+      bodyFallback: 'Enter the width, depth, height, and material thickness. The preview updates in real-time as you adjust values.',
+      placement: 'right',
+    },
+    {
+      id: 'material',
+      target: 'material',
+      titleKey: 'tour.boxmaker.material.title',
+      bodyKey: 'tour.boxmaker.material.body',
+      titleFallback: 'Joints & Material',
+      bodyFallback: 'Configure finger width and kerf compensation for precise joints. Toggle the lid option if your box needs a top.',
+      placement: 'right',
+    },
+    {
+      id: 'canvas',
+      target: 'canvas',
+      titleKey: 'tour.boxmaker.canvas.title',
+      bodyKey: 'tour.boxmaker.canvas.body',
+      titleFallback: 'Preview Your Box',
+      bodyFallback: 'View your box in 2D panels, face list, or 3D preview mode. Switch modes using the buttons above.',
+      placement: 'left',
+    },
+    {
+      id: 'export',
+      target: 'export',
+      titleKey: 'tour.boxmaker.export.title',
+      bodyKey: 'tour.boxmaker.export.body',
+      titleFallback: 'Export Your Design',
+      bodyFallback: 'Download your box as SVG or ZIP for laser cutting. Use the Export button in the header to save your files.',
+      placement: 'top',
+    },
+  ],
+};

@@ -18,7 +18,7 @@ let AnalyticsService = class AnalyticsService {
     }
     async dashboard() {
         const now = new Date();
-        const startOfWeek = this.getStartOfWeek(now);
+        const startDate = this.getStartOfWeek(now);
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         let ordersThisWeek = 0;
         let revenueEstimateThisWeek = 0;
@@ -32,13 +32,12 @@ let AnalyticsService = class AnalyticsService {
             externalOrdersIgnored: 0,
         };
         try {
-            const [ordersCount, topMaterials, avgProduction] = await this.prisma.$transaction([
-                // Orders this week
-                this.prisma.order.count({
-                    where: {
-                        createdAt: { gte: startOfWeek },
-                    },
-                }),
+            const ordersCount = await this.prisma.order.count({
+                where: {
+                    createdAt: { gte: startDate },
+                },
+            });
+            const [topMaterials, avgProduction] = await this.prisma.$transaction([
                 // Top materials by usage: count of order items per material
                 this.prisma.orderItem.groupBy({
                     by: ['materialId'],
@@ -57,7 +56,7 @@ let AnalyticsService = class AnalyticsService {
             ordersThisWeek = ordersCount;
             // For revenue, we approximate by summing priceSnapshotJson.recommendedPrice in JS.
             const orderItems = await this.prisma.orderItem.findMany({
-                where: { createdAt: { gte: startOfWeek } },
+                where: { createdAt: { gte: startDate } },
                 select: { priceSnapshotJson: true },
             });
             revenueEstimateThisWeek = orderItems.reduce((sum, item) => {

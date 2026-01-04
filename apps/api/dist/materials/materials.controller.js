@@ -46,8 +46,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateMaterialDto.prototype, "name", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsEnum)(client_1.MaterialCategory),
     __metadata("design:type", String)
 ], CreateMaterialDto.prototype, "category", void 0);
 __decorate([
@@ -107,7 +106,7 @@ __decorate([
 ], UpdateMaterialDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsEnum)(client_1.MaterialCategory),
     __metadata("design:type", String)
 ], UpdateMaterialDto.prototype, "category", void 0);
 __decorate([
@@ -183,6 +182,15 @@ let MaterialsController = class MaterialsController {
     getService() {
         return this.materialsService ?? fallbackMaterialsService;
     }
+    async getCategories() {
+        return [
+            { label: 'Plywood', value: 'PLYWOOD' },
+            { label: 'MDF', value: 'MDF' },
+            { label: 'Acrylic', value: 'ACRYLIC' },
+            { label: 'Mirror Acrylic', value: 'MIRROR_ACRYLIC' },
+            { label: 'Other', value: 'OTHER' },
+        ];
+    }
     async list(query) {
         return this.getService().list({
             page: query.page,
@@ -206,6 +214,12 @@ let MaterialsController = class MaterialsController {
     }
 };
 exports.MaterialsController = MaterialsController;
+__decorate([
+    (0, common_1.Get)('categories'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MaterialsController.prototype, "getCategories", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),

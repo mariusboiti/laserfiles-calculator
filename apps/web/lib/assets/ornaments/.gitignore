@@ -1,0 +1,3 @@
+# Keep generated files in git
+!generated/
+!generated/*.ts

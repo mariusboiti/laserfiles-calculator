@@ -146,7 +146,21 @@ let AuthController = class AuthController {
         return this.authService.loginWithWp(entitlements);
     }
     async me(user) {
-        return { user };
+        const userId = user?.id || user?.sub;
+        if (!userId) {
+            throw new common_1.UnauthorizedException('Missing user id in token');
+        }
+        const fullUser = await prisma.user.findUnique({
+            where: { id: String(userId) },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                plan: true,
+            },
+        });
+        return { user: fullUser };
     }
     signTokens(user) {
         const payload = {

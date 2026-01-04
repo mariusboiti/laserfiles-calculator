@@ -1,0 +1,283 @@
+/* EngravePrep CSS Module - Scoped with ep_ prefix */
+/* Recreates original EngravePrep layout 1:1 */
+
+.ep_root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #1a1d2e;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Top bar - horizontal layout with actions */
+.ep_topbar {
+  flex-shrink: 0;
+  background-color: #2a2d44;
+  border-bottom: 1px solid #374151;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/* Tabs bar */
+.ep_tabs {
+  flex-shrink: 0;
+  background-color: #1e2139;
+  border-bottom: 1px solid #374151;
+  padding: 0.5rem 1rem;
+}
+
+/* Main content area - 2 column layout on desktop */
+.ep_main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .ep_main {
+    flex-direction: row;
+  }
+}
+
+/* Left: Preview area */
+.ep_preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: #1a1d2e;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Preview canvas container */
+.ep_preview_canvas {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 1rem;
+}
+
+/* Right: Controls panel */
+.ep_controls {
+  width: 100%;
+  background-color: #2a2d44;
+  border-top: 1px solid #374151;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@media (min-width: 1024px) {
+  .ep_controls {
+    width: 20rem; /* 320px */
+    max-width: 24rem; /* 384px */
+    border-top: none;
+    border-left: 1px solid #374151;
+  }
+}
+
+@media (min-width: 1280px) {
+  .ep_controls {
+    width: 24rem; /* 384px */
+  }
+}
+
+/* Controls inner padding */
+.ep_controls_inner {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Upload zone */
+.ep_upload {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+/* Preview mode selector (Before/After/Split) */
+.ep_preview_modes {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+  display: flex;
+  gap: 0.125rem;
+  background-color: #2a2d44;
+  border-radius: 0.375rem;
+  padding: 0.125rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+/* Section dividers in controls panel */
+.ep_section {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.5);
+}
+
+.ep_section:last-child {
+  border-bottom: none;
+}
+
+/* Ensure proper box-sizing */
+.ep_root *,
+.ep_root *::before,
+.ep_root *::after {
+  box-sizing: border-box;
+}
+
+/* Custom scrollbar for controls panel */
+.ep_controls::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ep_controls::-webkit-scrollbar-track {
+  background: #1a1d2e;
+}
+
+.ep_controls::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+.ep_controls::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Input resets */
+.ep_root input,
+.ep_root button,
+.ep_root select,
+.ep_root textarea {
+  font-family: inherit;
+  font-size: 100%;
+  line-height: inherit;
+}
+
+.ep_root button {
+  cursor: pointer;
+}
+
+.ep_root button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Range inputs */
+.ep_root input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #374151;
+  outline: none;
+}
+
+.ep_root input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+}
+
+.ep_root input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: none;
+}
+
+/* Number input - hide spinners */
+.ep_root input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.ep_root input[type="number"]::-webkit-inner-spin-button,
+.ep_root input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Canvas and images */
+.ep_root canvas,
+.ep_root img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* React Easy Crop */
+.ep_root :global(.reactEasyCrop_Container) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+  cursor: move;
+}
+
+.ep_root :global(.reactEasyCrop_Image),
+.ep_root :global(.reactEasyCrop_Video) {
+  will-change: transform;
+}
+
+.ep_root :global(.reactEasyCrop_CropArea) {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-sizing: border-box;
+  box-shadow: 0 0 0 9999em rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+}
+
+/* Prevent text selection on UI elements */
+.ep_root button,
+.ep_root .no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Focus states */
+.ep_root input:focus,
+.ep_root button:focus,
+.ep_root select:focus,
+.ep_root textarea:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .ep_root {
+    display: none;
+  }
+}

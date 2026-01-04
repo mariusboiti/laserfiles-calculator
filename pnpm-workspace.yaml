@@ -8,3 +8,5 @@ onlyBuiltDependencies:
   - '@prisma/engines'
   - esbuild
   - prisma
+  - sharp
+  - potrace

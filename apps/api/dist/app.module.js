@@ -25,6 +25,7 @@ const template_products_module_1 = require("./template-products/template-product
 const sales_channels_module_1 = require("./sales-channels/sales-channels.module");
 const production_module_1 = require("./production/production.module");
 const offcuts_module_1 = require("./offcuts/offcuts.module");
+const usage_module_1 = require("./usage/usage.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -48,6 +49,7 @@ exports.AppModule = AppModule = __decorate([
             sales_channels_module_1.SalesChannelsModule,
             production_module_1.ProductionModule,
             offcuts_module_1.OffcutsModule,
+            usage_module_1.UsageModule,
         ],
     })
 ], AppModule);

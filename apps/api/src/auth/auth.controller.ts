@@ -116,8 +116,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@User() user: any) {
+    const userId = user?.id || user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Missing user id in token');
+    }
+
     const fullUser = await prisma.user.findUnique({
-      where: { id: user.id },
+      where: { id: String(userId) },
       select: {
         id: true,
         email: true,
