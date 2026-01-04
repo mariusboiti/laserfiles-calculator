@@ -14,19 +14,21 @@ const spec = {
 };
 
 // Generate edges
-const topEdge = generateEdge({
-  length: spec.width,
-  thickness: spec.thickness,
-  fingerWidth: spec.fingerWidth,
-  mode: 'flat'
-});
+const topEdge = generateEdge(
+  spec.width,
+  spec.thickness,
+  spec.fingerWidth,
+  'flat',
+  true
+);
 
-const rightEdge = generateEdge({
-  length: spec.height,
-  thickness: spec.thickness,
-  fingerWidth: spec.fingerWidth,
-  mode: 'fingers-out'
-});
+const rightEdge = generateEdge(
+  spec.height,
+  spec.thickness,
+  spec.fingerWidth,
+  'fingers-out',
+  true
+);
 
 console.log('TOP edge (last 3 points):');
 topEdge.slice(-3).forEach((p, i) => {

@@ -8,12 +8,13 @@ import { generateEdge, rotate90, translate } from './edgeGenerator';
 console.log('🔍 Debugging edge generation...\n');
 
 // Generate a simple finger edge
-const edge = generateEdge({
-  length: 100,
-  thickness: 3,
-  fingerWidth: 10,
-  mode: 'fingers-out'
-});
+const edge = generateEdge(
+  100,  // length
+  3,    // thickness  
+  10,   // fingerWidth
+  'fingers-out', // mode
+  true  // startWithTab
+);
 
 console.log('Original edge (horizontal):');
 edge.forEach((p, i) => {

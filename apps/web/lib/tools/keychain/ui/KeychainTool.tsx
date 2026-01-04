@@ -281,7 +281,7 @@ function EmojiNameControls({ state, onChange, uploadedIcons, onIconUpload }: { s
   return (
     <div className="space-y-4">
       {/* Height control */}
-      <NumberInput label="Height (mm)" value={height} onChange={v => onChange({ height: v })} min={15} max={100} />
+      <NumberInput label="Height (mm)" value={state.height ?? 50} onChange={v => onChange({ height: v })} min={15} max={100} />
 
       {/* Name */}
       <div>

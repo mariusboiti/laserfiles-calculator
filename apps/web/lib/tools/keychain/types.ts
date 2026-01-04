@@ -4,7 +4,7 @@
  */
 
 // Mode identifiers (implemented modes only)
-export type KeychainModeId = 'simple' | 'emoji-name';
+export type KeychainModeId = 'simple' | 'emoji-name' | 'sticker-bubble';
 
 // Warning types
 export type WarningLevel = 'info' | 'warn' | 'error';

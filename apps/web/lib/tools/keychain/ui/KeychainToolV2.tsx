@@ -413,13 +413,13 @@ export default function KeychainToolV2() {
           <div className="space-y-2">
             <Checkbox 
               label="Show Base (Cut Layer)" 
-              checked={currentState.showBase ?? true} 
-              onChange={v => updateState({ showBase: v })} 
+              checked={activeMode === 'emoji-name' ? (currentState as any).showBase ?? true : true} 
+              onChange={v => activeMode === 'emoji-name' ? updateState({ showBase: v }) : undefined} 
             />
             <Checkbox 
               label="Show Top (Engrave Layer)" 
-              checked={currentState.showTop ?? true} 
-              onChange={v => updateState({ showTop: v })} 
+              checked={activeMode === 'emoji-name' ? (currentState as any).showTop ?? true : true} 
+              onChange={v => activeMode === 'emoji-name' ? updateState({ showTop: v }) : undefined} 
             />
             <div className="h-px bg-slate-700 my-2" />
             <Checkbox 

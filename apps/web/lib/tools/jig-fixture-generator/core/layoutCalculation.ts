@@ -27,7 +27,7 @@ export function calculateLayout(config: {
   gapY: number;
   objectW: number;
   objectH: number;
-  objectShape: 'rect' | 'circle';
+  objectShape: 'rect' | 'circle' | 'custom';
   center: boolean;
 }): LayoutResult {
   const { bedW, bedH, margin, rows, cols, gapX, gapY, objectW, objectH, objectShape, center } = config;

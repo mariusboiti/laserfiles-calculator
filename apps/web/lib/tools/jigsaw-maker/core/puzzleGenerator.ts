@@ -46,7 +46,7 @@ export async function generatePuzzle(inputs: JigsawInputs | JigsawV3Settings): P
 
 function legacyGeneratePuzzle(inputs: JigsawInputs | JigsawV3Settings): PuzzleResult {
   const warnings: string[] = [];
-  const kidsMode = inputs.mode === 'kids';
+  const kidsMode = false; // 'kids' mode was removed from PuzzleMode
   
   // Check if V3 features are enabled
   const v3Settings = 'v3Features' in inputs ? inputs as JigsawV3Settings : null;
@@ -338,7 +338,7 @@ ${content}
  */
 export function generatePuzzleWarnings(inputs: JigsawInputs): string[] {
   const warnings: string[] = [];
-  const kidsMode = inputs.mode === 'kids';
+  const kidsMode = false; // 'kids' mode was removed from PuzzleMode
   
   const pieceWidth = inputs.widthMm / inputs.columns;
   const pieceHeight = inputs.heightMm / inputs.rows;

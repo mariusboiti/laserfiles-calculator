@@ -36,7 +36,7 @@ function makeCanonicalPattern(length: number, fingerWidth: number): { count: num
 /**
  * Generate a single edge with finger joints
  */
-function generateEdge(
+export function generateEdge(
   length: number,
   thickness: number,
   fingerWidth: number,

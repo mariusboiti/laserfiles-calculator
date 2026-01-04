@@ -16,7 +16,7 @@ import type { StudioTool } from './types';
 import { studioToolMetas } from './meta';
 
 // MultiLayerMaker uses wizard directly in page.tsx, no separate tool component needed
-const MultiLayerMakerPlaceholder = () => null;
+// const MultiLayerMakerPlaceholder = () => null;
 
 // PriceCalculator has its own app routing, placeholder for registry
 const PriceCalculatorPlaceholder = () => null;
@@ -36,7 +36,7 @@ const componentBySlug: Record<string, StudioTool['Component']> = {
   'curved-photo-frame-v3': CurvedPhotoFrameV3Tool,
   'ai-depth-photo': AIDepthEngravingTool,
   'jigsaw-maker': JigsawMakerTool,
-  'multilayer-maker': MultiLayerMakerPlaceholder,
+  // 'multilayer-maker': MultiLayerMakerPlaceholder,
   'price-calculator': PriceCalculatorPlaceholder,
 };
 

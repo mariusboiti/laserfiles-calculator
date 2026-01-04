@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
 import dynamic from 'next/dynamic';
+import { useAnalytics } from '@/lib/analytics/useAnalytics';
 
 const App = dynamic(() => import('../src/App'), {
   ssr: false,
@@ -13,6 +14,7 @@ interface BulkNameTagsToolProps {
 }
 
 export function BulkNameTagsTool({ onResetCallback }: BulkNameTagsToolProps) {
+  const analytics = useAnalytics('bulk-name-tags');
   const { api } = useToolUx();
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { SlidingDrawerInputs } from '../../core/types';
+import { SlidingDrawerInputs, BoxType } from '../../core/types';
 import {
   generateSlidingDrawerLayoutSvg,
   generateSlidingDrawerPanels,
@@ -573,27 +573,27 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
   function exportAllPanels() {
     const outerKeys = ['back', 'left', 'right', 'bottom'] as const;
     outerKeys.forEach((k) => {
-      const filename = generateExportFilename('sliding_drawer', `outer-${k}`);
+      const filename = generateExportFilename(BoxType.slidingDrawer, `outer-${k}`);
       exportSingleSvg(filename, svgs.outer[k]);
     });
     if (svgs.outer.top) {
-      const filename = generateExportFilename('sliding_drawer', 'outer-top');
+      const filename = generateExportFilename(BoxType.slidingDrawer, 'outer-top');
       exportSingleSvg(filename, svgs.outer.top);
     }
 
     const drawerKeys = ['front', 'back', 'left', 'right', 'bottom'] as const;
     drawerKeys.forEach((k) => {
-      const filename = generateExportFilename('sliding_drawer', `drawer-${k}`);
+      const filename = generateExportFilename(BoxType.slidingDrawer, `drawer-${k}`);
       exportSingleSvg(filename, svgs.drawer[k]);
     });
 
     if (svgs.frontFace) {
-      const filename = generateExportFilename('sliding_drawer', 'frontface');
+      const filename = generateExportFilename(BoxType.slidingDrawer, 'frontface');
       exportSingleSvg(filename, svgs.frontFace);
     }
 
     for (const divider of dividerSvgs) {
-      const filename = generateExportFilename('sliding_drawer', divider.name);
+      const filename = generateExportFilename(BoxType.slidingDrawer, divider.name);
       exportSingleSvg(filename, divider.svg);
     }
   }

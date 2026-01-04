@@ -4,7 +4,7 @@
  * Uses clipper2-js for reliable boolean operations
  */
 
-import type { Point64, Paths64, PathD, PathsD } from 'clipper2-js';
+import type { Point64, Paths64 } from 'clipper2-js';
 
 // Clipper2 will be loaded dynamically
 let Clipper2: any = null;
@@ -154,10 +154,9 @@ export async function union(polyTrees: PolyTree[]): Promise<PolyTree> {
     
     for (const tree of polyTrees) {
       for (const poly of tree) {
-        const path: Point64[] = poly.map(pt => ({
-          x: BigInt(Math.round(pt.x * scale)),
-          y: BigInt(Math.round(pt.y * scale))
-        }));
+        const path: Point64[] = poly.map(pt => 
+          C.Point64(BigInt(Math.round(pt.x * scale)), BigInt(Math.round(pt.y * scale)))
+        );
         allPaths.push(path);
       }
     }
@@ -194,10 +193,9 @@ export async function offset(polyTree: PolyTree, deltaMm: number): Promise<PolyT
     
     // Convert to Clipper2 format
     const paths: Paths64 = polyTree.map(poly => 
-      poly.map(pt => ({
-        x: BigInt(Math.round(pt.x * scale)),
-        y: BigInt(Math.round(pt.y * scale))
-      }))
+      poly.map(pt => 
+        C.Point64(BigInt(Math.round(pt.x * scale)), BigInt(Math.round(pt.y * scale)))
+      )
     );
     
     // Perform offset with round joins
@@ -238,17 +236,15 @@ export async function diff(polyTreeA: PolyTree, polyTreeB: PolyTree): Promise<Po
     
     // Convert both to Clipper2 format
     const pathsA: Paths64 = polyTreeA.map(poly =>
-      poly.map(pt => ({
-        x: BigInt(Math.round(pt.x * scale)),
-        y: BigInt(Math.round(pt.y * scale))
-      }))
+      poly.map(pt => 
+        C.Point64(BigInt(Math.round(pt.x * scale)), BigInt(Math.round(pt.y * scale)))
+      )
     );
     
     const pathsB: Paths64 = polyTreeB.map(poly =>
-      poly.map(pt => ({
-        x: BigInt(Math.round(pt.x * scale)),
-        y: BigInt(Math.round(pt.y * scale))
-      }))
+      poly.map(pt => 
+        C.Point64(BigInt(Math.round(pt.x * scale)), BigInt(Math.round(pt.y * scale)))
+      )
     );
     
     // Perform difference

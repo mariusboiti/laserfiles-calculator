@@ -107,12 +107,6 @@ export const studioToolMetas: StudioToolMeta[] = [
     description: 'Calculate job pricing with material costs, time, and profit margins.',
     proFeatures: ['Material Database', 'Time Estimates', 'Profit Margins', 'Order Management', 'Customer Database'],
   },
-  {
-    slug: 'multilayer-maker',
-    title: 'MultiLayer Maker',
-    description: 'Convert images into layered vector files for multi-material cuts.',
-    usesAI: true,
-  },
 ].map((t) => ({
   ...t,
   status: 'stable' as const,

@@ -338,7 +338,7 @@ export function SimpleBoxUI({
 
   useEffect(() => {
     if (!faceKeys.length) return;
-    if (faceKeys.includes(selectedArtworkFace)) return;
+    if (faceKeys.includes(selectedArtworkFace as any)) return;
     setSelectedArtworkFace(faceKeys[0]);
   }, [faceKeys, selectedArtworkFace]);
 
@@ -378,7 +378,7 @@ export function SimpleBoxUI({
     }
 
     const faceKeysArr = faceKeys;
-    const targets = faceArtworkTargets.filter((t) => faceKeysArr.includes(t));
+    const targets = faceArtworkTargets.filter((t) => faceKeysArr.includes(t as any));
     if (targets.length === 0) {
       setArtworkError('Select at least one face');
       return;

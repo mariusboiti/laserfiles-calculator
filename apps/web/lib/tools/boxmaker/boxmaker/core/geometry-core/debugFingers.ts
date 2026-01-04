@@ -7,12 +7,13 @@ import { generateEdge, rotate90 } from './edgeGenerator';
 console.log('🔍 Debugging finger joints on vertical edge...\n');
 
 // Generate vertical finger edge
-const horizontalEdge = generateEdge({
-  length: 60,
-  thickness: 3,
-  fingerWidth: 10,
-  mode: 'fingers-out'
-});
+const horizontalEdge = generateEdge(
+  60,   // length
+  3,    // thickness
+  10,   // fingerWidth
+  'fingers-out', // mode
+  true  // startWithTab
+);
 
 console.log('HORIZONTAL edge (first 10 points):');
 horizontalEdge.slice(0, 10).forEach((p, i) => {
