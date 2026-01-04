@@ -12,6 +12,8 @@ import type {
   EngraveSketchElement,
   EngraveImageElement,
   OrnamentElement,
+  TracedPathElement,
+  TracedPathGroupElement,
   RenderPreviewOptions,
   RenderExportOptions,
   RenderResult,
@@ -227,6 +229,10 @@ function renderElement(
       return renderEngraveImageElement(element, layer, doc, false);
     case 'ornament':
       return renderOrnamentElement(element, layer, doc, false);
+    case 'tracedPath':
+      return renderTracedPathElement(element, layer, doc, false);
+    case 'tracedPathGroup':
+      return renderTracedPathGroupElement(element, layer, doc, false);
     default:
       return '';
   }
@@ -251,9 +257,96 @@ function renderElementForExport(
       return '';
     case 'ornament':
       return renderOrnamentElement(element, layer, doc, true);
+    case 'tracedPath':
+      return renderTracedPathElement(element, layer, doc, true);
+    case 'tracedPathGroup':
+      return renderTracedPathGroupElement(element, layer, doc, true);
     default:
       return '';
   }
+}
+
+function renderTracedPathElement(
+  element: TracedPathElement,
+  layer: Layer,
+  doc: SignDocument,
+  forExport: boolean
+): string {
+  if (!element.svgPathD) return '';
+
+  const { xMm, yMm, rotateDeg, scaleX, scaleY } = element.transform;
+
+  const transforms: string[] = [];
+  if (xMm !== 0 || yMm !== 0) {
+    transforms.push(`translate(${mm(xMm)}, ${mm(yMm)})`);
+  }
+  if (rotateDeg !== 0) {
+    transforms.push(`rotate(${rotateDeg})`);
+  }
+  if (scaleX !== 1 || scaleY !== 1) {
+    transforms.push(`scale(${scaleX}, ${scaleY})`);
+  }
+  const transformAttr = transforms.length > 0 ? ` transform="${transforms.join(' ')}"` : '';
+
+  const stroke = forExport
+    ? layer.type === 'CUT' || layer.type === 'OUTLINE'
+      ? '#000'
+      : '#ff0000'
+    : '#0066cc';
+
+  const strokeWidth = forExport
+    ? layer.type === 'CUT'
+      ? doc.output.cutStrokeMm
+      : layer.type === 'OUTLINE'
+        ? doc.output.outlineStrokeMm
+        : doc.output.engraveStrokeMm
+    : element.strokeMm;
+
+  return `\n    <path d="${element.svgPathD}" fill="none" stroke="${stroke}" stroke-width="${mm(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round"${transformAttr} />`;
+}
+
+function renderTracedPathGroupElement(
+  element: TracedPathGroupElement,
+  layer: Layer,
+  doc: SignDocument,
+  forExport: boolean
+): string {
+  if (!element.svgPathDs || element.svgPathDs.length === 0) return '';
+
+  const { xMm, yMm, rotateDeg, scaleX, scaleY } = element.transform;
+
+  const transforms: string[] = [];
+  if (xMm !== 0 || yMm !== 0) {
+    transforms.push(`translate(${mm(xMm)}, ${mm(yMm)})`);
+  }
+  if (rotateDeg !== 0) {
+    transforms.push(`rotate(${rotateDeg})`);
+  }
+  if (scaleX !== 1 || scaleY !== 1) {
+    transforms.push(`scale(${scaleX}, ${scaleY})`);
+  }
+  const transformAttr = transforms.length > 0 ? ` transform="${transforms.join(' ')}"` : '';
+
+  const stroke = forExport
+    ? layer.type === 'CUT' || layer.type === 'OUTLINE'
+      ? '#000'
+      : '#ff0000'
+    : '#0066cc';
+
+  const strokeWidth = forExport
+    ? layer.type === 'CUT'
+      ? doc.output.cutStrokeMm
+      : layer.type === 'OUTLINE'
+        ? doc.output.outlineStrokeMm
+        : doc.output.engraveStrokeMm
+    : element.strokeMm;
+
+  let content = `\n    <g${transformAttr}>`;
+  for (const d of element.svgPathDs) {
+    content += `\n      <path d="${d}" fill="none" stroke="${stroke}" stroke-width="${mm(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" />`;
+  }
+  content += '\n    </g>';
+  return content;
 }
 
 function renderEngraveImageElement(

@@ -46,6 +46,10 @@ export const DEFAULTS: LayoutSettings = {
   // SVG parsing
   pxDpi: 96,
   sanitizeSvg: true,
+  
+  // Hole customization
+  holeRadius: 2.5,
+  holeYOffset: 10,
 };
 
 export interface SheetPresetConfig {

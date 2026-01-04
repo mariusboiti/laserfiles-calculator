@@ -4,6 +4,7 @@ import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import type {
   CanvasDocument,
   CanvasElement,
+  ElementTransform,
   ViewTransform,
   SelectionState,
   BoundingBox,
@@ -29,22 +30,30 @@ interface CanvasStageProps {
   onSelect: (ids: string[], additive?: boolean) => void;
   onClearSelection: () => void;
   onUpdateTransform: (id: string, deltaX: number, deltaY: number) => void;
+  onUpdateTransforms?: (updates: Array<{ id: string; transform: Partial<ElementTransform> }>) => void;
   onCommit: () => void;
   showLayerColors?: boolean;
   showGuide?: boolean;
 }
 
 interface DragState {
-  type: 'none' | 'pan' | 'select' | 'marquee' | 'move';
+  type: 'none' | 'pan' | 'select' | 'marquee' | 'move' | 'resize';
   startX: number;
   startY: number;
   startWorldX: number;
   startWorldY: number;
   currentX: number;
   currentY: number;
+  resize?: {
+    centerX: number;
+    centerY: number;
+    startDist: number;
+    initial: Record<string, { xMm: number; yMm: number; scaleX: number; scaleY: number }>;
+  };
 }
 
 const MARQUEE_THRESHOLD = 5;
+const RESIZE_HANDLE_SIZE = 10;
 
 export function CanvasStage({
   doc,
@@ -54,6 +63,7 @@ export function CanvasStage({
   onSelect,
   onClearSelection,
   onUpdateTransform,
+  onUpdateTransforms,
   onCommit,
   showLayerColors = false,
   showGuide = false,
@@ -145,6 +155,45 @@ export function CanvasStage({
 
     // Left click
     if (e.button === 0) {
+      if (selectionBounds && selectionHandles && selection.selectedIds.length > 0) {
+        const handleX = selectionHandles.x + selectionHandles.width - RESIZE_HANDLE_SIZE / 2;
+        const handleY = selectionHandles.y + selectionHandles.height - RESIZE_HANDLE_SIZE / 2;
+        const inHandle =
+          x >= handleX - RESIZE_HANDLE_SIZE / 2 &&
+          x <= handleX + RESIZE_HANDLE_SIZE / 2 &&
+          y >= handleY - RESIZE_HANDLE_SIZE / 2 &&
+          y <= handleY + RESIZE_HANDLE_SIZE / 2;
+
+        if (inHandle && onUpdateTransforms) {
+          const centerX = selectionBounds.xMm + selectionBounds.widthMm / 2;
+          const centerY = selectionBounds.yMm + selectionBounds.heightMm / 2;
+          const startDist = Math.max(0.001, Math.hypot(world.xMm - centerX, world.yMm - centerY));
+          const initial: Record<string, { xMm: number; yMm: number; scaleX: number; scaleY: number }> = {};
+          for (const id of selection.selectedIds) {
+            const el = doc.elements.find((e) => e.id === id);
+            if (!el) continue;
+            initial[id] = {
+              xMm: el.transform.xMm,
+              yMm: el.transform.yMm,
+              scaleX: el.transform.scaleX,
+              scaleY: el.transform.scaleY,
+            };
+          }
+
+          setDrag({
+            type: 'resize',
+            startX: x,
+            startY: y,
+            startWorldX: world.xMm,
+            startWorldY: world.yMm,
+            currentX: x,
+            currentY: y,
+            resize: { centerX, centerY, startDist, initial },
+          });
+          return;
+        }
+      }
+
       // Check if clicking on an element
       const hitElement = hitTestElements(world.xMm, world.yMm, doc.elements);
 
@@ -223,7 +272,34 @@ export function CanvasStage({
         currentY: y,
       }));
     }
-  }, [drag, view, selection.selectedIds, onViewChange, onUpdateTransform, getClientCoords]);
+
+    if (drag.type === 'resize' && drag.resize && onUpdateTransforms) {
+      const { centerX, centerY, startDist, initial } = drag.resize;
+      const currentDist = Math.max(0.001, Math.hypot(world.xMm - centerX, world.yMm - centerY));
+      const scale = Math.max(0.1, Math.min(10, currentDist / startDist));
+
+      const updates: Array<{ id: string; transform: Partial<ElementTransform> }> = [];
+      for (const id of selection.selectedIds) {
+        const init = initial[id];
+        if (!init) continue;
+        updates.push({
+          id,
+          transform: {
+            xMm: centerX + (init.xMm - centerX) * scale,
+            yMm: centerY + (init.yMm - centerY) * scale,
+            scaleX: init.scaleX * scale,
+            scaleY: init.scaleY * scale,
+          },
+        });
+      }
+
+      if (updates.length > 0) {
+        onUpdateTransforms(updates);
+      }
+
+      setDrag(prev => ({ ...prev, currentX: x, currentY: y }));
+    }
+  }, [drag, view, selection.selectedIds, onViewChange, onUpdateTransform, onUpdateTransforms, getClientCoords]);
 
   // Handle pointer up
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -255,6 +331,10 @@ export function CanvasStage({
       onCommit();
     }
 
+    if (drag.type === 'resize') {
+      onCommit();
+    }
+
     setDrag({
       type: 'none',
       startX: 0,
@@ -280,6 +360,8 @@ export function CanvasStage({
       case 'border':
       case 'ornament':
       case 'traced':
+      case 'basicShape':
+      case 'icon':
         return (
           <g key={element.id} transform={transformStr}>
             <path
@@ -291,6 +373,23 @@ export function CanvasStage({
             />
           </g>
         );
+
+      case 'logo': {
+        const fill = element.op === 'ENGRAVE' ? color : 'none';
+        const stroke = element.op === 'ENGRAVE' ? 'none' : color;
+        const strokeWidth = element.strokeWidthMm;
+        return (
+          <g key={element.id} transform={transformStr}>
+            <path
+              d={element.pathD}
+              fill={fill}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        );
+      }
 
       case 'text':
         return (
@@ -382,15 +481,17 @@ export function CanvasStage({
             strokeWidth={0.5 / (view.zoom * PX_PER_MM)}
           />
 
-          {/* Artboard base shape */}
+          {/* Artboard base shape - centered at artboard center */}
           {doc.artboard.basePathD && (
-            <path
-              d={doc.artboard.basePathD}
-              fill="none"
-              stroke="#cbd5e1"
-              strokeWidth={0.3}
-              strokeDasharray="2,2"
-            />
+            <g transform={`translate(${doc.artboard.widthMm / 2}, ${doc.artboard.heightMm / 2})`}>
+              <path
+                d={doc.artboard.basePathD}
+                fill="none"
+                stroke="#cbd5e1"
+                strokeWidth={0.3}
+                strokeDasharray="2,2"
+              />
+            </g>
           )}
 
           {/* Elements */}
@@ -399,16 +500,27 @@ export function CanvasStage({
 
         {/* Selection handles (screen coords) */}
         {selectionHandles && (
-          <rect
-            x={selectionHandles.x}
-            y={selectionHandles.y}
-            width={selectionHandles.width}
-            height={selectionHandles.height}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={1}
-            strokeDasharray="4,4"
-          />
+          <>
+            <rect
+              x={selectionHandles.x}
+              y={selectionHandles.y}
+              width={selectionHandles.width}
+              height={selectionHandles.height}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth={1}
+              strokeDasharray="4,4"
+            />
+            <rect
+              x={selectionHandles.x + selectionHandles.width - RESIZE_HANDLE_SIZE / 2}
+              y={selectionHandles.y + selectionHandles.height - RESIZE_HANDLE_SIZE / 2}
+              width={RESIZE_HANDLE_SIZE}
+              height={RESIZE_HANDLE_SIZE}
+              fill="#3b82f6"
+              stroke="#1d4ed8"
+              strokeWidth={1}
+            />
+          </>
         )}
 
         {/* Marquee rectangle (screen coords) */}

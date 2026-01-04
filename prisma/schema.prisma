@@ -190,6 +190,7 @@ model User {
   offcutReservations  OffcutReservation[] @relation("UserOffcutReservations")
   identityLinks       UserIdentityLink[]
   usageEvents         UsageEvent[]
+  entitlement         UserEntitlement?
 }
 
 // Identity provider types for SSO linking
@@ -814,4 +815,159 @@ model UsageEvent {
   createdAt DateTime    @default(now())
 
   @@index([userId, toolKey, action, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Credits & Entitlements System
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum EntitlementPlan {
+  NONE
+  TRIALING
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+model UserEntitlement {
+  id                    String          @id @default(cuid())
+  userId                String          @unique
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                  EntitlementPlan @default(NONE)
+  trialStartedAt        DateTime?
+  trialEndsAt           DateTime?
+  aiCreditsTotal        Int             @default(25)
+  aiCreditsUsed         Int             @default(0)
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  aiUsageEvents         AiUsageEvent[]
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+}
+
+model AiUsageEvent {
+  id               String           @id @default(cuid())
+  userId           String
+  entitlementId    String
+  entitlement      UserEntitlement  @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+  toolSlug         String
+  actionType       String
+  provider         String
+  creditsConsumed  Int              @default(1)
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entitlementId, createdAt])
+  @@index([toolSlug, actionType])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Artifacts System - Saved laser files from tools
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Artifact {
+  id            String    @id @default(cuid())
+  userId        String
+  toolSlug      String
+  name          String
+  description   String?
+  fileSvgUrl    String?
+  fileDxfUrl    String?
+  filePdfUrl    String?
+  previewPngUrl String?
+  metaJson      Json?     // bboxMm, operations, thickness, kerf, notes, etc.
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId, toolSlug])
+  @@index([toolSlug])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guided Tours System
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TourStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+model TourProgress {
+  id            String      @id @default(cuid())
+  userId        String
+  toolSlug      String
+  status        TourStatus  @default(NOT_STARTED)
+  lastStepIndex Int         @default(0)
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([userId, toolSlug])
+  @@index([userId])
+  @@index([toolSlug])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User Feedback System
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum FeedbackType {
+  BUG
+  FEATURE
+}
+
+enum FeedbackSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FeedbackStatus {
+  NEW
+  TRIAGED
+  PLANNED
+  DONE
+  CLOSED
+}
+
+model FeedbackTicket {
+  id           String            @id @default(cuid())
+  userId       String
+  userEmail    String?
+  type         FeedbackType
+  toolSlug     String?
+  pageUrl      String?
+  title        String
+  message      String            @db.Text
+  severity     FeedbackSeverity?
+  status       FeedbackStatus    @default(NEW)
+  metadataJson Json?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  attachments  FeedbackAttachment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([toolSlug])
+}
+
+model FeedbackAttachment {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    FeedbackTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  filename  String
+  mimeType  String
+  sizeBytes Int
+  url       String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
 }

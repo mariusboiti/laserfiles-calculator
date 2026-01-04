@@ -31,6 +31,7 @@ import type {
   SignDocument,
   Layer,
   LayerType,
+  Element,
   TextElement,
   ShapeElement,
   EngraveSketchElement,
@@ -54,6 +55,8 @@ import {
   addElement,
   updateElement,
   deleteElement,
+  findElement,
+  moveElementToLayer,
   setActiveLayer,
   findLayerByType,
   createTextElement,
@@ -61,6 +64,9 @@ import {
   createOrnamentElement,
   generateId,
 } from '../core/layers/model';
+
+import { generateTextOutline, offsetPath as offsetPathOps, translatePathD } from '../core/text/outlineOffset';
+import { textElementToPath } from '../core/text/textToPath';
 
 import { renderPreviewSvgAsync, renderExportSvgAsync, generateProFilename } from '../core/renderProSvgAsync';
 import { sanitizeSvg, extractSvgFromResponse } from '../core/ai/sanitizeSvg';
@@ -86,6 +92,7 @@ import {
   clearSelection,
   createSelectionState,
   selectSingle,
+  setSelection,
   selectionReducer,
 } from '../core/canvas/selectionReducer';
 
@@ -108,6 +115,40 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
   const selection = editor.selection;
   const selectedIds = selection.selectedIds;
 
+  const [activeTool, setActiveTool] = useState<CanvasTool>('select');
+  const [showGrid, setShowGrid] = useState(false);
+  const [showSafeZones, setShowSafeZones] = useState(false);
+  const [showGuides, setShowGuides] = useState(false);
+  const [snapEnabled, setSnapEnabled] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    shape: true,
+    text: true,
+    layers: true,
+    offset: true,
+    ai: false,
+    pathfinder: false,
+    align: false,
+    imageTrace: false,
+    ornaments: false,
+    mountingHoles: false,
+    output: false,
+  });
+
+  const [offsetPreviewEnabled, setOffsetPreviewEnabled] = useState(false);
+  const [offsetMm, setOffsetMm] = useState(2);
+  const [offsetTargetLayerType, setOffsetTargetLayerType] = useState<'CUT' | 'OUTLINE'>('OUTLINE');
+  const [offsetPreview, setOffsetPreview] = useState<
+    Array<{
+      sourceElementId: string;
+      sourceKind: 'shape' | 'tracedPath' | 'tracedPathGroup';
+      kind: 'path' | 'group';
+      svgPathD?: string;
+      svgPathDs?: string[];
+      transform: { xMm: number; yMm: number; rotateDeg: number; scaleX: number; scaleY: number };
+    }>
+  >([]);
+
   const editorRef = useRef(editor);
   useEffect(() => {
     editorRef.current = editor;
@@ -119,26 +160,6 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
     },
     [history]
   );
-  const [activeTool, setActiveTool] = useState<CanvasTool>('select');
-  const [showGrid, setShowGrid] = useState(false);
-  const [showSafeZones, setShowSafeZones] = useState(false);
-  const [showGuides, setShowGuides] = useState(false);
-  const [snapEnabled, setSnapEnabled] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    shape: true,
-    text: true,
-    layers: true,
-    mountingHoles: false,
-    ai: false,
-    pathfinder: false,
-    imageTrace: false,
-    ornaments: false,
-    align: false,
-    output: false,
-  });
-  
-  const canvasRef = useRef<{ fitView: () => void; zoomIn: () => void; zoomOut: () => void } | null>(null);
 
   // Update document (committed by default; pass commit=false for live dragging)
   const updateDoc = useCallback(
@@ -158,6 +179,201 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
     },
     [setEditor]
   );
+
+  useEffect(() => {
+    if (!offsetPreviewEnabled) {
+      setOffsetPreview([]);
+      return;
+    }
+    if (offsetMm <= 0) {
+      setOffsetPreview([]);
+      return;
+    }
+    // Use current doc/selection from state, not ref
+    const ids = selectedIds;
+    if (ids.length === 0) {
+      setOffsetPreview([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const items: Array<{
+        sourceElementId: string;
+        sourceKind: 'shape' | 'tracedPath' | 'tracedPathGroup';
+        kind: 'path' | 'group';
+        svgPathD?: string;
+        svgPathDs?: string[];
+        transform: { xMm: number; yMm: number; rotateDeg: number; scaleX: number; scaleY: number };
+      }> = [];
+
+      for (const id of ids) {
+        const found = findElement(doc, id);
+        if (!found) {
+          console.log('[Offset] Element not found:', id);
+          continue;
+        }
+        const el = found.element as any;
+        console.log('[Offset] Processing element:', el.kind, id);
+
+        if (el.kind === 'text' && el.text) {
+          // Align using font metrics to match SVG dominantBaseline="middle".
+          // 1) Prefer _pathD if present, otherwise generate from font.
+          // 2) Align X by bbox + align.
+          // 3) Align Y by em-box middle (ascender/descender), not bbox center.
+          try {
+            const textPath = await textElementToPath(el);
+            const basePathD: string = textPath.pathD || '';
+            if (basePathD) {
+              // SVG textAnchor is based on advance width, not glyph bbox.
+              let dx = 0;
+              if (el.align === 'right') {
+                dx = -textPath.advanceWidthMm;
+              } else if (el.align === 'center') {
+                dx = -textPath.advanceWidthMm / 2;
+              }
+
+              const emMiddleMm = (textPath.ascenderMm + textPath.descenderMm) / 2;
+              const dy = -emMiddleMm;
+
+              const alignedPathD = await translatePathD(basePathD, dx, dy);
+              const res = await generateTextOutline(alignedPathD, offsetMm);
+              if (res.success && res.pathD) {
+                items.push({
+                  sourceElementId: id,
+                  sourceKind: 'shape',
+                  kind: 'path',
+                  svgPathD: res.pathD,
+                  transform: el.transform,
+                });
+              }
+            }
+          } catch (err) {
+            console.error('[Offset] Text conversion failed:', err);
+          }
+        } else if (el.kind === 'shape' && el.svgPathD) {
+          console.log('[Offset] Generating offset for shape...');
+          const res = await generateTextOutline(el.svgPathD, offsetMm);
+          console.log('[Offset] Shape result:', res.success, res.warning);
+          if (res.success && res.pathD) {
+            items.push({
+              sourceElementId: id,
+              sourceKind: 'shape',
+              kind: 'path',
+              svgPathD: res.pathD,
+              transform: el.transform,
+            });
+          }
+        } else if (el.kind === 'tracedPath' && el.svgPathD) {
+          console.log('[Offset] Generating offset for tracedPath...');
+          const res = await offsetPathOps(el.svgPathD, offsetMm);
+          console.log('[Offset] TracedPath result:', res.success, res.warning);
+          if (res.success && res.pathD) {
+            items.push({
+              sourceElementId: id,
+              sourceKind: 'tracedPath',
+              kind: 'path',
+              svgPathD: res.pathD,
+              transform: el.transform,
+            });
+          }
+        } else if (el.kind === 'tracedPathGroup' && Array.isArray(el.svgPathDs)) {
+          console.log('[Offset] Generating offset for tracedPathGroup...');
+          const ds: string[] = [];
+          for (const d of el.svgPathDs) {
+            const res = await offsetPathOps(d, offsetMm);
+            if (res.success && res.pathD) ds.push(res.pathD);
+          }
+          if (ds.length > 0) {
+            items.push({
+              sourceElementId: id,
+              sourceKind: 'tracedPathGroup',
+              kind: 'group',
+              svgPathDs: ds,
+              transform: el.transform,
+            });
+          }
+        } else {
+          console.log('[Offset] Unsupported element kind:', el.kind);
+        }
+      }
+
+      console.log('[Offset] Generated items:', items.length);
+      if (!cancelled) {
+        setOffsetPreview(items);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [offsetPreviewEnabled, offsetMm, selectedIds, doc]);
+
+  const handleApplyOffset = useCallback(() => {
+    console.log('[ApplyOffset] Called, offsetPreview length:', offsetPreview.length);
+    if (offsetPreview.length === 0) {
+      console.log('[ApplyOffset] No preview items to apply');
+      return;
+    }
+
+    const targetLayer = findLayerByType(doc, offsetTargetLayerType);
+    console.log('[ApplyOffset] Target layer:', offsetTargetLayerType, targetLayer?.id, targetLayer?.locked);
+    if (!targetLayer) {
+      console.log('[ApplyOffset] Target layer not found!');
+      return;
+    }
+    if (targetLayer.locked) {
+      console.log('[ApplyOffset] Target layer is locked!');
+      return;
+    }
+
+    let nextDoc = doc;
+    const newIds: string[] = [];
+    for (const item of offsetPreview) {
+      const newId = generateId();
+
+      if (item.sourceKind === 'shape' && item.svgPathD) {
+        const newEl = {
+          id: newId,
+          kind: 'shape' as const,
+          source: 'builtin' as const,
+          svgPathD: item.svgPathD,
+          style: 'CUT' as const,
+          transform: item.transform,
+        };
+        nextDoc = addElement(nextDoc, targetLayer.id, newEl);
+        newIds.push(newId);
+      } else if (item.sourceKind === 'tracedPath' && item.svgPathD) {
+        const newEl = {
+          id: newId,
+          kind: 'tracedPath' as const,
+          svgPathD: item.svgPathD,
+          strokeMm: 0.3,
+          transform: item.transform,
+        };
+        nextDoc = addElement(nextDoc, targetLayer.id, newEl);
+        newIds.push(newId);
+      } else if (item.sourceKind === 'tracedPathGroup' && item.svgPathDs && item.svgPathDs.length > 0) {
+        const newEl = {
+          id: newId,
+          kind: 'tracedPathGroup' as const,
+          svgPathDs: item.svgPathDs,
+          strokeMm: 0.3,
+          transform: item.transform,
+        };
+        nextDoc = addElement(nextDoc, targetLayer.id, newEl);
+        newIds.push(newId);
+      }
+    }
+
+    if (newIds.length === 0) return;
+    const nextSelection = selectionReducer(selection, setSelection(newIds));
+    setEditor({ doc: nextDoc, selection: nextSelection }, true);
+    setOffsetPreviewEnabled(false);
+    setOffsetPreview([]);
+  }, [offsetPreview, offsetTargetLayerType, doc, selection, setEditor]);
+
+  const canvasRef = useRef<{ fitView: () => void; zoomIn: () => void; zoomOut: () => void } | null>(null);
 
   // Toggle section
   const toggleSection = (section: string) => {
@@ -403,7 +619,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
 
   // Image trace result handler
   const handleTraceResult = useCallback((
-    element: ShapeElement | EngraveSketchElement,
+    element: ShapeElement | EngraveSketchElement | Element,
     targetLayer: 'CUT' | 'ENGRAVE'
   ) => {
     const layer = findLayerByType(doc, targetLayer);
@@ -448,6 +664,33 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
   },
   [doc, setEditor]
   );
+
+  const handleOrnamentDrop = useCallback((payload: {
+    assetId: string;
+    targetLayer: OrnamentLayerType;
+    widthPct: number;
+    xMm: number;
+    yMm: number;
+  }) => {
+    const activeLayer = findLayerByType(doc, payload.targetLayer);
+    if (!activeLayer) return;
+
+    const targetWidthMm = (doc.artboard.wMm * payload.widthPct) / 100;
+    const scale = targetWidthMm / 100;
+
+    const newElement = createOrnamentElement(
+      payload.assetId as OrnamentId,
+      payload.targetLayer,
+      payload.xMm,
+      payload.yMm,
+      scale
+    );
+
+    const cur = editorRef.current;
+    const nextDoc = addElement(cur.doc, activeLayer.id, newElement);
+    const nextSelection = selectionReducer(cur.selection, selectSingle(newElement.id));
+    setEditor({ doc: nextDoc, selection: nextSelection }, true);
+  }, [doc, setEditor]);
 
   // Mounting holes handlers
   const handleUpdateHoleConfig = useCallback(
@@ -494,6 +737,113 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
     dispatchSelection(clearSelection());
   }, [dispatchSelection]);
 
+  const handleSelectElement = useCallback(
+    (elementId: string) => {
+      dispatchSelection(selectSingle(elementId));
+    },
+    [dispatchSelection]
+  );
+
+  const handleMoveElementToLayerType = useCallback(
+    (elementId: string, targetLayerType: 'CUT' | 'ENGRAVE') => {
+      const cur = editorRef.current;
+      const found = findElement(cur.doc, elementId);
+      if (!found) return;
+      if (found.layer.locked) return;
+
+      const targetLayer = findLayerByType(cur.doc, targetLayerType);
+      if (!targetLayer) return;
+      if (targetLayer.locked) return;
+
+      let nextDoc = cur.doc;
+      if (found.element.kind === 'text') {
+        nextDoc = updateElement(nextDoc, elementId, {
+          mode: targetLayerType === 'CUT' ? 'CUT_OUTLINE' : 'ENGRAVE_FILLED',
+        });
+      } else if (found.element.kind === 'shape') {
+        nextDoc = updateElement(nextDoc, elementId, {
+          style: targetLayerType,
+        });
+      } else if (found.element.kind === 'ornament') {
+        nextDoc = updateElement(nextDoc, elementId, {
+          style: {
+            ...found.element.style,
+            targetLayer: targetLayerType,
+          },
+        });
+      }
+
+      nextDoc = moveElementToLayer(nextDoc, elementId, targetLayer.id);
+      const nextSelection = selectionReducer(cur.selection, selectSingle(elementId));
+      setEditor({ doc: nextDoc, selection: nextSelection }, true);
+    },
+    [setEditor]
+  );
+
+  const handleDuplicateSelection = useCallback(() => {
+    const cur = editorRef.current;
+    const ids = cur.selection.selectedIds;
+    if (ids.length === 0) return;
+
+    let nextDoc = cur.doc;
+    const newIds: string[] = [];
+    for (const id of ids) {
+      const found = nextDoc.layers.find(l => l.elements.some(e => e.id === id));
+      const layer = found;
+      const el = layer?.elements.find(e => e.id === id);
+      if (!layer || !el) continue;
+      if (layer.locked) continue;
+
+      const newId = generateId();
+      const cloned: any = {
+        ...el,
+        id: newId,
+        transform: {
+          ...el.transform,
+          xMm: el.transform.xMm + 5,
+          yMm: el.transform.yMm + 5,
+        },
+      };
+      if (cloned.kind === 'tracedPathGroup' && Array.isArray(cloned.svgPathDs)) {
+        cloned.svgPathDs = [...cloned.svgPathDs];
+      }
+      if (cloned.kind === 'engraveSketch' && Array.isArray(cloned.svgPathD)) {
+        cloned.svgPathD = [...cloned.svgPathD];
+      }
+
+      nextDoc = addElement(nextDoc, layer.id, cloned);
+      newIds.push(newId);
+    }
+
+    if (newIds.length === 0) return;
+    const nextSelection = selectionReducer(cur.selection, setSelection(newIds));
+    setEditor({ doc: nextDoc, selection: nextSelection }, true);
+  }, [setEditor]);
+
+  const rotateToSnap45 = (deg: number) => Math.round(deg / 45) * 45;
+
+  const handleRotateSelected = useCallback(
+    (deltaDeg: number) => {
+      const cur = editorRef.current;
+      const ids = cur.selection.selectedIds;
+      if (ids.length === 0) return;
+      updateDoc((d) => {
+        let nextDoc = d;
+        for (const id of ids) {
+          const found = nextDoc.layers.find(l => l.elements.some(e => e.id === id));
+          const layer = found;
+          const el = layer?.elements.find(e => e.id === id);
+          if (!layer || !el) continue;
+          if (layer.locked) continue;
+          const nextRot = rotateToSnap45((el.transform.rotateDeg || 0) + deltaDeg);
+          nextDoc = updateElement(nextDoc, id, { transform: { ...el.transform, rotateDeg: nextRot } });
+        }
+        return nextDoc;
+      }, true);
+    },
+    [updateDoc]
+  );
+
   // Get active layer's text elements
   const activeLayer = doc.layers.find(l => l.id === doc.activeLayerId);
   const textElements = activeLayer?.elements.filter(el => el.kind === 'text') as TextElement[] || [];
@@ -508,6 +858,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         onRedo={history.redo}
         onDelete={handleDeleteSelection}
         onEscape={handleEscape}
+        onDuplicate={handleDuplicateSelection}
       />
       {/* Controls Panel */}
       <div className="w-full lg:w-[400px] lg:min-w-[340px] lg:max-w-[480px] shrink-0 border-r border-slate-800 bg-slate-950/30">
@@ -607,12 +958,57 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         <Section title="Layers" icon={<LayersIcon className="w-4 h-4" />} expanded={expandedSections.layers} onToggle={() => toggleSection('layers')}>
           <LayerPanel
             document={doc}
+            selectedIds={selectedIds}
             onUpdateLayer={(layerId, updates) => updateDoc(d => updateLayer(d, layerId, updates))}
             onReorderLayers={(from, to) => updateDoc(d => reorderLayers(d, from, to))}
             onAddLayer={(type, name) => updateDoc(d => addLayer(d, type, name))}
             onDeleteLayer={(layerId) => updateDoc(d => deleteLayer(d, layerId))}
-            onSelectLayer={(layerId) => updateDoc(d => setActiveLayer(d, layerId))}
+            onSelectLayer={(layerId) => updateDoc(d => setActiveLayer(d, layerId), false)}
+            onSelectElement={handleSelectElement}
+            onMoveElementToLayerType={handleMoveElementToLayerType}
           />
+        </Section>
+
+        <Section title="Offset" icon={<Circle className="w-4 h-4" />} expanded={expandedSections.offset} onToggle={() => toggleSection('offset')}>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={offsetPreviewEnabled}
+                onChange={(e) => setOffsetPreviewEnabled(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-xs text-slate-300">Preview offset</span>
+            </div>
+
+            <NumberInput
+              label="Offset (mm)"
+              value={offsetMm}
+              onChange={(v) => setOffsetMm(v)}
+              min={0.5}
+              max={20}
+              step={0.5}
+            />
+
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Target layer</label>
+              <select
+                value={offsetTargetLayerType}
+                onChange={(e) => setOffsetTargetLayerType(e.target.value as 'CUT' | 'OUTLINE')}
+                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm"
+              >
+                <option value="OUTLINE">OUTLINE</option>
+                <option value="CUT">CUT</option>
+              </select>
+            </div>
+
+            <button
+              onClick={handleApplyOffset}
+              className="w-full px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
+            >
+              Apply Offset
+            </button>
+          </div>
         </Section>
 
         {/* AI Section */}
@@ -712,6 +1108,9 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
           onZoomIn={() => setZoom(z => Math.min(z * 1.2, 10))}
           onZoomOut={() => setZoom(z => Math.max(z / 1.2, 0.1))}
           onFitView={() => setZoom(1)}
+          onDuplicate={handleDuplicateSelection}
+          onRotateLeft={() => handleRotateSelected(-45)}
+          onRotateRight={() => handleRotateSelected(45)}
           canUndo={history.canUndo}
           canRedo={history.canRedo}
           onUndo={history.undo}
@@ -757,12 +1156,25 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
 
         {/* Interactive Canvas */}
         <CanvasStage
+          ref={canvasRef as any}
           doc={doc}
           selection={selection}
           dispatchSelection={dispatchSelection}
           onElementMove={handleElementMove}
           onElementTransform={handleElementTransform}
           onElementsMove={handleElementsMove}
+          onOrnamentDrop={handleOrnamentDrop}
+          offsetPreview={
+            offsetPreviewEnabled
+              ? offsetPreview.map(({ sourceElementId, kind, svgPathD, svgPathDs, transform }) => ({
+                  sourceElementId,
+                  kind,
+                  svgPathD,
+                  svgPathDs,
+                  transform,
+                }))
+              : undefined
+          }
           onInteractionBegin={handleInteractionBegin}
           onInteractionEnd={handleInteractionEnd}
           showGrid={showGrid}
@@ -905,6 +1317,31 @@ function TextElementEditor({ element, label, onUpdate, onDelete }: {
           )}
         </div>
       )}
+
+      <div className="pl-2 border-l-2 border-slate-700 space-y-2">
+        <div>
+          <label className="block text-[10px] text-slate-400 mb-1">Curved Text</label>
+          <select
+            value={element.curvedMode || 'straight'}
+            onChange={(e) => onUpdate({ curvedMode: e.target.value as any })}
+            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs"
+          >
+            <option value="straight">Straight</option>
+            <option value="arcUp">Arc Up</option>
+            <option value="arcDown">Arc Down</option>
+          </select>
+        </div>
+
+        {(element.curvedMode || 'straight') !== 'straight' && (
+          <NumberInput
+            label="Curve Intensity"
+            value={element.curvedIntensity ?? 40}
+            onChange={(v) => onUpdate({ curvedIntensity: v })}
+            min={0}
+            max={100}
+          />
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <NumberInput

@@ -3,6 +3,9 @@
  * Based on Engrave Prep processing pipeline
  */
 
+import type { PuzzleTemplate } from '../types/jigsawV2';
+import { generateCenterCutoutPath, generateTemplateOutline } from '../core/templates';
+
 export interface PhotoProcessingSettings {
   enabled: boolean;
   grayscale: boolean;
@@ -215,4 +218,94 @@ function applyAtkinson(pixels: Float32Array, width: number, height: number): voi
       }
     }
   }
+}
+
+export async function maskImageToTemplate(
+  imageDataUrl: string,
+  opts: {
+    widthMm: number;
+    heightMm: number;
+    template: PuzzleTemplate;
+    cornerRadiusMm?: number;
+    centerCutout?: boolean;
+    centerCutoutRatio?: number;
+    pxPerMm?: number;
+    maxPx?: number;
+  }
+): Promise<string> {
+  const {
+    widthMm,
+    heightMm,
+    template,
+    cornerRadiusMm = 0,
+    centerCutout = false,
+    centerCutoutRatio = 0.3,
+    pxPerMm = 6,
+    maxPx = 4096,
+  } = opts;
+
+  const targetW = Math.max(1, Math.round(widthMm * pxPerMm));
+  const targetH = Math.max(1, Math.round(heightMm * pxPerMm));
+  const scaleDown = Math.min(1, maxPx / Math.max(targetW, targetH));
+  const canvasW = Math.max(1, Math.round(targetW * scaleDown));
+  const canvasH = Math.max(1, Math.round(targetH * scaleDown));
+
+  const mmToPxX = canvasW / widthMm;
+  const mmToPxY = canvasH / heightMm;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        ctx.clearRect(0, 0, canvasW, canvasH);
+
+        const outerD = generateTemplateOutline(template, widthMm, heightMm, cornerRadiusMm);
+        const innerD = centerCutout
+          ? generateCenterCutoutPath(widthMm, heightMm, centerCutoutRatio, cornerRadiusMm, template)
+          : '';
+        const clipD = centerCutout ? `${outerD} ${innerD}` : outerD;
+        const clipPath = new Path2D(clipD);
+
+        ctx.save();
+        ctx.scale(mmToPxX, mmToPxY);
+        ctx.clip(clipPath, 'evenodd');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        const imgAspect = img.width / img.height;
+        const canvasAspect = canvasW / canvasH;
+
+        let drawW = canvasW;
+        let drawH = canvasH;
+        if (imgAspect > canvasAspect) {
+          drawH = canvasH;
+          drawW = canvasH * imgAspect;
+        } else {
+          drawW = canvasW;
+          drawH = canvasW / imgAspect;
+        }
+
+        const dx = (canvasW - drawW) / 2;
+        const dy = (canvasH - drawH) / 2;
+        ctx.drawImage(img, dx, dy, drawW, drawH);
+
+        ctx.restore();
+
+        resolve(canvas.toDataURL('image/png'));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    img.onerror = reject;
+    img.src = imageDataUrl;
+  });
 }

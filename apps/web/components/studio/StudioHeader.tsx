@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { STUDIO_NAV, isActivePath } from '@/lib/studio/navigation/studioNav';
+import { AICreditsInfoPanel } from '@/components/ai';
 
 export function StudioHeader() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [aiCreditsOpen, setAiCreditsOpen] = useState(false);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -58,6 +60,13 @@ export function StudioHeader() {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAiCreditsOpen(true)}
+              className="hidden rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 md:inline-flex"
+            >
+              AI Credits
+            </button>
             <Link
               href="/studio/tools"
               className="hidden rounded-md bg-sky-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sky-600 md:inline-flex"
@@ -117,6 +126,16 @@ export function StudioHeader() {
               })}
             </div>
             <div className="mt-4 border-t border-slate-800 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setAiCreditsOpen(true);
+                }}
+                className="mb-2 block w-full rounded-md border border-slate-700 px-3 py-2 text-center text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
+              >
+                AI Credits
+              </button>
               <Link
                 href="/studio/tools"
                 className="block w-full rounded-md bg-sky-500 px-3 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-sky-600"
@@ -127,6 +146,8 @@ export function StudioHeader() {
           </nav>
         </div>
       )}
+
+      <AICreditsInfoPanel open={aiCreditsOpen} onClose={() => setAiCreditsOpen(false)} />
     </>
   );
 }

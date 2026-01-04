@@ -18,6 +18,9 @@ import {
   Shield,
   Crosshair,
   Magnet,
+  Copy,
+  RotateCcw,
+  RotateCw,
 } from 'lucide-react';
 import type { CanvasTool } from './CanvasStage';
 
@@ -28,6 +31,9 @@ interface CanvasToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
+  onDuplicate?: () => void;
+  onRotateLeft?: () => void;
+  onRotateRight?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
   onUndo?: () => void;
@@ -49,6 +55,9 @@ export function CanvasToolbar({
   onZoomIn,
   onZoomOut,
   onFitView,
+  onDuplicate,
+  onRotateLeft,
+  onRotateRight,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -152,6 +161,30 @@ export function CanvasToolbar({
           active={snapEnabled}
           onClick={onToggleSnap}
         />
+        </div>
+
+        <div className="flex items-center gap-1 pl-2 border-l border-slate-600">
+          <ToolButton
+            icon={<Copy className="w-4 h-4" />}
+            label="Duplicate (Ctrl/Cmd+D)"
+            active={false}
+            onClick={() => onDuplicate && onDuplicate()}
+            disabled={!onDuplicate}
+          />
+          <ToolButton
+            icon={<RotateCcw className="w-4 h-4" />}
+            label="Rotate -45°"
+            active={false}
+            onClick={() => onRotateLeft && onRotateLeft()}
+            disabled={!onRotateLeft}
+          />
+          <ToolButton
+            icon={<RotateCw className="w-4 h-4" />}
+            label="Rotate +45°"
+            active={false}
+            onClick={() => onRotateRight && onRotateRight()}
+            disabled={!onRotateRight}
+          />
         </div>
       </div>
 

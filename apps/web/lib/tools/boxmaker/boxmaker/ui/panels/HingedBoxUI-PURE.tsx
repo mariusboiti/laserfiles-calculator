@@ -1,13 +1,30 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { BoxSettings, GeneratedFace } from '../../../src/lib/types';
+import type { BoxSettings, GeneratedFace, PathOperation } from '../../../src/lib/types';
 import { applySimpleDefaults } from '../../../src/lib/defaults';
 import { BoxPreview3D } from '../../../src/components/BoxPreview3D';
 import { exportSingleSvg } from '../../export/exportSvgs';
 import { DEFAULTS } from '../../config/defaults';
 import { validateSimpleBoxInputs } from '../../core/validation';
 import { generateSimpleBoxGeometry } from '../../core/simple/generateSimpleBox';
+import { importSvgAsFace } from '../../../src/lib/svgImport';
+import { mergeSvgWithOverlays, type EngraveOverlayItem } from '../../core/shared/mergeSvgWithOverlays';
+import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
+import { AIWarningBanner } from '@/components/ai';
+
+type FaceArtworkPlacement = {
+  x: number;
+  y: number;
+  scale: number;
+  rotationDeg: number;
+};
+
+type FaceArtworkConfig = {
+  prompt: string;
+  imageDataUrl: string;
+  placement: FaceArtworkPlacement;
+};
 
 function clampNumber(n: number, min: number, max: number) {
   if (Number.isNaN(n)) return min;
@@ -266,16 +283,19 @@ const HINGED_DEFAULT_HEIGHT_MM = 30;
 const HINGED_DEFAULT_FINGER_WIDTH_MM = 3.54;
 
 export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: HingedBoxUIProps) {
+  const MM_PER_INCH = 25.4;
   const unitLabel = unitSystem;
   const toUser = (mm: number) => (unitSystem === 'in' ? mm / MM_PER_INCH : mm);
   const fromUser = (val: number) => (unitSystem === 'in' ? val * MM_PER_INCH : val);
 
   const [previewMode, setPreviewMode] = useState<'2d' | '3d'>('2d');
+  const [previewZoom, setPreviewZoom] = useState(140);
 
   // Same defaults as Simple Box
   const [widthMm, setWidthMm] = useState(HINGED_DEFAULT_WIDTH_MM);
   const [depthMm, setDepthMm] = useState(HINGED_DEFAULT_DEPTH_MM);
   const [heightMm, setHeightMm] = useState(HINGED_DEFAULT_HEIGHT_MM);
+  // ... (rest of the code remains the same)
   const [thicknessMm, setThicknessMm] = useState(DEFAULTS.common.thicknessMm);
   const [kerfMm, setKerfMm] = useState(DEFAULTS.common.kerfMm);
   const [fingerWidthMm, setFingerWidthMm] = useState(HINGED_DEFAULT_FINGER_WIDTH_MM);
@@ -294,6 +314,27 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
   // View mode
   const [viewMode, setViewMode] = useState<'all' | string>('all');
 
+  const [faceArtworkTargets, setFaceArtworkTargets] = useState<string[]>(['front']);
+  const [faceArtworkPrompt, setFaceArtworkPrompt] = useState<string>('');
+  const [faceArtworkModel, setFaceArtworkModel] = useState<'silhouette' | 'sketch' | 'geometric'>('silhouette');
+  const [faceArtworkByFace, setFaceArtworkByFace] = useState<Record<string, FaceArtworkConfig | undefined>>({});
+  const [selectedArtworkFace, setSelectedArtworkFace] = useState<string>('front');
+  const [isArtworkGenerating, setIsArtworkGenerating] = useState(false);
+  const [artworkError, setArtworkError] = useState<string | null>(null);
+
+  const [engraveOp, setEngraveOp] = useState<PathOperation>('engrave');
+  const [engraveTarget, setEngraveTarget] = useState<string>('front');
+  const [engraveItems, setEngraveItems] = useState<EngraveOverlayItem[]>([]);
+  const [selectedEngraveId, setSelectedEngraveId] = useState<string | null>(null);
+
+  const [engraveText, setEngraveText] = useState('');
+  const [engraveTextFontId, setEngraveTextFontId] = useState<FontId>(() => (SHARED_FONTS[0]?.id ?? 'Milkshake'));
+  const [engraveTextSizeMm, setEngraveTextSizeMm] = useState(10);
+  const [engraveTextLetterSpacingMm, setEngraveTextLetterSpacingMm] = useState(0);
+  const [engraveTextCurved, setEngraveTextCurved] = useState(false);
+  const [engraveTextCurveRadius, setEngraveTextCurveRadius] = useState(30);
+  const [textPreviewSvg, setTextPreviewSvg] = useState<string | null>(null);
+
   // Reset function
   useEffect(() => {
     if (onResetCallback) {
@@ -311,6 +352,17 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
         }
         setHingePinInsetFromTop(0);
         setHingePinInsetFromBack(4);
+        setFaceArtworkTargets(['front']);
+        setFaceArtworkPrompt('');
+        setFaceArtworkModel('silhouette');
+        setFaceArtworkByFace({});
+        setSelectedArtworkFace('front');
+        setIsArtworkGenerating(false);
+        setArtworkError(null);
+        setEngraveOp('engrave');
+        setEngraveItems([]);
+        setSelectedEngraveId(null);
+        setEngraveTarget('front');
       });
     }
   }, [onResetCallback, unitSystem]);
@@ -685,11 +737,14 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
       if (f.name === 'right' && hingeHoles.right) {
         svg = svg.replace('</svg>', `<circle cx="${hingeHoles.right.cx.toFixed(3)}" cy="${hingeHoles.right.cy.toFixed(3)}" r="${hingeHoles.right.r.toFixed(3)}" fill="none" stroke="red" stroke-width="0.2"/></svg>`);
       }
+
+      const items = engraveItems.filter((it) => String(it.id).startsWith(`${f.name}:`));
+      svg = mergeSvgWithOverlays(svg, items);
       
       map.set(f.name, svg);
     }
     return map;
-  }, [faces, hingeHoles, thicknessMm]);
+  }, [faces, hingeHoles, thicknessMm, engraveItems]);
 
   const faceKeys = useMemo(() => {
     const order = ['front', 'back', 'left', 'right', 'bottom', 'top', 'lid'];
@@ -698,6 +753,264 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
     uniq.sort((a, b) => order.indexOf(a) - order.indexOf(b));
     return uniq;
   }, [faces]);
+
+  const faceByName = useMemo(() => {
+    const m = new Map<string, GeneratedFace>();
+    faces.forEach((f) => m.set(String(f.name), f));
+    return m;
+  }, [faces]);
+
+  useEffect(() => {
+    if (!faceKeys.length) return;
+    if (faceKeys.includes(selectedArtworkFace)) return;
+    setSelectedArtworkFace(faceKeys[0]);
+  }, [faceKeys, selectedArtworkFace]);
+
+  const selectedArtwork = selectedArtworkFace ? faceArtworkByFace[selectedArtworkFace] ?? null : null;
+
+  const setSelectedArtworkPlacement = (patch: Partial<FaceArtworkPlacement>) => {
+    if (!selectedArtworkFace) return;
+    setFaceArtworkByFace((prev) => {
+      const cur = prev[selectedArtworkFace];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [selectedArtworkFace]: {
+          ...cur,
+          placement: {
+            ...cur.placement,
+            ...patch,
+          },
+        },
+      };
+    });
+  };
+
+  const toggleArtworkTarget = (face: string) => {
+    setFaceArtworkTargets((prev) => {
+      const has = prev.includes(face);
+      const next = has ? prev.filter((x) => x !== face) : [...prev, face];
+      return next.length ? next : prev;
+    });
+  };
+
+  const handleGenerateArtwork = async () => {
+    const prompt = faceArtworkPrompt.trim();
+    if (!prompt) {
+      setArtworkError('Please enter a prompt');
+      return;
+    }
+
+    const targets = faceArtworkTargets.filter((t) => faceKeys.includes(t));
+    if (targets.length === 0) {
+      setArtworkError('Select at least one face');
+      return;
+    }
+
+    setIsArtworkGenerating(true);
+    setArtworkError(null);
+
+    try {
+      // Enhance prompt based on selected model - always request white background
+      let enhancedPrompt = prompt;
+      if (faceArtworkModel === 'sketch') {
+        enhancedPrompt = `pencil sketch drawing style, hand-drawn, artistic sketch on white background: ${prompt}, white background`;
+      } else if (faceArtworkModel === 'geometric') {
+        enhancedPrompt = `geometric pattern, repeating geometric shapes, symmetrical design on white background: ${prompt}, white background`;
+      } else {
+        enhancedPrompt = `${prompt}, white background`;
+      }
+
+      const res = await fetch('/api/ai/silhouette', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: enhancedPrompt }),
+      });
+
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errJson: any = await res.json().catch(() => ({}));
+          throw new Error(errJson?.error || 'AI generation failed');
+        }
+        const text = await res.text().catch(() => '');
+        throw new Error(text || 'AI generation failed');
+      }
+
+      const json: any = await res.json().catch(() => ({}));
+      const dataUrl = typeof json?.dataUrl === 'string' ? json.dataUrl : '';
+      if (!dataUrl) {
+        throw new Error('AI image endpoint returned no dataUrl');
+      }
+
+      setFaceArtworkByFace((prev) => {
+        const next = { ...prev };
+        for (const faceName of targets) {
+          const face = faceByName.get(faceName);
+          const w = Math.max(face?.width ?? 1, 1);
+          const h = Math.max(face?.height ?? 1, 1);
+          const existing = next[faceName];
+          next[faceName] = {
+            prompt,
+            imageDataUrl: dataUrl,
+            placement: existing?.placement ?? { x: w / 2, y: h / 2, scale: 0.5, rotationDeg: 0 },
+          };
+        }
+        return next;
+      });
+
+      if (!targets.includes(selectedArtworkFace)) {
+        setSelectedArtworkFace(targets[0]);
+      }
+    } catch (e) {
+      setArtworkError(e instanceof Error ? e.message : 'AI generation failed');
+    } finally {
+      setIsArtworkGenerating(false);
+    }
+  };
+
+  const handleTraceSelectedArtwork = async () => {
+    const faceName = String(selectedArtworkFace || '').trim();
+    const art = faceName ? faceArtworkByFace[faceName] : null;
+    const face = faceName ? faceByName.get(faceName) ?? null : null;
+
+    if (!faceName || !art?.imageDataUrl || !face) {
+      setArtworkError('Select a face with artwork to trace');
+      return;
+    }
+
+    setIsArtworkGenerating(true);
+    setArtworkError(null);
+
+    try {
+      const mode = faceArtworkModel === 'silhouette' ? 'CUT_SILHOUETTE' : 'ENGRAVE_LINEART';
+
+      const res = await fetch('/api/trace/potrace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataUrl: art.imageDataUrl,
+          mode,
+          targetWidthMm: face.width,
+          targetHeightMm: face.height,
+        }),
+      });
+
+      const json: any = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error((typeof json?.error === 'string' && json.error) || 'Trace failed');
+      }
+
+      const paths: string[] = Array.isArray(json?.paths) ? json.paths.filter((p: any) => typeof p === 'string') : [];
+      if (!paths.length) {
+        throw new Error('Trace returned no paths');
+      }
+
+      const svgText = `<svg xmlns="http://www.w3.org/2000/svg">${paths
+        .map((d) => `<path d="${d}" />`)
+        .join('')}</svg>`;
+
+      const op: PathOperation = mode === 'CUT_SILHOUETTE' ? 'cut' : 'score';
+      const importedFace = importSvgAsFace({
+        svgText,
+        id: `trace-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        op,
+        label: `trace-${faceName}`,
+      });
+
+      if (!importedFace) {
+        throw new Error('Trace result could not be imported as SVG');
+      }
+
+      const id = `${faceName}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      setEngraveItems((prev) => [
+        ...prev,
+        {
+          id,
+          fileName: `trace-${faceName}.svg`,
+          op,
+          face: importedFace,
+          placement: {
+            x: art.placement.x,
+            y: art.placement.y,
+            rotation: ((art.placement.rotationDeg ?? 0) * Math.PI) / 180,
+            scale: Math.max(0.01, art.placement.scale ?? 1),
+          },
+        },
+      ]);
+      setSelectedEngraveId(id);
+      setEngraveTarget(faceName);
+    } catch (e) {
+      setArtworkError(e instanceof Error ? e.message : 'Trace failed');
+    } finally {
+      setIsArtworkGenerating(false);
+    }
+  };
+
+  // Real-time text preview - always use fixed 30mm size for preview display
+  useEffect(() => {
+    const previewText = engraveText.trim() || 'Preview';
+    const previewSize = 30; // Fixed preview size for better visibility
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const font = await loadFont(engraveTextFontId);
+        const res = textToPathD(font, previewText, previewSize, Math.max(0, engraveTextLetterSpacingMm));
+        if (cancelled || !res?.pathD) return;
+
+        const pathD = res.pathD;
+        const bounds = res.bbox || { x: 0, y: 0, width: 100, height: 30 };
+        const pad = 4;
+
+        // Center the text in the viewBox
+        const viewBox = `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2}`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">
+          <path d="${pathD}" fill="#fff" stroke="none" />
+        </svg>`;
+        setTextPreviewSvg(svg);
+      } catch {
+        setTextPreviewSvg(null);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [engraveText, engraveTextFontId, engraveTextLetterSpacingMm]);
+
+  const handleAddEngraveText = async () => {
+    const text = engraveText.trim();
+    if (!text) return;
+
+    const face = faceByName.get(engraveTarget) ?? faces[0] ?? null;
+    if (!face) return;
+
+    const font = await loadFont(engraveTextFontId);
+    const res = textToPathD(font, text, Math.max(0.1, engraveTextSizeMm), Math.max(0, engraveTextLetterSpacingMm));
+    if (!res?.pathD) return;
+
+    const svgText = `<svg xmlns="http://www.w3.org/2000/svg"><path d="${res.pathD}" /></svg>`;
+
+    const importedFace = importSvgAsFace({
+      svgText,
+      id: `text-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      op: engraveOp,
+      label: `text-${text}`,
+    });
+    if (!importedFace) return;
+
+    const id = `${engraveTarget}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setEngraveItems((prev) => [
+      ...prev,
+      {
+        id,
+        fileName: `text-${text}.svg`,
+        op: engraveOp,
+        face: importedFace,
+        placement: { x: face.width / 2, y: face.height / 2, rotation: 0, scale: 1 },
+      },
+    ]);
+    setSelectedEngraveId(id);
+  };
 
   const selectedFace = useMemo(() => {
     if (viewMode === 'all') return null;
@@ -711,6 +1024,17 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
     const digits = unitSystem === 'mm' ? 2 : 3;
     return `${w.toFixed(digits)} × ${h.toFixed(digits)} ${unitLabel}`;
   }, [selectedFace, toUser, unitLabel, unitSystem]);
+
+  const selectedEngraveItem = useMemo(() => {
+    return selectedEngraveId ? engraveItems.find((x) => x.id === selectedEngraveId) ?? null : null;
+  }, [engraveItems, selectedEngraveId]);
+
+  const setSelectedEngravePlacement = (patch: Partial<EngraveOverlayItem['placement']>) => {
+    if (!selectedEngraveId) return;
+    setEngraveItems((prev) =>
+      prev.map((it) => (it.id === selectedEngraveId ? { ...it, placement: { ...it.placement, ...patch } } : it)),
+    );
+  };
 
   const handleExportAll = () => {
     // Export each panel as a separate SVG file in a combined layout
@@ -780,6 +1104,218 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
           </div>
         </div>
 
+        <div className="rounded-md border border-slate-700 bg-slate-950/30 px-3 py-2">
+          <div className="text-xs font-medium text-slate-200">Face Artwork</div>
+          <div className="mt-1 text-[10px] text-slate-400">Preview-only overlay (not included in exports)</div>
+
+          <div className="mt-2">
+            <AIWarningBanner />
+          </div>
+
+          <div className="mt-2 grid gap-2">
+            <label className="grid gap-1">
+              <span className="text-[11px] text-slate-400">Model</span>
+              <select
+                value={faceArtworkModel}
+                onChange={(e) => setFaceArtworkModel(e.target.value as 'silhouette' | 'sketch' | 'geometric')}
+                className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+              >
+                <option value="silhouette">Silhouette</option>
+                <option value="sketch">Sketch</option>
+                <option value="geometric">Geometric Pattern</option>
+              </select>
+            </label>
+
+            <label className="grid gap-1">
+              <span className="text-[11px] text-slate-400">Prompt</span>
+              <input
+                type="text"
+                value={faceArtworkPrompt}
+                onChange={(e) => setFaceArtworkPrompt(e.target.value)}
+                placeholder="e.g. floral silhouette"
+                className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+              />
+            </label>
+
+            <div className="grid gap-1">
+              <span className="text-[11px] text-slate-400">Faces</span>
+              <div className="flex flex-wrap gap-2">
+                {faceKeys.map((k) => (
+                  <label key={k} className="flex items-center gap-1 text-[11px] text-slate-200">
+                    <input type="checkbox" checked={faceArtworkTargets.includes(k)} onChange={() => toggleArtworkTarget(k)} />
+                    <span className="uppercase">{k}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleGenerateArtwork}
+                disabled={isArtworkGenerating}
+                className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-60"
+              >
+                {isArtworkGenerating ? 'Generating…' : 'Generate'}
+              </button>
+              <button
+                type="button"
+                onClick={handleTraceSelectedArtwork}
+                disabled={isArtworkGenerating}
+                className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+              >
+                Trace → SVG
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFaceArtworkByFace({});
+                  setArtworkError(null);
+                }}
+                className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+              >
+                Clear
+              </button>
+            </div>
+
+            {artworkError ? (
+              <div className="rounded-md border border-amber-800 bg-amber-950/30 p-2 text-[11px] text-amber-200">{artworkError}</div>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="grid gap-1">
+                <span className="text-[11px] text-slate-400">Edit face</span>
+                <select
+                  value={selectedArtworkFace}
+                  onChange={(e) => setSelectedArtworkFace(e.target.value)}
+                  className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                >
+                  {faceKeys.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="text-[10px] text-slate-500 self-end">Center-based X/Y in mm</div>
+            </div>
+
+            {selectedArtwork ? (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-slate-400">X (mm)</span>
+                  <input
+                    type="number"
+                    value={Number(selectedArtwork.placement.x.toFixed(2))}
+                    onChange={(e) => setSelectedArtworkPlacement({ x: Number(e.target.value) || 0 })}
+                    className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-slate-400">Y (mm)</span>
+                  <input
+                    type="number"
+                    value={Number(selectedArtwork.placement.y.toFixed(2))}
+                    onChange={(e) => setSelectedArtworkPlacement({ y: Number(e.target.value) || 0 })}
+                    className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-slate-400">Scale</span>
+                  <input
+                    type="number"
+                    min={0.05}
+                    step={0.05}
+                    value={Number(selectedArtwork.placement.scale.toFixed(2))}
+                    onChange={(e) =>
+                      setSelectedArtworkPlacement({ scale: Math.max(0.05, Number(e.target.value) || 0.05) })
+                    }
+                    className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-slate-400">Rotate (deg)</span>
+                  <input
+                    type="number"
+                    step={1}
+                    value={Number(selectedArtwork.placement.rotationDeg.toFixed(0))}
+                    onChange={(e) => setSelectedArtworkPlacement({ rotationDeg: Number(e.target.value) || 0 })}
+                    className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-500">No artwork on this face yet.</div>
+            )}
+          </div>
+        </div>
+
+        {selectedEngraveItem ? (
+          <div className="mt-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] text-slate-400">Placement</div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEngraveItems((prev) => prev.filter((x) => x.id !== selectedEngraveItem.id));
+                  setSelectedEngraveId(null);
+                }}
+                className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:border-rose-500 hover:text-rose-200"
+              >
+                Remove
+              </button>
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span>X (mm)</span>
+                <input
+                  type="number"
+                  step={0.1}
+                  value={Number(selectedEngraveItem.placement.x.toFixed(2))}
+                  onChange={(e) => setSelectedEngravePlacement({ x: Number(e.target.value) || 0 })}
+                  className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span>Y (mm)</span>
+                <input
+                  type="number"
+                  step={0.1}
+                  value={Number(selectedEngraveItem.placement.y.toFixed(2))}
+                  onChange={(e) => setSelectedEngravePlacement({ y: Number(e.target.value) || 0 })}
+                  className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span>Rotation (deg)</span>
+                <input
+                  type="number"
+                  step={1}
+                  value={(selectedEngraveItem.placement.rotation * 180) / Math.PI}
+                  onChange={(e) => {
+                    const deg = Number(e.target.value);
+                    const rad = (deg * Math.PI) / 180;
+                    setSelectedEngravePlacement({ rotation: rad });
+                  }}
+                  className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span>Scale</span>
+                <input
+                  type="number"
+                  step={0.05}
+                  min={0.05}
+                  value={selectedEngraveItem.placement.scale}
+                  onChange={(e) => setSelectedEngravePlacement({ scale: Math.max(0.05, Number(e.target.value) || 1) })}
+                  className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                />
+              </label>
+            </div>
+          </div>
+        ) : null}
+
         {/* Dimensions */}
         <fieldset className="grid gap-2 border border-slate-700 rounded-md p-3">
           <legend className="text-xs font-medium text-slate-300 px-1">Dimensions (Exterior)</legend>
@@ -821,6 +1357,126 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
             />
           </label>
         </fieldset>
+
+        <div className="rounded-md border border-slate-700 bg-slate-950/30 px-3 py-2">
+          <div className="text-xs font-medium text-slate-200">Engrave Overlay</div>
+          <div className="mt-1 text-[10px] text-slate-400">Included in exports</div>
+
+          <div className="mt-2 grid gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="grid gap-1">
+                <span className="text-[11px] text-slate-400">Operation</span>
+                <select
+                  value={engraveOp}
+                  onChange={(e) => setEngraveOp(e.target.value as PathOperation)}
+                  className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                >
+                  <option value="engrave">ENGRAVE</option>
+                  <option value="score">SCORE</option>
+                  <option value="cut">CUT</option>
+                </select>
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-[11px] text-slate-400">Target face</span>
+                <select
+                  value={engraveTarget}
+                  onChange={(e) => setEngraveTarget(e.target.value)}
+                  className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                >
+                  {faceKeys.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="grid gap-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+              <div className="text-[11px] text-slate-400">Add text</div>
+              <div className="grid gap-2">
+                <input
+                  type="text"
+                  value={engraveText}
+                  onChange={(e) => setEngraveText(e.target.value)}
+                  placeholder="Text"
+                  className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                />
+                {/* Font preview */}
+                {textPreviewSvg && (
+                  <div
+                    className="h-12 w-full rounded-md border border-slate-700 bg-slate-950 p-1"
+                    dangerouslySetInnerHTML={{ __html: textPreviewSvg }}
+                  />
+                )}
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">Font</div>
+                    <select
+                      value={engraveTextFontId}
+                      onChange={(e) => setEngraveTextFontId(e.target.value as FontId)}
+                      className="w-full rounded border border-slate-700 bg-slate-800 px-1 py-1 text-[10px]"
+                    >
+                      {SHARED_FONTS.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">Size</div>
+                    <input
+                      type="number"
+                      min={0.1}
+                      step={0.5}
+                      value={engraveTextSizeMm}
+                      onChange={(e) => setEngraveTextSizeMm(Number(e.target.value) || 0)}
+                      className="w-full rounded border border-slate-700 bg-slate-800 px-1 py-1 text-[10px]"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">Spacing</div>
+                    <input
+                      type="number"
+                      step={0.1}
+                      value={engraveTextLetterSpacingMm}
+                      onChange={(e) => setEngraveTextLetterSpacingMm(Number(e.target.value) || 0)}
+                      className="w-full rounded border border-slate-700 bg-slate-800 px-1 py-1 text-[10px]"
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddEngraveText}
+                  className="w-full rounded-md bg-slate-800 px-3 py-2 text-[11px] text-slate-100 hover:bg-slate-700"
+                >
+                  Add Text
+                </button>
+              </div>
+            </div>
+
+            {engraveItems.length > 0 ? (
+              <div className="mt-1 space-y-1">
+                {engraveItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedEngraveId(item.id)}
+                    className={
+                      selectedEngraveId === item.id
+                        ? 'w-full rounded-md border border-sky-500 bg-slate-900 px-2 py-1 text-left text-[11px] text-slate-100'
+                        : 'w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-left text-[11px] text-slate-300 hover:border-slate-600'
+                    }
+                  >
+                    {item.fileName}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
 
         {/* Material */}
         <fieldset className="grid gap-2 border border-slate-700 rounded-md p-3">
@@ -969,16 +1625,11 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
               <input
                 type="range"
                 min="50"
-                max="200"
-                defaultValue="100"
+                max="250"
+                value={previewZoom}
                 className="w-24"
                 onChange={(e) => {
-                  const zoom = parseInt(e.target.value);
-                  const container = document.getElementById('preview-content');
-                  if (container) {
-                    container.style.transform = `scale(${zoom / 100})`;
-                    container.style.transformOrigin = 'center';
-                  }
+                  setPreviewZoom(parseInt(e.target.value));
                 }}
               />
             </div>
@@ -1000,19 +1651,52 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
               />
             </div>
           ) : viewMode === 'all' ? (
-            <div id="preview-content" className="grid grid-cols-3 gap-4 transition-transform">
+            <div
+              id="preview-content"
+              className="grid w-full max-w-5xl grid-cols-3 gap-6 transition-transform"
+              style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: 'center' }}
+            >
               {faceKeys.map((name) => (
-                <div key={name} className="bg-slate-900 rounded p-3">
+                <div key={name} className="bg-slate-900 rounded p-3 w-full">
                   <div className="text-[10px] text-slate-500 mb-2 uppercase font-medium">{name}</div>
-                  <div
-                    className="w-full aspect-square bg-white rounded flex items-center justify-center overflow-hidden"
-                    dangerouslySetInnerHTML={{ __html: faceSvgs.get(name) || '' }}
-                  />
+                  <div className="relative w-full aspect-square bg-white rounded flex items-center justify-center overflow-hidden">
+                    <div
+                      className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
+                      dangerouslySetInnerHTML={{ __html: faceSvgs.get(name) || '' }}
+                    />
+                    {(() => {
+                      const art = faceArtworkByFace[name];
+                      const face = faceByName.get(name);
+                      if (!art || !art.imageDataUrl || !face) return null;
+                      const leftPct = (art.placement.x / Math.max(face.width, 1)) * 100;
+                      const topPct = (art.placement.y / Math.max(face.height, 1)) * 100;
+                      const wPct = Math.max(1, Math.min(200, art.placement.scale * 100));
+                      return (
+                        <img
+                          src={art.imageDataUrl}
+                          alt="Artwork"
+                          className="absolute pointer-events-none"
+                          style={{
+                            left: `${leftPct}%`,
+                            top: `${topPct}%`,
+                            width: `${wPct}%`,
+                            transform: `translate(-50%, -50%) rotate(${art.placement.rotationDeg}deg)`,
+                            transformOrigin: 'center',
+                            opacity: 0.85,
+                          }}
+                        />
+                      );
+                    })()}
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div id="preview-content" className="transition-transform">
+            <div
+              id="preview-content"
+              className="transition-transform"
+              style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: 'center' }}
+            >
               <div className="bg-slate-900 rounded p-6 max-w-2xl">
                 <div className="text-sm text-slate-200 mb-1 uppercase font-medium text-center">{viewMode}</div>
                 {selectedFace ? (
@@ -1020,11 +1704,35 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
                 ) : (
                   <div className="text-[11px] text-slate-500 mb-4 text-center">No dimensions</div>
                 )}
-                <div
-                  className="bg-white rounded p-4 flex items-center justify-center"
-                  style={{ minWidth: '500px', minHeight: '500px' }}
-                  dangerouslySetInnerHTML={{ __html: faceSvgs.get(viewMode) || '' }}
-                />
+                <div className="relative bg-white rounded p-4 flex items-center justify-center" style={{ minWidth: '500px', minHeight: '500px' }}>
+                  <div
+                    className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
+                    dangerouslySetInnerHTML={{ __html: faceSvgs.get(viewMode) || '' }}
+                  />
+                  {(() => {
+                    const art = faceArtworkByFace[viewMode];
+                    const face = faceByName.get(viewMode);
+                    if (!art || !art.imageDataUrl || !face) return null;
+                    const leftPct = (art.placement.x / Math.max(face.width, 1)) * 100;
+                    const topPct = (art.placement.y / Math.max(face.height, 1)) * 100;
+                    const wPct = Math.max(1, Math.min(200, art.placement.scale * 100));
+                    return (
+                      <img
+                        src={art.imageDataUrl}
+                        alt="Artwork"
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: `${leftPct}%`,
+                          top: `${topPct}%`,
+                          width: `${wPct}%`,
+                          transform: `translate(-50%, -50%) rotate(${art.placement.rotationDeg}deg)`,
+                          transformOrigin: 'center',
+                          opacity: 0.85,
+                        }}
+                      />
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           )}

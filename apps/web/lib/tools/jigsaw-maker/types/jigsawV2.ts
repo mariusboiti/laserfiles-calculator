@@ -13,6 +13,11 @@ export interface JigsawSettings {
   rows: number;
   columns: number;
   
+  // Template
+  template?: PuzzleTemplate;  // Puzzle shape template
+  centerCutout?: boolean;     // Remove center pieces (works with any template)
+  centerCutoutRatio?: number; // Size of center cutout (0.2-0.5)
+  
   // Knob style
   knobStyle?: 'classic' | 'organic' | 'simple';  // classic = smooth round, organic = irregular natural, simple = basic geometric
   
@@ -38,12 +43,21 @@ export interface JigsawSettings {
   // Backing board
   includeBacking: boolean;
   backingMarginMm: number;
+  backingCornerRadiusMm?: number;  // Corner radius for backing board
   hangingHoles: boolean;
+  hangingHoleDiameter?: number;
+  hangingHoleSpacing?: number;
+  hangingHoleYOffset?: number;
   magnetHoles: boolean;
+  magnetHoleDiameter?: number;
+  magnetHoleInset?: number;
   
   // Piece numbering
   pieceNumbering: boolean;
   numberingStyle: 'alphanumeric' | 'numeric';
+  
+  // Photo mode
+  imageDataUrl?: string;  // Base64 image for photo puzzles
   
   // Difficulty (affects piece shape variation)
   difficulty?: number;  // 0-100: 0 = regular grid, 100 = maximum chaos
@@ -70,6 +84,24 @@ export type LayoutMode = 'assembled' | 'packed';
 
 export type SheetPreset = 'glowforge-basic' | 'glowforge-pro' | 'xtool-d1' | '300x400' | '600x400' | 'custom';
 
+// ============================================================================
+// Templates
+// ============================================================================
+
+export type PuzzleTemplate = 
+  | 'rectangle'       // Classic rectangle
+  | 'heart'           // Heart shape outline
+  | 'circle'          // Circle puzzle
+  | 'oval'            // Oval/ellipse shape
+  | 'star'            // Star shape
+  | 'hexagon';        // Hexagon shape
+
+export interface TemplateConfig {
+  id: PuzzleTemplate;
+  name: string;
+  description: string;
+}
+
 export interface SheetDimensions {
   widthMm: number;
   heightMm: number;
@@ -93,6 +125,7 @@ export interface JigsawOutput {
   svg: string;              // Full SVG document
   cutLayerSvg: string;      // Cut layer only
   engraveLayerSvg?: string; // Engrave layer (numbering)
+  backingBoardSvg?: string; // Backing board layer
   pieces: PieceInfo[];
   warnings: string[];
   diagnostics: Diagnostics;

@@ -73,6 +73,10 @@ export interface LayoutSettings {
   // SVG parsing
   pxDpi: number;
   sanitizeSvg: boolean;
+  
+  // Hole customization
+  holeRadius: number;
+  holeYOffset: number;
 }
 
 export interface PlacedItem {

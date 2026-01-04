@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import type { AspectRatio, DepthStyle, MaterialProfile, DepthZones, PreviewMode } from '../types';
 import { ASPECT_RATIOS, STYLE_PRESETS, MATERIAL_PROFILES } from '../types';
 
@@ -124,6 +125,12 @@ function computeHistogram(imageData: ImageData): { bins: number[]; status: HistS
 }
 
 export function AIDepthEngravingTool() {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   const [prompt, setPrompt] = useState('');
   const [style] = useState<DepthStyle>('bas-relief-engraving');
   const [ratio, setRatio] = useState<AspectRatio>('1:1');
@@ -147,14 +154,17 @@ export function AIDepthEngravingTool() {
   const [histStatus, setHistStatus] = useState<HistStatus>(null);
   const [seed, setSeed] = useState<string | null>(null);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(false);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      alert('Please enter a subject description');
+      setError('Please enter a subject description to generate.');
       return;
     }
 
     setIsGenerating(true);
+    setError(null);
     setFinalImage(null);
     setHeightMapDataUrl(null);
     setHeightMapImageData(null);
@@ -200,12 +210,13 @@ export function AIDepthEngravingTool() {
       
       setSeed(data.seed);
       setValidationWarnings(data.validationWarnings || []);
+      setHasGeneratedOnce(true);
 
       // Auto-switch to depth tab after generation
       setActiveTab('depth');
     } catch (error) {
-      console.error('Generation error:', error);
-      alert(`Failed to generate image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.warn('[AI Generate] generation failed', error);
+      setError('We couldn’t generate a result this time. Try refining your prompt and generate again.');
     } finally {
       setIsGenerating(false);
     }
@@ -400,13 +411,27 @@ export function AIDepthEngravingTool() {
         </div>
 
         {/* Generate Button */}
+        {error && (
+          <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-300">{error}</div>
+        )}
+
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !prompt.trim()}
           className="w-full rounded-lg bg-sky-500 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isGenerating ? 'Generating Height Map...' : 'Generate Engraving'}
+          {isGenerating ? 'Generating… this may take a few seconds.' : 'Generate Engraving'}
         </button>
+
+        {(hasGeneratedOnce || !!error) && (
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || !prompt.trim()}
+            className="w-full rounded-lg bg-slate-700 px-4 py-3 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Regenerate
+          </button>
+        )}
 
         {seed && (
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-400">
@@ -464,7 +489,12 @@ export function AIDepthEngravingTool() {
         <div className="flex-1 overflow-auto p-6">
           {activeTab === 'final' && (
             <div className="flex h-full items-center justify-center">
-              {finalImage ? (
+              {isGenerating ? (
+                <div className="text-center text-slate-400">
+                  <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
+                  <p>Generating… this may take a few seconds.</p>
+                </div>
+              ) : finalImage ? (
                 <div className="max-w-full">
                   <p className="mb-2 text-xs text-slate-400">Preview only - not for engraving</p>
                   <img
@@ -472,6 +502,8 @@ export function AIDepthEngravingTool() {
                     alt="Final preview"
                     className="max-h-[600px] rounded-lg border border-slate-700"
                   />
+
+                  <p className="mt-2 text-xs text-slate-400">Not perfect? Try refining your prompt and generate again.</p>
                 </div>
               ) : (
                 <p className="text-slate-500">Generate an image to see preview</p>
@@ -486,7 +518,12 @@ export function AIDepthEngravingTool() {
                 <p className="text-sm text-slate-400">White = surface | Black = maximum depth</p>
               </div>
 
-              {previewDataUrl ? (
+              {isGenerating ? (
+                <div className="text-center text-slate-400">
+                  <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
+                  <p>Generating… this may take a few seconds.</p>
+                </div>
+              ) : previewDataUrl ? (
                 <>
                   {/* Preview Mode Toggle */}
                   <div className="flex gap-2">
@@ -520,6 +557,8 @@ export function AIDepthEngravingTool() {
                       className="max-h-[500px] rounded-lg border border-slate-700"
                     />
                   </div>
+
+                  <p className="text-xs text-slate-400">Not perfect? Try refining your prompt and generate again.</p>
 
                   {/* Histogram */}
                   {histBins && histBins.length > 0 ? (

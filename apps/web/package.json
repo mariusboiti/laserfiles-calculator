@@ -9,7 +9,9 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@google/generative-ai": "^0.24.1",
+    "stripe": "^14.21.0",
     "@laser/pricing-engine": "workspace:*",
     "@laser/shared": "workspace:*",
     "@react-three/drei": "^9.122.0",
@@ -31,6 +33,8 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-easy-crop": "^5.0.4",
+    "sharp": "^0.33.4",
+    "potrace": "^2.1.8",
     "three": "^0.182.0",
     "zustand": "^4.4.1"
   },

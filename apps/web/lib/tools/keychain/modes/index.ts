@@ -8,7 +8,6 @@ import type { KeychainMode, KeychainModeId } from '../types';
 // V1 modes (legacy, uses <text> elements)
 import { simpleMode, SIMPLE_DEFAULTS } from './simple';
 import { emojiNameMode, EMOJI_NAME_DEFAULTS } from './emojiName';
-import { stickerBubbleMode, STICKER_BUBBLE_DEFAULTS } from './stickerBubble';
 
 // V2 modes (PRO, uses text-to-path with opentype.js)
 import { simpleModeV2, SIMPLE_V2_DEFAULTS } from './simpleV2';
@@ -18,21 +17,18 @@ import { emojiNameModeV2, EMOJI_NAME_V2_DEFAULTS } from './emojiNameV2';
 export const MODES: Record<KeychainModeId, KeychainMode> = {
   'simple': simpleModeV2,
   'emoji-name': emojiNameModeV2,
-  'sticker-bubble': stickerBubbleMode, // TODO: upgrade to V2
 };
 
 // Legacy V1 modes (for fallback)
 export const MODES_V1: Record<KeychainModeId, KeychainMode> = {
   'simple': simpleMode,
   'emoji-name': emojiNameMode,
-  'sticker-bubble': stickerBubbleMode,
 };
 
 // Mode list for UI
 export const MODE_LIST: { id: KeychainModeId; label: string; description: string; icon: string }[] = [
   { id: 'simple', label: 'Simple', description: 'Basic shape with text', icon: 'tag' },
   { id: 'emoji-name', label: 'Emoji + Name', description: '2-layer with icon', icon: 'smile' },
-  { id: 'sticker-bubble', label: 'Sticker Bubble', description: '2-layer bubble style', icon: 'message-circle' },
 ];
 
 // Get mode by ID
@@ -52,7 +48,7 @@ export function getModeIds(): KeychainModeId[] {
 }
 
 // Re-export defaults (V2 as primary)
-export { SIMPLE_V2_DEFAULTS, EMOJI_NAME_V2_DEFAULTS, STICKER_BUBBLE_DEFAULTS };
+export { SIMPLE_V2_DEFAULTS, EMOJI_NAME_V2_DEFAULTS };
 
 // Legacy exports
 export { SIMPLE_DEFAULTS, EMOJI_NAME_DEFAULTS };

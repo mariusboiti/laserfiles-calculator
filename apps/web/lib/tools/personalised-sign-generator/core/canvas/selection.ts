@@ -173,6 +173,49 @@ export function getElementBounds(element: Element): BoundsMm {
       localH = 100;
       break;
     }
+    case 'tracedPath': {
+      if (element._localBounds) {
+        localX = element._localBounds.xMm;
+        localY = element._localBounds.yMm;
+        localW = element._localBounds.widthMm;
+        localH = element._localBounds.heightMm;
+      } else {
+        const pathBounds = getPathBounds(element.svgPathD);
+        if (pathBounds) {
+          localX = pathBounds.xMm;
+          localY = pathBounds.yMm;
+          localW = pathBounds.widthMm;
+          localH = pathBounds.heightMm;
+        }
+      }
+      break;
+    }
+    case 'tracedPathGroup': {
+      if (element._localBounds) {
+        localX = element._localBounds.xMm;
+        localY = element._localBounds.yMm;
+        localW = element._localBounds.widthMm;
+        localH = element._localBounds.heightMm;
+      } else {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const pathD of element.svgPathDs) {
+          const pb = getPathBounds(pathD);
+          if (pb) {
+            minX = Math.min(minX, pb.xMm);
+            minY = Math.min(minY, pb.yMm);
+            maxX = Math.max(maxX, pb.xMm + pb.widthMm);
+            maxY = Math.max(maxY, pb.yMm + pb.heightMm);
+          }
+        }
+        if (minX !== Infinity) {
+          localX = minX;
+          localY = minY;
+          localW = maxX - minX;
+          localH = maxY - minY;
+        }
+      }
+      break;
+    }
   }
 
   // Apply scale (including negative scale) to local bounds, then translate.

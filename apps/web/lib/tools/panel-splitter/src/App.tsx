@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Uploader } from './components/Uploader';
 import { Settings } from './components/Settings';
 import { PreviewCanvas } from './components/PreviewCanvas';
@@ -98,16 +98,7 @@ export default function App({ onResetCallback }: AppProps) {
   const [selectedTile, setSelectedTile] = useState<TileInfo | null>(null);
   const [processedTiles, setProcessedTiles] = useState<TileInfo[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  const layoutRef = useRef<HTMLDivElement | null>(null);
-  const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
-  const [isResizing, setIsResizing] = useState(false);
-  const [leftPaneWidth, setLeftPaneWidth] = useState<number>(() => {
-    if (typeof window === 'undefined') return 900;
-    const stored = window.localStorage.getItem('panelSplitter:leftPaneWidth');
-    const parsed = stored ? Number(stored) : NaN;
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
-    return Math.round(Math.min(860, Math.max(440, window.innerWidth * 0.5)));
-  });
+  const [outputSize, setOutputSize] = useState<{ widthMm: number; heightMm: number; lockAspect: boolean } | null>(null);
   const [processingState, setProcessingState] = useState<ProcessingState>({
     isProcessing: false,
     currentTile: 0,
@@ -125,6 +116,7 @@ export default function App({ onResetCallback }: AppProps) {
     setSelectedTile(null);
     setProcessedTiles([]);
     setValidationErrors([]);
+    setOutputSize(null);
     setProcessingState({
       isProcessing: false,
       currentTile: 0,
@@ -142,68 +134,25 @@ export default function App({ onResetCallback }: AppProps) {
   }, [onResetCallback, resetToDefaults]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('panelSplitter:leftPaneWidth', String(leftPaneWidth));
-  }, [leftPaneWidth]);
+    if (!svgInfo) {
+      setOutputSize(null);
+      return;
+    }
+    setOutputSize({ widthMm: svgInfo.detectedWidthMm, heightMm: svgInfo.detectedHeightMm, lockAspect: true });
+  }, [svgInfo]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const clampLeftPane = () => {
-      const wrapper = layoutRef.current;
-      if (!wrapper) return;
-
-      const rect = wrapper.getBoundingClientRect();
-      const minLeft = 420;
-      const minRight = 520;
-      const maxLeft = Math.max(minLeft, rect.width - minRight - 12);
-
-      if (leftPaneWidth > maxLeft) {
-        setLeftPaneWidth(Math.round(maxLeft));
-      }
-    };
-
-    clampLeftPane();
-    window.addEventListener('resize', clampLeftPane);
-    return () => window.removeEventListener('resize', clampLeftPane);
-  }, [leftPaneWidth]);
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const onMove = (e: MouseEvent) => {
-      const start = resizeStartRef.current;
-      const wrapper = layoutRef.current;
-      if (!start || !wrapper) return;
-
-      const rect = wrapper.getBoundingClientRect();
-      const minLeft = 420;
-      const minRight = 520;
-      const maxLeft = Math.max(minLeft, rect.width - minRight - 12);
-      const next = start.width + (e.clientX - start.x);
-      setLeftPaneWidth(Math.max(minLeft, Math.min(maxLeft, Math.round(next))));
-    };
-
-    const onUp = () => {
-      setIsResizing(false);
-      resizeStartRef.current = null;
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isResizing]);
+  const effectiveSvgInfo: SVGInfo | null = useMemo(() => {
+    if (!svgInfo || !outputSize) return svgInfo;
+    return { ...svgInfo, detectedWidthMm: outputSize.widthMm, detectedHeightMm: outputSize.heightMm };
+  }, [svgInfo, outputSize?.widthMm, outputSize?.heightMm]);
 
   useEffect(() => {
     const errors = validateSettings(settings);
     setValidationErrors(errors);
 
-    if (svgInfo && errors.length === 0) {
+    if (effectiveSvgInfo && errors.length === 0) {
       try {
-        const grid = computeGrid(svgInfo.detectedWidthMm, svgInfo.detectedHeightMm, settings);
+        const grid = computeGrid(effectiveSvgInfo.detectedWidthMm, effectiveSvgInfo.detectedHeightMm, settings);
         setGridInfo(grid);
         setProcessedTiles([]);
         setSelectedTile(null);
@@ -214,10 +163,10 @@ export default function App({ onResetCallback }: AppProps) {
           message: err instanceof Error ? err.message : 'Failed to compute grid',
         }]);
       }
-    } else if (!svgInfo) {
+    } else if (!effectiveSvgInfo) {
       setGridInfo(null);
     }
-  }, [svgInfo, settings]);
+  }, [effectiveSvgInfo, settings]);
 
   const handleSVGLoaded = useCallback((info: SVGInfo) => {
     setSvgInfo(info);
@@ -240,7 +189,7 @@ export default function App({ onResetCallback }: AppProps) {
   }, [svgInfo]);
 
   const handleGenerate = useCallback(async () => {
-    if (!svgInfo || !gridInfo || validationErrors.length > 0) return;
+    if (!effectiveSvgInfo || !gridInfo || validationErrors.length > 0) return;
 
     cancelRef.current = false;
     setProcessingState({
@@ -255,7 +204,7 @@ export default function App({ onResetCallback }: AppProps) {
       setProcessingState(prev => ({ ...prev, phase: 'tiling' }));
 
       const results = await processTiles(
-        svgInfo,
+        effectiveSvgInfo,
         gridInfo,
         settings,
         (current, total) => {
@@ -292,7 +241,7 @@ export default function App({ onResetCallback }: AppProps) {
         error: message === 'Processing cancelled' ? null : message,
       });
     }
-  }, [svgInfo, gridInfo, settings, validationErrors]);
+  }, [effectiveSvgInfo, gridInfo, settings, validationErrors]);
 
   const handleCancel = useCallback(() => {
     cancelRef.current = true;
@@ -300,13 +249,13 @@ export default function App({ onResetCallback }: AppProps) {
   }, []);
 
   const handleExport = useCallback(async () => {
-    if (!svgInfo || !gridInfo || processedTiles.length === 0) return;
+    if (!effectiveSvgInfo || !gridInfo || processedTiles.length === 0) return;
 
     setProcessingState(prev => ({ ...prev, isProcessing: true, phase: 'exporting' }));
 
     try {
       await exportToZip({
-        svgInfo,
+        svgInfo: effectiveSvgInfo,
         settings,
         gridInfo,
         tiles: processedTiles,
@@ -321,9 +270,9 @@ export default function App({ onResetCallback }: AppProps) {
         error: err instanceof Error ? err.message : 'Export failed',
       }));
     }
-  }, [svgInfo, gridInfo, settings, processedTiles]);
+  }, [effectiveSvgInfo, gridInfo, settings, processedTiles]);
 
-  const canGenerate = svgInfo !== null && gridInfo !== null && validationErrors.length === 0 && !processingState.isProcessing;
+  const canGenerate = effectiveSvgInfo !== null && gridInfo !== null && validationErrors.length === 0 && !processingState.isProcessing;
 
   // Generate warnings
   const warnings: string[] = [];
@@ -335,9 +284,31 @@ export default function App({ onResetCallback }: AppProps) {
       warnings.push('Overlap larger than margin may duplicate cuts');
     }
   }
-  if (svgInfo && settings.bedWidth < svgInfo.detectedWidthMm && settings.bedHeight < svgInfo.detectedHeightMm) {
+  if (effectiveSvgInfo && settings.bedWidth < effectiveSvgInfo.detectedWidthMm && settings.bedHeight < effectiveSvgInfo.detectedHeightMm) {
     warnings.push('Source SVG exceeds laser bed size');
   }
+
+  const outputAspect = outputSize && outputSize.heightMm > 0 ? outputSize.widthMm / outputSize.heightMm : 1;
+
+  const updateOutputSize = (next: Partial<{ widthMm: number; heightMm: number; lockAspect: boolean }>) => {
+    if (!svgInfo || !outputSize) return;
+    const merged = { ...outputSize, ...next };
+    const w = Math.max(1, Number(merged.widthMm));
+    const h = Math.max(1, Number(merged.heightMm));
+
+    if (merged.lockAspect) {
+      if (next.widthMm !== undefined && outputAspect > 0) {
+        setOutputSize({ ...merged, widthMm: w, heightMm: Math.max(1, w / outputAspect) });
+        return;
+      }
+      if (next.heightMm !== undefined && outputAspect > 0) {
+        setOutputSize({ ...merged, widthMm: Math.max(1, h * outputAspect), heightMm: h });
+        return;
+      }
+    }
+
+    setOutputSize({ ...merged, widthMm: w, heightMm: h });
+  };
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -382,7 +353,7 @@ export default function App({ onResetCallback }: AppProps) {
         <div className="grid grid-cols-1 gap-4 lg:hidden">
           <div className="h-[500px]">
             <PreviewCanvas
-              svgInfo={svgInfo}
+              svgInfo={effectiveSvgInfo}
               gridInfo={gridInfo}
               selectedTile={selectedTile}
               onTileSelect={setSelectedTile}
@@ -410,6 +381,45 @@ export default function App({ onResetCallback }: AppProps) {
             onUnitModeChange={handleUnitModeChange}
             svgInfo={svgInfo}
           />
+          {svgInfo && outputSize && (
+            <div className="card">
+              <h2 className="text-lg font-semibold text-slate-100 mb-3">Output Size</h2>
+              <p className="text-xs text-slate-400 mb-3">Scales the design in mm before tiling/export.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-slate-200">Width (mm)</label>
+                  <input
+                    type="number"
+                    value={Number(outputSize.widthMm.toFixed(3))}
+                    min={1}
+                    step={0.5}
+                    onChange={(e) => updateOutputSize({ widthMm: Number(e.target.value) || 1 })}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-200">Height (mm)</label>
+                  <input
+                    type="number"
+                    value={Number(outputSize.heightMm.toFixed(3))}
+                    min={1}
+                    step={0.5}
+                    onChange={(e) => updateOutputSize({ heightMm: Number(e.target.value) || 1 })}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={outputSize.lockAspect}
+                  onChange={(e) => updateOutputSize({ lockAspect: e.target.checked })}
+                  className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
+                />
+                Lock aspect
+              </label>
+            </div>
+          )}
           <Settings
             settings={settings}
             onChange={setSettings}
@@ -417,57 +427,81 @@ export default function App({ onResetCallback }: AppProps) {
           />
         </div>
 
-        {/* Desktop: sticky left pane + resizable splitter + scrollable right pane */}
-        <div ref={layoutRef} className="hidden lg:flex gap-4">
-          <div
-            className="sticky top-4 self-start"
-            style={{ width: leftPaneWidth, height: 'calc(100vh - 140px)' }}
-          >
-            <div className="h-full flex flex-col gap-4">
-              <div className="flex-1 min-h-[360px]">
-                <PreviewCanvas
-                  svgInfo={svgInfo}
-                  gridInfo={gridInfo}
-                  selectedTile={selectedTile}
-                  onTileSelect={setSelectedTile}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <TileList
-                  gridInfo={gridInfo}
-                  selectedTile={selectedTile}
-                  onTileSelect={setSelectedTile}
-                />
-                <ExportBar
-                  gridInfo={gridInfo}
-                  processingState={processingState}
-                  processedTiles={processedTiles}
-                  onGenerate={handleGenerate}
-                  onCancel={handleCancel}
-                  onExport={handleExport}
-                  canGenerate={canGenerate}
-                />
-              </div>
+        {/* Desktop: flexible preview + fixed-width sidebar */}
+        <div className="hidden lg:flex gap-4 items-start">
+          <div className="flex-1 min-w-0 space-y-4">
+            <div style={{ height: 'calc(100vh - 140px)' }}>
+              <PreviewCanvas
+                svgInfo={effectiveSvgInfo}
+                gridInfo={gridInfo}
+                selectedTile={selectedTile}
+                onTileSelect={setSelectedTile}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <TileList
+                gridInfo={gridInfo}
+                selectedTile={selectedTile}
+                onTileSelect={setSelectedTile}
+              />
+              <ExportBar
+                gridInfo={gridInfo}
+                processingState={processingState}
+                processedTiles={processedTiles}
+                onGenerate={handleGenerate}
+                onCancel={handleCancel}
+                onExport={handleExport}
+                canGenerate={canGenerate}
+              />
             </div>
           </div>
 
-          <div
-            className={`w-2 -mx-1 cursor-col-resize rounded hover:bg-gray-300/60 ${isResizing ? 'bg-gray-300/80' : 'bg-transparent'}`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              resizeStartRef.current = { x: e.clientX, width: leftPaneWidth };
-              setIsResizing(true);
-            }}
-            title="Drag to resize"
-          />
-
-          <div className="flex-1 space-y-4">
+          <div className="w-full max-w-[380px] min-w-[340px] shrink-0 space-y-4 sticky top-4">
             <Uploader
               onSVGLoaded={handleSVGLoaded}
               unitMode={settings.unitMode}
               onUnitModeChange={handleUnitModeChange}
               svgInfo={svgInfo}
             />
+            {svgInfo && outputSize && (
+              <div className="card">
+                <h2 className="text-lg font-semibold text-slate-100 mb-3">Output Size</h2>
+                <p className="text-xs text-slate-400 mb-3">Scales the design in mm before tiling/export.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-slate-200">Width (mm)</label>
+                    <input
+                      type="number"
+                      value={Number(outputSize.widthMm.toFixed(3))}
+                      min={1}
+                      step={0.5}
+                      onChange={(e) => updateOutputSize({ widthMm: Number(e.target.value) || 1 })}
+                      className="input-field"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-200">Height (mm)</label>
+                    <input
+                      type="number"
+                      value={Number(outputSize.heightMm.toFixed(3))}
+                      min={1}
+                      step={0.5}
+                      onChange={(e) => updateOutputSize({ heightMm: Number(e.target.value) || 1 })}
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+                <label className="mt-3 flex items-center gap-2 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={outputSize.lockAspect}
+                    onChange={(e) => updateOutputSize({ lockAspect: e.target.checked })}
+                    className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
+                  />
+                  Lock aspect
+                </label>
+              </div>
+            )}
             <Settings
               settings={settings}
               onChange={setSettings}

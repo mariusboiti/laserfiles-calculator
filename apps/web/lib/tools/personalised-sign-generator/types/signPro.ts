@@ -23,11 +23,23 @@ export interface Layer {
 }
 
 // ============ Element Types ============
-export type ElementKind = 'text' | 'shape' | 'engraveSketch' | 'engraveImage' | 'ornament';
+export type ElementKind = 'text' | 'shape' | 'engraveSketch' | 'engraveImage' | 'ornament' | 'tracedPath' | 'tracedPathGroup';
 export type TextMode = 'ENGRAVE_FILLED' | 'CUT_OUTLINE' | 'BOTH';
 export type ShapeStyle = 'CUT' | 'ENGRAVE';
 export type TextAlign = 'left' | 'center' | 'right';
 export type TextTransformCase = 'none' | 'upper' | 'lower' | 'title';
+export type CurvedTextMode = 'straight' | 'arcUp' | 'arcDown';
+
+export type CurvedTextPlacement = 'top' | 'bottom';
+export type CurvedTextDirection = 'outside' | 'inside';
+
+export interface CurvedTextConfig {
+  enabled: boolean;
+  radiusMm: number;
+  arcDeg: number;
+  placement: CurvedTextPlacement;
+  direction: CurvedTextDirection;
+}
 
 export interface ElementTransform {
   xMm: number;
@@ -41,6 +53,8 @@ export interface TextOutlineConfig {
   enabled: boolean;
   offsetMm: number;
   targetLayerType: 'CUT' | 'OUTLINE';
+  join?: 'round' | 'miter' | 'bevel';
+  simplify?: boolean;
 }
 
 export interface TextElement {
@@ -59,6 +73,9 @@ export interface TextElement {
   letterSpacingMm: number;
   lineHeightRatio: number;
   transformCase: TextTransformCase;
+  curvedMode?: CurvedTextMode;
+  curvedIntensity?: number;
+  curved?: CurvedTextConfig;
   // Computed (cached)
   _pathD?: string;
   _bounds?: { width: number; height: number };
@@ -97,6 +114,29 @@ export interface EngraveImageElement {
   aiPrompt?: string;
 }
 
+export interface TracedPathElement {
+  id: string;
+  kind: 'tracedPath';
+  svgPathD: string; // Combined path string
+  strokeMm: number;
+  transform: ElementTransform;
+  // Cached local-space bounds (before transform). Used for selection/hit testing.
+  _localBounds?: { xMm: number; yMm: number; widthMm: number; heightMm: number };
+  // Optional metadata
+  _traceStats?: { pathsIn: number; pathsOut: number; commands: number; dLength: number; ms: number };
+}
+
+export interface TracedPathGroupElement {
+  id: string;
+  kind: 'tracedPathGroup';
+  svgPathDs: string[];
+  strokeMm: number;
+  transform: ElementTransform;
+  _localBounds?: { xMm: number; yMm: number; widthMm: number; heightMm: number };
+  _traceStats?: { pathsIn: number; pathsOut: number; commands: number; dLength: number; ms: number };
+  aiPrompt?: string;
+}
+
 export interface OrnamentElement {
   id: string;
   kind: 'ornament';
@@ -108,7 +148,7 @@ export interface OrnamentElement {
   };
 }
 
-export type Element = TextElement | ShapeElement | EngraveSketchElement | EngraveImageElement | OrnamentElement;
+export type Element = TextElement | ShapeElement | EngraveSketchElement | EngraveImageElement | OrnamentElement | TracedPathElement | TracedPathGroupElement;
 
 // ============ Base Shape Types ============
 export type BaseShapeType = 
@@ -250,6 +290,8 @@ export function createDefaultTextOutline(): TextOutlineConfig {
     enabled: false,
     offsetMm: 2,
     targetLayerType: 'OUTLINE',
+    join: 'round',
+    simplify: true,
   };
 }
 

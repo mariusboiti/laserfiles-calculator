@@ -19,14 +19,15 @@ import type {
   AiGenerationMode,
   AiDetailLevel,
   AiComplexity,
-  ShapeElement,
-  EngraveSketchElement,
+  Element,
   EngraveImageElement,
+  TracedPathGroupElement,
 } from '../../types/signPro';
 import { generateId } from '../../types/signPro';
 import { PROMPT_SUGGESTIONS } from '../../core/ai/promptTemplates';
 import { buildSketchImagePrompt, buildSilhouetteImagePrompt } from '../../core/ai/imagePromptTemplates';
-import { traceFromDataUrl } from '../../core/ai/traceFromDataUrl';
+
+const TRACE_DEBUG = process.env.NEXT_PUBLIC_TRACE_DEBUG === '1';
 
 type PanelMode = 'engravingSketchImage' | 'shapeSilhouette' | 'shapeSilhouetteImage';
 
@@ -34,7 +35,7 @@ interface AiGeneratePanelProps {
   targetWidthMm: number;
   targetHeightMm: number;
   onGenerated: (result: { mode: AiGenerationMode; svg?: string; pngDataUrl?: string }) => void;
-  onTraceResult?: (element: ShapeElement | EngraveSketchElement, targetLayer: 'CUT' | 'ENGRAVE') => void;
+  onTraceResult?: (element: Element, targetLayer: 'CUT' | 'ENGRAVE') => void;
   onInsertImage?: (element: EngraveImageElement) => void;
   disabled?: boolean;
 }
@@ -58,10 +59,10 @@ export function AiGeneratePanel({
   const [imagePreviewDataUrl, setImagePreviewDataUrl] = useState<string | null>(null);
   const [traceLoading, setTraceLoading] = useState(false);
   const [traceError, setTraceError] = useState<string | null>(null);
-  const [traceThreshold, setTraceThreshold] = useState(128);
-  const [traceSmoothing, setTraceSmoothing] = useState(0.5);
-  const [traceInvert, setTraceInvert] = useState(false);
-  const [traceRemoveBackground, setTraceRemoveBackground] = useState(true);
+  const [traceThreshold, setTraceThreshold] = useState(145);
+  const [traceDenoise, setTraceDenoise] = useState(0);
+  const [traceAutoInvert, setTraceAutoInvert] = useState(true);
+  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(false);
 
   const isImageMode = mode !== 'shapeSilhouette';
   const isSketchMode = mode === 'engravingSketchImage';
@@ -104,6 +105,7 @@ export function AiGeneratePanel({
 
         setImagePreviewDataUrl(null);
         onGenerated({ mode: 'shapeSilhouette', svg: data.svg, pngDataUrl: data.pngDataUrl });
+        setHasGeneratedOnce(true);
         return;
       }
 
@@ -133,9 +135,27 @@ export function AiGeneratePanel({
         throw new Error('AI returned empty image data');
       }
 
+      if (mode === 'shapeSilhouetteImage') {
+        setTraceThreshold(175);
+        setTraceDenoise(0);
+        setTraceAutoInvert(true);
+      } else {
+        setTraceThreshold(145);
+        setTraceDenoise(0);
+        setTraceAutoInvert(true);
+      }
+
       setImagePreviewDataUrl(`data:${mime};base64,${base64}`);
+      setHasGeneratedOnce(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Generation failed');
+      const msg =
+        e && typeof (e as any).message === 'string'
+          ? String((e as any).message)
+          : typeof e === 'string'
+            ? e
+            : 'Generation failed';
+      console.warn('[AI Generate] generation failed', msg);
+      setError('We couldn’t generate a result this time. Try refining your prompt and generate again.');
     } finally {
       setLoading(false);
     }
@@ -147,52 +167,77 @@ export function AiGeneratePanel({
     setTraceLoading(true);
     setTraceError(null);
     try {
-      const pathD = await traceFromDataUrl(imagePreviewDataUrl, targetWidthMm, targetHeightMm, {
-        threshold: traceThreshold,
-        smoothing: traceSmoothing,
-        detail: detailLevel,
-        invert: traceInvert,
-        removeBackground: traceRemoveBackground,
+      const traceMode = mode === 'shapeSilhouetteImage' ? 'CUT_SILHOUETTE' : 'ENGRAVE_LINEART';
+
+      const res = await fetch('/api/trace/potrace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataUrl: imagePreviewDataUrl,
+          mode: traceMode,
+          targetWidthMm,
+          targetHeightMm,
+          threshold: traceThreshold,
+          denoise: traceDenoise,
+          autoInvert: traceAutoInvert,
+        }),
       });
 
-      if (mode === 'shapeSilhouetteImage') {
-        const element: ShapeElement = {
-          id: generateId(),
-          kind: 'shape',
-          source: 'ai',
-          svgPathD: pathD,
-          style: 'CUT',
-          transform: {
-            xMm: targetWidthMm / 2,
-            yMm: targetHeightMm / 2,
-            rotateDeg: 0,
-            scaleX: 1,
-            scaleY: 1,
-          },
-          aiPrompt: prompt.trim(),
-        };
-        onTraceResult(element, 'CUT');
-      } else {
-        const element: EngraveSketchElement = {
-          id: generateId(),
-          kind: 'engraveSketch',
-          svgPathD: [pathD],
-          strokeMm: 0.3,
-          transform: {
-            xMm: targetWidthMm / 2,
-            yMm: targetHeightMm / 2,
-            rotateDeg: 0,
-            scaleX: 1,
-            scaleY: 1,
-          },
-          aiPrompt: prompt.trim(),
-        };
-        onTraceResult(element, 'ENGRAVE');
+      const json: any = await res.json();
+      if (!json?.ok) {
+        throw new Error(json?.error || 'Trace failed');
       }
+
+      const paths: string[] = Array.isArray(json.paths) ? json.paths : [];
+      if (paths.length === 0) {
+        throw new Error('No usable vector found');
+      }
+
+      if (TRACE_DEBUG) {
+        console.debug('[Trace&Insert] potrace paths:', paths.length);
+        console.debug('[Trace&Insert] first path d:', (paths[0] || '').slice(0, 120));
+        console.debug('[Trace&Insert] stats:', json.stats);
+        console.debug('[Trace&Insert] debug:', json.debug);
+      }
+
+      const targetLayer: 'CUT' | 'ENGRAVE' = mode === 'shapeSilhouetteImage' ? 'CUT' : 'ENGRAVE';
+
+      const element: TracedPathGroupElement = {
+        id: generateId(),
+        kind: 'tracedPathGroup',
+        svgPathDs: paths,
+        strokeMm: targetLayer === 'CUT' ? 0.2 : 0.3,
+        transform: {
+          xMm: targetWidthMm / 2,
+          yMm: targetHeightMm / 2,
+          rotateDeg: 0,
+          scaleX: 1,
+          scaleY: 1,
+        },
+        _localBounds: json?.stats?.localBounds,
+        _traceStats: json?.stats
+          ? {
+              pathsIn: json.stats.pathsIn,
+              pathsOut: json.stats.pathsOut,
+              commands: json.stats.commands,
+              dLength: json.stats.dLength,
+              ms: json.stats.ms,
+            }
+          : undefined,
+        aiPrompt: prompt.trim(),
+      };
+
+      onTraceResult(element, targetLayer);
 
       setImagePreviewDataUrl(null);
     } catch (e) {
-      setTraceError(e instanceof Error ? e.message : 'Trace failed');
+      const msg =
+        e && typeof (e as any).message === 'string'
+          ? String((e as any).message)
+          : typeof e === 'string'
+            ? e
+            : 'Trace failed';
+      setTraceError(msg);
     } finally {
       setTraceLoading(false);
     }
@@ -203,10 +248,8 @@ export function AiGeneratePanel({
     targetWidthMm,
     targetHeightMm,
     traceThreshold,
-    traceSmoothing,
-    detailLevel,
-    traceInvert,
-    traceRemoveBackground,
+    traceDenoise,
+    traceAutoInvert,
     mode,
     prompt,
   ]);
@@ -373,8 +416,8 @@ export function AiGeneratePanel({
                   <label className="block text-xs text-slate-400 mb-1">Trace Threshold</label>
                   <input
                     type="range"
-                    min={0}
-                    max={255}
+                    min={80}
+                    max={220}
                     value={traceThreshold}
                     onChange={(e) => setTraceThreshold(Number(e.target.value))}
                     className="w-full accent-cyan-500"
@@ -382,14 +425,14 @@ export function AiGeneratePanel({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Trace Smoothing</label>
+                  <label className="block text-xs text-slate-400 mb-1">Denoise</label>
                   <input
                     type="range"
                     min={0}
-                    max={1}
-                    step={0.1}
-                    value={traceSmoothing}
-                    onChange={(e) => setTraceSmoothing(Number(e.target.value))}
+                    max={3}
+                    step={1}
+                    value={traceDenoise}
+                    onChange={(e) => setTraceDenoise(Number(e.target.value))}
                     className="w-full accent-cyan-500"
                     disabled={disabled || loading || traceLoading}
                   />
@@ -397,22 +440,12 @@ export function AiGeneratePanel({
                 <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={traceInvert}
-                    onChange={(e) => setTraceInvert(e.target.checked)}
+                    checked={traceAutoInvert}
+                    onChange={(e) => setTraceAutoInvert(e.target.checked)}
                     className="rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500"
                     disabled={disabled || loading || traceLoading}
                   />
-                  Invert colors
-                </label>
-                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={traceRemoveBackground}
-                    onChange={(e) => setTraceRemoveBackground(e.target.checked)}
-                    className="rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500"
-                    disabled={disabled || loading || traceLoading}
-                  />
-                  Remove transparent background
+                  Auto-invert
                 </label>
               </>
             )}
@@ -422,10 +455,7 @@ export function AiGeneratePanel({
 
       {/* Error message */}
       {error && (
-        <div className="flex items-start gap-2 p-2 bg-red-900/30 border border-red-800 rounded text-xs text-red-300">
-          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-          {error}
-        </div>
+        <div className="p-2 bg-slate-900 border border-slate-700 rounded text-xs text-slate-300">{error}</div>
       )}
 
       {/* Warning message */}
@@ -445,7 +475,7 @@ export function AiGeneratePanel({
         {loading ? (
           <>
             <RefreshCw className="w-4 h-4 animate-spin" />
-            Generating...
+            Generating… this may take a few seconds.
           </>
         ) : (
           <>
@@ -455,10 +485,25 @@ export function AiGeneratePanel({
         )}
       </button>
 
+      {(hasGeneratedOnce || !!error) && (
+        <button
+          onClick={handleGenerate}
+          disabled={disabled || loading || !prompt.trim()}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Regenerate
+        </button>
+      )}
+
       {isImageMode && imagePreviewDataUrl && (
         <div className="space-y-2">
           <div className="bg-slate-900 border border-slate-700 rounded p-2">
             <img src={imagePreviewDataUrl} alt="AI preview" className="w-full h-auto rounded" />
+          </div>
+
+          <div className="text-[10px] text-slate-400">
+            Not perfect? Try refining your prompt and generate again.
           </div>
           
           {/* Insert as Image - no trace needed */}
@@ -501,6 +546,7 @@ export function AiGeneratePanel({
               </>
             )}
           </button>
+
         </div>
       )}
 

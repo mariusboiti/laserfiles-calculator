@@ -1,4 +1,5 @@
 import type { NameRecord, TextLayoutConfig, SheetLayoutConfig, TemplateBounds, GeneratedSVG, TemplateSizeConfig, UnitSystem } from '../types';
+import { loadFont, textToPathD, getFontConfig } from '../../../../fonts/sharedFontRegistry';
 
 export interface SheetCapacity {
   tagsPerRow: number;
@@ -125,19 +126,52 @@ export function calculateTextPosition(
   return { x, y, textAnchor };
 }
 
-export function createTextElement(
+export async function createTextElement(
   text: string,
   x: number,
   y: number,
   textAnchor: string,
   config: TextLayoutConfig,
   isSecondLine: boolean = false
-): string {
+): Promise<string> {
   const fontSize = isSecondLine ? config.secondLineFontSize : config.fontSize;
   const actualY = isSecondLine ? y + config.secondLineVerticalOffset : y;
   const processedText = applyTextCase(text, config.textCase);
-
-  return `<text x="${x}" y="${actualY}" text-anchor="${textAnchor}" dominant-baseline="middle" font-family="${config.fontFamily}" font-size="${fontSize}" letter-spacing="${config.letterSpacing}">${escapeXml(processedText)}</text>`;
+  
+  // Get font ID - use fontFamily which now stores the font ID from sharedFontRegistry
+  const fontId = config.fontFamily;
+  
+  // Check if this is a shared registry font
+  const fontConfig = getFontConfig(fontId);
+  
+  if (fontConfig) {
+    try {
+      // Load font and convert text to path
+      const font = await loadFont(fontId);
+      const { pathD, bbox } = textToPathD(font, processedText, fontSize, config.letterSpacing);
+      
+      if (pathD && pathD.length > 0) {
+        // Calculate offset based on text anchor
+        let offsetX = x;
+        if (textAnchor === 'middle') {
+          offsetX = x - bbox.width / 2;
+        } else if (textAnchor === 'end') {
+          offsetX = x - bbox.width;
+        }
+        
+        // Center vertically - bbox.y is typically negative (above baseline)
+        const offsetY = actualY - bbox.y - bbox.height / 2;
+        
+        return `<path d="${pathD}" fill="none" stroke="black" stroke-width="0.2" transform="translate(${offsetX.toFixed(3)}, ${offsetY.toFixed(3)})"/>`;
+      }
+    } catch (error) {
+      console.warn('Font loading failed, falling back to text element:', error);
+    }
+  }
+  
+  // Fallback to regular text element for system fonts or if path conversion fails
+  const fontFamily = config.embeddedFont?.fontFamily || config.fontFamily;
+  return `<text x="${x}" y="${actualY}" text-anchor="${textAnchor}" dominant-baseline="middle" font-family="${fontFamily}" font-size="${fontSize}" letter-spacing="${config.letterSpacing}">${escapeXml(processedText)}</text>`;
 }
 
 function escapeCssString(value: string): string {
@@ -146,13 +180,21 @@ function escapeCssString(value: string): string {
 
 function createEmbeddedFontDefs(textConfig: TextLayoutConfig): string {
   const embedded = textConfig.embeddedFont;
-  if (!embedded) return '';
+  if (!embedded) {
+    console.log('No embedded font found in textConfig', textConfig);
+    return '';
+  }
 
   const family = embedded.fontFamily.trim();
-  if (!family) return '';
+  if (!family) {
+    console.log('Empty font family in embedded font');
+    return '';
+  }
 
   const cssFamily = escapeCssString(family);
   const css = `@font-face{font-family:'${cssFamily}';src:url('${embedded.dataUrl}') format('${embedded.format}');}`;
+  
+  console.log('Creating embedded font defs for:', family, 'format:', embedded.format, 'dataUrl length:', embedded.dataUrl.length);
 
   return `<defs><style type="text/css">${css}</style></defs>`;
 }
@@ -166,7 +208,7 @@ export function escapeXml(text: string): string {
     .replace(/'/g, '&apos;');
 }
 
-export function generateSingleTag(
+export async function generateSingleTag(
   templateSvg: string,
   name: NameRecord,
   textConfig: TextLayoutConfig,
@@ -175,8 +217,9 @@ export function generateSingleTag(
   offsetY: number = 0,
   rotation: 0 | 90 = 0,
   scaleX: number = 1,
-  scaleY: number = 1
-): string {
+  scaleY: number = 1,
+  holeConfig?: { enabled: boolean; x: number; y: number; radius: number }
+): Promise<string> {
   const parser = new DOMParser();
   const doc = parser.parseFromString(templateSvg, 'image/svg+xml');
   const svgElement = doc.querySelector('svg');
@@ -188,10 +231,15 @@ export function generateSingleTag(
   const templateContent = Array.from(svgElement.children)
     .map(child => child.outerHTML)
     .join('\n');
+  
+  // Add hole if enabled
+  const holeElement = holeConfig?.enabled 
+    ? `<circle cx="${holeConfig.x}" cy="${holeConfig.y}" r="${holeConfig.radius}" fill="none" stroke="black" stroke-width="0.2" />`
+    : '';
 
   const { x, y, textAnchor } = calculateTextPosition(bounds, textConfig);
 
-  const line1Text = createTextElement(
+  const line1Text = await createTextElement(
     name.line1,
     x,
     y,
@@ -202,7 +250,7 @@ export function generateSingleTag(
 
   let line2Text = '';
   if (textConfig.secondLineEnabled && name.line2) {
-    line2Text = createTextElement(
+    line2Text = await createTextElement(
       name.line2,
       x,
       y,
@@ -222,12 +270,13 @@ export function generateSingleTag(
 
   return `<g${groupTransform}>
 ${templateContent}
+${holeElement}
 ${line1Text}
 ${line2Text}
 </g>`;
 }
 
-export function generateNameTagSvg(
+export async function generateNameTagSvg(
   baseTemplateSvg: string,
   names: NameRecord[],
   textConfig: TextLayoutConfig,
@@ -235,10 +284,10 @@ export function generateNameTagSvg(
   options?: {
     templateSize?: TemplateSizeConfig | null;
     unitSystem?: UnitSystem;
+    holeConfig?: { enabled: boolean; x: number; y: number; radius: number };
   }
-): GeneratedSVG[] | string {
+): Promise<GeneratedSVG[] | string> {
   const bounds = parseTemplateBounds(baseTemplateSvg);
-  const embeddedFontDefs = createEmbeddedFontDefs(textConfig);
   const unitSystem: UnitSystem = options?.unitSystem ?? 'mm';
   const templateSize = options?.templateSize ?? null;
 
@@ -253,20 +302,25 @@ export function generateNameTagSvg(
     const outWidth = templateSize ? templateSize.width : bounds.width;
     const outHeight = templateSize ? templateSize.height : bounds.height;
 
-    return names.map((name, index) => {
-      const tagContent = generateSingleTag(baseTemplateSvg, name, textConfig, bounds);
+    const scaleX = templateSize ? templateSize.width / bounds.width : 1;
+    const scaleY = templateSize ? templateSize.height / bounds.height : 1;
+
+    const results: GeneratedSVG[] = [];
+    for (let index = 0; index < names.length; index++) {
+      const name = names[index];
+      const tagContent = await generateSingleTag(baseTemplateSvg, name, textConfig, bounds, 0, 0, 0, scaleX, scaleY, options?.holeConfig);
       const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${formatLength(outWidth)}" height="${formatLength(outHeight)}" viewBox="${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}">
-${embeddedFontDefs}
+<svg xmlns="http://www.w3.org/2000/svg" width="${formatLength(outWidth)}" height="${formatLength(outHeight)}" viewBox="0 0 ${outWidth} ${outHeight}">
 ${tagContent}
 </svg>`;
 
       const sanitizedName = name.line1.replace(/[^a-zA-Z0-9]/g, '_');
-      return {
+      results.push({
         fileName: `${String(index + 1).padStart(3, '0')}-${sanitizedName}.svg`,
         svg
-      };
-    });
+      });
+    }
+    return results;
   } else {
     const margin = sheetConfig.margin;
 
@@ -288,19 +342,20 @@ ${tagContent}
         : names.slice(0, maxTags);
 
     let allTags = '';
-    tagsToRender.forEach((name, index) => {
+    for (let index = 0; index < tagsToRender.length; index++) {
+      const name = tagsToRender[index];
       const row = Math.floor(index / tagsPerRow);
       const col = index % tagsPerRow;
 
       const offsetX = margin + col * (cellWidth + sheetConfig.horizontalSpacing);
       const offsetY = margin + row * (cellHeight + sheetConfig.verticalSpacing);
 
-      allTags += generateSingleTag(baseTemplateSvg, name, textConfig, bounds, offsetX, offsetY, sheetConfig.rotation, scaleX, scaleY) + '\n';
-    });
+      const tagContent = await generateSingleTag(baseTemplateSvg, name, textConfig, bounds, offsetX, offsetY, sheetConfig.rotation, scaleX, scaleY, options?.holeConfig);
+      allTags += tagContent + '\n';
+    }
 
     const sheetSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${formatLength(sheetConfig.sheetWidth)}" height="${formatLength(sheetConfig.sheetHeight)}" viewBox="0 0 ${sheetConfig.sheetWidth} ${sheetConfig.sheetHeight}">
-${embeddedFontDefs}
 ${allTags}
 </svg>`;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Tag, Smile, MessageCircle, Dog, Circle, Pill } from 'lucide-react';
+import { Tag, Smile } from 'lucide-react';
 import type { KeychainModeId } from '../types';
 import { MODE_LIST } from '../modes';
 
@@ -13,10 +13,6 @@ interface ModeSelectorProps {
 const ICON_MAP: Record<string, React.ReactNode> = {
   'tag': <Tag className="w-5 h-5" />,
   'smile': <Smile className="w-5 h-5" />,
-  'message-circle': <MessageCircle className="w-5 h-5" />,
-  'dog': <Dog className="w-5 h-5" />,
-  'circle': <Circle className="w-5 h-5" />,
-  'pill': <Pill className="w-5 h-5" />,
 };
 
 export function ModeSelector({ activeMode, onModeChange }: ModeSelectorProps) {

@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { LanguageProvider } from '../(app)/i18n';
 import { GuidedTour } from '../(app)/guided-tour';
 import { StudioHeader } from '@/components/studio/StudioHeader';
+import { DisclaimerProvider, useDisclaimer } from '@/components/legal';
+import { AppErrorBoundary, ToastProvider, NetworkProvider } from '@/components/system';
+import { ReleaseChecklist } from '@/components/dev';
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -67,11 +70,35 @@ function StudioShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <StudioHeader />
-      <main className="mx-auto w-full max-w-7xl px-6 py-6 md:px-8 overflow-x-hidden">
-        {children}
-      </main>
-    </div>
+    <AppErrorBoundary level="app">
+      <NetworkProvider>
+        <ToastProvider>
+          <DisclaimerProvider userKey={user?.id || user?.email || user?.name}>
+            <div className="min-h-screen bg-slate-950 text-slate-100">
+              <StudioHeader />
+              <main className="mx-auto w-full max-w-7xl px-6 py-6 md:px-8 overflow-x-hidden">{children}</main>
+              <StudioFooter />
+            </div>
+            <ReleaseChecklist />
+          </DisclaimerProvider>
+        </ToastProvider>
+      </NetworkProvider>
+    </AppErrorBoundary>
+  );
+}
+
+function StudioFooter() {
+  const { openDisclaimer } = useDisclaimer();
+
+  return (
+    <footer className="mx-auto w-full max-w-7xl px-6 pb-8 md:px-8">
+      <button
+        type="button"
+        onClick={openDisclaimer}
+        className="text-xs text-slate-500 hover:text-slate-300"
+      >
+        Disclaimer & Responsibility
+      </button>
+    </footer>
   );
 }

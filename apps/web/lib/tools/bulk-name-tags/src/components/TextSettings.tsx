@@ -16,15 +16,58 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
   const toDisplay = (mm: number) => (unitSystem === 'in' ? mmToIn(mm) : mm);
   const fromDisplay = (value: number) => (unitSystem === 'in' ? inToMm(value) : value);
 
-  const updateFontFamily = (fontFamily: string) => {
-    const embeddedFont = config.embeddedFont
-      ? { ...config.embeddedFont, fontFamily }
-      : config.embeddedFont;
-
+  const updateFontFamily = async (fontFamily: string) => {
+    console.log('updateFontFamily called with:', fontFamily);
+    
+    // Check if this is one of the keychain fonts
+    const isKeychainFont = fontOptions.find(opt => opt.value === fontFamily && !opt.label.includes('(System)'));
+    
+    if (isKeychainFont) {
+      console.log('Loading keychain font:', fontFamily);
+      // Load the font from /fonts/keychain/
+      const fontFileName = `${fontFamily}.ttf`;
+      const fontUrl = `/fonts/keychain/${encodeURIComponent(fontFileName)}`;
+      
+      try {
+        const response = await fetch(fontUrl);
+        console.log('Font fetch response:', response.ok, response.status);
+        if (response.ok) {
+          const blob = await response.blob();
+          const reader = new FileReader();
+          
+          reader.onload = () => {
+            const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+            if (dataUrl) {
+              console.log('Font loaded successfully, data URL length:', dataUrl.length);
+              onChange({
+                ...config,
+                fontFamily,
+                embeddedFont: {
+                  fontFamily,
+                  dataUrl,
+                  format: 'truetype'
+                }
+              });
+            }
+          };
+          
+          reader.readAsDataURL(blob);
+          return;
+        } else {
+          console.error('Font fetch failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Failed to load font:', error);
+      }
+    } else {
+      console.log('System font selected:', fontFamily);
+    }
+    
+    // For system fonts or if loading failed, just update font family
     onChange({
       ...config,
       fontFamily,
-      embeddedFont
+      embeddedFont: null
     });
   };
 
@@ -38,26 +81,53 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
   };
 
   const fontOptions: Array<{ value: string; label: string }> = [
-    { value: 'Arial', label: 'Arial' },
-    { value: 'Helvetica', label: 'Helvetica' },
-    { value: 'Verdana', label: 'Verdana' },
-    { value: 'Tahoma', label: 'Tahoma' },
-    { value: 'Trebuchet MS', label: 'Trebuchet MS' },
-    { value: 'Segoe UI', label: 'Segoe UI' },
-    { value: 'Calibri', label: 'Calibri' },
-    { value: 'Roboto', label: 'Roboto' },
-    { value: 'Open Sans', label: 'Open Sans' },
-    { value: 'Times New Roman', label: 'Times New Roman' },
-    { value: 'Georgia', label: 'Georgia' },
-    { value: 'Garamond', label: 'Garamond' },
-    { value: 'Courier New', label: 'Courier New' },
-    { value: 'Consolas', label: 'Consolas' },
-    { value: 'Impact', label: 'Impact' },
-    { value: 'Comic Sans MS', label: 'Comic Sans MS' },
-    { value: 'sans-serif', label: 'Generic: sans-serif' },
-    { value: 'serif', label: 'Generic: serif' },
-    { value: 'monospace', label: 'Generic: monospace' },
-    { value: 'cursive', label: 'Generic: cursive' }
+    { value: 'Absolute', label: 'Absolute' },
+    { value: 'Agatha', label: 'Agatha' },
+    { value: 'Almonde', label: 'Almonde' },
+    { value: 'Amastay', label: 'Amastay' },
+    { value: 'Amelissa Partis', label: 'Amelissa Partis' },
+    { value: 'Angelin Calligraphy 2', label: 'Angelin Calligraphy 2' },
+    { value: 'Angelina Bold', label: 'Angelina Bold' },
+    { value: 'Arsegtosia Script 1', label: 'Arsegtosia Script 1' },
+    { value: 'Ashley Marie', label: 'Ashley Marie' },
+    { value: 'Astoria', label: 'Astoria' },
+    { value: 'Baby Boho', label: 'Baby Boho' },
+    { value: 'Barbie Script', label: 'Barbie Script' },
+    { value: 'Basthiyan Script', label: 'Basthiyan Script' },
+    { value: 'Birthday', label: 'Birthday' },
+    { value: 'Black Vintage Script 1', label: 'Black Vintage Script 1' },
+    { value: 'Boho', label: 'Boho' },
+    { value: 'Bristol Script', label: 'Bristol Script' },
+    { value: 'Calestine', label: 'Calestine' },
+    { value: 'Chocolates', label: 'Chocolates' },
+    { value: 'Delighter', label: 'Delighter' },
+    { value: 'Family Script', label: 'Family Script' },
+    { value: 'Flondayscript Bold', label: 'Flondayscript Bold' },
+    { value: 'Flondayscript Regular', label: 'Flondayscript Regular' },
+    { value: 'Handwriting', label: 'Handwriting' },
+    { value: 'Heart Style', label: 'Heart Style' },
+    { value: 'Heartbeat', label: 'Heartbeat' },
+    { value: 'Hello Mother 1', label: 'Hello Mother 1' },
+    { value: 'Kingdom', label: 'Kingdom' },
+    { value: 'Lustia Script', label: 'Lustia Script' },
+    { value: 'Masterline Script', label: 'Masterline Script' },
+    { value: 'Milkshake', label: 'Milkshake' },
+    { value: 'Mother Father Script', label: 'Mother Father Script' },
+    { value: 'My Love Script', label: 'My Love Script' },
+    { value: 'Samantha Script', label: 'Samantha Script' },
+    { value: 'Santiago', label: 'Santiago' },
+    { value: 'Saturday', label: 'Saturday' },
+    { value: 'September Script', label: 'September Script' },
+    { value: 'Shella Script', label: 'Shella Script' },
+    { value: 'Simple Signature', label: 'Simple Signature' },
+    { value: 'Splashed', label: 'Splashed' },
+    { value: 'Stylish Calligraphy', label: 'Stylish Calligraphy' },
+    { value: 'Sweet Honey', label: 'Sweet Honey' },
+    { value: 'The Family Calligraphy Script 1', label: 'The Family Calligraphy Script 1' },
+    { value: 'Welcome', label: 'Welcome' },
+    { value: 'Arial', label: 'Arial (System)' },
+    { value: 'sans-serif', label: 'Sans-serif (System)' },
+    { value: 'serif', label: 'Serif (System)' }
   ];
 
   return (

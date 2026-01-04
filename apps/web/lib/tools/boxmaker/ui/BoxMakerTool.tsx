@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import styles from '../boxmaker.module.css';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 
 // Dynamic import to avoid SSR issues with Three.js
 const App = dynamic(() => import('../boxmaker/ui/BoxMakerApp'), {
@@ -21,6 +22,13 @@ const App = dynamic(() => import('../boxmaker/ui/BoxMakerApp'), {
  * Uses dynamic import to avoid SSR issues with Three.js/WebGL.
  */
 export function BoxMakerTool() {
+  const { api } = useToolUx();
+
+  // BoxMaker always has content, so report isEmpty: false
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   return (
     <div className={`lfs-tool lfs-tool-boxmaker ${styles.boxmaker_root}`}>
       <App />

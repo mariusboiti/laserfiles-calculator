@@ -7,7 +7,7 @@
  * 3. Side Support Right (identical to left, mirrored)
  */
 
-import type { CurvedPhotoFrameV3Inputs, CurvedPhotoFrameV3Result } from '../types';
+import type { CurvedPhotoFrameV3Inputs, CurvedPhotoFrameV3Result, FrameSettings } from '../types';
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
@@ -34,8 +34,16 @@ function linePath(x1: number, y1: number, x2: number, y2: number): string {
   return `M${mm(x1)},${mm(y1)} L${mm(x2)},${mm(y2)}`;
 }
 
-function imageEl(href: string, x: number, y: number, w: number, h: number): string {
-  return `<image href="${href}" x="${mm(x)}" y="${mm(y)}" width="${mm(w)}" height="${mm(h)}" preserveAspectRatio="xMidYMid slice"/>`;
+function imageEl(
+  href: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  clipPathId?: string
+): string {
+  const clipAttr = clipPathId ? ` clip-path="url(#${clipPathId})"` : '';
+  return `<image href="${href}" x="${mm(x)}" y="${mm(y)}" width="${mm(w)}" height="${mm(h)}" preserveAspectRatio="xMidYMid slice"${clipAttr}/>`;
 }
 
 function layerGroup(layerName: string, color: string, content: string): string {
@@ -52,6 +60,38 @@ function getBendRadius(curveStrength: string, bendZoneHeight: number): number {
   if (curveStrength === 'strong') return bendZoneHeight * 0.8;
   if (curveStrength === 'medium') return bendZoneHeight * 1.2;
   return bendZoneHeight * 1.8; // gentle
+}
+
+export function computeEngraveSafeAreaMm(frameSettings: FrameSettings): { safeWmm: number; safeHmm: number } {
+  const photoW = clamp(frameSettings.photoWidthMm, 20, 600);
+  const photoH = clamp(frameSettings.photoHeightMm, 20, 600);
+  const border = clamp(frameSettings.borderMm, 6, 80);
+
+  const bendZoneHeight = clamp(frameSettings.bendZoneHeightMm ?? 24, 18, 30);
+  const supportLipHeight = clamp(frameSettings.supportLipHeightMm ?? 10, 8, 12);
+
+  const plateW = photoW + border * 2;
+  const plateH = photoH + border * 2;
+
+  const rowSpacing = clamp(frameSettings.kerfRowSpacingMm, 1.5, 5);
+  const supportDepth = 60;
+  const kerfDownShiftMm = 15;
+  const safetyGap = 1.5;
+
+  const kerfStartY = Math.min(
+    plateH - supportDepth + kerfDownShiftMm,
+    plateH - (supportLipHeight + safetyGap)
+  );
+
+  const requestedRows = Math.max(1, Math.floor(bendZoneHeight / rowSpacing));
+  const minBendTopY = plateH * 0.55;
+  const maxRowsByHeight = Math.max(1, Math.floor((kerfStartY - minBendTopY) / rowSpacing) + 1);
+  const numRows = Math.min(requestedRows, maxRowsByHeight);
+
+  const kerfTopY = kerfStartY - (numRows - 1) * rowSpacing;
+  const safeWmm = plateW;
+  const safeHmm = Math.max(1, kerfTopY);
+  return { safeWmm, safeHmm };
 }
 
 /**
@@ -87,15 +127,20 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
   const photoAreaW = photoW;
   const photoAreaH = photoH;
   
-  // Outer cut path (rounded rect for top corners only)
-  const cutPath = `M${mm(cornerR)},0 
-    h${mm(plateW - 2 * cornerR)} 
-    a${mm(cornerR)},${mm(cornerR)} 0 0 1 ${mm(cornerR)},${mm(cornerR)} 
-    v${mm(plateH - cornerR)} 
-    h${mm(-plateW)} 
-    v${mm(-(plateH - cornerR))} 
-    a${mm(cornerR)},${mm(cornerR)} 0 0 1 ${mm(cornerR)},${mm(-cornerR)} 
-    z`;
+  // Outer cut path (rounded rect - all corners)
+  const cutPath =
+    cornerR <= 0
+      ? `M0,0 h${mm(plateW)} v${mm(plateH)} h${mm(-plateW)} z`
+      : `M${mm(cornerR)},0
+        H${mm(plateW - cornerR)}
+        A${mm(cornerR)},${mm(cornerR)} 0 0 1 ${mm(plateW)},${mm(cornerR)}
+        V${mm(plateH - cornerR)}
+        A${mm(cornerR)},${mm(cornerR)} 0 0 1 ${mm(plateW - cornerR)},${mm(plateH)}
+        H${mm(cornerR)}
+        A${mm(cornerR)},${mm(cornerR)} 0 0 1 0,${mm(plateH - cornerR)}
+        V${mm(cornerR)}
+        A${mm(cornerR)},${mm(cornerR)} 0 0 1 ${mm(cornerR)},0
+        Z`;
   
   const cutPaths = [pathEl(cutPath)];
 
@@ -125,13 +170,7 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
   cutPaths.push(pathEl(rectPath(sideSlotXLeft, t2SlotY, sideSlotDepth, sideSlotH)));
   cutPaths.push(pathEl(rectPath(sideSlotXRight, t1SlotY, sideSlotDepth, sideSlotH)));
   cutPaths.push(pathEl(rectPath(sideSlotXRight, t2SlotY, sideSlotDepth, sideSlotH)));
-  
-  // Engrave layer (photo) - use photoArea for placement
-  const engraveParts: string[] = [];
-  if (processedPhotoDataUrl) {
-    engraveParts.push(imageEl(processedPhotoDataUrl, photoAreaX, photoAreaY, photoAreaW, photoAreaH));
-  }
-  
+
   // Kerf bending pattern (Zone B only)
   const scoreLines: string[] = [];
   const segmentLength = clamp(frameSettings.kerfSegmentLengthMm, 6, 10);
@@ -160,27 +199,78 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
   const minBendTopY = plateY + plateH * 0.55;
   const maxRowsByHeight = Math.max(1, Math.floor((kerfStartY - minBendTopY) / rowSpacing) + 1);
   const numRows = Math.min(requestedRows, maxRowsByHeight);
+  const kerfTopY = kerfStartY - (numRows - 1) * rowSpacing;
 
-  const falloffRows = frameSettings.edgeSafety ? Math.max(1, Math.min(4, Math.floor(numRows / 4))) : 0;
+  // Engrave layer (photo) - use photoArea for placement with offset/scale from aiSettings
+  const defsParts: string[] = [];
+  const engraveClipId = 'engrave-clip';
+  const engraveClipH = Math.max(0, kerfTopY - plateY);
+  defsParts.push(
+    `<clipPath id="${engraveClipId}" clipPathUnits="userSpaceOnUse"><rect x="${mm(plateX)}" y="${mm(plateY)}" width="${mm(plateW)}" height="${mm(engraveClipH)}"/></clipPath>`
+  );
 
+  const engraveParts: string[] = [];
+  if (processedPhotoDataUrl) {
+    const { aiSettings } = inputs;
+    const offsetX = aiSettings?.photoOffsetXMm ?? 0;
+    const offsetY = aiSettings?.photoOffsetYMm ?? 0;
+    const scale = clamp(aiSettings?.photoScale ?? 1.0, 0.5, 1.0);
+    const photoCornerR = clamp(aiSettings?.photoCornerRadiusMm ?? 0, 0, 30);
+
+    // Default: fill the entire safe engraving area (full width, height up to the top kerf line),
+    // aligned to the top red cut line.
+    // User can shrink via scale; offsets are clamped so the image never crosses into the kerf zone.
+    const safeW = plateW;
+    const safeH = engraveClipH;
+
+    const scaledW = safeW * scale;
+    const scaledH = safeH * scale;
+
+    let scaledX = plateX + (safeW - scaledW) / 2 + offsetX;
+    let scaledY = plateY + offsetY;
+
+    // Keep the image fully inside the safe area.
+    scaledX = clamp(scaledX, plateX, plateX + safeW - scaledW);
+    scaledY = clamp(scaledY, plateY, plateY + safeH - scaledH);
+
+    const photoClipId = 'photo-clip';
+    const effectiveR = clamp(photoCornerR, 0, Math.min(scaledW, scaledH) / 2);
+    const clipIdToUse = effectiveR > 0 ? photoClipId : undefined;
+    if (effectiveR > 0) {
+      const x = scaledX;
+      const y = scaledY;
+      const w = scaledW;
+      const h = scaledH;
+      const r = effectiveR;
+      const topRoundedPath = `M${mm(x + r)},${mm(y)} H${mm(x + w - r)} A${mm(r)},${mm(r)} 0 0 1 ${mm(x + w)},${mm(y + r)} V${mm(y + h)} H${mm(x)} V${mm(y + r)} A${mm(r)},${mm(r)} 0 0 1 ${mm(x + r)},${mm(y)} Z`;
+      defsParts.push(
+        `<clipPath id="${photoClipId}" clipPathUnits="userSpaceOnUse"><path d="${topRoundedPath}"/></clipPath>`
+      );
+    }
+
+    engraveParts.push(
+      `<g clip-path="url(#${engraveClipId})">${imageEl(
+        processedPhotoDataUrl,
+        scaledX,
+        scaledY,
+        scaledW,
+        scaledH,
+        clipIdToUse
+      )}</g>`
+    );
+  }
+
+  // All kerf lines are now full width (no falloff effect)
   for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
     // Row 0 is the first (lowest) kerf row.
     const y = kerfStartY - rowIndex * rowSpacing;
     if (y <= plateY) break;
 
-    const lowEdgeFactor = falloffRows > 0 ? Math.max(0, 1 - rowIndex / falloffRows) : 0;
-    const highEdgeFactor =
-      falloffRows > 0 ? Math.max(0, 1 - (numRows - 1 - rowIndex) / falloffRows) : 0;
-    const edgeFactor = Math.max(lowEdgeFactor, highEdgeFactor);
-    const edgeMargin = edgeFactor * (bendW * 0.12);
-    const rowBendX = bendX + edgeMargin;
-    const rowBendW = Math.max(0, bendW - edgeMargin * 2);
-
     const isOddRow = rowIndex % 2 === 1;
-    const rowStartX = isOddRow ? rowBendX + rowOffset : rowBendX;
+    const rowStartX = isOddRow ? bendX + rowOffset : bendX;
     
     let x = rowStartX;
-    const endX = rowBendX + rowBendW;
+    const endX = bendX + bendW;
     while (x < endX) {
       const segmentEnd = Math.min(x + segmentLength, endX);
       if (segmentEnd - x > 1) { // only draw if segment is meaningful
@@ -190,10 +280,12 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
     }
   }
   
-  const body = 
-    layerGroup('cut', 'red', cutPaths.join('')) + 
+  const defs = defsParts.length ? `<defs>${defsParts.join('')}</defs>` : '';
+  const body =
+    defs +
     layerGroup('engrave', 'black', engraveParts.join('')) +
-    layerGroup('score', 'blue', scoreLines.join(''));
+    layerGroup('score', 'blue', scoreLines.join('')) +
+    layerGroup('cut', 'red', cutPaths.join(''));
   
   return svgWrap(plateW, plateH, body);
 }
@@ -297,23 +389,9 @@ export function generateSideSupport(inputs: CurvedPhotoFrameV3Inputs, mirrored: 
       A${mm(outerCornerR)},${mm(outerCornerR)} 0 0 1 ${mm(leftX)},${mm(baseBottomY - outerCornerR)}
       Z`;
 
-    const cutPaths = [
-      pathEl(d),
-    ];
-
-    if (frameSettings.addStopNotch) {
-      const notchW = 6;
-      const notchDepth = 3;
-      const notchX = lThickness + gussetR + 4;
-      const notchY = baseTopY - notchDepth;
-      if (notchX + notchW < rightX - outerCornerR - 1) {
-        cutPaths.push(pathEl(rectPath(notchX, notchY, notchW, notchDepth)));
-      }
-    }
-
     const supportW = supportDepth + shear * supportHeight;
     const supportH = supportHeight + toothDepth;
-    const body = layerGroup('cut', 'red', `<g transform="${shearTransform}">${cutPaths.join('')}</g>${pathEl(heartPath)}`);
+    const body = layerGroup('cut', 'red', `<g transform="${shearTransform}">${pathEl(d)}</g>${pathEl(heartPath)}`);
     return svgWrap(supportW, supportH, body);
   }
 
@@ -338,23 +416,9 @@ export function generateSideSupport(inputs: CurvedPhotoFrameV3Inputs, mirrored: 
     A${mm(outerCornerR)},${mm(outerCornerR)} 0 0 0 ${mm(rightX)},${mm(baseBottomY - outerCornerR)}
     Z`;
 
-  const cutPaths = [
-    pathEl(d),
-  ];
-
-  if (frameSettings.addStopNotch) {
-    const notchW = 6;
-    const notchDepth = 3;
-    const notchX = rightX - (lThickness + gussetR + 4) - notchW;
-    const notchY = baseTopY - notchDepth;
-    if (notchX > leftX + outerCornerR + 1) {
-      cutPaths.push(pathEl(rectPath(notchX, notchY, notchW, notchDepth)));
-    }
-  }
-
   const supportW = supportDepth + shear * supportHeight;
   const supportH = supportHeight + toothDepth;
-  const body = layerGroup('cut', 'red', `<g transform="${shearTransform}">${cutPaths.join('')}</g>${pathEl(heartPath)}`);
+  const body = layerGroup('cut', 'red', `<g transform="${shearTransform}">${pathEl(d)}</g>${pathEl(heartPath)}`);
   return svgWrap(supportW, supportH, body);
 }
 

@@ -6,8 +6,8 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import type { SignDocument, Element, Layer } from '../../types/signPro';
-import type { ViewTransform, PointMm } from '../../core/canvas/coords';
+import type { SignDocument, Element, Layer, ElementTransform } from '../../types/signPro';
+import type { ViewTransform, PointMm, BoundsMm } from '../../core/canvas/coords';
 import {
   createDefaultViewTransform,
   fitToContainer,
@@ -41,6 +41,13 @@ export interface CanvasStageProps {
     transform: { scaleX?: number; scaleY?: number; rotateDeg?: number }
   ) => void;
   onElementsMove: (deltas: Array<{ id: string; deltaXMm: number; deltaYMm: number }>) => void;
+  onOrnamentDrop?: (payload: {
+    assetId: string;
+    targetLayer: 'CUT' | 'ENGRAVE' | 'GUIDE';
+    widthPct: number;
+    xMm: number;
+    yMm: number;
+  }) => void;
   onHoleMove?: (holeId: string, xMm: number, yMm: number, commit?: boolean) => void;
   onInteractionBegin?: () => void;
   onInteractionEnd?: () => void;
@@ -49,6 +56,13 @@ export interface CanvasStageProps {
   showGuides?: boolean;
   activeTool?: CanvasTool;
   snapEnabled?: boolean;
+  offsetPreview?: Array<{
+    sourceElementId: string;
+    kind: 'path' | 'group';
+    svgPathD?: string;
+    svgPathDs?: string[];
+    transform: ElementTransform;
+  }>;
   className?: string;
 }
 
@@ -96,13 +110,17 @@ interface MarqueeState {
   startClientY: number;
 }
 
-export function CanvasStage({
+export const CanvasStage = React.forwardRef<
+  { fitView: () => void; zoomIn: () => void; zoomOut: () => void },
+  CanvasStageProps
+>(function CanvasStage({
   doc,
   selection,
   dispatchSelection,
   onElementMove,
   onElementTransform,
   onElementsMove,
+  onOrnamentDrop,
   onHoleMove,
   onInteractionBegin,
   onInteractionEnd,
@@ -111,16 +129,76 @@ export function CanvasStage({
   showGuides = false,
   activeTool = 'select',
   snapEnabled = false,
+  offsetPreview,
   className = '',
-}: CanvasStageProps) {
+}, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const lastMoveDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const queuedMoveDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const moveRafRef = useRef<number | null>(null);
+  const movePreviewDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [movePreviewDelta, setMovePreviewDelta] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   
   const [viewTransform, setViewTransform] = useState<ViewTransform>(createDefaultViewTransform);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   const [dragState, setDragState] = useState<DragState>({ type: 'none', startX: 0, startY: 0 });
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [marquee, setMarquee] = useState<MarqueeState | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (moveRafRef.current !== null) {
+        cancelAnimationFrame(moveRafRef.current);
+        moveRafRef.current = null;
+      }
+    };
+  }, []);
+
+  const renderOffsetPreview = () => {
+    if (!offsetPreview || offsetPreview.length === 0) return null;
+    return (
+      <g opacity={0.9} pointerEvents="none">
+        {offsetPreview.map((item) => {
+          const t = item.transform;
+          const transformStr = `translate(${t.xMm}, ${t.yMm}) rotate(${t.rotateDeg}) scale(${t.scaleX}, ${t.scaleY})`;
+          if (item.kind === 'group') {
+            const ds = item.svgPathDs ?? [];
+            return (
+              <g key={item.sourceElementId} transform={transformStr}>
+                {ds.map((d, idx) => (
+                  <path
+                    key={idx}
+                    d={d}
+                    fill="none"
+                    stroke="#7c3aed"
+                    strokeWidth={0.3}
+                    strokeDasharray="3,2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ))}
+              </g>
+            );
+          }
+          if (!item.svgPathD) return null;
+          return (
+            <path
+              key={item.sourceElementId}
+              d={item.svgPathD}
+              transform={transformStr}
+              fill="none"
+              stroke="#7c3aed"
+              strokeWidth={0.3}
+              strokeDasharray="3,2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          );
+        })}
+      </g>
+    );
+  };
 
   const { wMm, hMm } = doc.artboard;
 
@@ -179,7 +257,7 @@ export function CanvasStage({
                   cy={h.cy}
                   r={h.r}
                   fill="none"
-                  stroke="#000"
+                  stroke="#ff0000"
                   strokeWidth={0.2}
                 />
                 {/* Interactive handle (invisible larger target) */}
@@ -203,7 +281,7 @@ export function CanvasStage({
               key={`hole-cut-p-${idx}`}
               d={h.d}
               fill="none"
-              stroke="#000"
+              stroke="#ff0000"
               strokeWidth={0.2}
             />
           );
@@ -456,6 +534,10 @@ export function CanvasStage({
           type: 'move',
           dragStartWorld: clientToWorld(e.clientX, e.clientY),
         }));
+        lastMoveDeltaRef.current = { x: 0, y: 0 };
+        queuedMoveDeltaRef.current = { x: 0, y: 0 };
+        movePreviewDeltaRef.current = { x: 0, y: 0 };
+        setMovePreviewDelta({ x: 0, y: 0 });
         return;
       }
 
@@ -504,23 +586,30 @@ export function CanvasStage({
           snappedDeltaY = Math.round(deltaMmY / 5) * 5;
         }
 
-        // Move all selected elements
-        const deltas: Array<{ id: string; deltaXMm: number; deltaYMm: number }> = [];
-        
-        for (const [id, start] of dragState.startTransforms) {
-          const found = findElementById(doc, id);
-          if (!found) continue;
-          const desiredX = start.xMm + snappedDeltaX;
-          const desiredY = start.yMm + snappedDeltaY;
-          const currentDeltaX = desiredX - found.element.transform.xMm;
-          const currentDeltaY = desiredY - found.element.transform.yMm;
-          if (currentDeltaX !== 0 || currentDeltaY !== 0) {
-            deltas.push({ id, deltaXMm: currentDeltaX, deltaYMm: currentDeltaY });
-          }
-        }
+        // Smooth drag preview: update local preview delta (no doc mutations per frame)
+        const last = lastMoveDeltaRef.current;
+        const incX = snappedDeltaX - last.x;
+        const incY = snappedDeltaY - last.y;
+        if (Math.abs(incX) < 1e-6 && Math.abs(incY) < 1e-6) return;
 
-        if (deltas.length > 0) {
-          onElementsMove(deltas);
+        lastMoveDeltaRef.current = { x: snappedDeltaX, y: snappedDeltaY };
+        queuedMoveDeltaRef.current = {
+          x: queuedMoveDeltaRef.current.x + incX,
+          y: queuedMoveDeltaRef.current.y + incY,
+        };
+
+        if (moveRafRef.current === null) {
+          moveRafRef.current = requestAnimationFrame(() => {
+            moveRafRef.current = null;
+            const q = queuedMoveDeltaRef.current;
+            queuedMoveDeltaRef.current = { x: 0, y: 0 };
+            if (Math.abs(q.x) < 1e-9 && Math.abs(q.y) < 1e-9) return;
+            movePreviewDeltaRef.current = {
+              x: movePreviewDeltaRef.current.x + q.x,
+              y: movePreviewDeltaRef.current.y + q.y,
+            };
+            setMovePreviewDelta(movePreviewDeltaRef.current);
+          });
         }
       }
     },
@@ -533,6 +622,13 @@ export function CanvasStage({
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch {}
+
+      if (moveRafRef.current !== null) {
+        cancelAnimationFrame(moveRafRef.current);
+        moveRafRef.current = null;
+      }
+      queuedMoveDeltaRef.current = { x: 0, y: 0 };
+      lastMoveDeltaRef.current = { x: 0, y: 0 };
 
       // Click-only element interaction (pendingMove never activated)
       if (dragState.type === 'pendingMove') {
@@ -587,6 +683,22 @@ export function CanvasStage({
 
       if (selection.mode === 'dragging') {
         dispatchSelection(setMode('idle'));
+
+        // Commit move once at end (prevents flicker while dragging)
+        if (dragState.type === 'move' && dragState.startTransforms) {
+          const delta = movePreviewDeltaRef.current;
+          if (Math.abs(delta.x) > 1e-9 || Math.abs(delta.y) > 1e-9) {
+            const deltas: Array<{ id: string; deltaXMm: number; deltaYMm: number }> = [];
+            for (const [id] of dragState.startTransforms) {
+              deltas.push({ id, deltaXMm: delta.x, deltaYMm: delta.y });
+            }
+            onElementsMove(deltas);
+          }
+        }
+
+        movePreviewDeltaRef.current = { x: 0, y: 0 };
+        setMovePreviewDelta({ x: 0, y: 0 });
+
         if (onInteractionEnd) {
           onInteractionEnd();
         }
@@ -601,7 +713,7 @@ export function CanvasStage({
       setMarquee(null);
       setDragState({ type: 'none', startX: 0, startY: 0 });
     },
-    [selection.mode, marquee, allElementBounds, selectedIds, dispatchSelection, onInteractionEnd, dragState.type]
+    [selection.mode, marquee, allElementBounds, selectedIds, dispatchSelection, onInteractionEnd, dragState.type, dragState.startTransforms, onElementsMove]
   );
 
   const handleElementPointerDown = useCallback(
@@ -665,6 +777,11 @@ export function CanvasStage({
         dragStartWorld: clientToWorld(e.clientX, e.clientY),
         startTransforms,
       });
+
+      lastMoveDeltaRef.current = { x: 0, y: 0 };
+      queuedMoveDeltaRef.current = { x: 0, y: 0 };
+      movePreviewDeltaRef.current = { x: 0, y: 0 };
+      setMovePreviewDelta({ x: 0, y: 0 });
 
       containerRef.current?.setPointerCapture(e.pointerId);
     },
@@ -928,6 +1045,17 @@ export function CanvasStage({
     [selectedIds, doc]
   );
 
+  const selectionBoundsWithPreview = useMemo(() => {
+    if (!selectionBounds) return null;
+    if (dragState.type !== 'move' && dragState.type !== 'pendingMove') return selectionBounds;
+    if (Math.abs(movePreviewDelta.x) < 1e-9 && Math.abs(movePreviewDelta.y) < 1e-9) return selectionBounds;
+    return {
+      ...selectionBounds,
+      xMm: selectionBounds.xMm + movePreviewDelta.x,
+      yMm: selectionBounds.yMm + movePreviewDelta.y,
+    };
+  }, [selectionBounds, dragState.type, movePreviewDelta]);
+
   // Fit view callback
   const fitView = useCallback(() => {
     const fitted = fitToContainer(wMm, hMm, containerSize.width, containerSize.height);
@@ -948,6 +1076,13 @@ export function CanvasStage({
       zoom: Math.max(prev.zoom / 1.2, 0.1),
     }));
   }, []);
+
+  // Expose methods via ref
+  React.useImperativeHandle(ref, () => ({
+    fitView,
+    zoomIn,
+    zoomOut,
+  }), [fitView, zoomIn, zoomOut]);
 
   // Render grid
   const renderGrid = () => {
@@ -1038,7 +1173,11 @@ export function CanvasStage({
   const renderElement = (element: Element, layer: Layer) => {
     const isSelected = selectedIds.includes(element.id);
     const transform = element.transform;
-    const transformStr = `translate(${transform.xMm}, ${transform.yMm}) rotate(${transform.rotateDeg}) scale(${transform.scaleX}, ${transform.scaleY})`;
+    const isInMoveSession =
+      (dragState.type === 'move' || dragState.type === 'pendingMove') &&
+      !!dragState.startTransforms?.has(element.id);
+    const preview = isInMoveSession ? movePreviewDelta : { x: 0, y: 0 };
+    const transformStr = `translate(${transform.xMm + preview.x}, ${transform.yMm + preview.y}) rotate(${transform.rotateDeg}) scale(${transform.scaleX}, ${transform.scaleY})`;
 
     const baseProps = {
       'data-element-id': element.id,
@@ -1048,16 +1187,22 @@ export function CanvasStage({
       className: isSelected ? 'selected' : '',
     };
 
+    const layerType = layer.type;
+    const isEngraveLayer = layerType === 'ENGRAVE';
+    const strokeColor = layerType === 'GUIDE' ? '#00ff00' : '#000';
+    const hitStrokeWidth = 6;
+
     switch (element.kind) {
       case 'text': {
         // Render text as path if available, otherwise as text
         if (element._pathD) {
           return (
             <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
+              <path d={element._pathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
               <path
                 d={element._pathD}
-                fill={element.mode === 'ENGRAVE_FILLED' ? '#0066cc' : 'none'}
-                stroke={element.mode === 'CUT_OUTLINE' ? '#000' : '#0066cc'}
+                fill={isEngraveLayer || element.mode === 'ENGRAVE_FILLED' ? '#000' : 'none'}
+                stroke={element.mode === 'CUT_OUTLINE' ? strokeColor : 'none'}
                 strokeWidth={0.3}
               />
             </g>
@@ -1071,7 +1216,7 @@ export function CanvasStage({
               fontFamily={getCssFontFamily(element.fontId)}
               fontSize={element.sizeMm}
               textAnchor={element.align === 'center' ? 'middle' : element.align === 'right' ? 'end' : 'start'}
-              fill="#0066cc"
+              fill={isEngraveLayer ? '#000' : strokeColor}
               dominantBaseline="middle"
             >
               {element.text}
@@ -1082,10 +1227,11 @@ export function CanvasStage({
       case 'shape': {
         return (
           <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
+            <path d={element.svgPathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
             <path
               d={element.svgPathD}
-              fill={element.style === 'ENGRAVE' ? 'none' : 'none'}
-              stroke={element.style === 'CUT' ? '#000' : '#ff0000'}
+              fill={layer.type === 'ENGRAVE' ? '#000' : 'none'}
+              stroke={layer.type === 'ENGRAVE' ? 'none' : strokeColor}
               strokeWidth={0.3}
             />
           </g>
@@ -1095,13 +1241,10 @@ export function CanvasStage({
         return (
           <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
             {element.svgPathD.map((pathD, i) => (
-              <path
-                key={i}
-                d={pathD}
-                fill="none"
-                stroke="#ff0000"
-                strokeWidth={element.strokeMm}
-              />
+              <g key={i}>
+                <path d={pathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
+                <path d={pathD} fill="none" stroke="#000" strokeWidth={element.strokeMm} />
+              </g>
             ))}
           </g>
         );
@@ -1125,24 +1268,53 @@ export function CanvasStage({
         const ornamentAsset = getOrnamentById(element.assetId);
         if (!ornamentAsset) return null;
         
-        const strokeColor = element.style.targetLayer === 'CUT' ? '#000' 
-          : element.style.targetLayer === 'GUIDE' ? '#00ff00' 
-          : '#0066cc';
+        const strokeColor = element.style.targetLayer === 'GUIDE' ? '#00ff00' : '#000';
         const strokeWidth = (element.style.strokeMm ?? 0.5) / Math.abs(transform.scaleX || 1);
         
         return (
           <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
             <g transform="translate(-50, -50)">
               {ornamentAsset.pathDs.map((pathD, i) => (
+                <g key={i}>
+                  <path d={pathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
+                  <path d={pathD} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} />
+                </g>
+              ))}
+            </g>
+          </g>
+        );
+      }
+      case 'tracedPath': {
+        return (
+          <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
+            <path d={element.svgPathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
+            <path
+              d={element.svgPathD}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={element.strokeMm}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
+        );
+      }
+      case 'tracedPathGroup': {
+        return (
+          <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
+            {element.svgPathDs.map((pathD, i) => (
+              <g key={i}>
+                <path d={pathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
                 <path
-                  key={i}
                   d={pathD}
                   fill="none"
                   stroke={strokeColor}
-                  strokeWidth={strokeWidth}
+                  strokeWidth={element.strokeMm}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
-              ))}
-            </g>
+              </g>
+            ))}
           </g>
         );
       }
@@ -1207,6 +1379,25 @@ export function CanvasStage({
       className={`relative overflow-hidden bg-slate-100 ${className}`}
       style={{ cursor: cursorStyle }}
       onWheel={handleWheel}
+      onDragOver={(e) => {
+        if (!onOrnamentDrop) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+      onDrop={(e) => {
+        if (!onOrnamentDrop) return;
+        e.preventDefault();
+        const raw = e.dataTransfer.getData('application/x-psg-ornament') || e.dataTransfer.getData('text/plain');
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw) as { assetId: string; targetLayer: 'CUT' | 'ENGRAVE' | 'GUIDE'; widthPct: number };
+          if (!data?.assetId) return;
+          const world = clientToWorld(e.clientX, e.clientY);
+          onOrnamentDrop({ ...data, xMm: world.xMm, yMm: world.yMm });
+        } catch {
+          return;
+        }
+      }}
       onPointerDown={handlePointerDown}
       onPointerMove={(e) => {
         handlePointerMove(e);
@@ -1246,7 +1437,7 @@ export function CanvasStage({
         <path
           d={doc.artboard.baseShape.pathD}
           fill="none"
-          stroke="#000"
+          stroke="#ff0000"
           strokeWidth={0.3}
         />
 
@@ -1255,20 +1446,22 @@ export function CanvasStage({
 
         {/* Layers and elements */}
         {renderLayers()}
+
+        {renderOffsetPreview()}
       </svg>
 
       {/* Selection overlay (rendered in screen space) */}
-      {selectionBounds && selectedIds.length > 0 && (
+      {selectionBoundsWithPreview && selectedIds.length > 0 && (
         <SelectionOverlay
-          bounds={selectionBounds}
+          bounds={selectionBoundsWithPreview}
           viewTransform={viewTransform}
         />
       )}
 
       {/* Transform handles */}
-      {selectionBounds && selectedIds.length > 0 && activeTool === 'select' && (
+      {selectionBoundsWithPreview && selectedIds.length > 0 && activeTool === 'select' && (
         <TransformHandles
-          bounds={selectionBounds}
+          bounds={selectionBoundsWithPreview}
           viewTransform={viewTransform}
           onHandleStart={handleHandleStart}
         />
@@ -1293,7 +1486,7 @@ export function CanvasStage({
       </div>
     </div>
   );
-}
+});
 
 // Export utility functions for toolbar
 export { fitToContainer };

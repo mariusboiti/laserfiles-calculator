@@ -110,7 +110,8 @@ export async function exportSlidingDrawerZip(
   depthMm: number,
   heightMm: number,
   thicknessMm: number,
-  kerfMm: number
+  kerfMm: number,
+  extraPanels?: { name: string; svg: string }[]
 ): Promise<void> {
   const zip = new JSZip();
   const folder = zip.folder('boxmaker/sliding-drawer');
@@ -142,6 +143,13 @@ export async function exportSlidingDrawerZip(
   if (svgs.frontFace) {
     const filename = generatePanelFilename('sliding_drawer', 'frontface');
     folder.file(filename, svgs.frontFace);
+  }
+
+  if (extraPanels && extraPanels.length > 0) {
+    for (const p of extraPanels) {
+      const filename = generatePanelFilename('sliding_drawer', p.name);
+      folder.file(filename, p.svg);
+    }
   }
 
   // Generate ZIP

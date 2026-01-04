@@ -12,16 +12,28 @@ import type {
   EngraveSketchElement,
   EngraveImageElement,
   OrnamentElement,
+  TracedPathElement,
+  TracedPathGroupElement,
   RenderPreviewOptions,
   RenderExportOptions,
   RenderResult,
 } from '../types/signPro';
+import { loadFont, getFontConfigSafe } from '../../../fonts/sharedFontRegistry';
 import { textElementToPath, applyTextCase, buildTextSvgElement } from './text/textToPath';
+import { offsetFilledPath } from './text/outlineOffset';
 import { computeHolesPro, holesToSvg } from './holesPro';
 import { renderOrnamentElement } from './renderOrnament';
 
 function mm(n: number): number {
   return Math.round(n * 1000) / 1000;
+}
+
+function degToRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+function radToDeg(rad: number): number {
+  return (rad * 180) / Math.PI;
 }
 
 /**
@@ -109,21 +121,10 @@ export async function renderExportSvgAsync(
     if (!layer.exportEnabled && opts.includeAllLayers) continue;
     if (layer.type === 'GUIDE') continue;
 
-    const content = await renderLayerForExportAsync(layer, doc, warnings);
-    if (!content) continue;
-
-    switch (layer.type) {
-      case 'BASE':
-      case 'CUT':
-        cutContent.push(content);
-        break;
-      case 'ENGRAVE':
-        engraveContent.push(content);
-        break;
-      case 'OUTLINE':
-        outlineContent.push(content);
-        break;
-    }
+    const buckets = await renderLayerForExportBucketsAsync(layer, doc, warnings);
+    if (buckets.cut) cutContent.push(buckets.cut);
+    if (buckets.outline) outlineContent.push(buckets.outline);
+    if (buckets.engrave) engraveContent.push(buckets.engrave);
   }
 
   // Add base shape
@@ -196,20 +197,95 @@ async function renderLayerAsync(
   return content;
 }
 
-/**
- * Render layer for export async
- */
-async function renderLayerForExportAsync(layer: Layer, doc: SignDocument, warnings: string[]): Promise<string> {
-  let content = '';
+type ExportBucket = 'cut' | 'outline' | 'engrave';
+
+function layerTypeToExportBucket(layerType: Layer['type']): ExportBucket | null {
+  switch (layerType) {
+    case 'BASE':
+    case 'CUT':
+      return 'cut';
+    case 'OUTLINE':
+      return 'outline';
+    case 'ENGRAVE':
+      return 'engrave';
+    default:
+      return null;
+  }
+}
+
+function outlineTargetToExportBucket(target: 'CUT' | 'OUTLINE'): ExportBucket {
+  return target === 'OUTLINE' ? 'outline' : 'cut';
+}
+
+async function renderLayerForExportBucketsAsync(
+  layer: Layer,
+  doc: SignDocument,
+  warnings: string[]
+): Promise<{ cut: string; outline: string; engrave: string }> {
+  let cut = '';
+  let outline = '';
+  let engrave = '';
 
   for (const element of layer.elements) {
-    const elementContent = await renderElementAsync(element, layer, doc, true, warnings);
-    if (elementContent) {
-      content += elementContent;
-    }
+    const res = await renderElementForExportBucketsAsync(element, layer, doc, warnings);
+    cut += res.cut;
+    outline += res.outline;
+    engrave += res.engrave;
   }
 
-  return content;
+  return { cut, outline, engrave };
+}
+
+async function renderElementForExportBucketsAsync(
+  element: Element,
+  layer: Layer,
+  doc: SignDocument,
+  warnings: string[]
+): Promise<{ cut: string; outline: string; engrave: string }> {
+  const empty = { cut: '', outline: '', engrave: '' };
+
+  if (element.kind === 'text') {
+    return await renderTextElementForExportBucketsAsync(element, layer, doc, warnings);
+  }
+
+  const bucket = layerTypeToExportBucket(layer.type);
+  if (!bucket) return empty;
+
+  const content = await renderElementAsync(element, layer, doc, true, warnings);
+  if (!content) return empty;
+
+  return {
+    cut: bucket === 'cut' ? content : '',
+    outline: bucket === 'outline' ? content : '',
+    engrave: bucket === 'engrave' ? content : '',
+  };
+}
+
+async function renderTextElementForExportBucketsAsync(
+  element: TextElement,
+  layer: Layer,
+  doc: SignDocument,
+  warnings: string[]
+): Promise<{ cut: string; outline: string; engrave: string }> {
+  const empty = { cut: '', outline: '', engrave: '' };
+
+  const defaultBucket = layerTypeToExportBucket(layer.type);
+  if (!defaultBucket) return empty;
+
+  const hasOutline = Boolean(element.outline?.enabled) && Math.abs(element.outline?.offsetMm ?? 0) > 0;
+  const targetBucket = hasOutline
+    ? outlineTargetToExportBucket(element.outline.targetLayerType)
+    : defaultBucket;
+
+  const fakeLayer: Layer = { ...layer, type: targetBucket === 'cut' ? 'CUT' : targetBucket === 'outline' ? 'OUTLINE' : 'ENGRAVE' };
+  const content = await renderTextElementAsync(element, fakeLayer, doc, true, warnings);
+  if (!content) return empty;
+
+  return {
+    cut: targetBucket === 'cut' ? content : '',
+    outline: targetBucket === 'outline' ? content : '',
+    engrave: targetBucket === 'engrave' ? content : '',
+  };
 }
 
 /**
@@ -233,9 +309,268 @@ async function renderElementAsync(
       return '';
     case 'ornament':
       return renderOrnamentElement(element, layer, doc, forExport);
+    case 'tracedPath':
+      return renderTracedPathElement(element, layer, doc, forExport);
+    case 'tracedPathGroup':
+      return renderTracedPathGroupElement(element, layer, doc, forExport);
     default:
       return '';
   }
+}
+
+async function renderCurvedTextElementAsync(
+  element: TextElement,
+  text: string,
+  style: { stroke: string; fill: string; strokeWidth: number },
+  forExport: boolean,
+  warnings: string[]
+): Promise<string> {
+  const requestedFontId = element.fontId;
+  let usedFallback = false;
+  let font: any;
+  try {
+    font = await loadFont(requestedFontId);
+  } catch {
+    const fallback = getFontConfigSafe('Milkshake').id;
+    if (fallback && fallback !== requestedFontId) {
+      try {
+        font = await loadFont(fallback);
+        usedFallback = true;
+      } catch {
+        font = null;
+      }
+    }
+  }
+
+  if (!font) {
+    if (!forExport) {
+      return '\n    ' + buildTextSvgElement(element, style.stroke, style.strokeWidth, style.fill);
+    }
+    warnings.push('Font not loaded; using fallback for export');
+    return '';
+  }
+
+  if (forExport && usedFallback) {
+    warnings.push('Font not loaded; using fallback for export');
+  }
+
+  const letters: Array<{ d: string; w: number; ox: number; oy: number; cw: number }> = [];
+  const sizeMm = element.sizeMm;
+  const letterSpacingMm = element.letterSpacingMm || 0;
+
+  const PX_PER_MM = 3.7795275591;
+  const sizePx = sizeMm * PX_PER_MM;
+
+  for (const ch of Array.from(text)) {
+    if (ch === ' ') {
+      letters.push({ d: '', w: Math.max(0.1, sizeMm * 0.35 + letterSpacingMm), ox: 0, oy: 0, cw: 0 });
+      continue;
+    }
+
+    const path = font.getPath(ch, 0, 0, sizePx);
+    const bbox = path.getBoundingBox();
+    const pathDpx = path.toPathData(3);
+    const d = scalePathData(pathDpx, 1 / PX_PER_MM);
+
+    const cw = Math.max(0.01, (bbox.x2 - bbox.x1) / PX_PER_MM);
+    const chH = Math.max(0.01, (bbox.y2 - bbox.y1) / PX_PER_MM);
+    const ox = -(bbox.x1 / PX_PER_MM + cw / 2);
+    const oy = -(bbox.y1 / PX_PER_MM + chH / 2);
+
+    letters.push({ d, w: cw + letterSpacingMm, ox, oy, cw });
+  }
+
+  if (letters.length === 0) return '';
+
+  const totalWidth = Math.max(0, letters.reduce((sum, it) => sum + it.w, 0) - letterSpacingMm);
+  if (totalWidth <= 0) return '';
+
+  const curvedEnabled = Boolean(element.curved?.enabled);
+
+  const placement = curvedEnabled
+    ? element.curved!.placement
+    : (element.curvedMode || 'straight') === 'arcDown'
+      ? 'bottom'
+      : 'top';
+  const direction = curvedEnabled ? element.curved!.direction : 'outside';
+  const sign = placement === 'top' ? -1 : 1;
+
+  const arcDeg = curvedEnabled
+    ? element.curved!.arcDeg
+    : Math.max(10, Math.min(180, 20 + (element.curvedIntensity ?? 0) * 1.6));
+  const arcRad = Math.max(0.001, degToRad(Math.max(0.001, arcDeg)));
+
+  const radiusMm = curvedEnabled
+    ? Math.max(1, element.curved!.radiusMm)
+    : Math.max(1, totalWidth / arcRad);
+
+  const occupiedRad = Math.max(0.001, totalWidth / radiusMm);
+  if (occupiedRad > arcRad + 1e-6) {
+    warnings.push('Curved text exceeds arc length; letters may overlap');
+  }
+
+  const startTheta =
+    element.align === 'left'
+      ? -arcRad / 2
+      : element.align === 'right'
+        ? arcRad / 2 - occupiedRad
+        : -occupiedRad / 2;
+
+  const y0 = sign * radiusMm * Math.cos(arcRad / 2);
+
+  const baseTransforms: string[] = [];
+  baseTransforms.push(`translate(${mm(element.transform.xMm)}, ${mm(element.transform.yMm)})`);
+  if (element.transform.rotateDeg !== 0) {
+    baseTransforms.push(`rotate(${element.transform.rotateDeg})`);
+  }
+  if (element.transform.scaleX !== 1 || element.transform.scaleY !== 1) {
+    baseTransforms.push(`scale(${element.transform.scaleX}, ${element.transform.scaleY})`);
+  }
+  const groupTransformAttr = baseTransforms.length > 0 ? ` transform="${baseTransforms.join(' ')}"` : '';
+
+  let xCursor = 0;
+  let out = `\n    <g${groupTransformAttr}>`;
+
+  for (const it of letters) {
+    const charW = Math.max(0.01, it.cw);
+    const sCenter = xCursor + charW / 2;
+    xCursor += it.w;
+
+    if (!it.d) continue;
+
+    const theta = startTheta + sCenter / radiusMm;
+    const x = radiusMm * Math.sin(theta);
+    const y = y0 - sign * radiusMm * Math.cos(theta);
+
+    let a = radToDeg(Math.atan2(sign * Math.sin(theta), Math.cos(theta)));
+    if (direction === 'inside') {
+      a += 180;
+    }
+
+    const glyphTransform = `translate(${mm(x)}, ${mm(y)}) rotate(${mm(a)}) translate(${mm(it.ox)}, ${mm(it.oy)})`;
+    out += `\n      <g transform="${glyphTransform}"><path d="${it.d}" fill="${style.fill}" stroke="${style.stroke}" stroke-width="${style.strokeWidth}" /></g>`;
+  }
+
+  out += '\n    </g>';
+  return out;
+}
+
+function quadPoint(width: number, controlY: number, t: number): { x: number; y: number } {
+  const p0x = -width / 2;
+  const p0y = 0;
+  const p1x = 0;
+  const p1y = controlY;
+  const p2x = width / 2;
+  const p2y = 0;
+  const u = 1 - t;
+  const x = u * u * p0x + 2 * u * t * p1x + t * t * p2x;
+  const y = u * u * p0y + 2 * u * t * p1y + t * t * p2y;
+  return { x, y };
+}
+
+function quadAngleDeg(width: number, controlY: number, t: number): number {
+  const p0x = -width / 2;
+  const p0y = 0;
+  const p1x = 0;
+  const p1y = controlY;
+  const p2x = width / 2;
+  const p2y = 0;
+  const dx = 2 * (1 - t) * (p1x - p0x) + 2 * t * (p2x - p1x);
+  const dy = 2 * (1 - t) * (p1y - p0y) + 2 * t * (p2y - p1y);
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+}
+
+function scalePathData(pathData: string, scale: number): string {
+  return pathData.replace(/-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g, (match) => {
+    const num = parseFloat(match);
+    if (isNaN(num)) return match;
+    return (num * scale).toFixed(3);
+  });
+}
+
+function renderTracedPathElement(
+  element: TracedPathElement,
+  layer: Layer,
+  doc: SignDocument,
+  forExport: boolean
+): string {
+  if (!element.svgPathD) return '';
+
+  const { xMm, yMm, rotateDeg, scaleX, scaleY } = element.transform;
+
+  const transforms: string[] = [];
+  if (xMm !== 0 || yMm !== 0) {
+    transforms.push(`translate(${mm(xMm)}, ${mm(yMm)})`);
+  }
+  if (rotateDeg !== 0) {
+    transforms.push(`rotate(${rotateDeg})`);
+  }
+  if (scaleX !== 1 || scaleY !== 1) {
+    transforms.push(`scale(${scaleX}, ${scaleY})`);
+  }
+
+  const transformAttr = transforms.length > 0 ? ` transform="${transforms.join(' ')}"` : '';
+
+  const stroke = forExport
+    ? layer.type === 'CUT' || layer.type === 'OUTLINE'
+      ? '#000'
+      : '#ff0000'
+    : '#0066cc';
+
+  const strokeWidth = forExport
+    ? layer.type === 'CUT'
+      ? doc.output.cutStrokeMm
+      : layer.type === 'OUTLINE'
+        ? doc.output.outlineStrokeMm
+        : doc.output.engraveStrokeMm
+    : element.strokeMm;
+
+  return `\n    <path d="${element.svgPathD}" fill="none" stroke="${stroke}" stroke-width="${mm(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round"${transformAttr} />`;
+}
+
+function renderTracedPathGroupElement(
+  element: TracedPathGroupElement,
+  layer: Layer,
+  doc: SignDocument,
+  forExport: boolean
+): string {
+  if (!element.svgPathDs || element.svgPathDs.length === 0) return '';
+
+  const { xMm, yMm, rotateDeg, scaleX, scaleY } = element.transform;
+
+  const transforms: string[] = [];
+  if (xMm !== 0 || yMm !== 0) {
+    transforms.push(`translate(${mm(xMm)}, ${mm(yMm)})`);
+  }
+  if (rotateDeg !== 0) {
+    transforms.push(`rotate(${rotateDeg})`);
+  }
+  if (scaleX !== 1 || scaleY !== 1) {
+    transforms.push(`scale(${scaleX}, ${scaleY})`);
+  }
+
+  const transformAttr = transforms.length > 0 ? ` transform="${transforms.join(' ')}"` : '';
+
+  const stroke = forExport
+    ? layer.type === 'CUT' || layer.type === 'OUTLINE'
+      ? '#000'
+      : '#ff0000'
+    : '#0066cc';
+
+  const strokeWidth = forExport
+    ? layer.type === 'CUT'
+      ? doc.output.cutStrokeMm
+      : layer.type === 'OUTLINE'
+        ? doc.output.outlineStrokeMm
+        : doc.output.engraveStrokeMm
+    : element.strokeMm;
+
+  let content = `\n    <g${transformAttr}>`;
+  for (const d of element.svgPathDs) {
+    content += `\n      <path d="${d}" fill="none" stroke="${stroke}" stroke-width="${mm(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" />`;
+  }
+  content += '\n    </g>';
+  return content;
 }
 
 function renderEngraveImageElement(
@@ -301,6 +636,20 @@ async function renderTextElementAsync(
     strokeWidth = forExport ? doc.output.engraveStrokeMm : 0.5;
   }
 
+  const curvedMode = element.curvedMode || 'straight';
+  const curvedIntensity = element.curvedIntensity ?? 0;
+  const shouldCurve = Boolean(element.curved?.enabled) || (curvedMode !== 'straight' && curvedIntensity > 0);
+  if (shouldCurve) {
+    const curved = await renderCurvedTextElementAsync(
+      element,
+      text,
+      { stroke, fill, strokeWidth },
+      forExport,
+      warnings
+    );
+    if (curved) return curved;
+  }
+
   try {
     // Convert text to path
     const pathResult = await textElementToPath(element);
@@ -318,6 +667,24 @@ async function renderTextElementAsync(
     }
 
     const { xMm, yMm, rotateDeg, scaleX, scaleY } = element.transform;
+
+    let d = pathResult.pathD;
+    if (
+      forExport &&
+      (layer.type === 'CUT' || layer.type === 'OUTLINE') &&
+      element.outline?.enabled &&
+      Math.abs(element.outline.offsetMm) > 0
+    ) {
+      const res = await offsetFilledPath(d, element.outline.offsetMm, {
+        join: element.outline.join,
+        simplify: element.outline.simplify,
+      });
+      if (res.success && res.pathD) {
+        d = res.pathD;
+      } else if (res.warning) {
+        warnings.push(res.warning);
+      }
+    }
 
     // Calculate offset based on alignment
     let offsetX = 0;
@@ -355,7 +722,7 @@ async function renderTextElementAsync(
 
     const transformAttr = transforms.length > 0 ? ` transform="${transforms.join(' ')}"` : '';
 
-    return `\n    <path d="${pathResult.pathD}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"${transformAttr} />`;
+    return `\n    <path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"${transformAttr} />`;
   } catch (error) {
     console.warn('[RenderAsync] Text-to-path failed:', error);
     if (!forExport) {

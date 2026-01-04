@@ -1,49 +1,50 @@
 /**
  * Shape path generation utilities
  * All shapes are path-first for PathOps compatibility
+ * Shapes are generated centered at ORIGIN (0,0) - transform handles positioning
  */
 
 export type ShapeType = 'circle' | 'hex' | 'octagon' | 'scalloped' | 'shield';
 
 /**
- * Generate circle path centered at (cx, cy)
+ * Generate circle path centered at origin
  */
-export function circlePath(cx: number, cy: number, r: number): string {
-  // Use two arcs to create a complete circle
-  return `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
+export function circlePath(r: number): string {
+  // Use two arcs to create a complete circle centered at 0,0
+  return `M ${-r} 0 A ${r} ${r} 0 1 0 ${r} 0 A ${r} ${r} 0 1 0 ${-r} 0 Z`;
 }
 
 /**
- * Generate hexagon path (flat-top) centered at (cx, cy)
+ * Generate hexagon path (flat-top) centered at origin
  */
-export function hexagonPath(cx: number, cy: number, r: number): string {
+export function hexagonPath(r: number): string {
   const points: [number, number][] = [];
   for (let i = 0; i < 6; i++) {
     // Flat-top hexagon: start at -90 degrees
     const angle = (Math.PI / 3) * i - Math.PI / 2;
-    points.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
+    points.push([r * Math.cos(angle), r * Math.sin(angle)]);
   }
   return `M ${points[0][0]} ${points[0][1]} ` +
     points.slice(1).map(p => `L ${p[0]} ${p[1]}`).join(' ') + ' Z';
 }
 
 /**
- * Generate octagon path centered at (cx, cy)
+ * Generate octagon path centered at origin
  */
-export function octagonPath(cx: number, cy: number, r: number): string {
+export function octagonPath(r: number): string {
   const points: [number, number][] = [];
   for (let i = 0; i < 8; i++) {
     const angle = (Math.PI / 4) * i - Math.PI / 8;
-    points.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
+    points.push([r * Math.cos(angle), r * Math.sin(angle)]);
   }
   return `M ${points[0][0]} ${points[0][1]} ` +
     points.slice(1).map(p => `L ${p[0]} ${p[1]}`).join(' ') + ' Z';
 }
 
 /**
- * Generate scalloped circle path centered at (cx, cy)
+ * Generate scalloped circle path centered at origin
  */
-export function scallopedPath(cx: number, cy: number, r: number, scallops: number = 12): string {
+export function scallopedPath(r: number, scallops: number = 12): string {
   const points: string[] = [];
   const innerR = r * 0.92;
 
@@ -52,12 +53,12 @@ export function scallopedPath(cx: number, cy: number, r: number, scallops: numbe
     const angle2 = (Math.PI * 2 / scallops) * (i + 0.5);
     const angle3 = (Math.PI * 2 / scallops) * (i + 1);
 
-    const x1 = cx + r * Math.cos(angle1);
-    const y1 = cy + r * Math.sin(angle1);
-    const x2 = cx + innerR * Math.cos(angle2);
-    const y2 = cy + innerR * Math.sin(angle2);
-    const x3 = cx + r * Math.cos(angle3);
-    const y3 = cy + r * Math.sin(angle3);
+    const x1 = r * Math.cos(angle1);
+    const y1 = r * Math.sin(angle1);
+    const x2 = innerR * Math.cos(angle2);
+    const y2 = innerR * Math.sin(angle2);
+    const x3 = r * Math.cos(angle3);
+    const y3 = r * Math.sin(angle3);
 
     if (i === 0) {
       points.push(`M ${x1} ${y1}`);
@@ -69,32 +70,31 @@ export function scallopedPath(cx: number, cy: number, r: number, scallops: numbe
 }
 
 /**
- * Generate shield path centered at (cx, cy)
+ * Generate shield path centered at origin
  */
-export function shieldPath(cx: number, cy: number, w: number, h: number): string {
+export function shieldPath(w: number, h: number): string {
   const halfW = w / 2;
-  const topY = cy - h / 2;
-  const midY = cy + h * 0.1;
-  const bottomY = cy + h / 2;
+  const halfH = h / 2;
+  const topY = -halfH;
+  const midY = h * 0.1 - halfH;
+  const bottomY = halfH;
   const cornerR = w * 0.08;
 
-  return `M ${cx - halfW + cornerR} ${topY} ` +
-    `L ${cx + halfW - cornerR} ${topY} ` +
-    `Q ${cx + halfW} ${topY} ${cx + halfW} ${topY + cornerR} ` +
-    `L ${cx + halfW} ${midY} ` +
-    `Q ${cx + halfW} ${midY + h * 0.15} ${cx} ${bottomY} ` +
-    `Q ${cx - halfW} ${midY + h * 0.15} ${cx - halfW} ${midY} ` +
-    `L ${cx - halfW} ${topY + cornerR} ` +
-    `Q ${cx - halfW} ${topY} ${cx - halfW + cornerR} ${topY} Z`;
+  return `M ${-halfW + cornerR} ${topY} ` +
+    `L ${halfW - cornerR} ${topY} ` +
+    `Q ${halfW} ${topY} ${halfW} ${topY + cornerR} ` +
+    `L ${halfW} ${midY} ` +
+    `Q ${halfW} ${midY + h * 0.15} 0 ${bottomY} ` +
+    `Q ${-halfW} ${midY + h * 0.15} ${-halfW} ${midY} ` +
+    `L ${-halfW} ${topY + cornerR} ` +
+    `Q ${-halfW} ${topY} ${-halfW + cornerR} ${topY} Z`;
 }
 
 /**
- * Generate shape path based on type
+ * Generate shape path based on type - centered at origin (0,0)
  */
 export function generateShapePath(
   shapeType: ShapeType,
-  cx: number,
-  cy: number,
   size: number,
   width?: number,
   height?: number
@@ -103,17 +103,17 @@ export function generateShapePath(
 
   switch (shapeType) {
     case 'circle':
-      return circlePath(cx, cy, r);
+      return circlePath(r);
     case 'hex':
-      return hexagonPath(cx, cy, r);
+      return hexagonPath(r);
     case 'octagon':
-      return octagonPath(cx, cy, r);
+      return octagonPath(r);
     case 'scalloped':
-      return scallopedPath(cx, cy, r);
+      return scallopedPath(r);
     case 'shield':
-      return shieldPath(cx, cy, width || size, height || size * 1.15);
+      return shieldPath(width || size, height || size * 1.15);
     default:
-      return circlePath(cx, cy, r);
+      return circlePath(r);
   }
 }
 

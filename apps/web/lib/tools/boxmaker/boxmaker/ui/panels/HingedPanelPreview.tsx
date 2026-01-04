@@ -6,6 +6,19 @@ import type { HingedBoxPanels, HingedBoxSvgs } from '../../core/types';
 export type HingedPanelKey = keyof HingedBoxSvgs;
 export type HingedPanelView = HingedPanelKey | 'all' | 'faces';
 
+type FaceArtworkPlacement = {
+  x: number;
+  y: number;
+  scale: number;
+  rotationDeg: number;
+};
+
+type FaceArtworkConfig = {
+  prompt: string;
+  imageDataUrl: string;
+  placement: FaceArtworkPlacement;
+};
+
 function bbox(points: { x: number; y: number }[]) {
   let minX = Infinity;
   let minY = Infinity;
@@ -74,10 +87,12 @@ export function HingedPanelPreview({
   svgs,
   panels,
   initialView = 'all',
+  artworkOverlays,
 }: {
   svgs: HingedBoxSvgs;
   panels: HingedBoxPanels;
   initialView?: HingedPanelView;
+  artworkOverlays?: Record<string, FaceArtworkConfig | undefined>;
 }) {
   const [panel, setPanel] = useState<HingedPanelView>(initialView);
   const [zoom, setZoom] = useState(1);
@@ -154,19 +169,71 @@ export function HingedPanelPreview({
             {panelKeys.map((k) => (
               <div key={k} className="rounded-md border border-slate-200 bg-white p-2">
                 <div className="mb-1 text-xs font-medium text-slate-700">{k}</div>
-                <div className="relative h-56 w-full overflow-hidden rounded border border-slate-100 bg-white">
+                <div className="relative h-80 w-full overflow-hidden rounded border border-slate-100 bg-white">
                   <div
                     className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
                     dangerouslySetInnerHTML={{ __html: preparedSvgs[k] }}
                   />
+                  {(() => {
+                    const art = artworkOverlays?.[k];
+                    const p = panels[k];
+                    if (!art || !art.imageDataUrl || !p) return null;
+                    const b = bbox(p.outline);
+                    const w = Math.max(1, b.maxX - b.minX);
+                    const h = Math.max(1, b.maxY - b.minY);
+                    const leftPct = (art.placement.x / w) * 100;
+                    const topPct = (art.placement.y / h) * 100;
+                    const wPct = Math.max(1, Math.min(200, (Math.max(0.05, art.placement.scale) * (Math.min(w, h) / w)) * 100));
+                    return (
+                      <img
+                        src={art.imageDataUrl}
+                        alt="Artwork"
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: `${leftPct}%`,
+                          top: `${topPct}%`,
+                          width: `${wPct}%`,
+                          transform: `translate(-50%, -50%) rotate(${art.placement.rotationDeg}deg)`,
+                          transformOrigin: 'center',
+                          opacity: 0.85,
+                        }}
+                      />
+                    );
+                  })()}
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-            <div className="relative h-[520px] w-full overflow-hidden rounded border border-slate-200 bg-white">
+            <div className="relative h-[720px] w-full overflow-hidden rounded border border-slate-200 bg-white">
               <div className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block" dangerouslySetInnerHTML={{ __html: previewSvg }} />
+              {(() => {
+                const art = artworkOverlays?.[panel as string];
+                const p = panels[panel as keyof HingedBoxPanels];
+                if (!art || !art.imageDataUrl || !p) return null;
+                const b = bbox(p.outline);
+                const w = Math.max(1, b.maxX - b.minX);
+                const h = Math.max(1, b.maxY - b.minY);
+                const leftPct = (art.placement.x / w) * 100;
+                const topPct = (art.placement.y / h) * 100;
+                const wPct = Math.max(1, Math.min(200, (Math.max(0.05, art.placement.scale) * (Math.min(w, h) / w)) * 100));
+                return (
+                  <img
+                    src={art.imageDataUrl}
+                    alt="Artwork"
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: `${leftPct}%`,
+                      top: `${topPct}%`,
+                      width: `${wPct}%`,
+                      transform: `translate(-50%, -50%) rotate(${art.placement.rotationDeg}deg)`,
+                      transformOrigin: 'center',
+                      opacity: 0.85,
+                    }}
+                  />
+                );
+              })()}
             </div>
           </div>
         )}

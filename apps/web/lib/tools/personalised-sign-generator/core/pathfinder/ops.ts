@@ -88,7 +88,11 @@ export function applyTransformToPath(pathD: string, transform: ElementTransform)
     const e = xMm;
     const f = yMm;
 
-    const matrix = [a, b, c, d, e, f];
+    // PathKit expects a 3x3 SkMatrix (9 numbers):
+    // [ a, c, e,
+    //   b, d, f,
+    //   0, 0, 1 ]
+    const matrix = [a, c, e, b, d, f, 0, 0, 1];
     const transformed = pathOpsInstance.transform(path, matrix);
     const result = pathOpsInstance.toSVG(transformed);
 

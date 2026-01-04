@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import type { SignInputs, SignShape, TextLine, HolePosition } from '../types/sign';
 import { generateSignSvg, generateFilename } from '../core/generateSignSvg';
 import { DEFAULTS, SIGN_PRESETS } from '../config/defaults';
@@ -22,6 +23,12 @@ interface PersonalisedSignToolProps {
 }
 
 export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolProps) {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   const [shape, setShape] = useState<SignShape>(DEFAULTS.shape as SignShape);
   const [widthMm, setWidthMm] = useState(DEFAULTS.w);
   const [heightMm, setHeightMm] = useState(DEFAULTS.h);

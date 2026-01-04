@@ -19,15 +19,18 @@ import {
   Download,
   DownloadCloud,
 } from 'lucide-react';
-import type { SignDocument, Layer, LayerType } from '../../types/signPro';
+import type { SignDocument, Layer, LayerType, Element } from '../../types/signPro';
 
 interface LayerPanelProps {
   document: SignDocument;
+  selectedIds: string[];
   onUpdateLayer: (layerId: string, updates: Partial<Layer>) => void;
   onReorderLayers: (fromIndex: number, toIndex: number) => void;
   onAddLayer: (type: LayerType, name: string) => void;
   onDeleteLayer: (layerId: string) => void;
   onSelectLayer: (layerId: string) => void;
+  onSelectElement: (elementId: string) => void;
+  onMoveElementToLayerType: (elementId: string, targetLayerType: 'CUT' | 'ENGRAVE') => void;
 }
 
 const LAYER_COLORS: Record<LayerType, string> = {
@@ -48,11 +51,14 @@ const LAYER_ICONS: Record<LayerType, string> = {
 
 export function LayerPanel({
   document,
+  selectedIds,
   onUpdateLayer,
   onReorderLayers,
   onAddLayer,
   onDeleteLayer,
   onSelectLayer,
+  onSelectElement,
+  onMoveElementToLayerType,
 }: LayerPanelProps) {
   const sortedLayers = [...document.layers].sort((a, b) => b.order - a.order);
 
@@ -74,6 +80,7 @@ export function LayerPanel({
             key={layer.id}
             layer={layer}
             isActive={layer.id === document.activeLayerId}
+            selectedIds={selectedIds}
             canMoveUp={index > 0}
             canMoveDown={index < sortedLayers.length - 1}
             canDelete={layer.type !== 'BASE'}
@@ -90,6 +97,8 @@ export function LayerPanel({
             }}
             onDelete={() => onDeleteLayer(layer.id)}
             onSelect={() => onSelectLayer(layer.id)}
+            onSelectElement={onSelectElement}
+            onMoveElementToLayerType={onMoveElementToLayerType}
           />
         ))}
       </div>
@@ -100,6 +109,7 @@ export function LayerPanel({
 interface LayerItemProps {
   layer: Layer;
   isActive: boolean;
+  selectedIds: string[];
   canMoveUp: boolean;
   canMoveDown: boolean;
   canDelete: boolean;
@@ -108,11 +118,14 @@ interface LayerItemProps {
   onMoveDown: () => void;
   onDelete: () => void;
   onSelect: () => void;
+  onSelectElement: (elementId: string) => void;
+  onMoveElementToLayerType: (elementId: string, targetLayerType: 'CUT' | 'ENGRAVE') => void;
 }
 
 function LayerItem({
   layer,
   isActive,
+  selectedIds,
   canMoveUp,
   canMoveDown,
   canDelete,
@@ -121,6 +134,8 @@ function LayerItem({
   onMoveDown,
   onDelete,
   onSelect,
+  onSelectElement,
+  onMoveElementToLayerType,
 }: LayerItemProps) {
   return (
     <div
@@ -240,8 +255,104 @@ function LayerItem({
           <div className="text-xs text-slate-500">
             {layer.elements.length} element{layer.elements.length !== 1 ? 's' : ''}
           </div>
+
+          {layer.elements.length > 0 && (
+            <div className="space-y-1">
+              {layer.elements.map((el) => (
+                (() => {
+                  const supportsCutEngrave = el.kind !== 'engraveImage' && el.kind !== 'engraveSketch';
+                  return (
+                <LayerElementRow
+                  key={el.id}
+                  element={el}
+                  isSelected={selectedIds.includes(el.id)}
+                  disableMoveToCut={layer.locked || !supportsCutEngrave}
+                  disableMoveToEngrave={layer.locked || !supportsCutEngrave}
+                  onSelect={() => onSelectElement(el.id)}
+                  onMoveToCut={() => onMoveElementToLayerType(el.id, 'CUT')}
+                  onMoveToEngrave={() => onMoveElementToLayerType(el.id, 'ENGRAVE')}
+                />
+                  );
+                })()
+              ))}
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function getElementLabel(el: Element): string {
+  switch (el.kind) {
+    case 'text':
+      return el.text?.trim() ? `Text: ${el.text.trim()}` : 'Text';
+    case 'shape':
+      return 'Shape';
+    case 'ornament':
+      return `Ornament: ${el.assetId}`;
+    case 'engraveSketch':
+      return 'Sketch';
+    case 'engraveImage':
+      return 'Image';
+    case 'tracedPath':
+      return 'Trace';
+    case 'tracedPathGroup':
+      return 'Trace Group';
+    default:
+      return 'Element';
+  }
+}
+
+function LayerElementRow({
+  element,
+  isSelected,
+  disableMoveToCut,
+  disableMoveToEngrave,
+  onSelect,
+  onMoveToCut,
+  onMoveToEngrave,
+}: {
+  element: Element;
+  isSelected: boolean;
+  disableMoveToCut: boolean;
+  disableMoveToEngrave: boolean;
+  onSelect: () => void;
+  onMoveToCut: () => void;
+  onMoveToEngrave: () => void;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 rounded px-2 py-1 ${
+        isSelected ? 'bg-blue-600/20' : 'hover:bg-slate-700/50'
+      }`}
+    >
+      <button
+        onClick={onSelect}
+        className="flex-1 text-left text-xs truncate text-slate-300 hover:text-white"
+        title={getElementLabel(element)}
+      >
+        {getElementLabel(element)}
+      </button>
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onMoveToCut}
+          disabled={disableMoveToCut}
+          className="px-1.5 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 disabled:opacity-30"
+          title="Move to CUT"
+        >
+          CUT
+        </button>
+        <button
+          onClick={onMoveToEngrave}
+          disabled={disableMoveToEngrave}
+          className="px-1.5 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 disabled:opacity-30"
+          title="Move to ENGRAVE"
+        >
+          ENGRAVE
+        </button>
+      </div>
     </div>
   );
 }

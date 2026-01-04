@@ -1,9 +1,11 @@
 'use client';
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import { downloadTextFile } from '@/lib/studio/export/download';
 import { DEFAULTS, SHEET_PRESETS } from '../config/defaults';
 import { parseSvgSize } from '../core/parseSvgSize';
+import { BUILT_IN_TEMPLATES } from '../core/builtInTemplates';
 import { buildLayoutsV2 } from '../core/layoutEngine';
 import { computeLabels } from '../core/labeling';
 import { validateLayout } from '../core/validateLayout';
@@ -13,11 +15,19 @@ import type { TemplateItem, LayoutSettings, SheetLayout } from '../types/layout'
 
 interface OrnamentLayoutToolProps {
   onResetCallback?: (callback: () => void) => void;
+  onGetExportPayload?: (getExportPayload: () => Promise<{ svg: string; name?: string; meta?: any }> | { svg: string; name?: string; meta?: any }) => void;
 }
 
-export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps) {
+export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: OrnamentLayoutToolProps) {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   // Templates
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [activeBuiltInKey, setActiveBuiltInKey] = useState<string | null>(null);
   
   // Settings
   const [settings, setSettings] = useState<LayoutSettings>(DEFAULTS);
@@ -52,7 +62,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
 
   // Current sheet for preview
   const currentSheet = useMemo(() => {
-    return layoutResult.sheets.find(s => s.sheetIndex === currentSheetIndex);
+    return layoutResult.sheets.find((s) => s.sheetIndex === currentSheetIndex);
   }, [layoutResult.sheets, currentSheetIndex]);
 
   // Preview SVG
@@ -70,11 +80,34 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
     });
   }, [currentSheet, templates, settings]);
 
+  const getExportPayload = useCallback(() => {
+    const sheet = currentSheet;
+    const sheetW = settings.sheetW;
+    const sheetH = settings.sheetH;
+    const name = sheet
+      ? generateSheetFilename(sheet.sheetIndex, layoutResult.sheets.length, sheet.items.length, settings)
+      : 'ornament-layout.svg';
+    return {
+      svg: previewSvg,
+      name,
+      meta: {
+        bboxMm: { width: sheetW, height: sheetH },
+        sheetIndex: sheet?.sheetIndex,
+        totalSheets: layoutResult.sheets.length,
+      },
+    };
+  }, [currentSheet, layoutResult.sheets.length, previewSvg, settings]);
+
+  useEffect(() => {
+    onGetExportPayload?.(getExportPayload);
+  }, [getExportPayload, onGetExportPayload]);
+
   // Reset
   const resetToDefaults = useCallback(() => {
     setTemplates([]);
     setSettings(DEFAULTS);
     setCurrentSheetIndex(1);
+    setActiveBuiltInKey(null);
   }, []);
 
   useEffect(() => {
@@ -82,6 +115,49 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
       onResetCallback(resetToDefaults);
     }
   }, [onResetCallback, resetToDefaults]);
+
+  // Regenerate template when hole settings change
+  useEffect(() => {
+    if (!activeBuiltInKey) return;
+    
+    const regenerateTemplate = async () => {
+      const tpl = BUILT_IN_TEMPLATES.find((t) => t.key === activeBuiltInKey);
+      if (!tpl || !tpl.hasHole) return;
+
+      try {
+        const { generateTemplateWithHole } = await import('../core/builtInTemplates');
+        const dynamicTpl = generateTemplateWithHole(activeBuiltInKey, settings.holeRadius, settings.holeYOffset);
+        if (!dynamicTpl) return;
+
+        const parsed = parseSvgSize(dynamicTpl.svgText, {
+          pxDpi: settings.pxDpi,
+          sanitize: settings.sanitizeSvg,
+        });
+
+        setTemplates((prev) => {
+          const activeTemplate = prev.find((t) => t.id === settings.activeTemplateId);
+          if (!activeTemplate) return prev;
+
+          return prev.map((t) => 
+            t.id === settings.activeTemplateId
+              ? {
+                  ...t,
+                  svgText: dynamicTpl.svgText,
+                  innerSvg: parsed.innerSvg,
+                  width: parsed.width,
+                  height: parsed.height,
+                  viewBox: parsed.viewBox,
+                }
+              : t
+          );
+        });
+      } catch (error) {
+        console.error('Failed to regenerate template:', error);
+      }
+    };
+
+    regenerateTemplate();
+  }, [settings.holeRadius, settings.holeYOffset, activeBuiltInKey, settings.pxDpi, settings.sanitizeSvg, settings.activeTemplateId]);
 
   // Add template
   const handleAddTemplate = useCallback(async (file: File) => {
@@ -104,20 +180,75 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
         rotateDeg: 0,
       };
 
-      setTemplates(prev => [...prev, newTemplate]);
+      setTemplates((prev) => [...prev, newTemplate]);
+      setSettings((s) => ({ ...s, activeTemplateId: newTemplate.id }));
+      setActiveBuiltInKey(null);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to load SVG');
     }
   }, [settings.pxDpi, settings.sanitizeSvg]);
 
+  const handleAddBuiltInTemplate = useCallback(async (key: string) => {
+    const tpl = BUILT_IN_TEMPLATES.find((t) => t.key === key);
+    if (!tpl) return;
+
+    try {
+      // Use dynamic template with hole settings if template has hole
+      let svgText = tpl.svgText;
+      if (tpl.hasHole) {
+        const { generateTemplateWithHole } = await import('../core/builtInTemplates');
+        const dynamicTpl = generateTemplateWithHole(key, settings.holeRadius, settings.holeYOffset);
+        if (dynamicTpl) {
+          svgText = dynamicTpl.svgText;
+        }
+      }
+
+      const parsed = parseSvgSize(svgText, {
+        pxDpi: settings.pxDpi,
+        sanitize: settings.sanitizeSvg,
+      });
+
+      const newTemplate: TemplateItem = {
+        id: `tpl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: `${tpl.name}.svg`,
+        svgText,
+        innerSvg: parsed.innerSvg,
+        width: parsed.width,
+        height: parsed.height,
+        viewBox: parsed.viewBox,
+        qty: 1,
+        rotateDeg: 0,
+      };
+
+      setTemplates((prev) => [...prev, newTemplate]);
+      setSettings((s) => ({ ...s, activeTemplateId: newTemplate.id }));
+      setActiveBuiltInKey(key);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to load built-in template');
+    }
+  }, [settings.pxDpi, settings.sanitizeSvg, settings.holeRadius, settings.holeYOffset]);
+
   // Remove template
   const handleRemoveTemplate = useCallback((id: string) => {
-    setTemplates(prev => prev.filter(t => t.id !== id));
+    setTemplates((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+
+      setSettings((s) => {
+        if (s.activeTemplateId !== id) return s;
+        return {
+          ...s,
+          activeTemplateId: next[0]?.id,
+        };
+      });
+
+      setActiveBuiltInKey(null);
+      return next;
+    });
   }, []);
 
   // Update template
   const handleUpdateTemplate = useCallback((id: string, updates: Partial<TemplateItem>) => {
-    setTemplates(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    setTemplates((prev) => prev.map((t) => t.id === id ? { ...t, ...updates } : t));
   }, []);
 
   // Export current sheet
@@ -170,7 +301,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
 
   return (
     <div className="lfs-tool lfs-tool-ornament-layout-planner-v2">
-      <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-[320px,1fr]">
         {/* Left Panel - Controls */}
         <div className="space-y-4">
           {/* Templates */}
@@ -178,6 +309,34 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-medium text-slate-100">Templates</div>
               <div className="text-xs text-slate-400">Total qty: {totalQty}</div>
+            </div>
+
+            <div className="mb-3">
+              <div className="mb-2 text-xs text-slate-300">Built-in templates</div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {BUILT_IN_TEMPLATES.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => handleAddBuiltInTemplate(t.key)}
+                    className={
+                      activeBuiltInKey === t.key
+                        ? 'group rounded-lg border border-sky-500 bg-slate-900/60 p-2 text-left'
+                        : 'group rounded-lg border border-slate-800 bg-slate-900/30 p-2 text-left hover:border-slate-600'
+                    }
+                    title={t.name}
+                  >
+                    <div className="aspect-[4/3] w-full overflow-hidden rounded-md border border-slate-800 bg-white">
+                      <div
+                        className="h-full w-full [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
+                        dangerouslySetInnerHTML={{ __html: t.thumbnailSvg }}
+                      />
+                    </div>
+                    <div className="mt-2 text-[11px] font-medium text-slate-100 leading-tight">{t.name}</div>
+                    <div className="text-[10px] text-slate-400">Click to add</div>
+                  </button>
+                ))}
+              </div>
             </div>
             
             <input
@@ -188,7 +347,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
             />
 
             <div className="space-y-2 max-h-[200px] overflow-y-auto">
-              {templates.map(tpl => (
+              {templates.map((tpl) => (
                 <div key={tpl.id} className="rounded-md border border-slate-800 bg-slate-900/50 p-2">
                   <div className="flex items-center gap-2">
                     <input
@@ -234,10 +393,10 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="text-sm font-medium text-slate-100 mb-3">Sheet Presets</div>
             <div className="flex flex-wrap gap-2">
-              {SHEET_PRESETS.map(preset => (
+              {SHEET_PRESETS.map((preset) => (
                 <button
                   key={preset.name}
-                  onClick={() => setSettings(s => ({ ...s, sheetW: preset.widthMm, sheetH: preset.heightMm }))}
+                  onClick={() => setSettings((s) => ({ ...s, sheetW: preset.widthMm, sheetH: preset.heightMm }))}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
                   title={preset.description}
                 >
@@ -252,8 +411,8 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                 <input
                   type="number"
                   value={settings.sheetW}
-                  onChange={(e) => setSettings(s => ({ ...s, sheetW: Number(e.target.value) }))}
-                  className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                  onChange={(e) => setSettings((s) => ({ ...s, sheetW: Number(e.target.value) }))}
+                  className="rounded border border-slate-800 bg-slate-950 px-1 py-1 text-xs w-full"
                 />
               </label>
               <label className="grid gap-1">
@@ -261,8 +420,8 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                 <input
                   type="number"
                   value={settings.sheetH}
-                  onChange={(e) => setSettings(s => ({ ...s, sheetH: Number(e.target.value) }))}
-                  className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                  onChange={(e) => setSettings((s) => ({ ...s, sheetH: Number(e.target.value) }))}
+                  className="rounded border border-slate-800 bg-slate-950 px-1 py-1 text-xs w-full"
                 />
               </label>
               <label className="grid gap-1">
@@ -270,10 +429,48 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                 <input
                   type="number"
                   value={settings.margin}
-                  onChange={(e) => setSettings(s => ({ ...s, margin: Number(e.target.value) }))}
-                  className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
+                  onChange={(e) => setSettings((s) => ({ ...s, margin: Number(e.target.value) }))}
+                  className="rounded border border-slate-800 bg-slate-950 px-1 py-1 text-xs w-full"
                 />
               </label>
+            </div>
+          </div>
+
+          {/* Hole Customization */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="text-sm font-medium text-slate-100 mb-3">Hole Settings</div>
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-slate-300">Hole Size (mm)</label>
+                  <span className="text-xs text-slate-400">{settings.holeRadius.toFixed(1)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  step="0.1"
+                  value={settings.holeRadius}
+                  onChange={(e) => setSettings((s) => ({ ...s, holeRadius: Number(e.target.value) }))}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-slate-300">Hole Position (mm from top)</label>
+                  <span className="text-xs text-slate-400">{settings.holeYOffset.toFixed(1)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="25"
+                  step="0.5"
+                  value={settings.holeYOffset}
+                  onChange={(e) => setSettings((s) => ({ ...s, holeYOffset: Number(e.target.value) }))}
+                  className="w-full"
+                />
+              </div>
+              <p className="text-xs text-slate-400">Applies to templates with holes (Heart, Star, Circle ornaments)</p>
             </div>
           </div>
 
@@ -283,7 +480,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
             
             <div className="flex gap-2 mb-3">
               <button
-                onClick={() => setSettings(s => ({ ...s, mode: 'grid' }))}
+                onClick={() => setSettings((s) => ({ ...s, mode: 'grid' }))}
                 className={`flex-1 rounded-md px-3 py-2 text-xs font-medium ${
                   settings.mode === 'grid'
                     ? 'bg-sky-500 text-white'
@@ -293,7 +490,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                 Grid
               </button>
               <button
-                onClick={() => setSettings(s => ({ ...s, mode: 'pack' }))}
+                onClick={() => setSettings((s) => ({ ...s, mode: 'pack' }))}
                 className={`flex-1 rounded-md px-3 py-2 text-xs font-medium ${
                   settings.mode === 'pack'
                     ? 'bg-sky-500 text-white'
@@ -313,7 +510,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                       type="number"
                       value={settings.rows}
                       disabled={settings.autoFit}
-                      onChange={(e) => setSettings(s => ({ ...s, rows: Number(e.target.value) }))}
+                      onChange={(e) => setSettings((s) => ({ ...s, rows: Number(e.target.value) }))}
                       className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
                     />
                   </label>
@@ -323,7 +520,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                       type="number"
                       value={settings.cols}
                       disabled={settings.autoFit}
-                      onChange={(e) => setSettings(s => ({ ...s, cols: Number(e.target.value) }))}
+                      onChange={(e) => setSettings((s) => ({ ...s, cols: Number(e.target.value) }))}
                       className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
                     />
                   </label>
@@ -332,7 +529,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                   <input
                     type="checkbox"
                     checked={settings.autoFit}
-                    onChange={(e) => setSettings(s => ({ ...s, autoFit: e.target.checked }))}
+                    onChange={(e) => setSettings((s) => ({ ...s, autoFit: e.target.checked }))}
                   />
                   Auto-fit
                 </label>
@@ -340,7 +537,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                   <input
                     type="checkbox"
                     checked={settings.center}
-                    onChange={(e) => setSettings(s => ({ ...s, center: e.target.checked }))}
+                    onChange={(e) => setSettings((s) => ({ ...s, center: e.target.checked }))}
                   />
                   Center layout
                 </label>
@@ -351,7 +548,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                   <input
                     type="checkbox"
                     checked={settings.groupByTemplate}
-                    onChange={(e) => setSettings(s => ({ ...s, groupByTemplate: e.target.checked }))}
+                    onChange={(e) => setSettings((s) => ({ ...s, groupByTemplate: e.target.checked }))}
                   />
                   Group by template
                 </label>
@@ -359,7 +556,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                   <input
                     type="checkbox"
                     checked={settings.allowRotateInPack}
-                    onChange={(e) => setSettings(s => ({ ...s, allowRotateInPack: e.target.checked }))}
+                    onChange={(e) => setSettings((s) => ({ ...s, allowRotateInPack: e.target.checked }))}
                   />
                   Allow auto-rotate
                 </label>
@@ -372,7 +569,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                 <input
                   type="number"
                   value={settings.gapX}
-                  onChange={(e) => setSettings(s => ({ ...s, gapX: Number(e.target.value) }))}
+                  onChange={(e) => setSettings((s) => ({ ...s, gapX: Number(e.target.value) }))}
                   className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
                 />
               </label>
@@ -381,7 +578,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                 <input
                   type="number"
                   value={settings.gapY}
-                  onChange={(e) => setSettings(s => ({ ...s, gapY: Number(e.target.value) }))}
+                  onChange={(e) => setSettings((s) => ({ ...s, gapY: Number(e.target.value) }))}
                   className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
                 />
               </label>
@@ -396,7 +593,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                 <input
                   type="checkbox"
                   checked={settings.showLabels}
-                  onChange={(e) => setSettings(s => ({ ...s, showLabels: e.target.checked }))}
+                  onChange={(e) => setSettings((s) => ({ ...s, showLabels: e.target.checked }))}
                 />
                 Show in preview
               </label>
@@ -404,13 +601,13 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
                 <input
                   type="checkbox"
                   checked={settings.exportLabels}
-                  onChange={(e) => setSettings(s => ({ ...s, exportLabels: e.target.checked }))}
+                  onChange={(e) => setSettings((s) => ({ ...s, exportLabels: e.target.checked }))}
                 />
                 Export labels
               </label>
               <select
                 value={settings.labelStyle}
-                onChange={(e) => setSettings(s => ({ ...s, labelStyle: e.target.value as any }))}
+                onChange={(e) => setSettings((s) => ({ ...s, labelStyle: e.target.value as any }))}
                 className="w-full rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
               >
                 <option value="index">Index (#1, #2...)</option>
@@ -481,7 +678,7 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
           {layoutResult.sheets.length > 1 && (
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
               <div className="flex gap-1 overflow-x-auto">
-                {layoutResult.sheets.map(sheet => (
+                {layoutResult.sheets.map((sheet) => (
                   <button
                     key={sheet.sheetIndex}
                     onClick={() => setCurrentSheetIndex(sheet.sheetIndex)}
@@ -499,9 +696,9 @@ export function OrnamentLayoutTool({ onResetCallback }: OrnamentLayoutToolProps)
           )}
 
           {/* Preview */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 sticky top-4">
             <div className="mb-2 text-xs text-slate-300">Preview</div>
-            <div className="overflow-auto rounded-lg border border-slate-800 bg-white p-3 max-h-[600px]">
+            <div className="overflow-auto rounded-lg border border-slate-800 bg-white p-3 max-h-[calc(100vh-8rem)]">
               {previewSvg ? (
                 <div dangerouslySetInnerHTML={{ __html: previewSvg }} />
               ) : (

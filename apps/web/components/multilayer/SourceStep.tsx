@@ -19,6 +19,7 @@ export function SourceStep({ project, onUpdateProject, onNext }: SourceStepProps
   const [aiDetail, setAiDetail] = useState<DetailLevel>('medium');
   const [aiBackground, setAiBackground] = useState<BackgroundType>('transparent');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(false);
 
   const handleModeSelect = useCallback((mode: Mode) => {
     const modeDefaults = getModeDefaults(mode);
@@ -115,10 +116,12 @@ export function SourceStep({ project, onUpdateProject, onNext }: SourceStepProps
       };
 
       onUpdateProject({ sourceImage, error: null, isProcessing: false });
+      setHasGeneratedOnce(true);
       setActiveTab('upload');
     } catch (error) {
+      console.warn('[Multilayer AI] generation failed', error);
       onUpdateProject({ 
-        error: error instanceof Error ? error.message : 'AI generation failed',
+        error: 'We couldn’t generate a result this time. Try refining your prompt and generate again.',
         isProcessing: false 
       });
     } finally {
@@ -188,6 +191,13 @@ export function SourceStep({ project, onUpdateProject, onNext }: SourceStepProps
                 <p className="mt-4 text-slate-400">
                   {project.sourceImage.width} × {project.sourceImage.height} px
                 </p>
+
+                {hasGeneratedOnce && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Not perfect? Try refining your prompt and generate again.
+                  </p>
+                )}
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -197,6 +207,20 @@ export function SourceStep({ project, onUpdateProject, onNext }: SourceStepProps
                 >
                   Change image
                 </button>
+
+                {hasGeneratedOnce && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTab('ai');
+                      handleAIGenerate();
+                    }}
+                    disabled={isGenerating || !aiSubject.trim()}
+                    className="mt-3 block mx-auto bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Regenerate
+                  </button>
+                )}
               </div>
             ) : (
               <div>
@@ -277,8 +301,18 @@ export function SourceStep({ project, onUpdateProject, onNext }: SourceStepProps
             disabled={isGenerating || !aiSubject.trim()}
             className="w-full bg-sky-600 hover:bg-sky-700 text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isGenerating ? 'Generating...' : 'Generate Image'}
+            {isGenerating ? 'Generating… this may take a few seconds.' : 'Generate Image'}
           </button>
+
+          {(hasGeneratedOnce || !!project.error) && (
+            <button
+              onClick={handleAIGenerate}
+              disabled={isGenerating || !aiSubject.trim()}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Regenerate
+            </button>
+          )}
 
           <div className="p-4 bg-slate-800/60 rounded-lg border border-slate-700">
             <p className="text-xs text-slate-400">

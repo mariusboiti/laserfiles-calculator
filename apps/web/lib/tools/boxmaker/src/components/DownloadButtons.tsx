@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { GeneratedLayout, ImportedItem } from '../lib/types'
 import { generateBoxDxf } from '../lib/dxfExport'
 import { generateBoxSvg } from '../lib/svgExport'
+import { ExportMiniDisclaimer } from '@/components/legal'
 
 interface DownloadButtonsProps {
   layout: GeneratedLayout | null
@@ -66,6 +67,8 @@ export const DownloadButtons: FC<DownloadButtonsProps> = ({ layout, importedItem
           Download DXF
         </button>
       </div>
+
+      <ExportMiniDisclaimer />
     </div>
   )
 }

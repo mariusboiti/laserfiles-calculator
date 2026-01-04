@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import { downloadTextFile } from '@/lib/studio/export/download';
 import { calculateOffsets } from '../core/math';
 import { generateDemoSvgs } from '../core/generateDemoSvgs';
@@ -18,6 +19,12 @@ interface InlayOffsetToolProps {
 }
 
 export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   const [kerfMm, setKerfMm] = useState<number>(DEFAULTS.kerf);
   const [thicknessMm, setThicknessMm] = useState<number>(DEFAULTS.materialThickness);
   const [extraClearance, setExtraClearance] = useState<number>(DEFAULTS.extraClearance);

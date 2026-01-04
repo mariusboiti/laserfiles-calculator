@@ -4,7 +4,7 @@
  */
 
 // Mode identifiers (implemented modes only)
-export type KeychainModeId = 'simple' | 'emoji-name' | 'sticker-bubble';
+export type KeychainModeId = 'simple' | 'emoji-name';
 
 // Warning types
 export type WarningLevel = 'info' | 'warn' | 'error';
@@ -38,6 +38,25 @@ export interface BuildResult {
     width: number;
     height: number;
     layers: number;
+  };
+}
+
+export type LogoOpMode = 'engrave' | 'cutout';
+export type TraceRenderMode = 'silhouette' | 'outline' | 'engrave';
+
+export interface TraceLogoState {
+  enabled: boolean;
+  source: 'trace';
+  paths: string[];
+  bboxMm: { x: number; y: number; width: number; height: number };
+  opMode: LogoOpMode;
+  traceMode: TraceRenderMode;
+  widthMm?: number;
+  transform: {
+    x: number;
+    y: number;
+    scale: number;
+    rotateDeg: number;
   };
 }
 
@@ -86,6 +105,7 @@ export interface SimpleKeychainState {
   cutStroke: number;
   engraveStyle: 'fill' | 'stroke' | 'fill+stroke';
   engraveStroke: number;
+  logo?: TraceLogoState;
 }
 
 // Ring config for sticker keychains
@@ -118,7 +138,8 @@ export interface EmojiNameState {
   ring: RingConfig;
   
   // Text sizing
-  textHeightMm: number;      // target text cap height in mm (default 12)
+  fontSize: number;          // font size in mm (default 12)
+  letterSpacing: number;     // letter spacing in mm (default 0)
   
   // Render options
   render: RenderMode;
@@ -126,6 +147,9 @@ export interface EmojiNameState {
   showBase: boolean;         // show base outline layer
   showTop: boolean;          // show top union layer
   debugShowUnion: boolean;   // dev toggle: show union as dashed line
+  
+  // Trace logo (optional)
+  logo?: TraceLogoState;
   
   // Legacy fields (for backwards compatibility with old emojiName.ts)
   height?: number;
@@ -180,6 +204,5 @@ export interface KeychainHubState {
   modeStates: {
     simple: SimpleKeychainState;
     'emoji-name': EmojiNameState;
-    'sticker-bubble': StickerBubbleState;
   };
 }

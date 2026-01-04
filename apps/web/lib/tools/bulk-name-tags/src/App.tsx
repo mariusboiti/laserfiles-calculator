@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { TextLayoutConfig, SheetLayoutConfig, NameRecord, CSVMapping, GeneratedSVG, TemplateSizeConfig, UnitSystem } from './types';
+import type { TextLayoutConfig, SheetLayoutConfig, NameRecord, CSVMapping, GeneratedSVG, TemplateSizeConfig, UnitSystem, HoleConfig } from './types';
 import type { ParsedCSVData } from './utils/csvUtils';
 import { mapCSVToNames } from './utils/csvUtils';
 import { calculateSheetCapacity, generateNameTagSvg, parseTemplateBounds, sanitizeSvgForInlinePreview } from './utils/svgUtils';
@@ -23,6 +23,7 @@ function App({ onResetCallback }: AppProps) {
   const [templateSvg, setTemplateSvg] = useState<string | null>(null);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('mm');
   const [templateSize, setTemplateSize] = useState<TemplateSizeConfig | null>(null);
+  const [holeConfig, setHoleConfig] = useState<HoleConfig>({ enabled: false, x: 25, y: 8, radius: 2.5 });
   const [namesInputMode, setNamesInputMode] = useState<'csv' | 'manual'>('csv');
   const [csvData, setCsvData] = useState<ParsedCSVData | null>(null);
   const [csvMapping, setCsvMapping] = useState<CSVMapping>({
@@ -35,6 +36,7 @@ function App({ onResetCallback }: AppProps) {
   const [isPreviewGenerating, setIsPreviewGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | GeneratedSVG[] | null>(null);
   const [previewSvg, setPreviewSvg] = useState<string | null>(null);
+  const [singleTagPreviewSvg, setSingleTagPreviewSvg] = useState<string | null>(null);
 
   const [textConfig, setTextConfig] = useState<TextLayoutConfig>({
     horizontalAlignment: 'center',
@@ -42,6 +44,7 @@ function App({ onResetCallback }: AppProps) {
     verticalPosition: 50,
     maxTextWidth: 80,
     fontFamily: 'sans-serif',
+    embeddedFont: null,
     fontSize: 8,
     letterSpacing: 0,
     textCase: 'as-is',
@@ -77,6 +80,7 @@ function App({ onResetCallback }: AppProps) {
       verticalPosition: 50,
       maxTextWidth: 80,
       fontFamily: 'sans-serif',
+      embeddedFont: null,
       fontSize: 8,
       letterSpacing: 0,
       textCase: 'as-is',
@@ -185,17 +189,27 @@ function App({ onResetCallback }: AppProps) {
 
     if (!templateSvg || names.length === 0) {
       setPreviewSvg(null);
+      setSingleTagPreviewSvg(null);
       return;
     }
 
-    const previewNames = sheetConfig.outputMode === 'separate'
-      ? names.slice(0, 3)
-      : names;
-
-    setIsPreviewGenerating(true);
-    const timeoutId = window.setTimeout(() => {
+    const generatePreviews = async () => {
       try {
-        const result = generateNameTagSvg(templateSvg, previewNames, textConfig, sheetConfig, { templateSize, unitSystem });
+        // Generate single tag preview (first name only)
+        const singleTagConfig = { ...sheetConfig, outputMode: 'separate' as const };
+        const singleResult = await generateNameTagSvg(templateSvg, [names[0]], textConfig, singleTagConfig, { templateSize, unitSystem, holeConfig });
+        if (Array.isArray(singleResult) && singleResult.length > 0) {
+          setSingleTagPreviewSvg(sanitizeSvgForInlinePreview(singleResult[0].svg));
+        } else {
+          setSingleTagPreviewSvg(null);
+        }
+
+        // Generate sheet preview
+        const previewNames = sheetConfig.outputMode === 'separate'
+          ? names.slice(0, 3)
+          : names;
+
+        const result = await generateNameTagSvg(templateSvg, previewNames, textConfig, sheetConfig, { templateSize, unitSystem, holeConfig });
 
         if (sheetConfig.outputMode === 'sheet' && typeof result === 'string') {
           setPreviewSvg(sanitizeSvgForInlinePreview(result));
@@ -204,34 +218,29 @@ function App({ onResetCallback }: AppProps) {
         } else {
           setPreviewSvg(null);
         }
-      } catch {
+      } catch (error) {
+        console.error('Preview generation error:', error);
         setPreviewSvg(null);
-      } finally {
-        setIsPreviewGenerating(false);
       }
-    }, 150);
-
-    return () => {
-      window.clearTimeout(timeoutId);
     };
-  }, [templateSvg, names, textConfig, sheetConfig, templateSize, unitSystem]);
 
-  const handleGenerate = () => {
+    generatePreviews();
+  }, [templateSvg, names, textConfig, sheetConfig, templateSize, unitSystem, holeConfig]);
+
+  const handleGenerate = async () => {
     if (!templateSvg || names.length === 0) return;
 
     setIsGenerating(true);
 
-    setTimeout(() => {
-      try {
-        const result = generateNameTagSvg(templateSvg, names, textConfig, sheetConfig, { templateSize, unitSystem });
-        setGeneratedContent(result);
-      } catch (error) {
-        console.error('Generation error:', error);
-        alert(`Error generating tags: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      } finally {
-        setIsGenerating(false);
-      }
-    }, 100);
+    try {
+      const result = await generateNameTagSvg(templateSvg, names, textConfig, sheetConfig, { templateSize, unitSystem, holeConfig });
+      setGeneratedContent(result);
+    } catch (error) {
+      console.error('Generation error:', error);
+      alert(`Error generating tags: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const sheetStats = useMemo(() => {
@@ -281,7 +290,7 @@ function App({ onResetCallback }: AppProps) {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
           <div className="space-y-6">
             <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
               <h2 className="text-lg font-semibold text-slate-100 mb-2">Units</h2>
@@ -305,6 +314,8 @@ function App({ onResetCallback }: AppProps) {
               unitSystem={unitSystem}
               templateSize={templateSize}
               onTemplateSizeChange={setTemplateSize}
+              holeConfig={holeConfig}
+              onHoleConfigChange={setHoleConfig}
             />
 
             <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
@@ -379,7 +390,10 @@ function App({ onResetCallback }: AppProps) {
             <div className="flex-1 min-h-0">
               <Preview 
                 svgContent={previewSvg}
-                isGenerating={isGenerating || isPreviewGenerating}
+                isGenerating={isGenerating}
+                singleTagSvg={singleTagPreviewSvg}
+                sheetWidth={sheetConfig.sheetWidth}
+                sheetHeight={sheetConfig.sheetHeight}
               />
             </div>
 

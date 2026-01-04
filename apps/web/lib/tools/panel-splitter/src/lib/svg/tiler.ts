@@ -92,65 +92,78 @@ async function processSingleTile(
   let hasContent = false;
   let hasUnsafeFallback = false;
 
-  if (exportMode === 'laser-safe') {
-    // Use clipMask approach - more reliable than geometric intersection
-    const clipRect = new paper.Path.Rectangle(tileRectInSvg);
-    clipRect.clipMask = true;
-
-    // Filter out background rectangles that cover the entire SVG
-    const allPaths = getAllPaths(importedItem);
-    const svgWidth = svgInfo.viewBox?.width ?? svgInfo.width ?? 1;
-    const svgHeight = svgInfo.viewBox?.height ?? svgInfo.height ?? 1;
+  // Create clip rectangle for boolean intersection
+  const clipRect = new paper.Path.Rectangle(tileRectInSvg);
+  clipRect.fillColor = new paper.Color('white');
+  
+  // Get all paths
+  const allPaths = getAllPaths(importedItem);
+  const svgWidth = svgInfo.viewBox?.width ?? svgInfo.width ?? 1;
+  const svgHeight = svgInfo.viewBox?.height ?? svgInfo.height ?? 1;
+  
+  // Remove original - we'll add clipped versions
+  importedItem.remove();
+  
+  for (const path of allPaths) {
+    const pathBounds = path.bounds;
     
-    for (const path of allPaths) {
-      const pathBounds = path.bounds;
+    // Filter out background rectangles
+    if (exportMode === 'laser-safe') {
       const coverageX = pathBounds.width / svgWidth;
       const coverageY = pathBounds.height / svgHeight;
       const isSimplePath = path instanceof paper.Path && (path as paper.Path).segments.length <= 5;
       if (coverageX > 0.95 && coverageY > 0.95 && isSimplePath) {
-        console.log('Removing background rect:', pathBounds.width, 'x', pathBounds.height);
-        path.remove();
-      } else if (path.bounds.intersects(tileRectInSvg)) {
-        hasContent = true;
+        continue;
       }
     }
-
-    const clipGroup = new paper.Group([clipRect, importedItem]);
-    clipGroup.addTo(paper.project.activeLayer);
     
-    // Translate to position content at margin offset
-    clipGroup.translate(new paper.Point(
-      -tileRectInSvg.x + margin / designScaleX,
-      -tileRectInSvg.y + margin / designScaleY
-    ));
-
-    console.log('Clip group bounds:', clipGroup.bounds.x, clipGroup.bounds.y, clipGroup.bounds.width, clipGroup.bounds.height);
-
-    if (simplifyTolerance > 0) {
-      simplifyPaths(clipGroup, simplifyTolerance / designScaleX);
+    // Skip if outside tile
+    if (!pathBounds.intersects(tileRectInSvg)) {
+      continue;
     }
-
-    if (guidesEnabled) {
-      addGuides(gridInfo, settings, designScaleX, designScaleY);
-    }
-
-  } else {
-    const clipRect = new paper.Path.Rectangle(tileRectInSvg);
-    clipRect.clipMask = true;
-
-    const clipGroup = new paper.Group([clipRect, importedItem]);
-    clipGroup.addTo(paper.project.activeLayer);
     
-    clipGroup.translate(new paper.Point(
-      -tileRectInSvg.x + margin / designScaleX,
-      -tileRectInSvg.y + margin / designScaleY
-    ));
-
     hasContent = true;
-
-    if (guidesEnabled) {
-      addGuides(gridInfo, settings, designScaleX, designScaleY);
+    
+    // Fully inside - just clone and translate
+    if (tileRectInSvg.contains(pathBounds)) {
+      const clonedPath = path.clone() as paper.PathItem;
+      clonedPath.translate(new paper.Point(
+        -tileRectInSvg.x + margin / designScaleX,
+        -tileRectInSvg.y + margin / designScaleY
+      ));
+      clonedPath.addTo(paper.project.activeLayer);
+      continue;
     }
+    
+    // Crosses boundary - use boolean intersection
+    try {
+      const intersected = path.intersect(clipRect, { insert: false });
+      if (intersected && !isEmptyPath(intersected)) {
+        copyStyles(path, intersected);
+        intersected.translate(new paper.Point(
+          -tileRectInSvg.x + margin / designScaleX,
+          -tileRectInSvg.y + margin / designScaleY
+        ));
+        intersected.addTo(paper.project.activeLayer);
+      }
+    } catch {
+      // If intersection fails, skip this path
+    }
+  }
+  
+  clipRect.remove();
+
+  if (simplifyTolerance > 0) {
+    const activePaths = getAllPaths(paper.project.activeLayer);
+    for (const p of activePaths) {
+      if (p instanceof paper.Path) {
+        p.simplify(simplifyTolerance / designScaleX);
+      }
+    }
+  }
+
+  if (guidesEnabled) {
+    addGuides(gridInfo, settings, designScaleX, designScaleY);
   }
 
   tile.isEmpty = !hasContent;

@@ -2,14 +2,23 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { Sparkles, BookOpen } from 'lucide-react';
 import { studioTools } from '@/lib/studio/tools/registry';
 import { usePlan } from '@/lib/studio/access/usePlan';
+import { hasTutorial } from '@/content/tutorials';
 
 const TOOL_CATEGORIES = {
-  'Boxes & Structures': ['boxmaker', 'box-maker'],
-  'Layout & Production': ['panel-splitter', 'ornament-layout-planner', 'jig-fixture-generator', 'bulk-name-tags'],
-  'Personalization': ['personalised-sign-generator', 'keychain-generator', 'round-coaster-generator', 'product-label-generator', 'bulk-name-tag'],
-  'Utilities': ['engraveprep', 'inlay-offset-calculator', 'curved-photo-frame-v3', 'ai-depth-photo'],
+  'Design & Personalization': [
+    'personalised-sign-generator',
+    'keychain-generator',
+    'round-coaster-generator',
+    'product-label-generator',
+    'bulk-name-tags',
+  ],
+  'Boxes & Frames': ['boxmaker', 'curved-photo-frame-v3'],
+  'Layout & Production': ['panel-splitter', 'ornament-layout-planner', 'jig-fixture-generator'],
+  'Image Processing': ['engraveprep', 'ai-depth-photo', 'multilayer-maker'],
+  'Utilities': ['price-calculator', 'inlay-offset-calculator'],
   'Games & Puzzles': ['jigsaw-maker'],
 } as const;
 
@@ -44,10 +53,10 @@ export function ToolsHub() {
       {/* Hero Section */}
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight text-slate-100 sm:text-4xl">
-          All-in-one Laser Cutting Studio
+          LaserFilesPro Studio
         </h1>
         <p className="mt-3 text-lg text-slate-400">
-          Professional tools for laser cutting design, preparation, and production
+          {studioTools.length} professional tools for laser cutting design and production
         </p>
       </div>
 
@@ -103,26 +112,44 @@ export function ToolsHub() {
 }
 
 function ToolCard({ tool, plan }: { tool: typeof studioTools[0]; plan: string }) {
+  const tutorialAvailable = hasTutorial(tool.slug);
+
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 transition-colors hover:border-slate-700">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-lg font-semibold text-slate-100">{tool.title}</div>
-          <div className="mt-1 text-sm text-slate-400">{tool.description}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-100">{tool.title}</h3>
+            {tool.usesAI && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-900/40 px-2 py-0.5 text-[10px] font-medium text-violet-300">
+                <Sparkles className="h-3 w-3" />
+                AI
+              </span>
+            )}
+          </div>
+          <p className="mt-1.5 text-sm text-slate-400 leading-relaxed">{tool.description}</p>
+          {tool.usesAI && (
+            <p className="mt-2 text-xs text-slate-500">1 credit per generation</p>
+          )}
         </div>
-
-        <span className="shrink-0 rounded-full bg-slate-700/50 px-2 py-0.5 text-xs font-medium text-slate-200">
-          FREE
-        </span>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-5 flex items-center gap-2">
         <Link
           href={`/studio/tools/${tool.slug}`}
           className="inline-flex items-center justify-center rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-600"
         >
-          Open tool →
+          Open tool
         </Link>
+        {tutorialAvailable && (
+          <Link
+            href={`/studio/tools/${tool.slug}?tutorial=open`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800"
+          >
+            <BookOpen className="h-4 w-4" />
+            Tutorial
+          </Link>
+        )}
       </div>
     </div>
   );

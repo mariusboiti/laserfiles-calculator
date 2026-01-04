@@ -14,6 +14,23 @@ export type TraceImageToSvgResult = {
   pathCount: number;
 };
 
+export type TraceImageToPotraceOptions = {
+  targetWidthMm: number;
+  targetHeightMm: number;
+  threshold?: number; // 80..220
+  denoise?: number; // 0..3
+  autoInvert?: boolean;
+  invert?: boolean;
+  optTolerance?: number; // 0..1
+};
+
+export type TraceImageToPotraceResult = {
+  svg: string;
+  debug: string[];
+  combinedPath: string;
+  pathCount: number;
+};
+
 type ImageTracerModule = {
   imagedataToSVG: (imgd: ImageData, options?: any) => string;
 };
@@ -176,4 +193,84 @@ export async function traceImageToSvg(dataUrl: string, options: TraceImageToSvgO
     canvasHeight: canvas.height,
     pathCount 
   };
+}
+
+function round(n: number) {
+  return Math.round(n * 1000) / 1000;
+}
+
+export async function traceImageToLaserSvgViaPotrace(
+  dataUrl: string,
+  options: TraceImageToPotraceOptions
+): Promise<TraceImageToPotraceResult> {
+  const debug: string[] = [];
+  if (!dataUrl) throw new Error('Missing image dataUrl');
+
+  const targetWidthMm = Number(options.targetWidthMm);
+  const targetHeightMm = Number(options.targetHeightMm);
+
+  if (!Number.isFinite(targetWidthMm) || !Number.isFinite(targetHeightMm) || targetWidthMm <= 0 || targetHeightMm <= 0) {
+    throw new Error('Invalid target size');
+  }
+
+  const payload = {
+    dataUrl,
+    mode: 'CUT_SILHOUETTE' as const,
+    targetWidthMm,
+    targetHeightMm,
+    threshold: options.threshold,
+    denoise: options.denoise,
+    autoInvert: options.autoInvert,
+    invert: options.invert,
+    optTolerance: options.optTolerance,
+  };
+
+  const res = await fetch('/api/trace/potrace', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const json: any = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error((typeof json?.error === 'string' && json.error) || 'Potrace trace failed');
+  }
+
+  if (!json?.ok) {
+    throw new Error((typeof json?.error === 'string' && json.error) || 'Potrace trace failed');
+  }
+
+  const combinedPath = typeof json?.combinedPath === 'string' ? json.combinedPath : '';
+  const paths = Array.isArray(json?.paths) ? (json.paths as unknown[]).filter((p) => typeof p === 'string') : [];
+  const stats = json?.stats;
+
+  if (typeof stats?.commands === 'number') debug.push(`commands:${stats.commands}`);
+  if (typeof stats?.pathsIn === 'number' && typeof stats?.pathsOut === 'number') {
+    debug.push(`paths:${stats.pathsIn}->${stats.pathsOut}`);
+  }
+  if (typeof stats?.ms === 'number') debug.push(`ms:${stats.ms}`);
+  if (typeof stats?.speckleRatio === 'number') debug.push(`speckleRatio:${stats.speckleRatio.toFixed(3)}`);
+
+  const pathCount = paths.length;
+  if (!combinedPath || pathCount === 0) {
+    throw new Error('Potrace produced empty result');
+  }
+
+  const halfW = round(targetWidthMm / 2);
+  const halfH = round(targetHeightMm / 2);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${round(targetWidthMm)}mm" height="${round(
+    targetHeightMm
+  )}mm" viewBox="0 0 ${round(targetWidthMm)} ${round(targetHeightMm)}" fill="none" stroke="black" stroke-width="0.8" vector-effect="non-scaling-stroke">
+  <g transform="translate(${halfW}, ${halfH})">
+    ${paths
+      .map(
+        (d: string) =>
+          `<path d="${d}" fill="none" stroke="black" stroke-width="0.8" vector-effect="non-scaling-stroke" />`
+      )
+      .join('\n    ')}
+  </g>
+</svg>`;
+
+  return { svg, debug, combinedPath, pathCount };
 }

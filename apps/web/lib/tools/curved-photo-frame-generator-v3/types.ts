@@ -95,9 +95,14 @@ export const WOOD_STYLE_PRESETS: WoodStyleConfig[] = [
 ];
 
 export interface AISettings {
-  removeBackground: boolean;
-  enhanceEdges: boolean;
   autoCrop: boolean;
+  // Photo position/size adjustments (relative to photo area)
+  photoOffsetXMm: number;
+  photoOffsetYMm: number;
+  photoScale: number; // 1.0 = 100%
+  photoCornerRadiusMm: number;
+  cropFocusX: number; // 0..1
+  cropFocusY: number; // 0..1
 }
 
 export interface EngraveSettings {
@@ -126,7 +131,6 @@ export interface FrameSettings {
   standWidthMm: number;
   standDepthMm: number;
   viewingAngleDeg: number;
-  addStopNotch: boolean;
 
   kerfSegmentLengthMm: number;
   kerfGapLengthMm: number;
@@ -160,9 +164,13 @@ export interface FeatureFlags {
 }
 
 export const DEFAULT_AI_SETTINGS: AISettings = {
-  removeBackground: true,
-  enhanceEdges: true,
   autoCrop: false,
+  photoOffsetXMm: 0,
+  photoOffsetYMm: 0,
+  photoScale: 1.0,
+  photoCornerRadiusMm: 0,
+  cropFocusX: 0.5,
+  cropFocusY: 0,
 };
 
 export const DEFAULT_ENGRAVE_SETTINGS: EngraveSettings = {
@@ -191,7 +199,6 @@ export const DEFAULT_FRAME_SETTINGS: FrameSettings = {
   standWidthMm: 160,
   standDepthMm: 60,
   viewingAngleDeg: 75,
-  addStopNotch: true,
 
   kerfSegmentLengthMm: 8,
   kerfGapLengthMm: 3,

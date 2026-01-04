@@ -12,8 +12,6 @@ const boxTypeOptions = [
   { value: BoxType.simple, label: 'Simple Box' },
   { value: BoxType.hinged, label: 'Hinged Box' },
   { value: BoxType.slidingDrawer, label: 'Sliding Drawer Box' },
-  { value: BoxType.hingedLidPin, label: 'Hinged Lid (Pin Hinge)' },
-  { value: BoxType.hingedSidePin, label: 'Hinged Lid (Side Pin)' },
 ];
 
 interface BoxMakerAppProps {
@@ -44,8 +42,6 @@ export default function BoxMakerApp({ onResetCallback }: BoxMakerAppProps) {
           <option value="simple-box">Simple Box</option>
           <option value="hinged-box">Hinged Box</option>
           <option value="sliding-drawer">Sliding Drawer Box</option>
-          <option value="hinged-lid-pin">Hinged Lid (Pin Hinge)</option>
-          <option value="hinged-side-pin">Hinged Lid (Side Pin)</option>
         </select>
       </label>
 
@@ -91,18 +87,6 @@ export default function BoxMakerApp({ onResetCallback }: BoxMakerAppProps) {
         />
       ) : boxType === BoxType.hinged ? (
         <HingedBoxUI 
-          boxTypeSelector={boxTypeSelector}
-          unitSystem={unitSystem}
-          onResetCallback={(fn) => { resetFnRef.current = fn; }}
-        />
-      ) : boxType === BoxType.hingedLidPin ? (
-        <HingedLidPinUI 
-          boxTypeSelector={boxTypeSelector}
-          unitSystem={unitSystem}
-          onResetCallback={(fn) => { resetFnRef.current = fn; }}
-        />
-      ) : boxType === BoxType.hingedSidePin ? (
-        <HingedSidePinUI 
           boxTypeSelector={boxTypeSelector}
           unitSystem={unitSystem}
           onResetCallback={(fn) => { resetFnRef.current = fn; }}

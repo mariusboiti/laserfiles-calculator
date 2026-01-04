@@ -32,14 +32,17 @@ export function AIDepthPhotoTool() {
   const [depthMap, setDepthMap] = useState<string | null>(null);
   const [invertDepth, setInvertDepth] = useState(false);
   const [seed, setSeed] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(false);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      alert('Please enter a prompt');
+      setError('Please enter a prompt to generate.');
       return;
     }
 
     setIsGenerating(true);
+    setError(null);
     setFinalImage(null);
     setDepthMap(null);
     setSeed(null);
@@ -87,13 +90,14 @@ export function AIDepthPhotoTool() {
       const data = await response.json();
       setFinalImage(data.imagePngBase64);
       setSeed(data.seed);
+      setHasGeneratedOnce(true);
       setActiveTab('final');
 
       // Auto-generate depth map
       generateDepthMap(data.imagePngBase64);
     } catch (error) {
-      console.error('Generation error:', error);
-      alert(error instanceof Error ? error.message : 'Failed to generate image');
+      console.warn('[AI Generate] generation failed', error);
+      setError('We couldn’t generate a result this time. Try refining your prompt and generate again.');
     } finally {
       setIsGenerating(false);
     }
@@ -365,13 +369,27 @@ export function AIDepthPhotoTool() {
         )}
 
         {/* Generate Button */}
+        {error && (
+          <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-300">{error}</div>
+        )}
+
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !prompt.trim()}
           className="w-full rounded-lg bg-sky-500 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isGenerating ? 'Generating...' : 'Generate Image'}
+          {isGenerating ? 'Generating… this may take a few seconds.' : 'Generate Image'}
         </button>
+
+        {(hasGeneratedOnce || !!error) && (
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || !prompt.trim()}
+            className="w-full rounded-lg bg-slate-700 px-4 py-3 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Regenerate
+          </button>
+        )}
 
         {seed && (
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-400">
@@ -429,6 +447,8 @@ export function AIDepthPhotoTool() {
               >
                 Download Final PNG
               </button>
+
+              <div className="text-xs text-slate-400">Not perfect? Try refining your prompt and generate again.</div>
             </div>
           )}
 
@@ -457,6 +477,8 @@ export function AIDepthPhotoTool() {
               >
                 Download Depth Map PNG
               </button>
+
+              <div className="text-xs text-slate-400">Not perfect? Try refining your prompt and generate again.</div>
             </div>
           )}
 
@@ -469,14 +491,14 @@ export function AIDepthPhotoTool() {
           {isGenerating && (
             <div className="text-center text-slate-400">
               <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
-              <p>Generating your depth image...</p>
+              <p>Generating… this may take a few seconds.</p>
             </div>
           )}
 
           {isGeneratingDepth && activeTab === 'depth' && (
             <div className="text-center text-slate-400">
               <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
-              <p>Generating depth map...</p>
+              <p>Generating… this may take a few seconds.</p>
             </div>
           )}
         </div>

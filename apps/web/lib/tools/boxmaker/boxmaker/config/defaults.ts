@@ -34,6 +34,10 @@ export const DEFAULTS = {
     drawerBottomOffsetMm: 0,
     frontFaceStyle: 'lip' as const,
     autoFitFingers: true,
+    dividersEnabled: false,
+    dividerCountX: 2,
+    dividerCountZ: 2,
+    dividerClearanceMm: 0.2,
   },
 };
 

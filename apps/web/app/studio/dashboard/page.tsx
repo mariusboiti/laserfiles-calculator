@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../../lib/api-client';
 import Link from 'next/link';
+import { BillingCard } from '@/components/studio/BillingCard';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
@@ -36,6 +37,9 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="mt-2 text-lg text-slate-400">
           Welcome back, {user?.name || user?.email}
+        </p>
+        <p className="mt-2 text-sm text-slate-400">
+          More tools are coming soon, including: Multilayer Maker, Photo to Stained Glass, Bookmarks Maker, and more.
         </p>
       </div>
 
@@ -86,15 +90,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* AI Credits & Billing */}
+      <BillingCard />
+
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="mb-2 text-sm font-medium text-slate-400">Current Plan</div>
-          <div className="text-2xl font-bold text-sky-400">
-            {user?.plan || 'FREE'}
-          </div>
-        </div>
-
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="mb-2 text-sm font-medium text-slate-400">Account</div>
           <div className="text-sm text-slate-300">{user?.email}</div>
@@ -107,7 +107,17 @@ export default function DashboardPage() {
         >
           <div className="mb-2 text-sm font-medium text-slate-400">All Tools</div>
           <div className="text-lg font-semibold text-sky-400 group-hover:text-sky-300">
-            11 Tools Available →
+            15 Tools Available →
+          </div>
+        </Link>
+
+        <Link
+          href="/studio/account"
+          className="group rounded-xl border border-slate-800 bg-slate-900/60 p-6 transition-all hover:border-sky-500/50 hover:bg-slate-900"
+        >
+          <div className="mb-2 text-sm font-medium text-slate-400">Account Settings</div>
+          <div className="text-lg font-semibold text-sky-400 group-hover:text-sky-300">
+            Manage Account →
           </div>
         </Link>
       </div>

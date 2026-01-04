@@ -638,6 +638,10 @@ function generateLidFaces(settings: BoxSettings, dims: BoxDimensions): Generated
 
   if (settings.lidType === 'flat_lid' || settings.lidType === 'flat_lid_with_lip') {
     faces.push(createRectFace('lid', dims.outerWidth, dims.outerDepth, 'lid'))
+
+    const innerPlateW = Math.max(dims.innerWidth - 2 * t, 0.1)
+    const innerPlateD = Math.max(dims.innerDepth - 2 * t, 0.1)
+    faces.push(createRectFace('lid_inner', innerPlateW, innerPlateD, 'lid-inner'))
   } else if (settings.lidType === 'sliding_lid') {
     faces.push(createRectFace('lid', dims.innerWidth, dims.innerDepth, 'lid'))
   }
@@ -682,7 +686,7 @@ function generateDividerFaces(settings: BoxSettings, dims: BoxDimensions): Gener
   const clearance = Math.max(settings.dividerClearance, 0)
   const slotWidth = Math.max(t + clearance, 0.1)
 
-  const dividerHeight = Math.max(dims.innerHeight, 0.1)
+  const dividerHeight = Math.max(settings.lidType === 'none' ? dims.innerHeight : dims.innerHeight - 2 * t, 0.1)
   const slotDepth = Math.max(dividerHeight / 2, 0.1)
 
   const faces: GeneratedFace[] = []

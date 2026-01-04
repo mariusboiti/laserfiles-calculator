@@ -40,12 +40,22 @@ export interface SheetLayoutConfig {
   rotation: 0 | 90;
   margin: number;
   fillToCapacity?: boolean;
+  manualGridEnabled?: boolean;
+  manualColumns?: number;
+  manualRows?: number;
 }
 
 export interface TemplateSizeConfig {
   width: number;
   height: number;
   lockAspect: boolean;
+}
+
+export interface HoleConfig {
+  enabled: boolean;
+  x: number;
+  y: number;
+  radius: number;
 }
 
 export interface TemplateBounds {

@@ -11,11 +11,26 @@ import { validateSimpleBoxInputs, calculateRecommendedFingerWidth } from '../../
 import { generateSimpleBoxGeometry } from '../../core/simple/generateSimpleBox';
 import { importSvgAsFace } from '../../../src/lib/svgImport';
 import { mergeSvgWithOverlays, type EngraveOverlayItem } from '../../core/shared/mergeSvgWithOverlays';
+import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
+import { AIWarningBanner } from '@/components/ai';
 
 function clampNumber(n: number, min: number, max: number) {
   if (Number.isNaN(n)) return min;
   return Math.max(min, Math.min(max, n));
 }
+
+type FaceArtworkPlacement = {
+  x: number;
+  y: number;
+  scale: number;
+  rotationDeg: number;
+};
+
+type FaceArtworkConfig = {
+  prompt: string;
+  imageDataUrl: string;
+  placement: FaceArtworkPlacement;
+};
 
 function parseLengthNum(value: string | null): number | null {
   if (!value) return null;
@@ -109,10 +124,31 @@ export function SimpleBoxUI({
   const [fingerWidthMm, setFingerWidthMm] = useState(DEFAULTS.simple.fingerWidthMm);
   const [hasLid, setHasLid] = useState(DEFAULTS.simple.hasLid);
 
+  // Divider state
+  const [dividersEnabled, setDividersEnabled] = useState(false);
+  const [dividerCountX, setDividerCountX] = useState(1);
+  const [dividerCountZ, setDividerCountZ] = useState(1);
+
   const [engraveOp, setEngraveOp] = useState<PathOperation>('engrave');
   const [engraveTarget, setEngraveTarget] = useState<string>('front');
   const [engraveItems, setEngraveItems] = useState<EngraveOverlayItem[]>([]);
   const [selectedEngraveId, setSelectedEngraveId] = useState<string | null>(null);
+
+  const [engraveText, setEngraveText] = useState('');
+  const [engraveTextFontId, setEngraveTextFontId] = useState<FontId>(() => (SHARED_FONTS[0]?.id ?? 'Milkshake'));
+  const [engraveTextSizeMm, setEngraveTextSizeMm] = useState(10);
+  const [engraveTextLetterSpacingMm, setEngraveTextLetterSpacingMm] = useState(0);
+  const [engraveTextCurved, setEngraveTextCurved] = useState(false);
+  const [engraveTextCurveRadius, setEngraveTextCurveRadius] = useState(30);
+  const [textPreviewSvg, setTextPreviewSvg] = useState<string | null>(null);
+
+  const [faceArtworkTargets, setFaceArtworkTargets] = useState<string[]>(['front']);
+  const [faceArtworkPrompt, setFaceArtworkPrompt] = useState<string>('');
+  const [faceArtworkModel, setFaceArtworkModel] = useState<'silhouette' | 'sketch' | 'geometric'>('silhouette');
+  const [faceArtworkByFace, setFaceArtworkByFace] = useState<Record<string, FaceArtworkConfig | undefined>>({});
+  const [selectedArtworkFace, setSelectedArtworkFace] = useState<string>('front');
+  const [isArtworkGenerating, setIsArtworkGenerating] = useState(false);
+  const [artworkError, setArtworkError] = useState<string | null>(null);
 
   const [previewMode, setPreviewMode] = useState<'2d' | 'faces' | '3d'>('2d');
 
@@ -125,7 +161,6 @@ export function SimpleBoxUI({
       kerfMm: clampNumber(kerfMm, 0, 1),
       fingerWidthMm: clampNumber(fingerWidthMm, 2, 200),
     };
-
     const validation = validateSimpleBoxInputs(input);
 
     const rawSettings: BoxSettings = {
@@ -151,9 +186,9 @@ export function SimpleBoxUI({
       lipInset: 2,
       lipHeight: 8,
 
-      dividersEnabled: false,
-      dividerCountX: 1,
-      dividerCountZ: 1,
+      dividersEnabled,
+      dividerCountX,
+      dividerCountZ,
       dividerClearance: 0.2,
 
       arrangeOnSheet: false,
@@ -167,7 +202,75 @@ export function SimpleBoxUI({
     const out = generateSimpleBoxGeometry(settings);
 
     return { input, settings, faces: out.faces, validation };
-  }, [depthMm, fingerWidthMm, hasLid, heightMm, kerfMm, thicknessMm, widthMm]);
+  }, [depthMm, fingerWidthMm, hasLid, heightMm, kerfMm, thicknessMm, widthMm, dividersEnabled, dividerCountX, dividerCountZ]);
+
+  // Real-time text preview - always use fixed 30mm size for preview display
+  useEffect(() => {
+    const previewText = engraveText.trim() || 'Preview';
+    const previewSize = 30; // Fixed preview size for better visibility
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const font = await loadFont(engraveTextFontId);
+        const res = textToPathD(font, previewText, previewSize, Math.max(0, engraveTextLetterSpacingMm));
+        if (cancelled || !res?.pathD) return;
+
+        const pathD = res.pathD;
+        const bounds = res.bbox || { x: 0, y: 0, width: 100, height: 30 };
+        const pad = 4;
+
+        // Center the text in the viewBox
+        const viewBox = `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2}`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">
+          <path d="${pathD}" fill="#fff" stroke="none" />
+        </svg>`;
+        setTextPreviewSvg(svg);
+      } catch {
+        setTextPreviewSvg(null);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [engraveText, engraveTextFontId, engraveTextLetterSpacingMm]);
+
+  const handleAddEngraveText = async () => {
+    const text = engraveText.trim();
+    if (!text) return;
+
+    const targetFace = faces.find((x) => x.name === (engraveTarget as any)) ?? faces[0];
+    const targetW = Math.max(targetFace?.width ?? 1, 1);
+    const targetH = Math.max(targetFace?.height ?? 1, 1);
+
+    const font = await loadFont(engraveTextFontId);
+    const res = textToPathD(font, text, Math.max(0.1, engraveTextSizeMm), Math.max(0, engraveTextLetterSpacingMm));
+    if (!res?.pathD) return;
+
+    // For laser cutting, we always use the path-based text (curved text requires path bending which is complex)
+    // The curved option will be implemented in a future update
+    const svgText = `<svg xmlns="http://www.w3.org/2000/svg"><path d="${res.pathD}" /></svg>`;
+
+    const face = importSvgAsFace({
+      svgText,
+      id: `text-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      op: engraveOp,
+      label: `text-${text}`,
+    });
+    if (!face) return;
+
+    const id = `${engraveTarget}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setEngraveItems((prev) => [
+      ...prev,
+      {
+        id,
+        fileName: `text-${text}.svg`,
+        op: engraveOp,
+        face,
+        placement: { x: targetW / 2, y: targetH / 2, rotation: 0, scale: 1 },
+      },
+    ]);
+    setSelectedEngraveId(id);
+  };
 
   const faceSvgs = useMemo(() => {
     const map = new Map<string, string>();
@@ -180,11 +283,17 @@ export function SimpleBoxUI({
   }, [engraveItems, faces]);
 
   const faceKeys = useMemo(() => {
-    const order = ['front', 'back', 'left', 'right', 'bottom', 'top', 'lid'];
+    const order = ['front', 'back', 'left', 'right', 'bottom', 'top', 'lid', 'lid_inner'];
     const keys = faces.map((f) => f.name);
     const uniq = Array.from(new Set(keys));
     uniq.sort((a, b) => order.indexOf(a) - order.indexOf(b));
     return uniq;
+  }, [faces]);
+
+  const faceByName = useMemo(() => {
+    const m = new Map<string, GeneratedFace>();
+    faces.forEach((f) => m.set(String(f.name), f));
+    return m;
   }, [faces]);
 
   useEffect(() => {
@@ -226,6 +335,194 @@ export function SimpleBoxUI({
   }, [engraveItems, faces]);
 
   const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    if (!faceKeys.length) return;
+    if (faceKeys.includes(selectedArtworkFace)) return;
+    setSelectedArtworkFace(faceKeys[0]);
+  }, [faceKeys, selectedArtworkFace]);
+
+  const selectedArtwork = selectedArtworkFace ? faceArtworkByFace[selectedArtworkFace] ?? null : null;
+
+  const setSelectedArtworkPlacement = (patch: Partial<FaceArtworkPlacement>) => {
+    if (!selectedArtworkFace) return;
+    setFaceArtworkByFace((prev) => {
+      const cur = prev[selectedArtworkFace];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [selectedArtworkFace]: {
+          ...cur,
+          placement: {
+            ...cur.placement,
+            ...patch,
+          },
+        },
+      };
+    });
+  };
+
+  const toggleArtworkTarget = (face: string) => {
+    setFaceArtworkTargets((prev) => {
+      const has = prev.includes(face);
+      const next = has ? prev.filter((x) => x !== face) : [...prev, face];
+      return next.length ? next : prev;
+    });
+  };
+
+  const handleGenerateArtwork = async () => {
+    const prompt = faceArtworkPrompt.trim();
+    if (!prompt) {
+      setArtworkError('Please enter a prompt');
+      return;
+    }
+
+    const faceKeysArr = faceKeys;
+    const targets = faceArtworkTargets.filter((t) => faceKeysArr.includes(t));
+    if (targets.length === 0) {
+      setArtworkError('Select at least one face');
+      return;
+    }
+
+    setIsArtworkGenerating(true);
+    setArtworkError(null);
+
+    try {
+      // Enhance prompt based on selected model - always request white background
+      let enhancedPrompt = prompt;
+      if (faceArtworkModel === 'sketch') {
+        enhancedPrompt = `pencil sketch drawing style, hand-drawn, artistic sketch on white background: ${prompt}, white background`;
+      } else if (faceArtworkModel === 'geometric') {
+        enhancedPrompt = `geometric pattern, repeating geometric shapes, symmetrical design on white background: ${prompt}, white background`;
+      } else {
+        enhancedPrompt = `${prompt}, white background`;
+      }
+
+      const res = await fetch('/api/ai/silhouette', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: enhancedPrompt }),
+      });
+
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errJson: any = await res.json().catch(() => ({}));
+          throw new Error(errJson?.error || 'AI generation failed');
+        }
+        const text = await res.text().catch(() => '');
+        throw new Error(text || 'AI generation failed');
+      }
+
+      const json: any = await res.json().catch(() => ({}));
+      const dataUrl = typeof json?.dataUrl === 'string' ? json.dataUrl : '';
+      if (!dataUrl) {
+        throw new Error('AI image endpoint returned no dataUrl');
+      }
+
+      setFaceArtworkByFace((prev) => {
+        const next = { ...prev };
+        for (const faceName of targets) {
+          const face = faceByName.get(faceName);
+          const w = Math.max(face?.width ?? 1, 1);
+          const h = Math.max(face?.height ?? 1, 1);
+          const existing = next[faceName];
+          next[faceName] = {
+            prompt,
+            imageDataUrl: dataUrl,
+            placement: existing?.placement ?? { x: w / 2, y: h / 2, scale: 0.5, rotationDeg: 0 },
+          };
+        }
+        return next;
+      });
+
+      if (!targets.includes(selectedArtworkFace)) {
+        setSelectedArtworkFace(targets[0]);
+      }
+    } catch (e) {
+      setArtworkError(e instanceof Error ? e.message : 'AI generation failed');
+    } finally {
+      setIsArtworkGenerating(false);
+    }
+  };
+
+  const handleTraceSelectedArtwork = async () => {
+    const faceName = String(selectedArtworkFace || '').trim();
+    const art = faceName ? faceArtworkByFace[faceName] : null;
+    const targetFace = faceName ? faceByName.get(faceName) ?? null : null;
+
+    if (!faceName || !art?.imageDataUrl || !targetFace) {
+      setArtworkError('Select a face with artwork to trace');
+      return;
+    }
+
+    setIsArtworkGenerating(true);
+    setArtworkError(null);
+
+    try {
+      const mode = faceArtworkModel === 'silhouette' ? 'CUT_SILHOUETTE' : 'ENGRAVE_LINEART';
+
+      const res = await fetch('/api/trace/potrace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataUrl: art.imageDataUrl,
+          mode,
+          targetWidthMm: targetFace.width,
+          targetHeightMm: targetFace.height,
+        }),
+      });
+
+      const json: any = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error((typeof json?.error === 'string' && json.error) || 'Trace failed');
+      }
+
+      const paths: string[] = Array.isArray(json?.paths) ? json.paths.filter((p: any) => typeof p === 'string') : [];
+      if (!paths.length) {
+        throw new Error('Trace returned no paths');
+      }
+
+      const svgText = `<svg xmlns="http://www.w3.org/2000/svg">${paths
+        .map((d) => `<path d="${d}" />`)
+        .join('')}</svg>`;
+
+      const op: PathOperation = mode === 'CUT_SILHOUETTE' ? 'cut' : 'score';
+      const face = importSvgAsFace({
+        svgText,
+        id: `trace-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        op,
+        label: `trace-${faceName}`,
+      });
+
+      if (!face) {
+        throw new Error('Trace result could not be imported as SVG');
+      }
+
+      const id = `${faceName}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      setEngraveItems((prev) => [
+        ...prev,
+        {
+          id,
+          fileName: `trace-${faceName}.svg`,
+          op,
+          face,
+          placement: {
+            x: art.placement.x,
+            y: art.placement.y,
+            rotation: ((art.placement.rotationDeg ?? 0) * Math.PI) / 180,
+            scale: Math.max(0.01, art.placement.scale ?? 1),
+          },
+        },
+      ]);
+      setSelectedEngraveId(id);
+      setEngraveTarget(faceName);
+    } catch (e) {
+      setArtworkError(e instanceof Error ? e.message : 'Trace failed');
+    } finally {
+      setIsArtworkGenerating(false);
+    }
+  };
 
   const recommendedFinger = useMemo(
     () => calculateRecommendedFingerWidth(input.widthMm, input.depthMm, input.heightMm),
@@ -285,14 +582,14 @@ export function SimpleBoxUI({
       </header>
 
       <main className="mx-auto flex w-full flex-1 flex-col gap-4 px-4 py-4 md:flex-row">
-        <section className="w-full md:w-80 lg:w-96">
+        <section className="w-full md:w-80 lg:w-96" data-tour="settings">
           <div className="max-h-[calc(100vh-96px)] overflow-y-auto rounded-lg border border-slate-800 bg-slate-900/40 p-3 md:p-4">
             <div className="space-y-4">
               {boxTypeSelector ? (
                 <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">{boxTypeSelector}</div>
               ) : null}
 
-              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3" data-tour="presets">
                 <div className="text-sm font-medium text-slate-100">Box Presets</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {SIMPLE_PRESETS.map((preset) => (
@@ -310,47 +607,52 @@ export function SimpleBoxUI({
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Engrave SVG</div>
-                <div className="mt-3 grid gap-2">
+                <div className="text-sm font-medium text-slate-100">Engrave Overlay</div>
+
+                <div className="mt-3 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="file"
-                      accept="image/svg+xml,.svg"
-                      className="block w-[220px] text-[11px] text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-[11px] file:text-slate-200 hover:file:bg-slate-700"
-                      onChange={async (e) => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        const text = await f.text();
-                        const face = importSvgAsFace({
-                          svgText: text,
-                          id: `import-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                          op: engraveOp,
-                          label: f.name,
-                        });
-                        if (!face) {
-                          e.currentTarget.value = '';
-                          return;
-                        }
-
-                        const targetFace = faces.find((x) => x.name === (engraveTarget as any)) ?? faces[0];
-                        const targetW = Math.max(targetFace?.width ?? 1, 1);
-                        const targetH = Math.max(targetFace?.height ?? 1, 1);
-
-                        const id = `${engraveTarget}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
-                        setEngraveItems((prev) => [
-                          ...prev,
-                          {
-                            id,
-                            fileName: f.name,
+                    <label className="cursor-pointer rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-[11px] text-slate-200 hover:bg-slate-800">
+                      <input
+                        type="file"
+                        accept=".svg,image/svg+xml"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const inputEl = e.currentTarget as HTMLInputElement | null;
+                          const f = inputEl?.files?.[0];
+                          if (!f) return;
+                          const text = await f.text();
+                          const face = importSvgAsFace({
+                            svgText: text,
+                            id: `import-${Date.now()}-${Math.random().toString(16).slice(2)}`,
                             op: engraveOp,
-                            face,
-                            placement: { x: targetW / 2, y: targetH / 2, rotation: 0, scale: 1 },
-                          },
-                        ]);
-                        setSelectedEngraveId(id);
-                        e.currentTarget.value = '';
-                      }}
-                    />
+                            label: f.name,
+                          });
+                          if (!face) {
+                            if (inputEl) inputEl.value = '';
+                            return;
+                          }
+
+                          const targetFace = faces.find((x) => x.name === (engraveTarget as any)) ?? faces[0];
+                          const targetW = Math.max(targetFace?.width ?? 1, 1);
+                          const targetH = Math.max(targetFace?.height ?? 1, 1);
+
+                          const id = `${engraveTarget}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                          setEngraveItems((prev) => [
+                            ...prev,
+                            {
+                              id,
+                              fileName: f.name,
+                              op: engraveOp,
+                              face,
+                              placement: { x: targetW / 2, y: targetH / 2, rotation: 0, scale: 1 },
+                            },
+                          ]);
+                          setSelectedEngraveId(id);
+                          if (inputEl) inputEl.value = '';
+                        }}
+                      />
+                      <span>Import SVG</span>
+                    </label>
 
                     <select
                       value={engraveOp}
@@ -380,6 +682,70 @@ export function SimpleBoxUI({
                     </label>
                   </div>
 
+                  <div className="grid gap-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+                    <div className="text-[11px] text-slate-400">Add text</div>
+                    <div className="grid gap-2">
+                      <input
+                        type="text"
+                        value={engraveText}
+                        onChange={(e) => setEngraveText(e.target.value)}
+                        placeholder="Text"
+                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                      {/* Font preview */}
+                      {textPreviewSvg && (
+                        <div
+                          className="h-12 w-full rounded-md border border-slate-700 bg-slate-950 p-1"
+                          dangerouslySetInnerHTML={{ __html: textPreviewSvg }}
+                        />
+                      )}
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="grid gap-1">
+                          <div className="text-[11px] text-slate-400">Font</div>
+                          <select
+                            value={engraveTextFontId}
+                            onChange={(e) => setEngraveTextFontId(e.target.value as FontId)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-[10px] text-slate-200"
+                          >
+                            {SHARED_FONTS.map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1">
+                          <div className="text-[11px] text-slate-400">Size</div>
+                          <input
+                            type="number"
+                            min={0.1}
+                            step={0.5}
+                            value={engraveTextSizeMm}
+                            onChange={(e) => setEngraveTextSizeMm(Number(e.target.value) || 0)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-[10px] text-slate-200"
+                          />
+                        </label>
+                        <label className="grid gap-1">
+                          <div className="text-[11px] text-slate-400">Spacing</div>
+                          <input
+                            type="number"
+                            step={0.1}
+                            value={engraveTextLetterSpacingMm}
+                            onChange={(e) => setEngraveTextLetterSpacingMm(Number(e.target.value) || 0)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-[10px] text-slate-200"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddEngraveText}
+                        className="w-full rounded-md bg-slate-800 px-3 py-2 text-[11px] text-slate-100 hover:bg-slate-700"
+                      >
+                        Add Text
+                      </button>
+                    </div>
+                  </div>
+
                   {engraveItems.length > 0 ? (
                     <div className="mt-1 space-y-1">
                       {engraveItems.map((item) => (
@@ -398,78 +764,226 @@ export function SimpleBoxUI({
                       ))}
                     </div>
                   ) : null}
-
-                  {selectedEngraveItem ? (
-                    <div className="mt-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-[11px] text-slate-400">Placement</div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEngraveItems((prev) => prev.filter((x) => x.id !== selectedEngraveItem.id));
-                            setSelectedEngraveId(null);
-                          }}
-                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:border-rose-500 hover:text-rose-200"
-                        >
-                          Remove
-                        </button>
-                      </div>
-
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span>X ({unitLabel})</span>
-                          <input
-                            type="number"
-                            step={unitSystem === 'in' ? 0.01 : 0.1}
-                            value={toUser(selectedEngraveItem.placement.x)}
-                            onChange={(e) => setSelectedEngravePlacement({ x: fromUser(Number(e.target.value)) })}
-                            className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span>Y ({unitLabel})</span>
-                          <input
-                            type="number"
-                            step={unitSystem === 'in' ? 0.01 : 0.1}
-                            value={toUser(selectedEngraveItem.placement.y)}
-                            onChange={(e) => setSelectedEngravePlacement({ y: fromUser(Number(e.target.value)) })}
-                            className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span>Rotation (deg)</span>
-                          <input
-                            type="number"
-                            step={1}
-                            value={(selectedEngraveItem.placement.rotation * 180) / Math.PI}
-                            onChange={(e) => {
-                              const deg = Number(e.target.value);
-                              const rad = (deg * Math.PI) / 180;
-                              setSelectedEngravePlacement({ rotation: rad });
-                            }}
-                            className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span>Scale</span>
-                          <input
-                            type="number"
-                            step={0.01}
-                            min={0.01}
-                            value={selectedEngraveItem.placement.scale}
-                            onChange={(e) =>
-                              setSelectedEngravePlacement({ scale: Math.max(0.01, Number(e.target.value)) })
-                            }
-                            className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                <div className="text-sm font-medium text-slate-100">Face Artwork</div>
+                <div className="mt-1 text-[11px] text-slate-400">Preview-only overlay (not included in exports)</div>
+
+                <div className="mt-3">
+                  <AIWarningBanner />
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">Model</div>
+                    <select
+                      value={faceArtworkModel}
+                      onChange={(e) => setFaceArtworkModel(e.target.value as 'silhouette' | 'sketch' | 'geometric')}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                    >
+                      <option value="silhouette">Silhouette</option>
+                      <option value="sketch">Sketch</option>
+                      <option value="geometric">Geometric Pattern</option>
+                    </select>
+                  </label>
+
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">Prompt</div>
+                    <input
+                      type="text"
+                      value={faceArtworkPrompt}
+                      onChange={(e) => setFaceArtworkPrompt(e.target.value)}
+                      placeholder="e.g. cute paw print silhouette"
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                    />
+                  </label>
+
+                  <div className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">Faces</div>
+                    <div className="flex flex-wrap gap-2">
+                      {faceKeys.map((k) => (
+                        <label key={k} className="flex items-center gap-1 text-[11px] text-slate-200">
+                          <input
+                            type="checkbox"
+                            checked={faceArtworkTargets.includes(k)}
+                            onChange={() => toggleArtworkTarget(k)}
+                          />
+                          <span className="uppercase">{k}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleGenerateArtwork}
+                      disabled={isArtworkGenerating}
+                      className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-60"
+                    >
+                      {isArtworkGenerating ? 'Generating…' : 'Generate'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTraceSelectedArtwork}
+                      disabled={isArtworkGenerating}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      Trace → SVG
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFaceArtworkByFace({});
+                        setArtworkError(null);
+                      }}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {artworkError ? (
+                    <div className="rounded-md border border-amber-800 bg-amber-950/30 p-2 text-[11px] text-amber-200">
+                      {artworkError}
+                    </div>
+                  ) : null}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="grid gap-1">
+                      <div className="text-[11px] text-slate-400">Edit face</div>
+                      <select
+                        value={selectedArtworkFace}
+                        onChange={(e) => setSelectedArtworkFace(e.target.value)}
+                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      >
+                        {faceKeys.map((k) => (
+                          <option key={k} value={k}>
+                            {k}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="text-[11px] text-slate-500 self-end">Center-based X/Y in mm</div>
+                  </div>
+
+                  {selectedArtwork ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">X (mm)</div>
+                        <input
+                          type="number"
+                          value={Number(selectedArtwork.placement.x.toFixed(2))}
+                          onChange={(e) => setSelectedArtworkPlacement({ x: Number(e.target.value) || 0 })}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Y (mm)</div>
+                        <input
+                          type="number"
+                          value={Number(selectedArtwork.placement.y.toFixed(2))}
+                          onChange={(e) => setSelectedArtworkPlacement({ y: Number(e.target.value) || 0 })}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Scale</div>
+                        <input
+                          type="number"
+                          min={0.05}
+                          step={0.05}
+                          value={Number(selectedArtwork.placement.scale.toFixed(2))}
+                          onChange={(e) => setSelectedArtworkPlacement({ scale: Math.max(0.05, Number(e.target.value) || 0.05) })}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Rotate (deg)</div>
+                        <input
+                          type="number"
+                          step={1}
+                          value={Number(selectedArtwork.placement.rotationDeg.toFixed(0))}
+                          onChange={(e) => setSelectedArtworkPlacement({ rotationDeg: Number(e.target.value) || 0 })}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-500">No artwork on this face yet.</div>
+                  )}
+                </div>
+              </div>
+
+              {selectedEngraveItem ? (
+                <div className="mt-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-slate-400">Placement</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEngraveItems((prev) => prev.filter((x) => x.id !== selectedEngraveItem.id));
+                        setSelectedEngraveId(null);
+                      }}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:border-rose-500 hover:text-rose-200"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>X ({unitLabel})</span>
+                      <input
+                        type="number"
+                        step={unitSystem === 'in' ? 0.01 : 0.1}
+                        value={toUser(selectedEngraveItem.placement.x)}
+                        onChange={(e) => setSelectedEngravePlacement({ x: fromUser(Number(e.target.value)) })}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>Y ({unitLabel})</span>
+                      <input
+                        type="number"
+                        step={unitSystem === 'in' ? 0.01 : 0.1}
+                        value={toUser(selectedEngraveItem.placement.y)}
+                        onChange={(e) => setSelectedEngravePlacement({ y: fromUser(Number(e.target.value)) })}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>Rotation (deg)</span>
+                      <input
+                        type="number"
+                        step={1}
+                        value={(selectedEngraveItem.placement.rotation * 180) / Math.PI}
+                        onChange={(e) => {
+                          const deg = Number(e.target.value);
+                          const rad = (deg * Math.PI) / 180;
+                          setSelectedEngravePlacement({ rotation: rad });
+                        }}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>Scale</span>
+                      <input
+                        type="number"
+                        step={0.01}
+                        min={0.01}
+                        value={selectedEngraveItem.placement.scale}
+                        onChange={(e) => setSelectedEngravePlacement({ scale: Math.max(0.01, Number(e.target.value)) })}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3" data-tour="dimensions">
                 <div className="text-sm font-medium text-slate-100">Dimensions</div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <label className="grid gap-1">
@@ -511,7 +1025,7 @@ export function SimpleBoxUI({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3" data-tour="material">
                 <div className="text-sm font-medium text-slate-100">Joints & Lid</div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <label className="grid gap-1">
@@ -539,13 +1053,39 @@ export function SimpleBoxUI({
                     Add lid
                   </label>
                 </div>
-              </div>
-
-              {fingerWidthMm !== recommendedFinger && (
-                <div className="rounded-lg border border-blue-800 bg-blue-950/40 p-3">
-                  <div className="text-xs text-blue-200">Recommended finger width: {recommendedFinger.toFixed(1)}mm</div>
+                <div className="mt-3">
+                  <label className="flex items-center gap-2 text-xs text-slate-200">
+                    <input type="checkbox" checked={dividersEnabled} onChange={(e) => setDividersEnabled(e.target.checked)} />
+                    Add dividers
+                  </label>
+                  {dividersEnabled && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Count X</div>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={dividerCountX}
+                          onChange={(e) => setDividerCountX(Math.max(1, Math.min(10, Number(e.target.value) || 1)))}
+                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Count Z</div>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={dividerCountZ}
+                          onChange={(e) => setDividerCountZ(Math.max(1, Math.min(10, Number(e.target.value) || 1)))}
+                          className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               {validation.errors.length > 0 && (
                 <div className="rounded-lg border border-rose-800 bg-rose-950/40 p-3">
@@ -601,7 +1141,7 @@ export function SimpleBoxUI({
           </div>
         </section>
 
-        <section className="mt-2 flex flex-1 flex-col gap-3 md:mt-0">
+        <section className="mt-2 flex flex-1 flex-col gap-3 md:mt-0" data-tour="canvas">
           <div className="flex flex-1 flex-col rounded-lg border border-slate-800 bg-slate-900/40 p-3 md:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div className="inline-flex overflow-hidden rounded-md border border-slate-800 bg-slate-950">
@@ -685,6 +1225,29 @@ export function SimpleBoxUI({
                         <div className="mb-1 text-xs font-medium text-slate-700">{k}</div>
                         <div className="relative h-56 w-full overflow-hidden rounded border border-slate-100 bg-white">
                           <div className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block" dangerouslySetInnerHTML={{ __html: faceSvgs.get(k) ?? '' }} />
+                          {(() => {
+                            const art = faceArtworkByFace[k];
+                            const face = faceByName.get(k);
+                            if (!art || !art.imageDataUrl || !face) return null;
+                            const leftPct = (art.placement.x / Math.max(face.width, 1)) * 100;
+                            const topPct = (art.placement.y / Math.max(face.height, 1)) * 100;
+                            const wPct = Math.max(1, Math.min(200, art.placement.scale * 100));
+                            return (
+                              <img
+                                src={art.imageDataUrl}
+                                alt="Artwork"
+                                className="absolute pointer-events-none"
+                                style={{
+                                  left: `${leftPct}%`,
+                                  top: `${topPct}%`,
+                                  width: `${wPct}%`,
+                                  transform: `translate(-50%, -50%) rotate(${art.placement.rotationDeg}deg)`,
+                                  transformOrigin: 'center',
+                                  opacity: 0.85,
+                                }}
+                              />
+                            );
+                          })()}
                         </div>
                       </div>
                     ))}

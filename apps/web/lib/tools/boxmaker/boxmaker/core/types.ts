@@ -61,6 +61,10 @@ export type SlidingDrawerInputs = SharedBoxInputs & {
   frontFaceStyle: SlidingDrawerFrontFaceStyle;
   fingerWidthMm: number;
   autoFitFingers: boolean;
+  dividersEnabled: boolean;
+  dividerCountX: number;
+  dividerCountZ: number;
+  dividerClearanceMm: number;
 };
 
 export type SlidingDrawerPanel2D = {

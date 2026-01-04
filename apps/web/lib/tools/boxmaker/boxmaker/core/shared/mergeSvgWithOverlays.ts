@@ -61,6 +61,45 @@ export function buildOverlayGroupSvg(items: EngraveOverlayItem[]): string {
 export function mergeSvgWithOverlays(baseSvg: string, items: EngraveOverlayItem[]): string {
   const overlay = buildOverlayGroupSvg(items);
   if (!overlay) return baseSvg;
-  if (!baseSvg.includes('</svg>')) return baseSvg;
-  return baseSvg.replace('</svg>', `${overlay}</svg>`);
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(baseSvg, 'image/svg+xml');
+    const svgEl = doc.querySelector('svg');
+    if (!svgEl) return baseSvg;
+
+    const container = svgEl.querySelector('g') ?? svgEl;
+
+    const overlayDoc = parser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg">${overlay}</svg>`,
+      'image/svg+xml',
+    );
+    const overlayNode = overlayDoc.querySelector('#boxmaker-overlays');
+    if (!overlayNode) return baseSvg;
+
+    container.appendChild(doc.importNode(overlayNode, true));
+
+    const isRedCut = (el: Element) => {
+      const stroke = (el.getAttribute('stroke') || '').toLowerCase();
+      if (stroke === '#ff0000' || stroke === '#f00' || stroke === 'red' || stroke === 'rgb(255,0,0)') return true;
+      const style = (el.getAttribute('style') || '').toLowerCase();
+      if (style.includes('stroke:#ff0000') || style.includes('stroke: #ff0000')) return true;
+      if (style.includes('stroke:#f00') || style.includes('stroke: #f00')) return true;
+      if (style.includes('stroke:red') || style.includes('stroke: red')) return true;
+      if (style.includes('stroke:rgb(255,0,0)') || style.includes('stroke: rgb(255,0,0)')) return true;
+      return false;
+    };
+
+    const parents: Element[] = [container, ...Array.from(container.querySelectorAll('*'))];
+    for (const parent of parents) {
+      const children = Array.from(parent.children);
+      const red = children.filter(isRedCut);
+      for (const el of red) parent.appendChild(el);
+    }
+
+    return new XMLSerializer().serializeToString(svgEl);
+  } catch {
+    if (!baseSvg.includes('</svg>')) return baseSvg;
+    return baseSvg.replace('</svg>', `${overlay}</svg>`);
+  }
 }

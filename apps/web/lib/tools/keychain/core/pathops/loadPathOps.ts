@@ -47,14 +47,21 @@ export async function loadPathOps(): Promise<PathOps> {
       // Dynamic import
       const PathKitInit = (await import('pathkit-wasm')).default;
       
-      // Initialize with WASM from CDN
-      pathKitInstance = await PathKitInit({
+      // Initialize with WASM from CDN (guarded by timeout to avoid infinite hang)
+      const initPromise = PathKitInit({
         locateFile: (file: string) => {
           const url = `https://unpkg.com/pathkit-wasm@1.0.0/bin/${file}`;
           console.log('[PathKit] Loading:', url);
           return url;
         }
       });
+
+      const timeoutMs = 15000;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`[PathKit] WASM load timed out after ${timeoutMs}ms`)), timeoutMs);
+      });
+
+      pathKitInstance = await Promise.race([initPromise, timeoutPromise]);
       
       console.log('[PathKit] Loaded successfully!');
       return createAPI(pathKitInstance);

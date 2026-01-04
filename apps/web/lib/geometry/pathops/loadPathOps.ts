@@ -19,6 +19,7 @@ export interface PathOps {
   union: (a: any, b: any) => any;
   difference: (a: any, b: any) => any;
   strokeToPath: (p: any, opts: StrokeOpts) => any;
+  simplify: (p: any) => any;
   transform: (p: any, matrix: number[]) => any;
   makeCircle: (cx: number, cy: number, r: number) => any;
   makeRect: (x: number, y: number, w: number, h: number) => any;
@@ -47,14 +48,21 @@ export async function loadPathOps(): Promise<PathOps> {
       // Dynamic import
       const PathKitInit = (await import('pathkit-wasm')).default;
       
-      // Initialize with WASM from CDN
-      pathKitInstance = await PathKitInit({
+      // Initialize with WASM from CDN (guarded by timeout to avoid infinite hang)
+      const initPromise = PathKitInit({
         locateFile: (file: string) => {
           const url = `https://unpkg.com/pathkit-wasm@1.0.0/bin/${file}`;
           console.log('[PathKit] Loading:', url);
           return url;
         }
       });
+
+      const timeoutMs = 15000;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`[PathKit] WASM load timed out after ${timeoutMs}ms`)), timeoutMs);
+      });
+
+      pathKitInstance = await Promise.race([initPromise, timeoutPromise]);
       
       console.log('[PathKit] Loaded successfully!');
       return createAPI(pathKitInstance);
@@ -132,15 +140,41 @@ function createAPI(pk: any): PathOps {
       try {
         // stroke() modifies path in-place, converting stroke to fill
         const copy = p.copy();
+        const join =
+          opts.join === 'miter'
+            ? pk.StrokeJoin.MITER
+            : opts.join === 'bevel'
+              ? pk.StrokeJoin.BEVEL
+              : pk.StrokeJoin.ROUND;
+        const cap =
+          opts.cap === 'butt'
+            ? pk.StrokeCap.BUTT
+            : opts.cap === 'square'
+              ? pk.StrokeCap.SQUARE
+              : pk.StrokeCap.ROUND;
         copy.stroke({
           width: opts.width,
-          join: pk.StrokeJoin.ROUND,
-          cap: pk.StrokeCap.ROUND,
+          join,
+          cap,
           miter_limit: opts.miterLimit ?? 4
         });
         return copy;
       } catch (e) {
         console.warn('[PathKit] strokeToPath failed:', e);
+        try { return p.copy(); } catch { return pk.NewPath(); }
+      }
+    },
+
+    simplify: (p: any) => {
+      if (!p) return pk.NewPath();
+      try {
+        const copy = p.copy();
+        if (typeof copy.simplify === 'function') {
+          copy.simplify();
+        }
+        return copy;
+      } catch (e) {
+        console.warn('[PathKit] simplify failed:', e);
         try { return p.copy(); } catch { return pk.NewPath(); }
       }
     },

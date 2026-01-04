@@ -26,6 +26,8 @@ export interface BaseElement {
   id: string;
   layer: LayerType;
   transform: ElementTransform;
+  name?: string;
+  system?: boolean;
   locked?: boolean;
   visible?: boolean;
 }
@@ -51,6 +53,8 @@ export interface BorderElement extends BaseElement {
 export interface TextElement extends BaseElement {
   kind: 'text';
   content: string;
+  fontId: string;
+  fontUrl?: string;
   fontFamily: string;
   fontSizeMm: number;
   fontWeight: number;
@@ -68,8 +72,46 @@ export interface OrnamentElement extends BaseElement {
   strokeWidthMm: number;
 }
 
+export type BasicShapeKind = 'circle' | 'roundedRect' | 'badge';
+
+export interface BasicShapeElement extends BaseElement {
+  kind: 'basicShape';
+  shapeKind: BasicShapeKind;
+  pathD: string;
+  widthMm: number;
+  heightMm: number;
+  strokeWidthMm: number;
+}
+
 export interface TracedElement extends BaseElement {
   kind: 'traced';
+  pathD: string;
+  widthMm: number;
+  heightMm: number;
+  strokeWidthMm: number;
+  aiPrompt?: string;
+}
+
+export type LogoOp = 'ENGRAVE' | 'CUT_OUT';
+
+export interface LogoElement extends BaseElement {
+  kind: 'logo';
+  source: 'trace';
+  paths: string[];
+  bboxMm: BoundingBox;
+  op: LogoOp;
+  // Cached combined path for rendering/export convenience
+  pathD: string;
+  widthMm: number;
+  heightMm: number;
+  strokeWidthMm: number;
+}
+
+export interface IconElement extends BaseElement {
+  kind: 'icon';
+  source: 'ai';
+  paths: string[];
+  bboxMm: BoundingBox;
   pathD: string;
   widthMm: number;
   heightMm: number;
@@ -82,7 +124,10 @@ export type CanvasElement =
   | BorderElement 
   | TextElement 
   | OrnamentElement 
-  | TracedElement;
+  | BasicShapeElement
+  | TracedElement
+  | LogoElement
+  | IconElement;
 
 // ============ Canvas Document ============
 export interface CanvasDocument {

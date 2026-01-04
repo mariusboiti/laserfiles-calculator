@@ -13,8 +13,8 @@ import {
   Layers,
 } from 'lucide-react';
 
-import type { KeychainModeId, SimpleKeychainState, EmojiNameState, StickerBubbleState, PreviewConfig, IconDef, Warning } from '../types';
-import { getMode, getModeDefaults, SIMPLE_DEFAULTS, EMOJI_NAME_DEFAULTS, STICKER_BUBBLE_DEFAULTS } from '../modes';
+import type { KeychainModeId, SimpleKeychainState, EmojiNameState, PreviewConfig, IconDef, Warning } from '../types';
+import { getMode, getModeDefaults, SIMPLE_DEFAULTS, EMOJI_NAME_DEFAULTS } from '../modes';
 import { downloadSvg } from '../core/export';
 import { isExportDisabled } from '../core/warnings';
 import { ModeSelector } from './ModeSelector';
@@ -28,7 +28,6 @@ export default function KeychainTool() {
   // Mode-specific states
   const [simpleState, setSimpleState] = useState<SimpleKeychainState>(SIMPLE_DEFAULTS);
   const [emojiNameState, setEmojiNameState] = useState<EmojiNameState>(EMOJI_NAME_DEFAULTS);
-  const [stickerBubbleState, setStickerBubbleState] = useState<StickerBubbleState>(STICKER_BUBBLE_DEFAULTS);
 
   // Preview config
   const [preview, setPreview] = useState<PreviewConfig>({
@@ -59,10 +58,9 @@ export default function KeychainTool() {
     switch (activeMode) {
       case 'simple': return simpleState;
       case 'emoji-name': return emojiNameState;
-      case 'sticker-bubble': return stickerBubbleState;
       default: return simpleState;
     }
-  }, [activeMode, simpleState, emojiNameState, stickerBubbleState]);
+  }, [activeMode, simpleState, emojiNameState]);
 
   const updateState = useCallback((updates: any) => {
     switch (activeMode) {
@@ -71,9 +69,6 @@ export default function KeychainTool() {
         break;
       case 'emoji-name':
         setEmojiNameState(prev => mode.clamp({ ...prev, ...updates }));
-        break;
-      case 'sticker-bubble':
-        setStickerBubbleState(prev => mode.clamp({ ...prev, ...updates }));
         break;
     }
   }, [activeMode, mode]);
@@ -95,9 +90,6 @@ export default function KeychainTool() {
         break;
       case 'emoji-name':
         setEmojiNameState(EMOJI_NAME_DEFAULTS);
-        break;
-      case 'sticker-bubble':
-        setStickerBubbleState(STICKER_BUBBLE_DEFAULTS);
         break;
     }
   }, [activeMode]);
@@ -129,14 +121,6 @@ export default function KeychainTool() {
           {activeMode === 'emoji-name' && (
             <EmojiNameControls
               state={emojiNameState}
-              onChange={updateState}
-              uploadedIcons={uploadedIcons}
-              onIconUpload={handleIconUpload}
-            />
-          )}
-          {activeMode === 'sticker-bubble' && (
-            <StickerBubbleControls
-              state={stickerBubbleState}
               onChange={updateState}
               uploadedIcons={uploadedIcons}
               onIconUpload={handleIconUpload}
@@ -289,8 +273,7 @@ function SimpleControls({ state, onChange }: { state: SimpleKeychainState; onCha
 }
 
 function EmojiNameControls({ state, onChange, uploadedIcons, onIconUpload }: { state: EmojiNameState; onChange: (u: Partial<EmojiNameState>) => void; uploadedIcons: IconDef[]; onIconUpload: (i: IconDef) => void }) {
-  // Default values for legacy optional fields
-  const height = state.height ?? 35;
+  // Legacy optional fields with defaults
   const outlineThickness = state.outlineThickness ?? 3;
   const borderThickness = state.borderThickness ?? 2;
   const hole = state.hole ?? { enabled: true, diameter: 5, margin: 3.5, position: 'left' as const };
@@ -333,72 +316,6 @@ function EmojiNameControls({ state, onChange, uploadedIcons, onIconUpload }: { s
         <div className="grid grid-cols-2 gap-2">
           <NumberInput label="Hole Diameter" value={hole.diameter} onChange={v => onChange({ hole: { ...hole, diameter: v } })} min={2} max={15} />
           <NumberInput label="Hole Margin" value={hole.margin} onChange={v => onChange({ hole: { ...hole, margin: v } })} min={0} max={20} />
-        </div>
-      )}
-
-      {/* Render mode */}
-      <div>
-        <label className="block text-xs text-slate-400 mb-1">Layers</label>
-        <select value={state.render} onChange={e => onChange({ render: e.target.value as any })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-          <option value="1-layer">1 Layer</option>
-          <option value="2-layer">2 Layers</option>
-        </select>
-      </div>
-    </div>
-  );
-}
-
-function StickerBubbleControls({ state, onChange, uploadedIcons, onIconUpload }: { state: StickerBubbleState; onChange: (u: Partial<StickerBubbleState>) => void; uploadedIcons: IconDef[]; onIconUpload: (i: IconDef) => void }) {
-  return (
-    <div className="space-y-4">
-      {/* Height control */}
-      <NumberInput label="Height (mm)" value={state.height} onChange={v => onChange({ height: v })} min={20} max={120} />
-
-      {/* Text */}
-      <div>
-        <label className="block text-xs text-slate-400 mb-1">Text Line 1</label>
-        <input type="text" value={state.text} onChange={e => onChange({ text: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" />
-      </div>
-
-      <div>
-        <label className="block text-xs text-slate-400 mb-1">Text Line 2 (optional)</label>
-        <input type="text" value={state.text2} onChange={e => onChange({ text2: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" />
-      </div>
-
-      {/* Icon */}
-      <IconPicker
-        selectedId={state.iconId}
-        onSelect={id => onChange({ iconId: id })}
-        uploadedIcons={uploadedIcons}
-        onUpload={onIconUpload}
-      />
-
-      {state.iconId && (
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">Icon Position</label>
-          <select value={state.iconPosition} onChange={e => onChange({ iconPosition: e.target.value as any })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-            <option value="left">Left</option>
-            <option value="top">Top</option>
-            <option value="none">None</option>
-          </select>
-        </div>
-      )}
-
-      {/* Bubble settings */}
-      <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Bubble Padding" value={state.bubblePadding} onChange={v => onChange({ bubblePadding: v })} min={2} max={30} />
-        <NumberInput label="Bubble Corner R" value={state.bubbleCornerRadius} onChange={v => onChange({ bubbleCornerRadius: v })} min={2} max={50} />
-      </div>
-
-      <NumberInput label="Bubble Thickness" value={state.bubbleThickness} onChange={v => onChange({ bubbleThickness: v })} min={1} max={15} />
-
-      {/* Hole */}
-      <Checkbox label="Enable Hole" checked={state.hole.enabled} onChange={v => onChange({ hole: { ...state.hole, enabled: v } })} />
-
-      {state.hole.enabled && (
-        <div className="grid grid-cols-2 gap-2">
-          <NumberInput label="Hole Diameter" value={state.hole.diameter} onChange={v => onChange({ hole: { ...state.hole, diameter: v } })} min={2} max={15} />
-          <NumberInput label="Hole Margin" value={state.hole.margin} onChange={v => onChange({ hole: { ...state.hole, margin: v } })} min={0} max={20} />
         </div>
       )}
 

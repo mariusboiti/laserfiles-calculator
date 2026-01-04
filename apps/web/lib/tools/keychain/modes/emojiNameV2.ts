@@ -8,31 +8,32 @@
 import type { KeychainMode, EmojiNameState, BuildResult, Warning, RingConfig } from '../types';
 import { clamp } from '../core/geometry';
 import { textToSvgPath } from '../core/textToPath';
-import { getIconById } from '../core/iconLibrary';
+import { getAnyIconById } from '../core/iconLibrary';
 import { buildCombinedSvg, sanitizeFilename } from '../core/export';
 import { noIconWarning } from '../core/warnings';
 import type { FontId } from '../core/fontRegistry';
+import { getFontConfig } from '../core/fontRegistry';
 import { loadPathOps, type PathOps } from '../../../geometry/pathops';
 
 // Default ring configuration
 const DEFAULT_RING: RingConfig = {
   enabled: true,
-  outerDiameter: 12.0,
-  innerDiameter: 6.0,
+  outerDiameter: 6.0,
+  innerDiameter: 3.0,
   bridgeWidth: 6.0,
   bridgeThickness: 3.0,
-  gapFromSticker: 0, // Ring attached directly to sticker
+  gapFromSticker: 0.0,
   position: 'left',
 };
 
 export const EMOJI_NAME_V2_DEFAULTS: EmojiNameState = {
   // Content
-  name: 'Justin',
-  fontFamily: 'Samantha Script',
+  name: 'LaserFilesPro',
+  fontFamily: 'Bosnia Script',
   fontWeight: 400,
   iconId: 'heart',
   iconSizePct: 0.85,
-  gap: 3,
+  gap: 0,
   
   // Sticker outline (TRUE offset around silhouette)
   stickerOffsetMm: 3.0,       // offset distance around text+icon union
@@ -42,7 +43,8 @@ export const EMOJI_NAME_V2_DEFAULTS: EmojiNameState = {
   ring: DEFAULT_RING,
   
   // Text sizing
-  textHeightMm: 12,           // target text cap height in mm
+  fontSize: 12,               // font size in mm
+  letterSpacing: 0,           // letter spacing in mm
   
   // Render options
   render: '2-layer',
@@ -55,6 +57,11 @@ export const EMOJI_NAME_V2_DEFAULTS: EmojiNameState = {
 function clampState(state: Partial<EmojiNameState>): EmojiNameState {
   const s = { ...EMOJI_NAME_V2_DEFAULTS, ...state };
 
+  // Font fallback (avoid crashes if saved state references a missing font)
+  if (!s.fontFamily || !getFontConfig(s.fontFamily)) {
+    s.fontFamily = EMOJI_NAME_V2_DEFAULTS.fontFamily;
+  }
+
   // Content
   s.iconSizePct = clamp(s.iconSizePct, 0.3, 1.5);
   s.gap = clamp(s.gap, 0, 20);
@@ -64,20 +71,27 @@ function clampState(state: Partial<EmojiNameState>): EmojiNameState {
   s.stickerSmoothMm = clamp(s.stickerSmoothMm, 0.1, 2);
   
   // Text sizing
-  s.textHeightMm = clamp(s.textHeightMm, 5, 50);
+  s.fontSize = clamp(s.fontSize, 5, 50);
+  s.letterSpacing = clamp(s.letterSpacing, -2, 10);
   
   // Ring
   if (state.ring) {
     s.ring = { ...DEFAULT_RING, ...state.ring };
   }
-  s.ring.outerDiameter = clamp(s.ring.outerDiameter, 8, 20);
-  s.ring.innerDiameter = clamp(s.ring.innerDiameter, 4, 12);
-  if (s.ring.innerDiameter > s.ring.outerDiameter - 2) {
-    s.ring.innerDiameter = s.ring.outerDiameter - 2;
+  // Ring is always enabled in V2
+  s.ring.enabled = true;
+  if (s.ring.position !== 'left' && s.ring.position !== 'top' && s.ring.position !== 'right') {
+    s.ring.position = 'left';
+  }
+  s.ring.outerDiameter = clamp(s.ring.outerDiameter, 4, 20);
+  s.ring.innerDiameter = clamp(s.ring.innerDiameter, 2, 12);
+  if (s.ring.innerDiameter > s.ring.outerDiameter - 1) {
+    s.ring.innerDiameter = s.ring.outerDiameter - 1;
   }
   s.ring.bridgeWidth = clamp(s.ring.bridgeWidth, 3, 12);
   s.ring.bridgeThickness = clamp(s.ring.bridgeThickness, 2, 8);
-  s.ring.gapFromSticker = clamp(s.ring.gapFromSticker, 0, 5);
+  // gapFromSticker removed: loop always stays attached
+  s.ring.gapFromSticker = 0;
 
   s.cutStroke = clamp(s.cutStroke, 0.001, 1);
 
@@ -91,7 +105,7 @@ function clampState(state: Partial<EmojiNameState>): EmojiNameState {
 async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
   const {
     name, fontFamily, iconId, iconSizePct, gap,
-    stickerOffsetMm, ring, textHeightMm,
+    stickerOffsetMm, ring, fontSize, letterSpacing,
     cutStroke, showBase, showTop
   } = state;
 
@@ -99,12 +113,11 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
   const pk = await loadPathOps();
   
   const fontId: FontId = fontFamily;
-  const fontSize = textHeightMm;
   
   // =========================================================================
   // STEP 1: Generate text path
   // =========================================================================
-  const textResult = await textToSvgPath(name, { fontId, fontSize, align: 'left' });
+  const textResult = await textToSvgPath(name, { fontId, fontSize, letterSpacing, align: 'left' });
   const textPathD = textResult.d;
   const textBbox = textResult.bbox;
   
@@ -141,17 +154,53 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
     console.log('[Build] Transformed text path');
   }
   
-  // Add icon paths
+  // Collect icon paths separately (don't union - preserves internal details)
+  const iconPathsTransformed: string[] = [];
   if (iconId) {
-    const icon = getIconById(iconId);
+    const icon = getAnyIconById(iconId);
     if (icon && icon.paths) {
       const scale = iconSize / 100;
       for (const iconPathD of icon.paths) {
         const iconPath = pk.fromSVG(iconPathD);
         const iconMatrix = [scale, 0, iconX, 0, scale, iconY, 0, 0, 1];
         const transformedIcon = pk.transform(iconPath, iconMatrix);
+        // Store the transformed path D string separately
+        const transformedD = pk.toSVG(transformedIcon);
+        if (transformedD) {
+          iconPathsTransformed.push(transformedD);
+        }
+        // Still union with topPath for outline calculation, but we'll render separately
         topPath = pk.union(topPath, transformedIcon);
-        console.log('[Build] Added icon path');
+        console.log('[Build] Added icon path (stored separately for rendering)');
+      }
+    }
+  }
+  
+  // Add traced logo paths if present
+  if (state.logo?.enabled && state.logo.paths.length > 0) {
+    const logoBbox = state.logo.bboxMm;
+    const logoWidthMm = state.logo.widthMm ?? logoBbox.width;
+    const logoScale = logoWidthMm / Math.max(0.001, logoBbox.width);
+    
+    // Position logo to the right of content (icon + text)
+    const currentBounds = pk.getBounds(topPath);
+    const logoX = currentBounds.x + currentBounds.width + gap;
+    const logoY = currentBounds.y + currentBounds.height / 2 - (logoBbox.height * logoScale) / 2;
+    
+    for (const logoPathD of state.logo.paths) {
+      try {
+        const logoPath = pk.fromSVG(logoPathD);
+        // Translate to origin, scale, then position
+        const logoMatrix = [
+          logoScale, 0, logoX - logoBbox.x * logoScale,
+          0, logoScale, logoY - logoBbox.y * logoScale,
+          0, 0, 1
+        ];
+        const transformedLogo = pk.transform(logoPath, logoMatrix);
+        topPath = pk.union(topPath, transformedLogo);
+        console.log('[Build] Added traced logo path');
+      } catch (e) {
+        console.warn('[Build] Failed to add logo path:', e);
       }
     }
   }
@@ -175,30 +224,56 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
   console.log('[Build] Created base sticker outline');
   
   // =========================================================================
-  // STEP 5: Add ring (if enabled) - attached directly to sticker, no bridge
+  // STEP 5: Add ring (always enabled)
   // =========================================================================
-  if (ring.enabled) {
+  {
     const baseBounds = pk.getBounds(basePath);
     console.log('[Build] baseBounds for ring:', baseBounds);
-    
+
     const ringOuterR = ring.outerDiameter / 2;
     const ringInnerR = ring.innerDiameter / 2;
-    
-    // Ring position (left side, overlapping slightly with sticker outline)
-    const ringCx = baseBounds.x - ringOuterR + 1; // Move 1mm to the right to ensure contact
-    const ringCy = baseBounds.y + baseBounds.height / 2;
-    
+
+    const pos = ring.position || 'left';
+    const overlapMm = 1; // ensure contact when gapFromSticker is 0
+
+    // gapFromSticker intentionally ignored (loop stays attached)
+
+    let ringCx = 0;
+    let ringCy = 0;
+
+    if (pos === 'left') {
+      ringCy = baseBounds.y + baseBounds.height / 2;
+      ringCx = baseBounds.x - ringOuterR + overlapMm;
+    } else if (pos === 'right') {
+      ringCy = baseBounds.y + baseBounds.height / 2;
+      ringCx = baseBounds.x + baseBounds.width + ringOuterR - overlapMm;
+    } else {
+      // top
+      ringCx = baseBounds.x + baseBounds.width / 2;
+      ringCy = baseBounds.y - ringOuterR + overlapMm;
+    }
+
+    // Manual fine offsets requested by user
+    if (pos === 'left') {
+      ringCx += 2;
+    } else if (pos === 'right') {
+      ringCx -= 2;
+    } else {
+      // top
+      ringCy += 5;
+    }
+
     // Create ring outer circle
     const ringOuter = pk.makeCircle(ringCx, ringCy, ringOuterR);
-    
-    // Union: base + ring (no bridge)
+
+    // Union: base + ring
     basePath = pk.union(basePath, ringOuter);
-    
+
     // Subtract ring hole
     const ringInner = pk.makeCircle(ringCx, ringCy, ringInnerR);
     basePath = pk.difference(basePath, ringInner);
-    
-    console.log('[Build] Added ring (no bridge, attached directly)');
+
+    console.log('[Build] Added ring');
   }
   
   // =========================================================================
@@ -214,8 +289,10 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
     
     // Calculate fallback dimensions
     const contentWidth = iconId ? iconSize + gap + textWidth : textWidth;
-    const fallbackW = contentWidth + stickerOffsetMm * 2 + (ring.enabled ? ring.outerDiameter + ring.gapFromSticker + 2 : 0);
-    const fallbackH = contentHeight + stickerOffsetMm * 2;
+    const ringExtra = ring.outerDiameter + 2;
+    const pos = ring.position || 'left';
+    const fallbackW = contentWidth + stickerOffsetMm * 2 + (pos === 'left' || pos === 'right' ? ringExtra : 0);
+    const fallbackH = contentHeight + stickerOffsetMm * 2 + (pos === 'top' ? ringExtra : 0);
     const margin = 1;
     
     const options = { width: fallbackW + margin * 2, height: fallbackH + margin * 2, cutStroke, includeGuides: false };
@@ -236,7 +313,6 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
   // Translate paths to origin
   const translateMatrix = [1, 0, translateX, 0, 1, translateY, 0, 0, 1];
   const finalBasePath = pk.transform(basePath, translateMatrix);
-  const finalTopPath = pk.transform(topPath, translateMatrix);
   
   const finalWidth = finalBounds.width + margin * 2;
   const finalHeight = finalBounds.height + margin * 2;
@@ -245,10 +321,48 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
   // STEP 7: Convert to SVG
   // =========================================================================
   const basePathD = pk.toSVG(finalBasePath);
-  const topPathD = pk.toSVG(finalTopPath);
+  
+  // For text, we need to exclude icon paths from topPath to render them separately
+  // Get only the text path (topPath without icon)
+  let textOnlyPath = pk.fromSVG(textPathD || '');
+  if (textPathD) {
+    const textMatrix = [1, 0, textX, 0, 1, textY, 0, 0, 1];
+    textOnlyPath = pk.transform(textOnlyPath, textMatrix);
+  }
+  const textOnlyTranslated = pk.transform(textOnlyPath, translateMatrix);
+  const textOnlyPathD = pk.toSVG(textOnlyTranslated);
+
+  // Union text subpaths so overlapping script letters become a single outline
+  // (removes internal letter intersections)
+  let textUnionPath: any = null;
+  if (textOnlyPathD) {
+    const subpaths: string[] = [];
+    const re = /M[^M]*?(?:Z|(?=M)|$)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(textOnlyPathD)) !== null) {
+      const sp = m[0].trim();
+      if (sp) subpaths.push(sp);
+    }
+
+    for (const sp of subpaths) {
+      try {
+        const p = pk.fromSVG(sp);
+        textUnionPath = textUnionPath ? pk.union(textUnionPath, p) : p;
+      } catch {
+        // ignore malformed subpath
+      }
+    }
+  }
+
+  const textUnionPathD = textUnionPath ? pk.toSVG(textUnionPath) : textOnlyPathD;
+  const textOutlineOnlyD = extractOuterSubpaths(textUnionPathD || '');
+  
+  // Translate icon paths
+  const iconPathsTranslated = iconPathsTransformed.map(d => translatePathD(d, translateX, translateY));
   
   console.log('[Build] Final basePathD length:', basePathD?.length);
-  console.log('[Build] Final topPathD length:', topPathD?.length);
+  console.log('[Build] Final textOnlyPathD length:', textOnlyPathD?.length);
+  console.log('[Build] Icon paths count:', iconPathsTranslated.length);
   
   // =========================================================================
   // STEP 8: Build SVG content with color coding
@@ -256,14 +370,26 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
   let topLayerContent = '';
   let baseLayerContent = '';
   
-  // ENGRAVE LAYER: Text + Icon (black fill with blue stroke for preview)
-  if (showTop && topPathD) {
-    topLayerContent = `<path d="${topPathD}" fill="#000" stroke="#0066ff" stroke-width="0.3" />`;
+  // ENGRAVE LAYER: Text (filled) + Icon paths (as outlines to preserve details)
+  if (showTop) {
+    // Text as filled shape (no stroke), plus a separate stroke-only outer outline.
+    if (textOnlyPathD) {
+      topLayerContent += `<path d="${textOnlyPathD}" fill="#000" stroke="none" />`;
+    }
+    if (textOutlineOnlyD) {
+      topLayerContent += `<path d="${textOutlineOnlyD}" fill="none" stroke="#0066ff" stroke-width="0.3" />`;
+    }
+    // Icon paths rendered individually (stroke only - preserves internal details)
+    for (const iconD of iconPathsTranslated) {
+      topLayerContent += `<path d="${iconD}" fill="none" stroke="#0066ff" stroke-width="0.5" />`;
+    }
   }
   
   // CUT LAYER: Outline + Ring (red stroke for preview)
+  // Extract only outer contour to avoid interior cut lines from offset
   if (showBase && basePathD) {
-    baseLayerContent = `<path d="${basePathD}" fill="none" stroke="#ff0000" stroke-width="${cutStroke}" />`;
+    const outerContour = extractOuterContour(basePathD);
+    baseLayerContent = `<path d="${outerContour}" fill="none" stroke="#ff0000" stroke-width="${cutStroke}" />`;
   }
   
   const options = { width: finalWidth, height: finalHeight, cutStroke, includeGuides: false };
@@ -274,6 +400,121 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
     svgEngrave: buildCombinedSvg({ cut: '', engrave: topLayerContent }, options),
     meta: { width: finalWidth, height: finalHeight, layers: state.render === '2-layer' ? 2 : 1 },
   };
+}
+
+/**
+ * Extract only the outer contour from a path (largest bounding box)
+ * This removes interior cut lines created by offset on detailed shapes
+ */
+function extractOuterContour(pathD: string): string {
+  if (!pathD) return '';
+  
+  // Split into subpaths (each starting with M and ending with Z or next M)
+  const subpaths: string[] = [];
+  const regex = /M[^M]*?(?:Z|(?=M)|$)/gi;
+  let match;
+  while ((match = regex.exec(pathD)) !== null) {
+    const sp = match[0].trim();
+    if (sp) subpaths.push(sp);
+  }
+  
+  if (subpaths.length <= 1) return pathD;
+  
+  // Calculate bounding box area for each subpath
+  const withArea = subpaths.map(sp => {
+    const nums = sp.match(/[-+]?(?:\d+\.?\d*|\.\d+)/g);
+    if (!nums || nums.length < 4) return { path: sp, area: 0 };
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i + 1 < nums.length; i += 2) {
+      const x = parseFloat(nums[i]);
+      const y = parseFloat(nums[i + 1]);
+      if (isFinite(x) && isFinite(y)) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+    }
+    
+    const area = (maxX - minX) * (maxY - minY);
+    return { path: sp, area: isFinite(area) ? area : 0 };
+  });
+  
+  // Sort by area descending and take the largest (outer contour)
+  withArea.sort((a, b) => b.area - a.area);
+  
+  // Keep the largest contour plus the ring hole (second largest that's inside)
+  // For simplicity, keep top 2 if the second is the ring hole
+  if (withArea.length >= 2 && withArea[1].area > 0) {
+    // Check if second path is ring hole (should be much smaller)
+    const ratio = withArea[1].area / withArea[0].area;
+    if (ratio < 0.1) {
+      // Second is likely ring hole, keep both
+      return withArea[0].path + ' ' + withArea[1].path;
+    }
+  }
+  
+  return withArea[0].path;
+}
+
+function extractOuterSubpaths(pathD: string): string {
+  if (!pathD) return '';
+
+  const subpaths: string[] = [];
+  const re = /M[^M]*?(?:Z|(?=M)|$)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(pathD)) !== null) {
+    const sp = m[0].trim();
+    if (sp) subpaths.push(sp);
+  }
+
+  if (subpaths.length <= 1) return pathD;
+
+  const items = subpaths
+    .map(sp => {
+      const nums = sp.match(/[-+]?(?:\d+\.?\d*|\.\d+)/g);
+      if (!nums || nums.length < 4) {
+        return { path: sp, minX: 0, minY: 0, maxX: 0, maxY: 0, area: 0 };
+      }
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (let i = 0; i + 1 < nums.length; i += 2) {
+        const x = parseFloat(nums[i]);
+        const y = parseFloat(nums[i + 1]);
+        if (isFinite(x) && isFinite(y)) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+      }
+
+      const area = (maxX - minX) * (maxY - minY);
+      return {
+        path: sp,
+        minX,
+        minY,
+        maxX,
+        maxY,
+        area: isFinite(area) ? area : 0,
+      };
+    })
+    .filter(i => i.area > 0 && isFinite(i.minX) && isFinite(i.minY) && isFinite(i.maxX) && isFinite(i.maxY));
+
+  if (items.length <= 1) return pathD;
+
+  const eps = 0.0001;
+  const isInside = (a: (typeof items)[number], b: (typeof items)[number]) => {
+    return a.minX >= b.minX - eps && a.minY >= b.minY - eps && a.maxX <= b.maxX + eps && a.maxY <= b.maxY + eps;
+  };
+
+  // Keep only subpaths that are NOT inside any other subpath.
+  const outers = items
+    .filter((a) => !items.some((b) => b !== a && b.area >= a.area && isInside(a, b)))
+    .map(i => i.path);
+
+  return outers.join(' ');
 }
 
 /**
@@ -350,23 +591,15 @@ function getWarnings(state: EmojiNameState): Warning[] {
   // Ring warnings
   if (state.ring.enabled) {
     const wallThickness = (state.ring.outerDiameter - state.ring.innerDiameter) / 2;
-    if (wallThickness < 2) {
+    if (wallThickness < 1.2) {
       warnings.push({
         id: 'ring-wall-thin',
         level: 'warn',
-        message: `Ring wall too thin (${wallThickness.toFixed(1)}mm). Min 2mm recommended.`,
-      });
-    }
-    
-    if (state.ring.bridgeThickness < 2.5) {
-      warnings.push({
-        id: 'bridge-thin',
-        level: 'warn',
-        message: `Bridge thickness (${state.ring.bridgeThickness}mm) may be fragile. Min 2.5mm recommended.`,
+        message: `Ring wall thickness (${wallThickness.toFixed(1)}mm) may be too thin. Min 2mm recommended.`,
       });
     }
   }
-  
+
   // Offset warnings
   if (state.stickerOffsetMm < 2) {
     warnings.push({
@@ -393,7 +626,7 @@ function getWarnings(state: EmojiNameState): Warning[] {
 
 function getFilenameBase(state: EmojiNameState): string {
   const slug = sanitizeFilename(state.name);
-  return `keychain-sticker-${slug}-${state.textHeightMm}mm`;
+  return `keychain-sticker-${slug}-${state.fontSize}mm`;
 }
 
 export const emojiNameModeV2: KeychainMode<EmojiNameState> = {

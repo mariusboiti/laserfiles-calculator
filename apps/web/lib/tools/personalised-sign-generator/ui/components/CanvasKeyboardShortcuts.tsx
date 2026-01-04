@@ -10,6 +10,7 @@ export interface CanvasKeyboardShortcutsProps {
   onRedo: () => void;
   onDelete: () => void;
   onEscape: () => void;
+  onDuplicate?: () => void;
 }
 
 export function CanvasKeyboardShortcuts({
@@ -20,6 +21,7 @@ export function CanvasKeyboardShortcuts({
   onRedo,
   onDelete,
   onEscape,
+  onDuplicate,
 }: CanvasKeyboardShortcutsProps) {
   useEffect(() => {
     if (!enabled) return;
@@ -44,6 +46,14 @@ export function CanvasKeyboardShortcuts({
         return;
       }
 
+      if (mod && e.key.toLowerCase() === 'd') {
+        if (onDuplicate) {
+          e.preventDefault();
+          onDuplicate();
+        }
+        return;
+      }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         onDelete();
@@ -59,7 +69,7 @@ export function CanvasKeyboardShortcuts({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [enabled, canUndo, canRedo, onUndo, onRedo, onDelete, onEscape]);
+  }, [enabled, canUndo, canRedo, onUndo, onRedo, onDelete, onEscape, onDuplicate]);
 
   return null;
 }

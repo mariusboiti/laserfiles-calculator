@@ -184,9 +184,9 @@ export function textToPathD(
   text: string,
   sizeMm: number,
   letterSpacingMm: number = 0
-): { pathD: string; width: number; height: number } {
+): { pathD: string; width: number; height: number; bbox: { x: number; y: number; width: number; height: number } } {
   if (!text || text.length === 0) {
-    return { pathD: '', width: 0, height: 0 };
+    return { pathD: '', width: 0, height: 0, bbox: { x: 0, y: 0, width: 0, height: 0 } };
   }
 
   const sizePx = sizeMm * PX_PER_MM;
@@ -202,14 +202,20 @@ export function textToPathD(
   }
 
   const bbox = path.getBoundingBox();
-  const width = (bbox.x2 - bbox.x1) / PX_PER_MM;
-  const height = (bbox.y2 - bbox.y1) / PX_PER_MM;
+  const bboxMm = {
+    x: bbox.x1 / PX_PER_MM,
+    y: bbox.y1 / PX_PER_MM,
+    width: (bbox.x2 - bbox.x1) / PX_PER_MM,
+    height: (bbox.y2 - bbox.y1) / PX_PER_MM,
+  };
+  const width = bboxMm.width;
+  const height = bboxMm.height;
 
   // Convert to SVG path string and scale to mm
   const pathDpx = path.toPathData(3);
   const pathDmm = scalePathData(pathDpx, 1 / PX_PER_MM);
 
-  return { pathD: pathDmm, width, height };
+  return { pathD: pathDmm, width, height, bbox: bboxMm };
 }
 
 /**

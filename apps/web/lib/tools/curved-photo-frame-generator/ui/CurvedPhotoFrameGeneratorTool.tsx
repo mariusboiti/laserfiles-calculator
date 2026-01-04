@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { downloadTextFile } from '@/lib/studio/export/download';
 import { downloadZip } from '@/lib/studio/export/zip';
+import { ExportMiniDisclaimer } from '@/components/legal';
 import type { CurvedPhotoFrameInputs, CurveStrength, StandType } from '../core/types';
 import { exportCurvedFrameDxf } from '../core/exportDxf';
 import { generateCurvedPhotoFrameSvgs } from '../core/generateCurvedPhotoFrameSvgs';
@@ -399,6 +400,8 @@ export function CurvedPhotoFrameGeneratorTool({
               Print / PDF
             </button>
           </div>
+
+          <ExportMiniDisclaimer className="mt-2" />
         </div>
       </div>
 

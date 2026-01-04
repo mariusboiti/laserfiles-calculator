@@ -150,6 +150,52 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
                 Fill sheet to capacity (repeat names)
               </span>
             </label>
+
+            <div className="border-t border-slate-700 pt-4 mt-4">
+              <label className="flex items-start gap-2 text-sm text-slate-300 mb-3">
+                <input
+                  type="checkbox"
+                  checked={!!config.manualGridEnabled}
+                  onChange={(e) => updateConfig({ manualGridEnabled: e.target.checked })}
+                  className="h-4 w-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
+                />
+                <span>
+                  Specify grid manually (columns × rows)
+                </span>
+              </label>
+
+              {config.manualGridEnabled && (
+                <div className="grid grid-cols-2 gap-4 ml-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
+                      Columns
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={config.manualColumns ?? 2}
+                      onChange={(e) => updateConfig({ manualColumns: Math.max(1, Number(e.target.value)) })}
+                      className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
+                      Rows
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={config.manualRows ?? 2}
+                      onChange={(e) => updateConfig({ manualRows: Math.max(1, Number(e.target.value)) })}
+                      className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

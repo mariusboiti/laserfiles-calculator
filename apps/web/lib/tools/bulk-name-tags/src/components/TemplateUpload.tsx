@@ -5,10 +5,10 @@ import { validateLaserSafeSvg } from '../utils/aiTemplateUtils';
 import { extractSvgFromAiResponse } from '../../core/extractSvgFromAi';
 import { formatShapeSpecSummary, parseShapeSpec, shapeSpecToSvg, type ShapeSpec } from '../../core/aiShapeSpec';
 import { generateSilhouetteImage, getSilhouetteAiStatus } from '../../core/generateSilhouetteImage';
-import { traceImageToSvg, type TraceDetail } from '../../core/traceImageToSvg';
+import { traceImageToSvg, traceImageToLaserSvgViaPotrace, type TraceDetail } from '../../core/traceImageToSvg';
 import { normalizeImage } from '../../core/imageNormalize';
 import { wrapTracedSvg } from '../../core/wrapTracedSvg';
-import type { TemplateSizeConfig, UnitSystem } from '../types';
+import type { TemplateSizeConfig, UnitSystem, HoleConfig } from '../types';
 
 interface TemplateUploadProps {
   onTemplateLoad: (svg: string) => void;
@@ -16,13 +16,15 @@ interface TemplateUploadProps {
   unitSystem: UnitSystem;
   templateSize: TemplateSizeConfig | null;
   onTemplateSizeChange: (next: TemplateSizeConfig | null) => void;
+  holeConfig: HoleConfig;
+  onHoleConfigChange: (config: HoleConfig) => void;
 }
 
-export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templateSize, onTemplateSizeChange }: TemplateUploadProps) {
+export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templateSize, onTemplateSizeChange, holeConfig, onHoleConfigChange }: TemplateUploadProps) {
   const [error, setError] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [aiPrompt, setAiPrompt] = useState<string>('');
-  const [aiMode, setAiMode] = useState<'smart' | 'raw' | 'silhouette'>('silhouette');
+  const aiMode = 'silhouette'; // Only silhouette mode is supported
 
   const [silhouetteConfigured, setSilhouetteConfigured] = useState<boolean>(false);
   const [silhouetteConfigMessage, setSilhouetteConfigMessage] = useState<string>('');
@@ -30,6 +32,12 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
   const [silhouetteTraceDetail, setSilhouetteTraceDetail] = useState<TraceDetail>('medium');
   const [silhouetteThreshold, setSilhouetteThreshold] = useState<number>(128);
   const [silhouetteRemoveSpecks, setSilhouetteRemoveSpecks] = useState<boolean>(true);
+  const [silhouetteUsePotrace, setSilhouetteUsePotrace] = useState<boolean>(true);
+  const [silhouettePotraceThreshold, setSilhouettePotraceThreshold] = useState<number>(175);
+  const [silhouettePotraceDenoise, setSilhouettePotraceDenoise] = useState<number>(2);
+  const [silhouettePotraceInvert, setSilhouettePotraceInvert] = useState<boolean>(false);
+  const [silhouettePotraceAutoInvert, setSilhouettePotraceAutoInvert] = useState<boolean>(true);
+  const [silhouettePotraceOptTolerance, setSilhouettePotraceOptTolerance] = useState<number>(0.2);
   const [silhouetteTracedSvg, setSilhouetteTracedSvg] = useState<string>('');
   const [silhouetteTraceDebug, setSilhouetteTraceDebug] = useState<string[]>([]);
   const [silhouetteNormalizeIssues, setSilhouetteNormalizeIssues] = useState<string[]>([]);
@@ -246,6 +254,11 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
       const result = await generateSilhouetteImage(prompt);
       setSilhouetteImageDataUrl(result.dataUrl);
       setSelectedTemplateId('');
+
+      // Auto-trace after generation for clean defaults.
+      window.setTimeout(() => {
+        void handleSilhouetteTrace();
+      }, 0);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Silhouette generation failed');
     } finally {
@@ -282,39 +295,56 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
         allIssues.push('Image auto-rotated to landscape orientation');
       }
 
-      const traceResult = await traceImageToSvg(normalizeResult.dataUrl, {
-        detail: silhouetteTraceDetail,
-        threshold: silhouetteThreshold,
-        removeSpecks: silhouetteRemoveSpecks,
-      });
-
-      allDebug.push(...traceResult.debug);
-
       const targetW = templateSize?.width || 80;
       const targetH = templateSize?.height || 30;
 
-      const wrapResult = wrapTracedSvg(traceResult.svg, {
-        targetWidthMm: targetW,
-        targetHeightMm: targetH,
-        canvasWidth: traceResult.canvasWidth,
-        canvasHeight: traceResult.canvasHeight,
-        marginMm: 2,
-      });
+      let finalSvg = '';
 
-      allIssues.push(...wrapResult.issues);
+      if (silhouetteUsePotrace) {
+        const potrace = await traceImageToLaserSvgViaPotrace(normalizeResult.dataUrl, {
+          targetWidthMm: targetW,
+          targetHeightMm: targetH,
+          threshold: silhouettePotraceThreshold,
+          denoise: silhouettePotraceDenoise,
+          autoInvert: silhouettePotraceAutoInvert,
+          invert: silhouettePotraceInvert,
+          optTolerance: silhouettePotraceOptTolerance,
+        });
+        allDebug.push(...potrace.debug);
+        finalSvg = potrace.svg;
+      } else {
+        const traceResult = await traceImageToSvg(normalizeResult.dataUrl, {
+          detail: silhouetteTraceDetail,
+          threshold: silhouetteThreshold,
+          removeSpecks: silhouetteRemoveSpecks,
+        });
 
-      if (!wrapResult.svg) {
-        throw new Error('SVG wrapping failed');
+        allDebug.push(...traceResult.debug);
+
+        const wrapResult = wrapTracedSvg(traceResult.svg, {
+          targetWidthMm: targetW,
+          targetHeightMm: targetH,
+          canvasWidth: traceResult.canvasWidth,
+          canvasHeight: traceResult.canvasHeight,
+          marginMm: 2,
+        });
+
+        allIssues.push(...wrapResult.issues);
+        finalSvg = wrapResult.svg;
       }
 
-      const parsed = parseSvg(wrapResult.svg);
+      if (!finalSvg) {
+        throw new Error('Tracing produced empty SVG');
+      }
+
+      const parsed = parseSvg(finalSvg);
       if (!parsed.ok) {
         throw new Error('Traced SVG could not be parsed');
       }
 
       setSilhouetteTraceDebug(allDebug);
       setSilhouetteNormalizeIssues(allIssues);
-      setSilhouetteTracedSvg(wrapResult.svg);
+      setSilhouetteTracedSvg(finalSvg);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Tracing failed');
     } finally {
@@ -329,6 +359,18 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
     }
     setSelectedTemplateId('');
     onTemplateLoad(silhouetteTracedSvg);
+    
+    // Parse and set template size from the traced SVG
+    try {
+      const bounds = parseTemplateBounds(silhouetteTracedSvg);
+      onTemplateSizeChange({
+        width: bounds.width,
+        height: bounds.height,
+        lockAspect: true
+      });
+    } catch (error) {
+      console.error('Failed to parse template bounds:', error);
+    }
   };
 
   const handleAIGenerateRaw = async () => {
@@ -439,54 +481,243 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
         )}
       </div>
 
+      {/* Template preview - shown right after template selection */}
+      {templateSvg && (
+        <>
+          <div className="mb-4 rounded-md border border-slate-700 bg-slate-100 p-3">
+            <p className="text-sm font-medium text-green-700 mb-2">✓ Template loaded</p>
+            <div className="max-h-32 overflow-auto">
+              <div
+                dangerouslySetInnerHTML={{ __html: templateSvg }}
+                className="flex justify-center [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block"
+              />
+            </div>
+          </div>
+
+          {/* Template size controls - always show if template is loaded */}
+          {(() => {
+            let bounds: { width: number; height: number } | null = null;
+            try {
+              const parsed = parseTemplateBounds(templateSvg);
+              bounds = { width: parsed.width, height: parsed.height };
+            } catch {
+              bounds = null;
+            }
+
+            const aspect = bounds ? bounds.width / bounds.height : null;
+
+            return (
+              <div className="mb-4 rounded-md border border-slate-700 bg-slate-900/60 p-3">
+                <h3 className="text-sm font-semibold text-slate-200 mb-2">Template size</h3>
+
+                {bounds && (
+                  <div className="text-xs text-slate-400 mb-3">
+                    Current: {Number(toDisplay(bounds.width).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem} × {Number(toDisplay(bounds.height).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem}
+                  </div>
+                )}
+
+                {templateSize && bounds && (
+                  <div className="text-xs text-slate-400 mb-3">
+                    Scaled to: {Number(toDisplay(templateSize.width).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem} × {Number(toDisplay(templateSize.height).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem}
+                  </div>
+                )}
+
+                {!templateSize && bounds && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onTemplateSizeChange({
+                        width: bounds.width,
+                        height: bounds.height,
+                        lockAspect: true
+                      });
+                    }}
+                    className="mb-3 px-3 py-1.5 text-xs rounded-md border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
+                  >
+                    Enable custom size
+                  </button>
+                )}
+
+                {templateSize && bounds && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Width ({unitSystem})
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step={unitSystem === 'in' ? '0.01' : '0.5'}
+                      value={Number(toDisplay(templateSize.width).toFixed(unitSystem === 'in' ? 3 : 1))}
+                      onChange={(e) => {
+                        const nextWidth = fromDisplay(Number(e.target.value));
+                        if (!aspect || !templateSize.lockAspect) {
+                          onTemplateSizeChange({ ...templateSize, width: nextWidth });
+                          return;
+                        }
+                        onTemplateSizeChange({ ...templateSize, width: nextWidth, height: nextWidth / aspect });
+                      }}
+                      className="w-full px-2 py-1.5 text-sm border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Height ({unitSystem})
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step={unitSystem === 'in' ? '0.01' : '0.5'}
+                      value={Number(toDisplay(templateSize.height).toFixed(unitSystem === 'in' ? 3 : 1))}
+                      onChange={(e) => {
+                        const nextHeight = fromDisplay(Number(e.target.value));
+                        if (!aspect || !templateSize.lockAspect) {
+                          onTemplateSizeChange({ ...templateSize, height: nextHeight });
+                          return;
+                        }
+                        onTemplateSizeChange({ ...templateSize, height: nextHeight, width: nextHeight * aspect });
+                      }}
+                      className="w-full px-2 py-1.5 text-sm border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-xs text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={templateSize.lockAspect}
+                      onChange={(e) => onTemplateSizeChange({ ...templateSize, lockAspect: e.target.checked })}
+                      className="h-3 w-3 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
+                    />
+                    Lock aspect
+                  </label>
+
+                  {bounds && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onTemplateSizeChange({ width: bounds.width, height: bounds.height, lockAspect: templateSize.lockAspect });
+                      }}
+                      className="px-2 py-1 text-xs rounded-md border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Manual hole controls */}
+          <div className="mb-4 rounded-md border border-slate-700 bg-slate-900/60 p-3">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-200">Add Hole</h3>
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={holeConfig.enabled}
+                  onChange={(e) => onHoleConfigChange({ ...holeConfig, enabled: e.target.checked })}
+                  className="h-3 w-3 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
+                />
+                Enable
+              </label>
+            </div>
+
+            {holeConfig.enabled && (() => {
+              let maxX = 100;
+              let maxY = 100;
+              try {
+                const bounds = parseTemplateBounds(templateSvg);
+                maxX = bounds.width;
+                maxY = bounds.height;
+              } catch {
+                // Use defaults
+              }
+
+              return (
+                <div className="space-y-3">
+                  {/* X Position Slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-slate-300">
+                        X Position ({unitSystem})
+                      </label>
+                      <span className="text-xs text-slate-400">
+                        {unitSystem === 'in' ? (holeConfig.x / 25.4).toFixed(2) : holeConfig.x.toFixed(1)}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max={maxX}
+                      step={unitSystem === 'in' ? maxX / 100 : 0.5}
+                      value={holeConfig.x}
+                      onChange={(e) => onHoleConfigChange({ ...holeConfig, x: Number(e.target.value) })}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Y Position Slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-slate-300">
+                        Y Position ({unitSystem})
+                      </label>
+                      <span className="text-xs text-slate-400">
+                        {unitSystem === 'in' ? (holeConfig.y / 25.4).toFixed(2) : holeConfig.y.toFixed(1)}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max={maxY}
+                      step={unitSystem === 'in' ? maxY / 100 : 0.5}
+                      value={holeConfig.y}
+                      onChange={(e) => onHoleConfigChange({ ...holeConfig, y: Number(e.target.value) })}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Radius Slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-slate-300">
+                        Hole Size ({unitSystem})
+                      </label>
+                      <span className="text-xs text-slate-400">
+                        {unitSystem === 'in' ? (holeConfig.radius / 25.4).toFixed(2) : holeConfig.radius.toFixed(1)}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="10"
+                      step="0.1"
+                      value={holeConfig.radius}
+                      onChange={(e) => onHoleConfigChange({ ...holeConfig, radius: Number(e.target.value) })}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <p className="text-xs text-slate-400">
+                    Position is relative to template origin (top-left)
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+        </>
+      )}
+
       <div className="mb-4 border-t border-slate-800 pt-4">
         <h3 className="text-sm font-semibold text-slate-200 mb-2">Generate template with AI</h3>
         <p className="text-xs text-slate-400 mb-3">Describe the tag shape you want.</p>
 
-        <div className="flex gap-2 mb-3">
-          <button
-            type="button"
-            onClick={() => {
-              setAiMode('silhouette');
-              resetAiState();
-            }}
-            className={
-              aiMode === 'silhouette'
-                ? 'px-3 py-1 rounded-md bg-sky-600 text-white text-xs font-semibold'
-                : 'px-3 py-1 rounded-md border border-slate-700 bg-slate-950 text-slate-200 text-xs'
-            }
-          >
-            AI Silhouette (Recommended)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAiMode('smart');
-              resetAiState();
-            }}
-            className={
-              aiMode === 'smart'
-                ? 'px-3 py-1 rounded-md bg-sky-600 text-white text-xs font-semibold'
-                : 'px-3 py-1 rounded-md border border-slate-700 bg-slate-950 text-slate-200 text-xs'
-            }
-          >
-            Smart (JSON spec)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAiMode('raw');
-              resetAiState();
-            }}
-            className={
-              aiMode === 'raw'
-                ? 'px-3 py-1 rounded-md bg-sky-600 text-white text-xs font-semibold'
-                : 'px-3 py-1 rounded-md border border-slate-700 bg-slate-950 text-slate-200 text-xs'
-            }
-          >
-            Raw SVG (Experimental)
-          </button>
-        </div>
 
         <div className="flex flex-col gap-3">
           <input
@@ -497,75 +728,112 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
             className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
 
-          {aiMode === 'silhouette' ? (
-            <div className="flex flex-col gap-2">
-              {!silhouetteConfigured && silhouetteConfigMessage && (
-                <div className="rounded-md border border-amber-800 bg-amber-950/30 p-3 mb-2">
-                  <p className="text-xs text-amber-200">{silhouetteConfigMessage}</p>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={handleSilhouetteGenerate}
-                disabled={isAiGenerating || !silhouetteConfigured}
-                className="px-4 py-2 rounded-md bg-sky-600 text-white font-medium disabled:opacity-60"
-              >
-                {isAiGenerating ? 'Generating…' : 'Generate Silhouette'}
-              </button>
-            </div>
-          ) : aiMode === 'smart' ? (
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                type="button"
-                onClick={() => handleAIGenerateSmart()}
-                disabled={isAiGenerating}
-                className="px-4 py-2 rounded-md bg-sky-600 text-white font-medium disabled:opacity-60"
-              >
-                {isAiGenerating ? 'Generating…' : 'Generate (Smart)'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAIGenerateSmart({ simpler: true })}
-                disabled={isAiGenerating}
-                className="px-4 py-2 rounded-md border border-slate-700 bg-slate-950 text-slate-200 font-medium disabled:opacity-60"
-              >
-                Retry (simpler)
-              </button>
-              <button
-                type="button"
-                onClick={handleUseFallback}
-                disabled={isAiGenerating}
-                className="px-4 py-2 rounded-md border border-slate-700 bg-slate-950 text-slate-200 font-medium disabled:opacity-60"
-              >
-                Use Rounded Rectangle fallback
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleAIGenerateRaw}
-              disabled={isAiGenerating}
-              className="px-4 py-2 rounded-md bg-sky-600 text-white font-medium disabled:opacity-60"
-            >
-              {isAiGenerating ? 'Generating…' : 'Generate SVG with AI'}
-            </button>
-          )}
-        </div>
-
-        {aiMode === 'silhouette' ? (
-          <>
-            {silhouetteImageDataUrl && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <p className="text-xs text-slate-400 mb-2">Generated silhouette image</p>
-                <div className="max-h-40 overflow-auto flex justify-center bg-slate-900 rounded p-2">
-                  <img src={silhouetteImageDataUrl} alt="Silhouette" className="max-w-full h-auto" />
-                </div>
+          <div className="flex flex-col gap-2">
+            {!silhouetteConfigured && silhouetteConfigMessage && (
+              <div className="rounded-md border border-amber-800 bg-amber-950/30 p-3 mb-2">
+                <p className="text-xs text-amber-200">{silhouetteConfigMessage}</p>
               </div>
             )}
+            <button
+              type="button"
+              onClick={handleSilhouetteGenerate}
+              disabled={isAiGenerating || !silhouetteConfigured}
+              className="px-4 py-2 rounded-md bg-sky-600 text-white font-medium disabled:opacity-60"
+            >
+              {isAiGenerating ? 'Generating…' : 'Generate Silhouette'}
+            </button>
+          </div>
+        </div>
 
-            {silhouetteImageDataUrl && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <p className="text-sm font-semibold text-slate-200 mb-3">Trace settings</p>
+        {silhouetteImageDataUrl && (
+          <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
+            <p className="text-xs text-slate-400 mb-2">Generated silhouette image</p>
+            <div className="max-h-40 overflow-auto flex justify-center bg-slate-900 rounded p-2">
+              <img src={silhouetteImageDataUrl} alt="Silhouette" className="max-w-full h-auto" />
+            </div>
+          </div>
+        )}
+
+        {silhouetteImageDataUrl && (
+          <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
+            <p className="text-sm font-semibold text-slate-200 mb-3">Trace settings</p>
+            <div className="mb-3">
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={silhouetteUsePotrace}
+                  onChange={(e) => setSilhouetteUsePotrace(e.target.checked)}
+                  className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
+                />
+                Use Potrace (Logo Clean)
+              </label>
+            </div>
+
+            {silhouetteUsePotrace ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Threshold: {silhouettePotraceThreshold}
+                  </label>
+                  <input
+                    type="range"
+                    min="80"
+                    max="220"
+                    value={silhouettePotraceThreshold}
+                    onChange={(e) => setSilhouettePotraceThreshold(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Denoise</label>
+                  <select
+                    value={silhouettePotraceDenoise}
+                    onChange={(e) => setSilhouettePotraceDenoise(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  >
+                    <option value={0}>0 (none)</option>
+                    <option value={1}>1 (light)</option>
+                    <option value={2}>2 (medium)</option>
+                    <option value={3}>3 (strong)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Simplify: {silhouettePotraceOptTolerance.toFixed(2)}
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={silhouettePotraceOptTolerance}
+                    onChange={(e) => setSilhouettePotraceOptTolerance(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-xs text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={silhouettePotraceAutoInvert}
+                      onChange={(e) => setSilhouettePotraceAutoInvert(e.target.checked)}
+                      className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
+                    />
+                    Auto-invert
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={silhouettePotraceInvert}
+                      onChange={(e) => setSilhouettePotraceInvert(e.target.checked)}
+                      className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
+                    />
+                    Force invert
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">Detail</label>
@@ -604,176 +872,50 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                     Remove small specks
                   </label>
                 </div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSilhouetteTrace}
-                    disabled={isAiGenerating}
-                    className="px-4 py-2 rounded-md bg-sky-600 text-white font-medium disabled:opacity-60"
-                  >
-                    {isAiGenerating ? 'Tracing…' : 'Convert to SVG'}
-                  </button>
-                  {silhouetteTracedSvg && (
-                    <button
-                      type="button"
-                      onClick={handleSilhouetteUseAsTemplate}
-                      className="px-4 py-2 rounded-md border border-slate-700 bg-slate-950 text-slate-200 font-medium"
-                    >
-                      Use as Template
-                    </button>
-                  )}
-                </div>
-              </div>
+              </>
             )}
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={handleSilhouetteTrace}
+                disabled={isAiGenerating}
+                className="px-4 py-2 rounded-md bg-sky-600 text-white font-medium disabled:opacity-60"
+              >
+                {isAiGenerating ? 'Tracing…' : 'Convert to SVG'}
+              </button>
+              {silhouetteTracedSvg && (
+                <button
+                  type="button"
+                  onClick={handleSilhouetteUseAsTemplate}
+                  className="px-4 py-2 rounded-md border border-slate-700 bg-slate-950 text-slate-200 font-medium"
+                >
+                  Use as Template
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-            {silhouetteTraceDebug.length > 0 && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <p className="text-xs text-slate-400 mb-2">Trace debug</p>
-                <ul className="list-disc pl-5 text-[11px] text-slate-200">
-                  {silhouetteTraceDebug.map((line, idx) => (
-                    <li key={idx}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
 
-            {silhouetteNormalizeIssues.length > 0 && (
-              <div className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3">
-                <p className="text-sm font-semibold text-sky-200 mb-2">Processing info</p>
-                <ul className="list-disc pl-5 text-xs text-sky-200">
-                  {silhouetteNormalizeIssues.map((issue, idx) => (
-                    <li key={idx}>{issue}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+        {silhouetteNormalizeIssues.length > 0 && (
+          <div className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3">
+            <p className="text-sm font-semibold text-sky-200 mb-2">Processing info</p>
+            <ul className="list-disc pl-5 text-xs text-sky-200">
+              {silhouetteNormalizeIssues.map((issue, idx) => (
+                <li key={idx}>{issue}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-            {silhouetteTracedSvg && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <p className="text-xs text-slate-400 mb-2">Traced SVG preview</p>
-                <div
-                  className="max-h-40 overflow-auto flex justify-center [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block"
-                  dangerouslySetInnerHTML={{ __html: silhouetteTracedSvg }}
-                />
-              </div>
-            )}
-          </>
-        ) : aiMode === 'smart' ? (
-          <>
-            {smartSummaryLines.length > 0 && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <p className="text-sm font-semibold text-slate-200 mb-2">Spec summary</p>
-                <ul className="list-disc pl-5 text-xs text-slate-200">
-                  {smartSummaryLines.map((line, idx) => (
-                    <li key={idx}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {smartWarnings.length > 0 && (
-              <div className="mt-3 rounded-md border border-amber-800 bg-amber-950/30 p-3">
-                <p className="text-sm font-semibold text-amber-200 mb-2">Spec warnings</p>
-                <ul className="list-disc pl-5 text-xs text-amber-200">
-                  {smartWarnings.map((issue, idx) => (
-                    <li key={idx}>{issue}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {smartErrors.length > 0 && (
-              <div className="mt-3 rounded-md border border-red-800 bg-red-950/30 p-3">
-                <p className="text-sm font-semibold text-red-200 mb-2">Errors</p>
-                <ul className="list-disc pl-5 text-xs text-red-200">
-                  {smartErrors.map((issue, idx) => (
-                    <li key={idx}>{issue}</li>
-                  ))}
-                </ul>
-
-                {smartRawResponse && (
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-[11px] text-red-200">Raw AI response</summary>
-                    <pre className="mt-2 text-[11px] whitespace-pre-wrap text-red-100">{smartRawResponse.slice(0, 300)}</pre>
-                  </details>
-                )}
-              </div>
-            )}
-
-            {smartGeneratedPreview && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <p className="text-xs text-slate-400 mb-2">Generated SVG preview</p>
-                <div
-                  className="max-h-40 overflow-auto flex justify-center [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block"
-                  dangerouslySetInnerHTML={{ __html: smartGeneratedPreview }}
-                />
-              </div>
-            )}
-
-            {smartRawResponse && smartErrors.length === 0 && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <details>
-                  <summary className="cursor-pointer text-[11px] text-slate-400">Raw AI response</summary>
-                  <pre className="mt-2 text-[11px] whitespace-pre-wrap text-slate-200">{smartRawResponse.slice(0, 3000)}</pre>
-                </details>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {aiIssues.length > 0 && (
-              <div className="mt-3 rounded-md border border-amber-800 bg-amber-950/30 p-3">
-                <p className="text-sm font-semibold text-amber-200 mb-2">Validation issues</p>
-                <ul className="list-disc pl-5 text-xs text-amber-200">
-                  {aiIssues.map((issue, idx) => (
-                    <li key={idx}>{issue}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {aiExtractedPreview && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <p className="text-xs text-slate-400 mb-2">Extracted SVG preview</p>
-                <div
-                  className="max-h-40 overflow-auto flex justify-center [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block"
-                  dangerouslySetInnerHTML={{ __html: aiExtractedPreview }}
-                />
-              </div>
-            )}
-
-            {(aiDebugLines.length > 0 || aiExtractedSnippet || aiRawResponse) && (
-              <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-                <p className="text-xs text-slate-400 mb-2">AI parse debug</p>
-
-                {aiExtractSource && (
-                  <p className="text-[11px] text-slate-300 mb-2">Source: {aiExtractSource}</p>
-                )}
-
-                {aiDebugLines.length > 0 && (
-                  <ul className="list-disc pl-5 text-[11px] text-slate-200 mb-2">
-                    {aiDebugLines.map((line, idx) => (
-                      <li key={idx}>{line}</li>
-                    ))}
-                  </ul>
-                )}
-
-                {aiExtractedSnippet && (
-                  <div className="mb-2">
-                    <p className="text-[11px] text-slate-400 mb-1">Extracted SVG (first 200 chars)</p>
-                    <pre className="text-[11px] whitespace-pre-wrap text-slate-200">{aiExtractedSnippet}</pre>
-                  </div>
-                )}
-
-                {aiRawResponse && (
-                  <details>
-                    <summary className="cursor-pointer text-[11px] text-slate-400">Raw AI response</summary>
-                    <pre className="mt-2 text-[11px] whitespace-pre-wrap text-slate-200">{aiRawResponse.slice(0, 3000)}</pre>
-                  </details>
-                )}
-              </div>
-            )}
-          </>
+        {silhouetteTracedSvg && (
+          <div className="mt-3 rounded-md border border-slate-800 bg-slate-100 p-3">
+            <p className="text-xs text-slate-600 mb-2">Traced SVG preview</p>
+            <div
+              className="max-h-40 overflow-auto flex justify-center [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block"
+              dangerouslySetInnerHTML={{ __html: silhouetteTracedSvg }}
+            />
+          </div>
         )}
       </div>
 
@@ -784,111 +926,8 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
         className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-sky-500/10 file:text-sky-400 hover:file:bg-sky-500/20"
       />
 
-      {templateSvg && templateSize && (() => {
-        let bounds: { width: number; height: number } | null = null;
-        try {
-          const parsed = parseTemplateBounds(templateSvg);
-          bounds = { width: parsed.width, height: parsed.height };
-        } catch {
-          bounds = null;
-        }
-
-        const aspect = bounds ? bounds.width / bounds.height : null;
-
-        return (
-          <div className="mt-4 border-t pt-4">
-            <h3 className="text-sm font-semibold text-slate-200 mb-2">Template size</h3>
-
-            {bounds && (
-              <div className="text-xs text-slate-500 mb-3">
-                Original: {Number(toDisplay(bounds.width).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem} × {Number(toDisplay(bounds.height).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Width ({unitSystem})
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step={unitSystem === 'in' ? '0.01' : '0.5'}
-                  value={Number(toDisplay(templateSize.width).toFixed(unitSystem === 'in' ? 3 : 1))}
-                  onChange={(e) => {
-                    const nextWidth = fromDisplay(Number(e.target.value));
-                    if (!aspect || !templateSize.lockAspect) {
-                      onTemplateSizeChange({ ...templateSize, width: nextWidth });
-                      return;
-                    }
-                    onTemplateSizeChange({ ...templateSize, width: nextWidth, height: nextWidth / aspect });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Height ({unitSystem})
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step={unitSystem === 'in' ? '0.01' : '0.5'}
-                  value={Number(toDisplay(templateSize.height).toFixed(unitSystem === 'in' ? 3 : 1))}
-                  onChange={(e) => {
-                    const nextHeight = fromDisplay(Number(e.target.value));
-                    if (!aspect || !templateSize.lockAspect) {
-                      onTemplateSizeChange({ ...templateSize, height: nextHeight });
-                      return;
-                    }
-                    onTemplateSizeChange({ ...templateSize, height: nextHeight, width: nextHeight * aspect });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-sm text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={templateSize.lockAspect}
-                  onChange={(e) => onTemplateSizeChange({ ...templateSize, lockAspect: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                Lock aspect ratio
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!bounds) return;
-                  onTemplateSizeChange({ width: bounds.width, height: bounds.height, lockAspect: templateSize.lockAspect });
-                }}
-                className="px-3 py-2 text-sm rounded-md border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
-              >
-                Reset to original
-              </button>
-            </div>
-          </div>
-        );
-      })()}
-
       {error && (
         <p className="text-red-500 text-sm mt-2">{error}</p>
-      )}
-
-      {templateSvg && (
-        <div className="mt-4">
-          <p className="text-sm font-medium text-green-600 mb-2">✓ Template loaded</p>
-          <div className="border border-gray-200 rounded p-4 bg-gray-50 max-h-48 overflow-auto">
-            <div
-              dangerouslySetInnerHTML={{ __html: templateSvg }}
-              className="flex justify-center [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block"
-            />
-          </div>
-        </div>
       )}
     </div>
   );

@@ -17,7 +17,7 @@ import { DEFAULT_SELECTION } from '../../types/canvas';
 export type CanvasAction =
   | { type: 'ADD_ELEMENT'; element: CanvasElement }
   | { type: 'REMOVE_ELEMENTS'; ids: string[] }
-  | { type: 'UPDATE_ELEMENT'; id: string; updates: Partial<CanvasElement> }
+  | { type: 'UPDATE_ELEMENT'; id: string; updates: Partial<CanvasElement> & Record<string, unknown> }
   | { type: 'UPDATE_TRANSFORM'; id: string; transform: Partial<ElementTransform> }
   | { type: 'SET_LAYER'; id: string; layer: LayerType }
   | { type: 'REORDER_ELEMENTS'; ids: string[] }

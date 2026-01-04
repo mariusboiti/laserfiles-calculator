@@ -7,6 +7,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Download, Info } from 'lucide-react';
+import { ExportMiniDisclaimer } from '@/components/legal';
 import { generateTestCardSvg, TestCardCell } from '../../utils/generateTestCardSvg';
 import { generatePhotoSampleTestCardPng, PhotoSampleTestCardConfig } from '../../utils/generatePhotoSampleTestCardPng';
 import { useImageStore } from '../../store/useImageStore';
@@ -463,6 +464,8 @@ export function TestCardPanel() {
               Download SVG
             </button>
 
+            <ExportMiniDisclaimer className="mt-2" />
+
             <p className="text-[11px] text-gray-500 mt-1">
               SVG is unit-agnostic. You can scale it in LightBurn to match your desired size.
             </p>
@@ -494,6 +497,8 @@ export function TestCardPanel() {
             >
               Download SVG (vector only)
             </button>
+
+            <ExportMiniDisclaimer className="mt-2" />
 
             <p className="text-[11px] text-gray-500 mt-1">
               LightBurn does not reliably import embedded images from SVG, so in

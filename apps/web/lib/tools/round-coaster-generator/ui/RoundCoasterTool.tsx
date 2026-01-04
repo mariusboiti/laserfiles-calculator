@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import { downloadTextFile } from '@/lib/studio/export/download';
 import type { CoasterShape } from '../types/coaster';
 import { generateCoasterSvg } from '../core/generateCoasterSvg';
@@ -11,6 +12,12 @@ function clampNumber(n: number, min: number, max: number) {
 }
 
 export function RoundCoasterTool() {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   const [shape, setShape] = useState<CoasterShape>('circle');
   const [widthMm, setWidthMm] = useState<number>(90);
   const [heightMm, setHeightMm] = useState<number>(100);

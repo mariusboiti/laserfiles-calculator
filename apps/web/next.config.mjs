@@ -1,9 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    serverComponentsExternalPackages: ['sharp', 'potrace', 'jimp'],
+  },
   webpack: (config, { dev, isServer, webpack }) => {
     if (!dev) {
       config.cache = false;
+    }
+
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        sharp: 'commonjs sharp',
+        potrace: 'commonjs potrace',
+        jimp: 'commonjs jimp',
+      });
     }
 
     config.plugins = config.plugins || [];

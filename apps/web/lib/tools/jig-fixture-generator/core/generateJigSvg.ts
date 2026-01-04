@@ -55,7 +55,7 @@ export function generateJigSvg(options: JigOptions): { svg: string; meta: JigMet
         if (options.engraveOutline) {
           guides.push(`<rect x="${x.toFixed(3)}" y="${y.toFixed(3)}" width="${objW.toFixed(3)}" height="${objH.toFixed(3)}" ${engraveStroke} />`);
         }
-      } else {
+      } else if (options.objectShape === 'circle') {
         const cx = x + objW / 2;
         const cy = y + objH / 2;
         const rad = Math.min(objW, objH) / 2;
@@ -64,6 +64,17 @@ export function generateJigSvg(options: JigOptions): { svg: string; meta: JigMet
         }
         if (options.engraveOutline) {
           guides.push(`<circle cx="${cx.toFixed(3)}" cy="${cy.toFixed(3)}" r="${rad.toFixed(3)}" ${engraveStroke} />`);
+        }
+      } else if (options.objectShape === 'custom' && options.customShape) {
+        // Scale custom path to fit object dimensions
+        const scaleX = objW / options.customShape.originalW;
+        const scaleY = objH / options.customShape.originalH;
+        const transform = `translate(${x.toFixed(3)}, ${y.toFixed(3)}) scale(${scaleX.toFixed(6)}, ${scaleY.toFixed(6)})`;
+        if (options.cutHoles) {
+          holes.push(`<path d="${options.customShape.pathD}" transform="${transform}" ${cutStroke} />`);
+        }
+        if (options.engraveOutline) {
+          guides.push(`<path d="${options.customShape.pathD}" transform="${transform}" ${engraveStroke} />`);
         }
       }
 

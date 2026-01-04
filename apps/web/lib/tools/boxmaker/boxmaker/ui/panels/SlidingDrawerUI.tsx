@@ -6,6 +6,7 @@ import {
   generateSlidingDrawerLayoutSvg,
   generateSlidingDrawerPanels,
   generateSlidingDrawerSvgs,
+  generateDrawerDividerSvgs,
 } from '../../core/sliding/generateSlidingDrawerSvgs';
 import type { PathOperation } from '../../../src/lib/types';
 import { importSvgAsFace } from '../../../src/lib/svgImport';
@@ -21,6 +22,21 @@ import { validateBoxInputs, validateDrawerInputs } from '../../core/shared/valid
 import { exportSlidingDrawerZip } from '../../export/exportZip';
 import { SlidingDrawerBoxPreview3D } from './SlidingDrawerBoxPreview3D';
 import { SlidingDrawerPanelPreview } from './SlidingDrawerPanelPreview';
+import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
+import { AIWarningBanner } from '@/components/ai';
+
+type FaceArtworkPlacement = {
+  x: number;
+  y: number;
+  scale: number;
+  rotationDeg: number;
+};
+
+type FaceArtworkConfig = {
+  prompt: string;
+  imageDataUrl: string;
+  placement: FaceArtworkPlacement;
+};
 
 type SlidingDrawerEngraveTarget =
   | 'outer-back'
@@ -46,6 +62,14 @@ function bbox(points: { x: number; y: number }[]) {
     maxY = Math.max(maxY, p.y);
   }
   return { minX, minY, maxX, maxY };
+}
+
+function panelSize(panel: { outline: { x: number; y: number }[] }) {
+  const b = bbox(panel.outline);
+  return {
+    w: Math.max(1, b.maxX - b.minX),
+    h: Math.max(1, b.maxY - b.minY),
+  };
 }
 
 function injectOverlaysIntoLayoutSvg(layoutSvg: string, overlaysByPanelId: Record<string, string>): string {
@@ -97,6 +121,11 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
   const [fingerWidthMm, setFingerWidthMm] = useState(10);
   const [autoFitFingers, setAutoFitFingers] = useState(true);
 
+  const [dividersEnabled, setDividersEnabled] = useState(DEFAULTS.drawer.dividersEnabled);
+  const [dividerCountX, setDividerCountX] = useState(DEFAULTS.drawer.dividerCountX);
+  const [dividerCountZ, setDividerCountZ] = useState(DEFAULTS.drawer.dividerCountZ);
+  const [dividerClearanceMm, setDividerClearanceMm] = useState(DEFAULTS.drawer.dividerClearanceMm);
+
   const [previewMode, setPreviewMode] = useState<'2d' | 'faces' | '3d'>('2d');
 
   const [engraveOp, setEngraveOp] = useState<PathOperation>('engrave');
@@ -104,7 +133,22 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
   const [engraveItems, setEngraveItems] = useState<EngraveOverlayItem[]>([]);
   const [selectedEngraveId, setSelectedEngraveId] = useState<string | null>(null);
 
-  const { input, svgs, panels, layoutSvg, dims, validation } = useMemo(() => {
+  const [engraveText, setEngraveText] = useState('');
+  const [engraveTextFontId, setEngraveTextFontId] = useState<FontId>(() => (SHARED_FONTS[0]?.id ?? 'Milkshake'));
+  const [engraveTextSizeMm, setEngraveTextSizeMm] = useState(10);
+  const [engraveTextLetterSpacingMm, setEngraveTextLetterSpacingMm] = useState(0);
+  const [engraveTextCurved, setEngraveTextCurved] = useState(false);
+  const [engraveTextCurveRadius, setEngraveTextCurveRadius] = useState(30);
+  const [textPreviewSvg, setTextPreviewSvg] = useState<string | null>(null);
+
+  const [faceArtworkTargets, setFaceArtworkTargets] = useState<string[]>(['outer-back']);
+  const [faceArtworkPrompt, setFaceArtworkPrompt] = useState<string>('');
+  const [faceArtworkByPanelId, setFaceArtworkByPanelId] = useState<Record<string, FaceArtworkConfig | undefined>>({});
+  const [selectedArtworkPanelId, setSelectedArtworkPanelId] = useState<string>('outer-back');
+  const [isArtworkGenerating, setIsArtworkGenerating] = useState(false);
+  const [artworkError, setArtworkError] = useState<string | null>(null);
+
+  const { input, svgs, panels, layoutSvg, dims, validation, dividerSvgs } = useMemo(() => {
     const input: SlidingDrawerInputs = {
       widthMm: clampNumber(widthMm, 10, 5000),
       depthMm: clampNumber(depthMm, 10, 5000),
@@ -116,6 +160,10 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
       frontFaceStyle,
       fingerWidthMm: clampNumber(fingerWidthMm, 2, 200),
       autoFitFingers,
+      dividersEnabled,
+      dividerCountX: Math.max(1, Math.floor(dividerCountX)),
+      dividerCountZ: Math.max(1, Math.floor(dividerCountZ)),
+      dividerClearanceMm: clampNumber(dividerClearanceMm, 0, 2),
     };
 
     const validation = validateSlidingDrawerInputs(input);
@@ -185,7 +233,9 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
     };
     const layoutSvg = injectOverlaysIntoLayoutSvg(baseLayoutSvg, overlaysByPanelId);
 
-    return { input, svgs: mergedSvgs, panels, layoutSvg, dims, validation };
+    const dividerSvgs = generateDrawerDividerSvgs(input);
+
+    return { input, svgs: mergedSvgs, panels, layoutSvg, dims, validation, dividerSvgs };
   }, [
     widthMm,
     depthMm,
@@ -197,8 +247,232 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
     frontFaceStyle,
     fingerWidthMm,
     autoFitFingers,
+    dividersEnabled,
+    dividerCountX,
+    dividerCountZ,
+    dividerClearanceMm,
     engraveItems,
   ]);
+
+  const artworkPanelIds = useMemo(() => {
+    const out: string[] = [];
+    out.push('outer-back', 'outer-left', 'outer-right', 'outer-bottom');
+    if (panels.outer.top) out.push('outer-top');
+    out.push('drawer-front', 'drawer-back', 'drawer-left', 'drawer-right', 'drawer-bottom');
+    return out;
+  }, [panels.outer.top]);
+
+  const panelDimsById = useMemo(() => {
+    const out = new Map<string, { w: number; h: number }>();
+    out.set('outer-back', panelSize(panels.outer.back));
+    out.set('outer-left', panelSize(panels.outer.left));
+    out.set('outer-right', panelSize(panels.outer.right));
+    out.set('outer-bottom', panelSize(panels.outer.bottom));
+    if (panels.outer.top) out.set('outer-top', panelSize(panels.outer.top));
+    out.set('drawer-front', panelSize(panels.drawer.front));
+    out.set('drawer-back', panelSize(panels.drawer.back));
+    out.set('drawer-left', panelSize(panels.drawer.left));
+    out.set('drawer-right', panelSize(panels.drawer.right));
+    out.set('drawer-bottom', panelSize(panels.drawer.bottom));
+    return out;
+  }, [panels]);
+
+  useEffect(() => {
+    if (!artworkPanelIds.length) return;
+    if (artworkPanelIds.includes(selectedArtworkPanelId)) return;
+    setSelectedArtworkPanelId(artworkPanelIds[0]);
+  }, [artworkPanelIds, selectedArtworkPanelId]);
+
+  const selectedArtwork = selectedArtworkPanelId ? faceArtworkByPanelId[selectedArtworkPanelId] ?? null : null;
+
+  const setSelectedArtworkPlacement = (patch: Partial<FaceArtworkPlacement>) => {
+    if (!selectedArtworkPanelId) return;
+    setFaceArtworkByPanelId((prev) => {
+      const cur = prev[selectedArtworkPanelId];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [selectedArtworkPanelId]: {
+          ...cur,
+          placement: {
+            ...cur.placement,
+            ...patch,
+          },
+        },
+      };
+    });
+  };
+
+  const toggleArtworkTarget = (panelId: string) => {
+    setFaceArtworkTargets((prev) => {
+      const has = prev.includes(panelId);
+      const next = has ? prev.filter((x) => x !== panelId) : [...prev, panelId];
+      return next.length ? next : prev;
+    });
+  };
+
+  const handleGenerateArtwork = async () => {
+    const prompt = faceArtworkPrompt.trim();
+    if (!prompt) {
+      setArtworkError('Please enter a prompt');
+      return;
+    }
+
+    const targets = faceArtworkTargets.filter((t) => artworkPanelIds.includes(t));
+    if (targets.length === 0) {
+      setArtworkError('Select at least one face');
+      return;
+    }
+
+    setIsArtworkGenerating(true);
+    setArtworkError(null);
+
+    try {
+      // Always request white background for AI artwork
+      const enhancedPrompt = `${prompt}, white background`;
+
+      const res = await fetch('/api/ai/silhouette', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: enhancedPrompt }),
+      });
+
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errJson: any = await res.json().catch(() => ({}));
+          throw new Error(errJson?.error || 'AI generation failed');
+        }
+        const text = await res.text().catch(() => '');
+        throw new Error(text || 'AI generation failed');
+      }
+
+      const json: any = await res.json().catch(() => ({}));
+      const dataUrl = typeof json?.dataUrl === 'string' ? json.dataUrl : '';
+      if (!dataUrl) {
+        throw new Error('AI image endpoint returned no dataUrl');
+      }
+
+      setFaceArtworkByPanelId((prev) => {
+        const next = { ...prev };
+        for (const panelId of targets) {
+          const dims = panelDimsById.get(panelId);
+          const w = Math.max(dims?.w ?? 1, 1);
+          const h = Math.max(dims?.h ?? 1, 1);
+          const existing = next[panelId];
+          next[panelId] = {
+            prompt,
+            imageDataUrl: dataUrl,
+            placement: existing?.placement ?? { x: w / 2, y: h / 2, scale: 0.5, rotationDeg: 0 },
+          };
+        }
+        return next;
+      });
+
+      if (!targets.includes(selectedArtworkPanelId)) {
+        setSelectedArtworkPanelId(targets[0]);
+      }
+    } catch (e) {
+      setArtworkError(e instanceof Error ? e.message : 'AI generation failed');
+    } finally {
+      setIsArtworkGenerating(false);
+    }
+  };
+
+  const handleTraceSelectedArtwork = async () => {
+    const panelId = String(selectedArtworkPanelId || '').trim();
+    const art = panelId ? faceArtworkByPanelId[panelId] : null;
+    const dims = panelId ? panelDimsById.get(panelId) ?? null : null;
+
+    if (!panelId || !art?.imageDataUrl || !dims) {
+      setArtworkError('Select a panel with artwork to trace');
+      return;
+    }
+
+    setIsArtworkGenerating(true);
+    setArtworkError(null);
+
+    try {
+      const res = await fetch('/api/trace/potrace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataUrl: art.imageDataUrl,
+          mode: 'CUT_SILHOUETTE',
+          targetWidthMm: dims.w,
+          targetHeightMm: dims.h,
+        }),
+      });
+
+      const json: any = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error((typeof json?.error === 'string' && json.error) || 'Trace failed');
+      }
+
+      const paths: string[] = Array.isArray(json?.paths) ? json.paths.filter((p: any) => typeof p === 'string') : [];
+      if (!paths.length) {
+        throw new Error('Trace returned no paths');
+      }
+
+      const svgText = `<svg xmlns="http://www.w3.org/2000/svg">${paths
+        .map((d) => `<path d="${d}" />`)
+        .join('')}</svg>`;
+
+      const op: PathOperation = 'cut';
+      const face = importSvgAsFace({
+        svgText,
+        id: `trace-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        op,
+        label: `trace-${panelId}`,
+      });
+
+      if (!face) {
+        throw new Error('Trace result could not be imported as SVG');
+      }
+
+      const id = `${panelId}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      setEngraveItems((prev) => [
+        ...prev,
+        {
+          id,
+          fileName: `trace-${panelId}.svg`,
+          op,
+          face,
+          placement: {
+            x: art.placement.x,
+            y: art.placement.y,
+            rotation: ((art.placement.rotationDeg ?? 0) * Math.PI) / 180,
+            scale: Math.max(0.01, art.placement.scale ?? 1),
+          },
+        },
+      ]);
+      setSelectedEngraveId(id);
+      setEngraveTarget(panelId as SlidingDrawerEngraveTarget);
+    } catch (e) {
+      setArtworkError(e instanceof Error ? e.message : 'Trace failed');
+    } finally {
+      setIsArtworkGenerating(false);
+    }
+  };
+
+  const artworkOverlays = useMemo(() => {
+    const out: Record<
+      string,
+      {
+        imageDataUrl: string;
+        placement: { x: number; y: number; scale: number; rotationDeg: number };
+        panelW: number;
+        panelH: number;
+      }
+    > = {};
+    for (const panelId of artworkPanelIds) {
+      const art = faceArtworkByPanelId[panelId];
+      const dims = panelDimsById.get(panelId);
+      if (!art || !art.imageDataUrl || !dims) continue;
+      out[panelId] = { imageDataUrl: art.imageDataUrl, placement: art.placement, panelW: dims.w, panelH: dims.h };
+    }
+    return out;
+  }, [artworkPanelIds, faceArtworkByPanelId, panelDimsById]);
 
   const selectedEngraveItem = selectedEngraveId ? engraveItems.find((x) => x.id === selectedEngraveId) ?? null : null;
 
@@ -207,6 +481,93 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
     setEngraveItems((prev) =>
       prev.map((it) => (it.id === selectedEngraveId ? { ...it, placement: { ...it.placement, ...patch } } : it)),
     );
+  };
+
+  // Real-time text preview - always use fixed 30mm size for preview display
+  useEffect(() => {
+    const previewText = engraveText.trim() || 'Preview';
+    const previewSize = 30; // Fixed preview size for better visibility
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const font = await loadFont(engraveTextFontId);
+        const res = textToPathD(font, previewText, previewSize, Math.max(0, engraveTextLetterSpacingMm));
+        if (cancelled || !res?.pathD) return;
+
+        const pathD = res.pathD;
+        const bounds = res.bbox || { x: 0, y: 0, width: 100, height: 30 };
+        const pad = 4;
+
+        // Center the text in the viewBox
+        const viewBox = `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2}`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">
+          <path d="${pathD}" fill="#fff" stroke="none" />
+        </svg>`;
+        setTextPreviewSvg(svg);
+      } catch {
+        setTextPreviewSvg(null);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [engraveText, engraveTextFontId, engraveTextLetterSpacingMm]);
+
+  const handleAddEngraveText = async () => {
+    const text = engraveText.trim();
+    if (!text) return;
+
+    const font = await loadFont(engraveTextFontId);
+    const res = textToPathD(font, text, Math.max(0.1, engraveTextSizeMm), Math.max(0, engraveTextLetterSpacingMm));
+    if (!res?.pathD) return;
+
+    const svgText = `<svg xmlns="http://www.w3.org/2000/svg"><path d="${res.pathD}" /></svg>`;
+
+    const face = importSvgAsFace({
+      svgText,
+      id: `text-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      op: engraveOp,
+      label: `text-${text}`,
+    });
+    if (!face) return;
+
+    const targetPanel =
+      engraveTarget === 'outer-back'
+        ? panels.outer.back
+        : engraveTarget === 'outer-left'
+          ? panels.outer.left
+          : engraveTarget === 'outer-right'
+            ? panels.outer.right
+            : engraveTarget === 'outer-bottom'
+              ? panels.outer.bottom
+              : engraveTarget === 'outer-top'
+                ? panels.outer.top ?? panels.outer.bottom
+                : engraveTarget === 'drawer-front'
+                  ? panels.drawer.front
+                  : engraveTarget === 'drawer-back'
+                    ? panels.drawer.back
+                    : engraveTarget === 'drawer-left'
+                      ? panels.drawer.left
+                      : engraveTarget === 'drawer-right'
+                        ? panels.drawer.right
+                        : panels.drawer.bottom;
+
+    const b = bbox(targetPanel.outline);
+    const targetCx = (b.minX + b.maxX) / 2;
+    const targetCy = (b.minY + b.maxY) / 2;
+
+    const id = `${engraveTarget}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setEngraveItems((prev) => [
+      ...prev,
+      {
+        id,
+        fileName: `text-${text}.svg`,
+        op: engraveOp,
+        face,
+        placement: { x: targetCx, y: targetCy, rotation: 0, scale: 1 },
+      },
+    ]);
+    setSelectedEngraveId(id);
   };
 
   function exportAllPanels() {
@@ -230,6 +591,11 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
       const filename = generateExportFilename('sliding_drawer', 'frontface');
       exportSingleSvg(filename, svgs.frontFace);
     }
+
+    for (const divider of dividerSvgs) {
+      const filename = generateExportFilename('sliding_drawer', divider.name);
+      exportSingleSvg(filename, divider.svg);
+    }
   }
 
   async function exportAllZip() {
@@ -239,7 +605,8 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
       input.depthMm,
       input.heightMm,
       input.thicknessMm,
-      input.kerfMm
+      input.kerfMm,
+      dividerSvgs
     );
   }
 
@@ -306,6 +673,19 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
     setDrawerBottomOffsetMm(DEFAULTS.drawer.drawerBottomOffsetMm);
     setFrontFaceStyle(DEFAULTS.drawer.frontFaceStyle);
     setAutoFitFingers(DEFAULTS.drawer.autoFitFingers);
+    setDividersEnabled(DEFAULTS.drawer.dividersEnabled);
+    setDividerCountX(DEFAULTS.drawer.dividerCountX);
+    setDividerCountZ(DEFAULTS.drawer.dividerCountZ);
+    setDividerClearanceMm(DEFAULTS.drawer.dividerClearanceMm);
+    setEngraveItems([]);
+    setSelectedEngraveId(null);
+    setEngraveTarget('outer-back');
+    setFaceArtworkTargets(['outer-back']);
+    setFaceArtworkPrompt('');
+    setFaceArtworkByPanelId({});
+    setSelectedArtworkPanelId('outer-back');
+    setIsArtworkGenerating(false);
+    setArtworkError(null);
   }
 
   // Register reset callback with parent
@@ -350,6 +730,203 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                   ))}
                 </div>
               </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                <div className="text-sm font-medium text-slate-100">Face Artwork</div>
+                <div className="mt-1 text-[11px] text-slate-400">Preview-only overlay (not included in exports)</div>
+
+                <div className="mt-3">
+                  <AIWarningBanner />
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">Prompt</div>
+                    <input
+                      type="text"
+                      value={faceArtworkPrompt}
+                      onChange={(e) => setFaceArtworkPrompt(e.target.value)}
+                      placeholder="e.g. floral silhouette"
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                    />
+                  </label>
+
+                  <div className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">Panels</div>
+                    <div className="flex flex-wrap gap-2">
+                      {artworkPanelIds.map((k) => (
+                        <label key={k} className="flex items-center gap-1 text-[11px] text-slate-200">
+                          <input type="checkbox" checked={faceArtworkTargets.includes(k)} onChange={() => toggleArtworkTarget(k)} />
+                          <span className="uppercase">{k}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleGenerateArtwork}
+                      disabled={isArtworkGenerating}
+                      className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-60"
+                    >
+                      {isArtworkGenerating ? 'Generating…' : 'Generate'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTraceSelectedArtwork}
+                      disabled={isArtworkGenerating}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      Trace → SVG
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFaceArtworkByPanelId({});
+                        setArtworkError(null);
+                      }}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {artworkError ? (
+                    <div className="rounded-md border border-amber-800 bg-amber-950/30 p-2 text-[11px] text-amber-200">{artworkError}</div>
+                  ) : null}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="grid gap-1">
+                      <div className="text-[11px] text-slate-400">Edit panel</div>
+                      <select
+                        value={selectedArtworkPanelId}
+                        onChange={(e) => setSelectedArtworkPanelId(e.target.value)}
+                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      >
+                        {artworkPanelIds.map((k) => (
+                          <option key={k} value={k}>
+                            {k}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="text-[11px] text-slate-500 self-end">Center-based X/Y in mm</div>
+                  </div>
+
+                  {selectedArtwork ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">X (mm)</div>
+                        <input
+                          type="number"
+                          value={Number(selectedArtwork.placement.x.toFixed(2))}
+                          onChange={(e) => setSelectedArtworkPlacement({ x: Number(e.target.value) || 0 })}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Y (mm)</div>
+                        <input
+                          type="number"
+                          value={Number(selectedArtwork.placement.y.toFixed(2))}
+                          onChange={(e) => setSelectedArtworkPlacement({ y: Number(e.target.value) || 0 })}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Scale</div>
+                        <input
+                          type="number"
+                          min={0.05}
+                          step={0.05}
+                          value={Number(selectedArtwork.placement.scale.toFixed(2))}
+                          onChange={(e) => setSelectedArtworkPlacement({ scale: Math.max(0.05, Number(e.target.value) || 0.05) })}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Rotate (deg)</div>
+                        <input
+                          type="number"
+                          step={1}
+                          value={Number(selectedArtwork.placement.rotationDeg.toFixed(0))}
+                          onChange={(e) => setSelectedArtworkPlacement({ rotationDeg: Number(e.target.value) || 0 })}
+                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-500">No artwork on this panel yet.</div>
+                  )}
+                </div>
+              </div>
+
+              {selectedEngraveItem ? (
+                <div className="mt-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-slate-400">Placement</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEngraveItems((prev) => prev.filter((x) => x.id !== selectedEngraveItem.id));
+                        setSelectedEngraveId(null);
+                      }}
+                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:border-rose-500 hover:text-rose-200"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>X ({unitLabel})</span>
+                      <input
+                        type="number"
+                        step={unitSystem === 'in' ? 0.01 : 0.1}
+                        value={toUser(selectedEngraveItem.placement.x)}
+                        onChange={(e) => setSelectedEngravePlacement({ x: fromUser(Number(e.target.value)) })}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>Y ({unitLabel})</span>
+                      <input
+                        type="number"
+                        step={unitSystem === 'in' ? 0.01 : 0.1}
+                        value={toUser(selectedEngraveItem.placement.y)}
+                        onChange={(e) => setSelectedEngravePlacement({ y: fromUser(Number(e.target.value)) })}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>Rotation (deg)</span>
+                      <input
+                        type="number"
+                        step={1}
+                        value={(selectedEngraveItem.placement.rotation * 180) / Math.PI}
+                        onChange={(e) => {
+                          const deg = Number(e.target.value);
+                          const rad = (deg * Math.PI) / 180;
+                          setSelectedEngravePlacement({ rotation: rad });
+                        }}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>Scale</span>
+                      <input
+                        type="number"
+                        step={0.01}
+                        min={0.01}
+                        value={selectedEngraveItem.placement.scale}
+                        onChange={(e) => setSelectedEngravePlacement({ scale: Math.max(0.01, Number(e.target.value)) })}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
                 <div className="text-sm font-medium text-slate-100">Outer Box Dimensions</div>
@@ -476,6 +1053,64 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                <div className="text-sm font-medium text-slate-100">Drawer Dividers</div>
+                <div className="mt-3 grid gap-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={dividersEnabled}
+                      onChange={(e) => setDividersEnabled(e.target.checked)}
+                      className="rounded border-slate-800"
+                    />
+                    <span className="text-xs text-slate-300">Enable dividers</span>
+                  </label>
+                  {dividersEnabled && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="grid gap-1">
+                          <div className="text-[11px] text-slate-400">Compartments X</div>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            step={1}
+                            value={dividerCountX}
+                            onChange={(e) => setDividerCountX(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
+                            className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
+                          />
+                        </label>
+                        <label className="grid gap-1">
+                          <div className="text-[11px] text-slate-400">Compartments Z</div>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            step={1}
+                            value={dividerCountZ}
+                            onChange={(e) => setDividerCountZ(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
+                            className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
+                          />
+                        </label>
+                      </div>
+                      <label className="grid gap-1">
+                        <div className="text-[11px] text-slate-400">Slot clearance ({unitLabel})</div>
+                        <input
+                          type="number"
+                          step={unitSystem === 'in' ? 0.001 : 0.01}
+                          value={toUser(dividerClearanceMm)}
+                          onChange={(e) => setDividerClearanceMm(fromUser(Number(e.target.value)))}
+                          className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
+                        />
+                      </label>
+                      <div className="text-[10px] text-slate-500">
+                        Creates {Math.max(0, dividerCountX - 1)} X-divider{dividerCountX - 1 !== 1 ? 's' : ''} and {Math.max(0, dividerCountZ - 1)} Z-divider{dividerCountZ - 1 !== 1 ? 's' : ''} for the inner drawer.
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
                 <div className="text-sm font-medium text-slate-100">Engrave SVG</div>
                 <div className="mt-3 grid gap-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -485,7 +1120,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       className="block w-[220px] text-[11px] text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-[11px] file:text-slate-200 hover:file:bg-slate-700"
                       onChange={async (e) => {
                         const inputEl = e.currentTarget as HTMLInputElement | null;
-                        const f = e.target.files?.[0];
+                        const f = inputEl?.files?.[0];
                         if (!f) return;
                         const text = await f.text();
                         const face = importSvgAsFace({
@@ -577,6 +1212,70 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                     </label>
                   </div>
 
+                  <div className="grid gap-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+                    <div className="text-[11px] text-slate-400">Add text</div>
+                    <div className="grid gap-2">
+                      <input
+                        type="text"
+                        value={engraveText}
+                        onChange={(e) => setEngraveText(e.target.value)}
+                        placeholder="Text"
+                        className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                      {/* Font preview */}
+                      {textPreviewSvg && (
+                        <div
+                          className="h-12 w-full rounded-md border border-slate-700 bg-slate-950 p-1"
+                          dangerouslySetInnerHTML={{ __html: textPreviewSvg }}
+                        />
+                      )}
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="grid gap-1">
+                          <div className="text-[11px] text-slate-400">Font</div>
+                          <select
+                            value={engraveTextFontId}
+                            onChange={(e) => setEngraveTextFontId(e.target.value as FontId)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-[10px] text-slate-200"
+                          >
+                            {SHARED_FONTS.map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid gap-1">
+                          <div className="text-[11px] text-slate-400">Size</div>
+                          <input
+                            type="number"
+                            min={0.1}
+                            step={0.5}
+                            value={engraveTextSizeMm}
+                            onChange={(e) => setEngraveTextSizeMm(Number(e.target.value) || 0)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-[10px] text-slate-200"
+                          />
+                        </label>
+                        <label className="grid gap-1">
+                          <div className="text-[11px] text-slate-400">Spacing</div>
+                          <input
+                            type="number"
+                            step={0.1}
+                            value={engraveTextLetterSpacingMm}
+                            onChange={(e) => setEngraveTextLetterSpacingMm(Number(e.target.value) || 0)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-1 py-1 text-[10px] text-slate-200"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddEngraveText}
+                        className="w-full rounded-md bg-slate-800 px-3 py-2 text-[11px] text-slate-100 hover:bg-slate-700"
+                      >
+                        Add Text
+                      </button>
+                    </div>
+                  </div>
+
                   {engraveItems.length > 0 ? (
                     <div className="mt-1 space-y-1">
                       {engraveItems.map((item) => (
@@ -593,72 +1292,6 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                           {item.fileName}
                         </button>
                       ))}
-                    </div>
-                  ) : null}
-
-                  {selectedEngraveItem ? (
-                    <div className="mt-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-[11px] text-slate-400">Placement</div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEngraveItems((prev) => prev.filter((x) => x.id !== selectedEngraveItem.id));
-                            setSelectedEngraveId(null);
-                          }}
-                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:border-rose-500 hover:text-rose-200"
-                        >
-                          Remove
-                        </button>
-                      </div>
-
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span>X ({unitLabel})</span>
-                          <input
-                            type="number"
-                            step={unitSystem === 'in' ? 0.01 : 0.1}
-                            value={toUser(selectedEngraveItem.placement.x)}
-                            onChange={(e) => setSelectedEngravePlacement({ x: fromUser(Number(e.target.value)) })}
-                            className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span>Y ({unitLabel})</span>
-                          <input
-                            type="number"
-                            step={unitSystem === 'in' ? 0.01 : 0.1}
-                            value={toUser(selectedEngraveItem.placement.y)}
-                            onChange={(e) => setSelectedEngravePlacement({ y: fromUser(Number(e.target.value)) })}
-                            className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span>Rotation (deg)</span>
-                          <input
-                            type="number"
-                            step={1}
-                            value={(selectedEngraveItem.placement.rotation * 180) / Math.PI}
-                            onChange={(e) => {
-                              const deg = Number(e.target.value);
-                              const rad = (deg * Math.PI) / 180;
-                              setSelectedEngravePlacement({ rotation: rad });
-                            }}
-                            className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                          />
-                        </label>
-                        <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span>Scale</span>
-                          <input
-                            type="number"
-                            step={0.01}
-                            min={0.01}
-                            value={selectedEngraveItem.placement.scale}
-                            onChange={(e) => setSelectedEngravePlacement({ scale: Math.max(0.01, Number(e.target.value)) })}
-                            className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                          />
-                        </label>
-                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -683,14 +1316,6 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       <li key={i}>• {w}</li>
                     ))}
                   </ul>
-                </div>
-              )}
-
-              {fingerWidthMm !== recommendedFinger && (
-                <div className="rounded-lg border border-blue-800 bg-blue-950/40 p-3">
-                  <div className="text-xs text-blue-200">
-                    💡 Recommended finger width: {recommendedFinger.toFixed(1)}mm
-                  </div>
                 </div>
               )}
 
@@ -785,9 +1410,9 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
             {previewMode === '3d' ? (
               <SlidingDrawerBoxPreview3D input={input} panels={panels} />
             ) : previewMode === 'faces' ? (
-              <SlidingDrawerPanelPreview key="faces" layoutSvg={layoutSvg} panels={panels} initialView="faces" />
+              <SlidingDrawerPanelPreview key="faces" layoutSvg={layoutSvg} panels={panels} initialView="faces" artworkOverlays={artworkOverlays} />
             ) : (
-              <SlidingDrawerPanelPreview key="2d" layoutSvg={layoutSvg} panels={panels} initialView="layout" />
+              <SlidingDrawerPanelPreview key="2d" layoutSvg={layoutSvg} panels={panels} initialView="layout" artworkOverlays={artworkOverlays} />
             )}
           </div>
         </section>

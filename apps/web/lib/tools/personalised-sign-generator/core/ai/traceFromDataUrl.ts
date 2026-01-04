@@ -20,6 +20,97 @@ function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   });
 }
 
+function computeBBoxAreaFromPathD(pathD: string): number {
+  const nums = pathD.match(/-?\d+\.?\d*/g);
+  if (!nums || nums.length < 4) return 0;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (let i = 0; i + 1 < nums.length; i += 2) {
+    const x = Number.parseFloat(nums[i]);
+    const y = Number.parseFloat(nums[i + 1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+    return 0;
+  }
+
+  const w = Math.max(0, maxX - minX);
+  const h = Math.max(0, maxY - minY);
+  return w * h;
+}
+
+/**
+ * Simplify path using Ramer-Douglas-Peucker algorithm
+ */
+function simplifyPath(pathD: string): string {
+  // Extract coordinates from path
+  const coords: Array<{ x: number; y: number }> = [];
+  const nums = pathD.match(/-?\d+\.?\d*/g);
+  if (!nums || nums.length < 4) return pathD;
+
+  for (let i = 0; i + 1 < nums.length; i += 2) {
+    coords.push({ x: parseFloat(nums[i]), y: parseFloat(nums[i + 1]) });
+  }
+
+  if (coords.length < 4) return pathD;
+
+  // RDP simplification with epsilon based on path size
+  const simplified = rdpSimplify(coords, 1.5);
+  
+  if (simplified.length < 2) return pathD;
+
+  // Rebuild path
+  let result = `M ${simplified[0].x.toFixed(2)} ${simplified[0].y.toFixed(2)}`;
+  for (let i = 1; i < simplified.length; i++) {
+    result += ` L ${simplified[i].x.toFixed(2)} ${simplified[i].y.toFixed(2)}`;
+  }
+  result += ' Z';
+  return result;
+}
+
+function rdpSimplify(points: Array<{ x: number; y: number }>, epsilon: number): Array<{ x: number; y: number }> {
+  if (points.length < 3) return points;
+
+  const first = points[0];
+  const last = points[points.length - 1];
+
+  let maxDist = 0;
+  let maxIdx = 0;
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = perpendicularDistance(points[i], first, last);
+    if (d > maxDist) {
+      maxDist = d;
+      maxIdx = i;
+    }
+  }
+
+  if (maxDist > epsilon) {
+    const left = rdpSimplify(points.slice(0, maxIdx + 1), epsilon);
+    const right = rdpSimplify(points.slice(maxIdx), epsilon);
+    return left.slice(0, -1).concat(right);
+  }
+
+  return [first, last];
+}
+
+function perpendicularDistance(p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return Math.sqrt((p.x - a.x) ** 2 + (p.y - a.y) ** 2);
+  return Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len;
+}
+
 export async function traceFromDataUrl(
   dataUrl: string,
   targetWidthMm: number,
@@ -34,8 +125,8 @@ export async function traceFromDataUrl(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas context not available');
 
-  // Very conservative max sizes to prevent page freezing
-  const maxSize = options.detail === 'high' ? 500 : options.detail === 'medium' ? 350 : 250;
+  // Very small sizes to prevent OOM and complexity explosion
+  const maxSize = options.detail === 'high' ? 180 : options.detail === 'medium' ? 140 : 100;
   const scaleToMax = Math.min(1, maxSize / Math.max(img.width, img.height));
 
   canvas.width = Math.round(img.width * scaleToMax);
@@ -78,17 +169,30 @@ export async function traceFromDataUrl(
     throw new Error('No contours found. Try adjusting threshold.');
   }
 
-  // Check complexity
-  if (paths.length > 150) {
-    throw new Error(`Too many paths (${paths.length}). Try adjusting threshold or use simpler image.`);
+  const imgArea = canvas.width * canvas.height;
+  const minAreaFrac = options.detail === 'high' ? 0.001 : options.detail === 'medium' ? 0.0015 : 0.002;
+  const minAreaPx = Math.max(16, imgArea * minAreaFrac);
+  const pathsWithArea = paths
+    .map((p) => ({ p, area: computeBBoxAreaFromPathD(p) }))
+    .filter((x) => x.area >= minAreaPx);
+
+  const sorted = (pathsWithArea.length > 0 ? pathsWithArea : paths.map((p) => ({ p, area: 0 }))).sort(
+    (a, b) => b.area - a.area
+  );
+
+  const maxPaths = options.detail === 'high' ? 60 : options.detail === 'medium' ? 40 : 25;
+  const simplifiedPaths = sorted.slice(0, maxPaths).map((x) => simplifyPath(x.p));
+
+  if (simplifiedPaths.length === 0) {
+    throw new Error('No contours found after simplification. Try adjusting threshold.');
   }
 
-  const scaledPaths = scalePathsCentered(paths, canvas.width, canvas.height, targetWidthMm, targetHeightMm);
+  const scaledPaths = scalePathsCentered(simplifiedPaths, canvas.width, canvas.height, targetWidthMm, targetHeightMm);
   const result = scaledPaths.join(' ');
   
-  // Check command count
+  // Check command count - be strict
   const commandCount = (result.match(/[MLHVCSQTAZ]/gi) || []).length;
-  if (commandCount > 15000) {
+  if (commandCount > 8000) {
     throw new Error(`Path too complex (${commandCount} commands). Try lower detail.`);
   }
   
@@ -103,6 +207,11 @@ async function traceContoursAsync(imageData: ImageData, smoothing: number): Prom
   const paths: string[] = [];
   const visited = new Set<string>();
 
+  // Hard limits to prevent explosion
+  const MAX_PATHS = 150;
+  const MAX_TOTAL_POINTS = 50000;
+  let totalPoints = 0;
+
   const getPixel = (x: number, y: number): number => {
     if (x < 0 || x >= width || y < 0 || y >= height) return 0;
     const idx = (y * width + x) * 4;
@@ -110,10 +219,15 @@ async function traceContoursAsync(imageData: ImageData, smoothing: number): Prom
   };
 
   let processedRows = 0;
-  const yieldInterval = 15; // Yield frequently for responsiveness
+  const yieldInterval = 15;
 
-  for (let y = 0; y < height - 1; y++) {
+  outer: for (let y = 0; y < height - 1; y++) {
     for (let x = 0; x < width - 1; x++) {
+      // Early termination
+      if (paths.length >= MAX_PATHS || totalPoints >= MAX_TOTAL_POINTS) {
+        break outer;
+      }
+
       const key = `${x},${y}`;
       if (visited.has(key)) continue;
 
@@ -123,16 +237,16 @@ async function traceContoursAsync(imageData: ImageData, smoothing: number): Prom
 
       if (p !== pRight || p !== pBottom) {
         const contour = traceContour(x, y, getPixel, visited, width, height);
-        if (contour.length > 3) {
+        if (contour.length > 3 && contour.length < 5000) {
           const smoothed = smoothContour(contour, smoothing);
           paths.push(contourToPath(smoothed));
+          totalPoints += smoothed.length;
         }
       }
     }
     
     processedRows++;
     if (processedRows % yieldInterval === 0) {
-      // Yield to UI thread
       await new Promise(r => setTimeout(r, 0));
     }
   }
@@ -154,7 +268,7 @@ function traceContour(
   let dir = 0;
 
   // Strict limit to prevent infinite loops on complex contours
-  const maxSteps = Math.min(width * height, 50000);
+  const maxSteps = Math.min(width * height, 3000);
   let steps = 0;
 
   do {

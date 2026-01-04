@@ -1,4 +1,4 @@
-export type PuzzleMode = 'classic' | 'photo' | 'kids';
+export type PuzzleMode = 'classic' | 'photo';
 
 export type KnobStyle = 'classic' | 'organic' | 'simple';
 
@@ -123,7 +123,6 @@ export const FIT_MODE_OFFSETS: Record<FitMode, number> = {
 export const MODE_DESCRIPTIONS: Record<PuzzleMode, string> = {
   classic: 'Traditional jigsaw with standard knobs',
   photo: 'Photo puzzle with image engraving',
-  kids: 'Large pieces with simple knobs for children',
 };
 
 export const KNOB_STYLE_DESCRIPTIONS: Record<KnobStyle, string> = {

@@ -218,7 +218,8 @@ function normalizePath(pathD: string, bounds: PathBounds, targetSize: number, pa
     const isRelative = cmd === cmd.toLowerCase();
     const cmdUpper = cmd.toUpperCase();
     
-    output += cmd;
+    // Always output absolute commands since we're transforming coordinates
+    output += cmdUpper;
     
     if (cmdUpper === 'M' || cmdUpper === 'L' || cmdUpper === 'T') {
       for (let i = 0; i < args.length; i += 2) {

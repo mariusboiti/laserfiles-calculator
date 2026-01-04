@@ -4,14 +4,14 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Search, Upload, X, ChevronDown, Sparkles, Trash2, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { ICON_PACK, ICON_CATEGORIES, searchIcons, getIconsByCategory, parseUploadedIcon, ICON_COUNT } from '../core/iconLibrary';
 import { getMyIcons, saveMyIcon, deleteMyIcon, type MyIcon } from '../core/myIconsStorage';
-import { cleanupSvg, extractPaths } from '../core/svgCleanup';
+import { cleanupSvg } from '../core/svgCleanup';
 import { normalizePaths } from '../core/iconNormalize';
 import { calculateLaserSafeScore, getLevelEmoji, getLevelColor, getLevelBgColor } from '../core/laserSafeScore';
 import type { IconDef } from '../types';
 
 type IconTab = 'pack' | 'my-icons' | 'ai';
-type AIStyle = 'minimal-outline' | 'bold-solid' | 'cute-rounded';
-type AIComplexity = 'simple' | 'medium';
+type AIStyle = 'outline' | 'solid';
+type AIComplexity = 'simple' | 'medium' | 'detailed';
 
 interface IconPickerV2Props {
   selectedId: string | null;
@@ -29,16 +29,16 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
   
   // AI Icon state
   const [aiPrompt, setAiPrompt] = useState('');
-  const [aiStyle, setAiStyle] = useState<AIStyle>('minimal-outline');
+  const [aiStyle, setAiStyle] = useState<AIStyle>('outline');
   const [aiComplexity, setAiComplexity] = useState<AIComplexity>('simple');
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiTracing, setAiTracing] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiWarning, setAiWarning] = useState<string | null>(null);
+  const [aiImagePreview, setAiImagePreview] = useState<string | null>(null); // dataUrl of generated image
   const [aiResult, setAiResult] = useState<{ svg: string; paths: string[] } | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
-  const [refinePrompt, setRefinePrompt] = useState('');
-  const [isRefineMode, setIsRefineMode] = useState(false);
-  
+    
   // Load my icons on mount
   useEffect(() => {
     setMyIcons(getMyIcons());
@@ -113,15 +113,16 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
     e.target.value = '';
   }, [onSelect]);
   
-  // Handle AI generation
-  const handleAiGenerate = useCallback(async (seedSvg?: string) => {
-    const prompt = seedSvg ? refinePrompt.trim() : aiPrompt.trim();
+  // Handle AI generation - generates IMAGE only (no trace yet)
+  const handleAiGenerate = useCallback(async () => {
+    const prompt = aiPrompt.trim();
     if (!prompt || aiLoading) return;
     
     setAiLoading(true);
     setAiError(null);
     setAiWarning(null);
-    if (!seedSvg) setAiResult(null);
+    setAiImagePreview(null);
+    setAiResult(null);
     
     try {
       const res = await fetch('/api/ai/icon', {
@@ -131,65 +132,91 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
           prompt,
           style: aiStyle,
           complexity: aiComplexity,
-          ...(seedSvg ? { seedSvg } : {}),
         }),
       });
       
       const data = await res.json();
       
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to generate icon');
+        const msg = [data?.error, data?.hint].filter(Boolean).join(' ');
+        throw new Error(msg || 'Failed to generate icon');
       }
       
       if (data.warning) {
         setAiWarning(data.warning);
       }
       
-      // Cleanup and normalize
-      const cleaned = cleanupSvg(data.svg);
-      if (!cleaned.valid) {
-        throw new Error('Generated SVG is invalid. Try a simpler prompt.');
-      }
-      
-      const normalizedPaths = normalizePaths(cleaned.paths);
-      const normalizedSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${normalizedPaths.map(d => `<path d="${d}" fill="none" stroke="#000" stroke-width="2"/>`).join('')}</svg>`;
-      
-      setAiResult({ svg: normalizedSvg, paths: normalizedPaths });
-      setIsRefineMode(false);
-      setRefinePrompt('');
+      // Store image preview - trace will be done when user clicks "Add to Keychain"
+      setAiImagePreview(data.dataUrl);
       
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Failed to generate icon');
     } finally {
       setAiLoading(false);
     }
-  }, [aiPrompt, refinePrompt, aiStyle, aiComplexity, aiLoading]);
+  }, [aiPrompt, aiStyle, aiComplexity, aiLoading]);
   
-  // Handle refine
-  const handleRefine = useCallback(() => {
-    if (!aiResult || !refinePrompt.trim()) return;
-    handleAiGenerate(aiResult.svg);
-  }, [aiResult, refinePrompt, handleAiGenerate]);
-  
-  // Handle save AI icon
-  const handleSaveAiIcon = useCallback(() => {
-    if (!aiResult) return;
+  // Handle "Add to Keychain" - traces the image and saves as icon
+  const handleAddToKeychain = useCallback(async () => {
+    if (!aiImagePreview || aiTracing) return;
     
-    const saved = saveMyIcon({
-      name: aiPrompt.slice(0, 30),
-      source: 'ai',
-      svg: aiResult.svg,
-      paths: aiResult.paths,
-      prompt: aiPrompt,
-      style: aiStyle,
-    });
+    setAiTracing(true);
+    setAiError(null);
     
-    setMyIcons(getMyIcons());
-    onSelect(saved.id);
-    setAiResult(null);
-    setAiPrompt('');
-    setActiveTab('my-icons');
-  }, [aiResult, aiPrompt, aiStyle, onSelect]);
+    try {
+      // Call trace API - use ENGRAVE_LINEART to preserve internal details
+      const traceRes = await fetch('/api/trace/potrace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataUrl: aiImagePreview,
+          mode: 'ENGRAVE_LINEART',
+          targetWidthMm: 100,
+          targetHeightMm: 100,
+          threshold: 128,
+          denoise: 0,
+          autoInvert: true,
+        }),
+      });
+      
+      const traceData = await traceRes.json();
+      if (!traceRes.ok || !traceData?.ok) {
+        throw new Error(traceData?.error || 'Trace failed');
+      }
+      
+      const paths: string[] = traceData.paths || [];
+      if (paths.length === 0) {
+        throw new Error('No paths generated');
+      }
+      
+      // Normalize paths to 0-100 viewBox
+      const normalizedPaths = normalizePaths(paths);
+      
+      // Build SVG
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${normalizedPaths.map(d => `<path d="${d}" fill="#000"/>`).join('')}</svg>`;
+      
+      // Save to My Icons
+      const saved = saveMyIcon({
+        name: aiPrompt.slice(0, 30),
+        source: 'ai',
+        svg,
+        paths: normalizedPaths,
+        prompt: aiPrompt,
+        style: aiStyle,
+      });
+      
+      setMyIcons(getMyIcons());
+      onSelect(saved.id);
+      setAiImagePreview(null);
+      setAiPrompt('');
+      setActiveTab('my-icons');
+      
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Failed to trace icon');
+    } finally {
+      setAiTracing(false);
+    }
+  }, [aiImagePreview, aiTracing, aiPrompt, aiStyle, onSelect]);
   
   // Handle delete my icon
   const handleDeleteIcon = useCallback((id: string, e: React.MouseEvent) => {
@@ -201,12 +228,6 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
       }
     }
   }, [selectedId, onSelect]);
-  
-  // Laser safe score for AI result
-  const aiLaserScore = useMemo(() => {
-    if (!aiResult) return null;
-    return calculateLaserSafeScore(aiResult.paths);
-  }, [aiResult]);
   
   return (
     <div className="space-y-2">
@@ -411,9 +432,8 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
                       className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs"
                       disabled={aiLoading}
                     >
-                      <option value="minimal-outline">Minimal Outline</option>
-                      <option value="bold-solid">Bold Solid</option>
-                      <option value="cute-rounded">Cute Rounded</option>
+                      <option value="outline">Outline (cut lines)</option>
+                      <option value="solid">Solid (engrave fill)</option>
                     </select>
                   </div>
                   <div>
@@ -426,7 +446,19 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
                     >
                       <option value="simple">Simple</option>
                       <option value="medium">Medium</option>
+                      <option value="detailed">Detailed</option>
                     </select>
+                  </div>
+                </div>
+                
+                {/* Laser-ready checklist */}
+                <div className="bg-slate-900/50 rounded p-2 text-xs text-slate-500">
+                  <div className="font-medium text-slate-400 mb-1">Laser-ready output:</div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span>✓ Black on white</span>
+                    <span>✓ Centered</span>
+                    <span>✓ No text</span>
+                    <span>✓ Vector traced</span>
                   </div>
                 </div>
                 
@@ -468,81 +500,44 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
                   </div>
                 )}
                 
-                {/* Result */}
-                {aiResult && (
+                {/* Image Preview - shows generated image before tracing */}
+                {aiImagePreview && (
                   <div className="space-y-2">
                     <div className="bg-white rounded p-4 flex items-center justify-center">
-                      <div
-                        className="w-20 h-20"
-                        dangerouslySetInnerHTML={{ __html: aiResult.svg }}
+                      <img
+                        src={aiImagePreview}
+                        alt="Generated icon"
+                        className="w-24 h-24 object-contain"
                       />
                     </div>
                     
-                    {/* Laser safe score */}
-                    {aiLaserScore && (
-                      <div className={`rounded border p-2 text-xs ${getLevelBgColor(aiLaserScore.level)}`}>
-                        <div className="flex items-center gap-2">
-                          <span>{getLevelEmoji(aiLaserScore.level)}</span>
-                          <span className={getLevelColor(aiLaserScore.level)}>{aiLaserScore.recommendation}</span>
-                        </div>
-                        <div className="text-slate-400 mt-1">
-                          {aiLaserScore.pathCount} paths, {aiLaserScore.commandCount} commands
-                        </div>
-                      </div>
-                    )}
+                    <div className="text-xs text-slate-400 text-center">
+                      Preview - click below to trace and add
+                    </div>
                     
-                    {/* Refine section */}
-                    {isRefineMode ? (
-                      <div className="space-y-2">
-                        <label className="block text-xs text-slate-400">Refine instruction</label>
-                        <input
-                          type="text"
-                          value={refinePrompt}
-                          onChange={(e) => setRefinePrompt(e.target.value.slice(0, 100))}
-                          placeholder="e.g., make it rounder, add more detail..."
-                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm"
-                          disabled={aiLoading}
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleRefine}
-                            disabled={!refinePrompt.trim() || aiLoading}
-                            className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded text-xs font-medium transition-colors"
-                          >
-                            {aiLoading ? 'Refining...' : 'Apply Refinement'}
-                          </button>
-                          <button
-                            onClick={() => { setIsRefineMode(false); setRefinePrompt(''); }}
-                            className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs font-medium transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Actions */
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleSaveAiIcon}
-                          className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-500 rounded text-xs font-medium transition-colors"
-                        >
-                          Add to My Icons
-                        </button>
-                        <button
-                          onClick={() => handleAiGenerate()}
-                          disabled={aiLoading}
-                          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-xs font-medium flex items-center gap-1 transition-colors"
-                        >
-                          <RefreshCw className="w-3 h-3" /> Regen
-                        </button>
-                        <button
-                          onClick={() => setIsRefineMode(true)}
-                          className="px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded text-xs font-medium transition-colors"
-                        >
-                          Refine
-                        </button>
-                      </div>
-                    )}
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleAddToKeychain}
+                        disabled={aiTracing}
+                        className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded text-xs font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        {aiTracing ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" /> Tracing...
+                          </>
+                        ) : (
+                          'Add to Keychain'
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleAiGenerate()}
+                        disabled={aiLoading || aiTracing}
+                        className="px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded text-xs font-medium flex items-center gap-1 transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Regen
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

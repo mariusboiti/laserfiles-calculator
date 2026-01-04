@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import type { JigsawInputs, PuzzleMode, KnobStyle, LayoutMode, FitMode, MaterialSheet, BackingBoard, PuzzleResult } from '../types/jigsaw';
 import type { JigsawV3Settings, V3FeatureFlags, TrueNestingSettings, PocketFrameSettings, PhotoEngravingSettings, AIImageSettings, DifficultySettings, ProductKitSettings } from '../types/jigsawV3';
 import { JIGSAW_PRESETS, MODE_DESCRIPTIONS, KNOB_STYLE_DESCRIPTIONS, MATERIAL_SHEET_PRESETS } from '../types/jigsaw';
 import { V3_DEFAULTS } from '../types/jigsawV3';
 import { generatePuzzle, generatePuzzleWarnings, generateFilename } from '../core/puzzleGenerator';
 import { generateJigsaw as generateJigsawPathOps } from '../core/index';
-import type { JigsawSettings } from '../types/jigsawV2';
+import type { JigsawSettings, PuzzleTemplate } from '../types/jigsawV2';
 import { DEFAULTS, LIMITS } from '../config/defaults';
+import { PUZZLE_TEMPLATES } from '../core/templates';
 import { exportProductKit } from '../core/productKitExport';
 
 function downloadTextFile(filename: string, content: string, mimeType: string) {
@@ -25,22 +27,34 @@ function downloadTextFile(filename: string, content: string, mimeType: string) {
 
 interface JigsawMakerToolProps {
   onResetCallback?: (callback: () => void) => void;
+  onGetExportPayload?: (getExportPayload: () => Promise<{ svg: string; name?: string; meta?: any }> | { svg: string; name?: string; meta?: any }) => void;
 }
 
-export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
+export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawMakerToolProps) {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   // Core settings
   const [mode, setMode] = useState<PuzzleMode>(DEFAULTS.mode);
+  const [puzzleTemplate, setPuzzleTemplate] = useState<PuzzleTemplate>('rectangle');
+  const [centerCutout, setCenterCutout] = useState(false);
+  const [centerCutoutRatio, setCenterCutoutRatio] = useState(0.3);
   const [widthMm, setWidthMm] = useState(DEFAULTS.widthMm);
   const [heightMm, setHeightMm] = useState(DEFAULTS.heightMm);
   const [rows, setRows] = useState(DEFAULTS.rows);
   const [columns, setColumns] = useState(DEFAULTS.columns);
   const [knobStyle, setKnobStyle] = useState<KnobStyle>(DEFAULTS.knobStyle);
   const [cornerRadius, setCornerRadius] = useState(DEFAULTS.cornerRadius);
+  const [backingCornerRadius, setBackingCornerRadius] = useState(DEFAULTS.cornerRadius);
   const [kerfOffset, setKerfOffset] = useState(DEFAULTS.kerfOffset);
   const [randomSeed, setRandomSeed] = useState(DEFAULTS.randomSeed);
   
   // Photo mode
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
+  const [maskedImageDataUrl, setMaskedImageDataUrl] = useState<string | undefined>();
   const [imageName, setImageName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -106,6 +120,7 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
     setKerfOffset(DEFAULTS.kerfOffset);
     setRandomSeed(DEFAULTS.randomSeed);
     setImageDataUrl(undefined);
+    setMaskedImageDataUrl(undefined);
     setImageName('');
     setLayoutMode(DEFAULTS.layoutMode);
     setMaterialSheet(DEFAULTS.materialSheet);
@@ -136,6 +151,54 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
     
     reprocessImage();
   }, [originalImageUrl, photoProcessing]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function mask() {
+      if (mode !== 'photo' || !imageDataUrl) {
+        setMaskedImageDataUrl(undefined);
+        return;
+      }
+
+      if (layoutMode !== 'assembled') {
+        setMaskedImageDataUrl(undefined);
+        return;
+      }
+
+      if (puzzleTemplate === 'rectangle' && !centerCutout) {
+        setMaskedImageDataUrl(undefined);
+        return;
+      }
+
+      try {
+        const { maskImageToTemplate } = await import('../utils/imageProcessing');
+        const masked = await maskImageToTemplate(imageDataUrl, {
+          widthMm,
+          heightMm,
+          template: puzzleTemplate,
+          cornerRadiusMm: cornerRadius,
+          centerCutout,
+          centerCutoutRatio,
+        });
+
+        if (!cancelled) {
+          setMaskedImageDataUrl(masked);
+        }
+      } catch (error) {
+        console.error('Error masking image:', error);
+        if (!cancelled) {
+          setMaskedImageDataUrl(undefined);
+        }
+      }
+    }
+
+    mask();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, imageDataUrl, layoutMode, puzzleTemplate, widthMm, heightMm, cornerRadius, centerCutout, centerCutoutRatio]);
 
   const inputs: JigsawInputs | JigsawV3Settings = useMemo(() => {
     const baseInputs: JigsawInputs = {
@@ -195,7 +258,11 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
     heightMm,
     rows,
     columns,
+    template: puzzleTemplate,
+    centerCutout,
+    centerCutoutRatio,
     randomSeed,
+    imageDataUrl: mode === 'photo' ? (maskedImageDataUrl ?? imageDataUrl) : undefined,
     cornerRadiusMm: cornerRadius,
     kerfMm: kerfOffset,
     clearanceMm,
@@ -209,14 +276,20 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
     numberingStyle: 'alphanumeric',
     includeBacking: backingBoard.enabled,
     backingMarginMm: backingBoard.marginMm,
+    backingCornerRadiusMm: backingCornerRadius,
     hangingHoles: backingBoard.hangingHoles,
+    hangingHoleDiameter: backingBoard.hangingHoleDiameter,
+    hangingHoleSpacing: backingBoard.hangingHoleSpacing,
+    hangingHoleYOffset: backingBoard.hangingHoleYOffset,
     magnetHoles: backingBoard.magnetHoles,
+    magnetHoleDiameter: backingBoard.magnetHoleDiameter,
+    magnetHoleInset: backingBoard.magnetHoleInset,
     difficulty: pieceDifficulty,
     knobStyle: knobStyle as 'classic' | 'organic' | 'simple',
     knobSizePct,
     knobRoundness,
     knobJitter,
-  }), [widthMm, heightMm, rows, columns, randomSeed, cornerRadius, kerfOffset, clearanceMm, layoutMode, materialSheet.widthMm, materialSheet.heightMm, materialSheet.marginMm, materialSheet.gapMm, pieceNumbering, backingBoard.enabled, backingBoard.marginMm, backingBoard.hangingHoles, backingBoard.magnetHoles, pieceDifficulty, knobStyle, knobSizePct, knobRoundness, knobJitter]);
+  }), [widthMm, heightMm, rows, columns, puzzleTemplate, centerCutout, centerCutoutRatio, randomSeed, mode, imageDataUrl, maskedImageDataUrl, cornerRadius, kerfOffset, clearanceMm, layoutMode, materialSheet.widthMm, materialSheet.heightMm, materialSheet.marginMm, materialSheet.gapMm, pieceNumbering, backingBoard.enabled, backingBoard.marginMm, backingCornerRadius, backingBoard.hangingHoles, backingBoard.hangingHoleDiameter, backingBoard.hangingHoleSpacing, backingBoard.hangingHoleYOffset, backingBoard.magnetHoles, backingBoard.magnetHoleDiameter, backingBoard.magnetHoleInset, pieceDifficulty, knobStyle, knobSizePct, knobRoundness, knobJitter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,10 +299,11 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
         setIsLoadingPathOps(true);
         setPathOpsError(null);
         
-        // Use old generator for photo mode (supports images)
-        // Use PathOps for classic and kids mode
-        if (mode === 'photo') {
-          console.log('Generating puzzle with classic generator (photo mode)');
+        // Use PathOps generator for all modes (supports templates and shapes)
+        // Photo mode with image is handled by adding the image as a background
+        if (mode === 'photo' && puzzleTemplate === 'rectangle' && !centerCutout) {
+          // Use old generator only for basic rectangle photo puzzles
+          console.log('Generating puzzle with classic generator (photo mode, rectangle)');
           const result = await generatePuzzle(inputs as JigsawInputs);
           
           if (!cancelled) {
@@ -281,7 +355,7 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
     return () => {
       cancelled = true;
     };
-  }, [mode, inputs, pathOpsSettings]);
+  }, [mode, inputs, pathOpsSettings, puzzleTemplate, centerCutout]);
   const warnings = useMemo(() => {
     try {
       return generatePuzzleWarnings(inputs as JigsawInputs);
@@ -294,6 +368,25 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
   const pieceCount = rows * columns;
   const pieceWidth = (widthMm / columns).toFixed(1);
   const pieceHeight = (heightMm / rows).toFixed(1);
+
+  const getExportPayload = useCallback(() => {
+    const svg = puzzleResult.fullSvg;
+    const name = generateFilename(inputs);
+    return {
+      svg,
+      name,
+      meta: {
+        bboxMm: { width: widthMm, height: heightMm },
+        mode,
+        rows,
+        columns,
+      },
+    };
+  }, [columns, heightMm, inputs, mode, puzzleResult.fullSvg, rows, widthMm]);
+
+  useEffect(() => {
+    onGetExportPayload?.(getExportPayload);
+  }, [getExportPayload, onGetExportPayload]);
 
   function handleExport() {
     const filename = generateFilename(inputs);
@@ -407,7 +500,7 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
                 <div className="text-sm font-medium text-slate-100">Puzzle Mode</div>
                 <div className="mt-3 space-y-2">
-                  {(['classic', 'photo', 'kids'] as PuzzleMode[]).map((m) => (
+                  {(['classic', 'photo'] as PuzzleMode[]).map((m) => (
                     <label key={m} className="flex items-start gap-2 cursor-pointer">
                       <input
                         type="radio"
@@ -578,6 +671,55 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
                       {preset.name}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Puzzle Template */}
+              <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                <div className="text-sm font-medium text-slate-100">Puzzle Shape</div>
+                <div className="mt-3 space-y-2">
+                  <select
+                    value={puzzleTemplate}
+                    onChange={(e) => setPuzzleTemplate(e.target.value as PuzzleTemplate)}
+                    className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
+                  >
+                    {PUZZLE_TEMPLATES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="text-[10px] text-slate-500">
+                    {PUZZLE_TEMPLATES.find(t => t.id === puzzleTemplate)?.description}
+                  </div>
+                  
+                  {/* Center Cutout Option - available for all templates */}
+                  <div className="border-t border-slate-800 pt-2 mt-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={centerCutout}
+                        onChange={(e) => setCenterCutout(e.target.checked)}
+                        className="rounded border-slate-800"
+                      />
+                      <span className="text-xs text-slate-300">Center Cutout</span>
+                    </label>
+                    <div className="text-[10px] text-slate-500 mt-1">Remove center pieces (for photo frame effect)</div>
+                    
+                    {centerCutout && (
+                      <label className="grid gap-1 mt-2">
+                        <div className="text-[10px] text-slate-400">Cutout Size: {Math.round(centerCutoutRatio * 100)}%</div>
+                        <input
+                          type="range"
+                          min={20}
+                          max={50}
+                          value={centerCutoutRatio * 100}
+                          onChange={(e) => setCenterCutoutRatio(Number(e.target.value) / 100)}
+                          className="w-full"
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -764,13 +906,28 @@ export function JigsawMakerTool({ onResetCallback }: JigsawMakerToolProps) {
                   </label>
                   {backingBoard.enabled && (
                     <div className="space-y-2">
-                      <input
-                        type="number"
-                        placeholder="Margin (mm)"
-                        value={backingBoard.marginMm}
-                        onChange={(e) => setBackingBoard(prev => ({ ...prev, marginMm: Number(e.target.value) }))}
-                        className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="grid gap-1">
+                          <div className="text-[10px] text-slate-400">Margin (mm)</div>
+                          <input
+                            type="number"
+                            value={backingBoard.marginMm}
+                            onChange={(e) => setBackingBoard(prev => ({ ...prev, marginMm: Number(e.target.value) }))}
+                            className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
+                          />
+                        </label>
+                        <label className="grid gap-1">
+                          <div className="text-[10px] text-slate-400">Corner R (mm)</div>
+                          <input
+                            type="number"
+                            min={0}
+                            max={20}
+                            value={backingCornerRadius}
+                            onChange={(e) => setBackingCornerRadius(Number(e.target.value))}
+                            className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
+                          />
+                        </label>
+                      </div>
                       
                       {/* Hanging Holes */}
                       <label className="flex items-center gap-2">

@@ -53,6 +53,20 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
     onInsert(ornament.id, ornament.recommendedLayer, ornament.defaultInsertWidthPct);
   };
 
+  const handleDragStart = (e: React.DragEvent, ornament: OrnamentAsset) => {
+    const targetLayer = selectedOrnament?.id === ornament.id ? insertLayer : ornament.recommendedLayer;
+    const widthPct = selectedOrnament?.id === ornament.id ? insertWidthPct : ornament.defaultInsertWidthPct;
+    const payload = {
+      assetId: ornament.id,
+      targetLayer,
+      widthPct,
+    };
+    const json = JSON.stringify(payload);
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/x-psg-ornament', json);
+    e.dataTransfer.setData('text/plain', json);
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-950/30">
       <div className="p-4 border-b border-slate-800">
@@ -123,6 +137,8 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
                 key={ornament.id}
                 onClick={() => handleOrnamentClick(ornament)}
                 onDoubleClick={() => handleQuickInsert(ornament)}
+                draggable
+                onDragStart={(e) => handleDragStart(e, ornament)}
                 className={`aspect-square bg-slate-800 rounded border-2 p-1.5 hover:bg-slate-700 transition-colors ${
                   selectedOrnament?.id === ornament.id
                     ? 'border-blue-500'

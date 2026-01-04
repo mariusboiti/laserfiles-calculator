@@ -10,6 +10,10 @@ import { fitFontSizePath, fitFontSizeDoubleLinePath } from '../core/textFitPath'
 import { buildCombinedSvg, buildCutOnlySvg, buildEngraveOnlySvg, holeElement, pathElement, sanitizeFilename } from '../core/export';
 import { generateCommonWarnings, smallKeychainWarning } from '../core/warnings';
 import type { FontId } from '../core/fontRegistry';
+import { getFontConfig } from '../core/fontRegistry';
+import { loadPathOps } from '../../../geometry/pathops';
+import { countPathCommands } from '../core/svgCleanup';
+import { showToast } from '../../round-coaster-badge-generator/ui/toast';
 
 export const SIMPLE_V2_DEFAULTS: SimpleKeychainState = {
   shape: 'rounded-rectangle',
@@ -22,7 +26,7 @@ export const SIMPLE_V2_DEFAULTS: SimpleKeychainState = {
     margin: 3.5,
     position: 'left',
   },
-  text: 'Marius',
+  text: 'LaserFilesPro',
   text2: '',
   textMode: 'single',
   fontFamily: 'Angelina Bold', // Default font from available fonts
@@ -43,6 +47,11 @@ export const SIMPLE_V2_DEFAULTS: SimpleKeychainState = {
 function clampState(state: Partial<SimpleKeychainState>): SimpleKeychainState {
   const s = { ...SIMPLE_V2_DEFAULTS, ...state };
 
+  // Font fallback (avoid crashes if saved state references a missing font)
+  if (!s.fontFamily || !getFontConfig(s.fontFamily)) {
+    s.fontFamily = SIMPLE_V2_DEFAULTS.fontFamily;
+  }
+
   s.width = clamp(s.width, 15, 300);
   s.height = clamp(s.height, 15, 300);
   s.cornerRadius = clamp(s.cornerRadius, 0, Math.min(60, s.width / 2, s.height / 2));
@@ -62,7 +71,72 @@ function clampState(state: Partial<SimpleKeychainState>): SimpleKeychainState {
   s.cutStroke = clamp(s.cutStroke, 0.001, 0.2);
   s.engraveStroke = clamp(s.engraveStroke, 0.05, 2);
 
+  if (s.logo && s.logo.enabled) {
+    s.logo.opMode = (s.logo.opMode === 'cutout' ? 'cutout' : 'engrave');
+    // Validate traceMode - use simple check instead of includes on const array
+    const tm = s.logo.traceMode;
+    if (tm !== 'silhouette' && tm !== 'outline' && tm !== 'engrave') {
+      s.logo.traceMode = 'silhouette';
+    }
+    console.log('[clampState] logo.traceMode after validation:', s.logo.traceMode);
+    s.logo.transform = {
+      x: clamp(s.logo.transform?.x ?? s.width / 2, 0, Math.max(0, s.width)),
+      y: clamp(s.logo.transform?.y ?? s.height / 2, 0, Math.max(0, s.height)),
+      scale: clamp(s.logo.transform?.scale ?? 1, 0.05, 10),
+      rotateDeg: clamp(s.logo.transform?.rotateDeg ?? 0, -180, 180),
+    };
+    if (!Array.isArray(s.logo.paths)) s.logo.paths = [];
+    if (!s.logo.bboxMm) s.logo.bboxMm = { x: 0, y: 0, width: 0, height: 0 };
+  }
+
   return s;
+}
+
+function logoGroupSvg(state: SimpleKeychainState): string {
+  const logo = state.logo;
+  if (!logo || !logo.enabled || !logo.paths || logo.paths.length === 0) return '';
+
+  const bbox = logo.bboxMm;
+  const cx = bbox.x + bbox.width / 2;
+  const cy = bbox.y + bbox.height / 2;
+
+  const t = logo.transform;
+  const transform = `translate(${t.x} ${t.y}) rotate(${t.rotateDeg}) scale(${t.scale}) translate(${-cx} ${-cy})`;
+  
+  // Determine fill/stroke based on traceMode
+  const traceMode = logo.traceMode || 'silhouette';
+  console.log('[logoGroupSvg] traceMode:', traceMode);
+  
+  let fill: string;
+  let stroke: string;
+  let strokeWidth: number;
+  
+  switch (traceMode) {
+    case 'outline':
+      // Outline mode: stroke only, no fill
+      fill = 'none';
+      stroke = '#000';
+      strokeWidth = 0.5;
+      break;
+    case 'engrave':
+      // Engrave mode: thicker stroke + fill for engraving effect
+      fill = '#000';
+      stroke = '#000';
+      strokeWidth = 0.2;
+      break;
+    case 'silhouette':
+    default:
+      // Silhouette mode: filled solid
+      fill = '#000';
+      stroke = 'none';
+      strokeWidth = 0;
+      break;
+  }
+  
+  const paths = logo.paths
+    .map((d) => `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" fill-rule="evenodd" vector-effect="non-scaling-stroke" />`)
+    .join('\n    ');
+  return `<g transform="${transform}">\n    ${paths}\n  </g>`;
 }
 
 async function buildSimpleV2(state: SimpleKeychainState): Promise<BuildResult> {
@@ -175,8 +249,60 @@ async function buildSimpleV2(state: SimpleKeychainState): Promise<BuildResult> {
   }
 
   // Build layers
-  const cutContent = `${pathElement(shapePath, true, cutStroke)}\n    ${holeSvg}`;
-  const engraveContent = textSvg;
+  let finalShapePath = shapePath;
+  let logoEngraveSvg = '';
+
+  if (state.logo && state.logo.enabled && state.logo.paths.length > 0) {
+    if (state.logo.opMode === 'cutout') {
+      try {
+        const pk = await loadPathOps();
+
+        let logoPath: any = null;
+        for (const d of state.logo.paths) {
+          const p = pk.fromSVG(d);
+          if (!logoPath) logoPath = p;
+          else {
+            const u = pk.union(logoPath, p);
+            pk.deletePath(logoPath);
+            pk.deletePath(p);
+            logoPath = u;
+          }
+        }
+
+        if (logoPath) {
+          const bbox = state.logo.bboxMm;
+          const cx = bbox.x + bbox.width / 2;
+          const cy = bbox.y + bbox.height / 2;
+          const t = state.logo.transform;
+
+          const rad = (t.rotateDeg * Math.PI) / 180;
+          const cos = Math.cos(rad) * t.scale;
+          const sin = Math.sin(rad) * t.scale;
+
+          const matrix = [cos, -sin, t.x - cos * cx + sin * cy, sin, cos, t.y - sin * cx - cos * cy, 0, 0, 1];
+
+          const logoWorld = pk.transform(logoPath, matrix);
+          const base = pk.fromSVG(shapePath);
+          const diff = pk.difference(base, logoWorld);
+          finalShapePath = pk.toSVG(diff);
+
+          pk.deletePath(logoPath);
+          pk.deletePath(logoWorld);
+          pk.deletePath(base);
+          pk.deletePath(diff);
+        }
+      } catch (e) {
+        console.warn('[SimpleV2] Logo cut-out boolean diff failed, falling back to engrave:', e);
+        showToast('Logo cut-out failed. Falling back to Engrave.', 'warning');
+        logoEngraveSvg = logoGroupSvg(state);
+      }
+    } else {
+      logoEngraveSvg = logoGroupSvg(state);
+    }
+  }
+
+  const cutContent = `${pathElement(finalShapePath, true, cutStroke)}\n    ${holeSvg}`;
+  const engraveContent = logoEngraveSvg ? `${textSvg}\n    ${logoEngraveSvg}` : textSvg;
 
   const options = { width: viewWidth, height: viewHeight, cutStroke, includeGuides: false };
 
@@ -204,6 +330,25 @@ function getWarnings(state: SimpleKeychainState): Warning[] {
 
   const small = smallKeychainWarning(state.width, state.height);
   if (small) warnings.push(small);
+
+  if (state.logo && state.logo.enabled && state.logo.paths.length > 0) {
+    const cmdCount = countPathCommands(state.logo.paths);
+    if (cmdCount > 2000) {
+      warnings.push({
+        id: 'logo-complex',
+        level: 'warn',
+        message: 'Logo is complex. Increase simplify for smoother laser cutting.',
+      });
+    }
+
+    if (state.logo.opMode === 'cutout') {
+      warnings.push({
+        id: 'logo-cutout',
+        level: 'info',
+        message: 'Logo cut-out uses boolean operations. If it fails, it will fall back to engrave.',
+      });
+    }
+  }
 
   return warnings;
 }

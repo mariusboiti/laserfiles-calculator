@@ -104,6 +104,8 @@ export function createTextElement(
       enabled: false,
       offsetMm: 2,
       targetLayerType: 'OUTLINE',
+      join: 'round',
+      simplify: true,
     },
     transform: {
       xMm: 0,
@@ -116,6 +118,15 @@ export function createTextElement(
     letterSpacingMm: 0,
     lineHeightRatio: 1.2,
     transformCase: 'none',
+    curvedMode: 'straight',
+    curvedIntensity: 0,
+    curved: {
+      enabled: false,
+      radiusMm: 120,
+      arcDeg: 120,
+      placement: 'top',
+      direction: 'outside',
+    },
   };
 
   return { ...defaults, ...options };

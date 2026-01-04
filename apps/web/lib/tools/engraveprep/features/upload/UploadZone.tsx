@@ -9,7 +9,7 @@
  * - User-friendly error messages
  */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Upload, ImageIcon, AlertCircle } from 'lucide-react';
 import { useImageStore } from '../../store/useImageStore';
 import { ImageInfo } from '../../types';
@@ -22,6 +22,17 @@ export function UploadZone() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const { originalImage, uploadError, setOriginalImage, setUploadError } = useImageStore();
+
+  useEffect(() => {
+    const handler = () => {
+      fileInputRef.current?.click();
+    };
+
+    window.addEventListener('engraveprep:open-file-picker', handler);
+    return () => {
+      window.removeEventListener('engraveprep:open-file-picker', handler);
+    };
+  }, []);
 
   const handleFile = (file: File) => {
     // Clear previous errors

@@ -23,10 +23,13 @@ import { AVAILABLE_FONTS } from '../config/fontList';
 
 // Register all available fonts on module load
 AVAILABLE_FONTS.forEach(filename => {
-  const id = filename.replace('.ttf', '');
+  const id = filename.replace(/\.(ttf|otf)$/i, '');
   const label = id.replace(/[-_]/g, ' ');
   const url = `/fonts/keychain/${encodeURIComponent(filename)}`;
-  FONTS.push({ id, label, url });
+  const idKey = id.toLowerCase();
+  if (!FONTS.find(f => f.id.toLowerCase() === idKey)) {
+    FONTS.push({ id, label, url });
+  }
 });
 
 // Font cache
@@ -126,7 +129,7 @@ export function getAvailableFonts(): FontConfig[] {
  * Register a font dynamically
  */
 export function registerFont(filename: string): void {
-  const id = filename.replace('.ttf', '');
+  const id = filename.replace(/\.(ttf|otf)$/i, '');
   const label = id.replace(/[-_]/g, ' ');
   const url = `/fonts/keychain/${filename}`;
   
@@ -139,7 +142,7 @@ export function registerFont(filename: string): void {
  * Load font by filename directly
  */
 export async function loadFontByFilename(filename: string): Promise<opentype.Font> {
-  const id = filename.replace('.ttf', '');
+  const id = filename.replace(/\.(ttf|otf)$/i, '');
   registerFont(filename);
   return loadFont(id);
 }

@@ -62,18 +62,10 @@ function resolveGeminiImageConfig() {
 function buildFinalPrompt(args: { prompt: string; mode: ImageMode; transparent: boolean; aspect?: string }) {
   const { prompt, mode, transparent, aspect } = args;
 
-  const modeHints =
+  const modeHint =
     mode === 'engravingSketch'
-      ? [
-          'pen/pencil sketch, cross-hatching, monochrome, high contrast line art, clean strokes, suitable for vector tracing',
-          'no text, no watermark, no signature',
-          'single subject, centered, no background',
-        ]
-      : [
-          'simple silhouette, bold outline or solid shape, minimal interior detail, suitable for laser cutting and vector tracing',
-          'no text, no watermark, no signature',
-          'single subject, centered, no background',
-        ];
+      ? 'Monochrome pen/pencil sketch line art, suitable for laser engraving and vector tracing.'
+      : 'Laser-cut-friendly silhouette with clean edges, suitable for vector tracing.';
 
   const bg = transparent
     ? 'transparent background (or pure white background if transparency is not supported)'
@@ -83,13 +75,26 @@ function buildFinalPrompt(args: { prompt: string; mode: ImageMode; transparent: 
 
   return [
     prompt.trim(),
-    ...modeHints,
+    modeHint,
+    'No text. No watermark. No signature.',
+    'Single subject, centered, no background.',
     bg,
     aspectHint,
     'output a single PNG image',
   ]
     .filter((s) => s && s.trim())
     .join('. ');
+}
+
+function getFinishReason(json: any): string {
+  const fr = json?.candidates?.[0]?.finishReason;
+  return typeof fr === 'string' ? fr : '';
+}
+
+function isEmptyContent(json: any): boolean {
+  const c0 = json?.candidates?.[0]?.content;
+  const parts = Array.isArray(c0?.parts) ? c0.parts : [];
+  return !c0 || (typeof c0 === 'object' && Object.keys(c0).length === 0) || parts.length === 0;
 }
 
 function stripDataUrlPrefix(b64: string) {
@@ -104,9 +109,10 @@ function extractInlineImage(json: any): { mime?: string; base64?: string; textSn
   for (const c of candidates) {
     const parts = Array.isArray(c?.content?.parts) ? c.content.parts : [];
     for (const p of parts) {
-      const data = p?.inlineData?.data;
+      const inline = p?.inlineData || p?.inline_data;
+      const data = inline?.data;
       if (typeof data === 'string' && data.trim()) {
-        const mime = typeof p?.inlineData?.mimeType === 'string' ? p.inlineData.mimeType : undefined;
+        const mime = typeof inline?.mimeType === 'string' ? inline.mimeType : undefined;
         return { mime, base64: data };
       }
     }
@@ -118,7 +124,7 @@ function extractInlineImage(json: any): { mime?: string; base64?: string; textSn
     .filter((t: string) => t.trim());
   const textSnippet = textParts.join('\n').slice(0, 600);
 
-  return { textSnippet };
+  return { textSnippet: textSnippet || JSON.stringify(json)?.slice(0, 600) };
 }
 
 export async function POST(req: NextRequest) {
@@ -150,33 +156,70 @@ export async function POST(req: NextRequest) {
       ? `${endpoint}&key=${encodeURIComponent(apiKey)}`
       : `${endpoint}?key=${encodeURIComponent(apiKey)}`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: promptUsed }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: 1024,
+    const makeRequestBody = (p: string) => ({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: p }],
         },
-      }),
+      ],
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+        temperature: 0.2,
+        maxOutputTokens: 1024,
+        thinkingConfig: {
+          includeThoughts: false,
+          thinkingBudget: 0,
+        },
+        imageConfig: {
+          ...(aspect ? { aspectRatio: aspect } : {}),
+          imageSize: '1K',
+        },
+      },
     });
+
+    const doFetch = async (p: string) =>
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(makeRequestBody(p)),
+      });
+
+    let res = await doFetch(promptUsed);
 
     if (!res.ok) {
       const t = await res.text().catch(() => '');
       return jsonErr(`Gemini image generateContent failed (${res.status}): ${t || 'Unknown error'}`, 502);
     }
 
-    const json: any = await res.json();
-    const extracted = extractInlineImage(json);
+    let json: any = await res.json();
+    let extracted = extractInlineImage(json);
+
+    if (!extracted.base64 && (getFinishReason(json) === 'MAX_TOKENS' || isEmptyContent(json))) {
+      const shorterPrompt = [
+        prompt.trim(),
+        mode === 'engravingSketch'
+          ? 'Generate a monochrome pen sketch line art PNG (black lines on transparent background).'
+          : 'Generate a clean silhouette PNG (solid black on transparent background).',
+        'No text. Single subject.',
+      ]
+        .filter(Boolean)
+        .join(' ');
+      res = await doFetch(shorterPrompt);
+      if (res.ok) {
+        json = await res.json();
+        extracted = extractInlineImage(json);
+      }
+    }
+
     if (!extracted.base64) {
+      const finishReason = getFinishReason(json);
+      const fr = finishReason ? ` finishReason=${finishReason}.` : '';
       const extra = extracted.textSnippet ? ` Response text: ${extracted.textSnippet}` : '';
-      return jsonErr(`Gemini response contained no inline image data.${extra}`, 502);
+      return jsonErr(`Gemini response contained no inline image data.${fr}${extra}`, 502);
     }
 
     const mime = extracted.mime || 'image/png';

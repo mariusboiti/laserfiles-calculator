@@ -13,6 +13,97 @@ import type { BoxSettings, GeneratedFace } from '../../../src/lib/types';
 import { generateBoxGeometry, generateBoxGeometryOpenFront } from '../../../src/lib/boxGenerator';
 
 /**
+ * Generate divider faces for the drawer compartment.
+ * Returns array of { name, svg } for each divider panel.
+ */
+export function generateDrawerDividerSvgs(input: SlidingDrawerInputs): { name: string; svg: string }[] {
+  if (!input.dividersEnabled) return [];
+
+  const dims = computeDrawerDimensions(input);
+  const { drawerWidth: dW, drawerDepth: dD, drawerHeight: dH, thickness: t } = dims;
+
+  const countX = Math.max(1, Math.floor(input.dividerCountX));
+  const countZ = Math.max(1, Math.floor(input.dividerCountZ));
+
+  const dividerCountX = Math.max(0, countX - 1);
+  const dividerCountZ = Math.max(0, countZ - 1);
+
+  if (dividerCountX === 0 && dividerCountZ === 0) return [];
+
+  const clearance = Math.max(input.dividerClearanceMm, 0);
+  const slotWidth = Math.max(t + clearance, 0.1);
+
+  const innerW = Math.max(dW - 2 * t, 0.1);
+  const innerD = Math.max(dD - 2 * t, 0.1);
+  const dividerHeight = Math.max(dH - t, 0.1);
+  const slotDepth = Math.max(dividerHeight / 2, 0.1);
+
+  const dividerXLength = innerD;
+  const dividerZLength = innerW;
+
+  const slotsOnX: number[] = [];
+  if (countZ > 1) {
+    const step = dividerXLength / countZ;
+    for (let i = 1; i < countZ; i++) {
+      slotsOnX.push(i * step);
+    }
+  }
+
+  const slotsOnZ: number[] = [];
+  if (countX > 1) {
+    const step = dividerZLength / countX;
+    for (let i = 1; i < countX; i++) {
+      slotsOnZ.push(i * step);
+    }
+  }
+
+  const results: { name: string; svg: string }[] = [];
+
+  for (let i = 0; i < dividerCountX; i++) {
+    const w = dividerXLength;
+    const h = dividerHeight;
+    let pathD = `M 0 0 H ${w.toFixed(3)} V ${h.toFixed(3)} H 0 Z`;
+
+    const slotPaths: string[] = [];
+    for (const pos of slotsOnX) {
+      const x = Math.max(0, Math.min(pos - slotWidth / 2, w - slotWidth));
+      slotPaths.push(`M ${x.toFixed(3)} 0 V ${slotDepth.toFixed(3)} H ${(x + slotWidth).toFixed(3)} V 0`);
+    }
+
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${w.toFixed(3)}mm" height="${h.toFixed(3)}mm" viewBox="0 0 ${w.toFixed(3)} ${h.toFixed(3)}">
+  <path d="${pathD}" fill="none" stroke="#ff0000" stroke-width="0.2" />
+${slotPaths.map((d) => `  <path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.2" />`).join('\n')}
+</svg>`;
+
+    results.push({ name: `drawer-divider-x-${i + 1}`, svg });
+  }
+
+  for (let i = 0; i < dividerCountZ; i++) {
+    const w = dividerZLength;
+    const h = dividerHeight;
+    let pathD = `M 0 0 H ${w.toFixed(3)} V ${h.toFixed(3)} H 0 Z`;
+
+    const slotPaths: string[] = [];
+    for (const pos of slotsOnZ) {
+      const x = Math.max(0, Math.min(pos - slotWidth / 2, w - slotWidth));
+      const yTop = h - slotDepth;
+      slotPaths.push(`M ${x.toFixed(3)} ${h.toFixed(3)} V ${yTop.toFixed(3)} H ${(x + slotWidth).toFixed(3)} V ${h.toFixed(3)}`);
+    }
+
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${w.toFixed(3)}mm" height="${h.toFixed(3)}mm" viewBox="0 0 ${w.toFixed(3)} ${h.toFixed(3)}">
+  <path d="${pathD}" fill="none" stroke="#ff0000" stroke-width="0.2" />
+${slotPaths.map((d) => `  <path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.2" />`).join('\n')}
+</svg>`;
+
+    results.push({ name: `drawer-divider-z-${i + 1}`, svg });
+  }
+
+  return results;
+}
+
+/**
  * Generate all panels for sliding drawer box.
  */
 export function generateSlidingDrawerPanels(input: SlidingDrawerInputs): {

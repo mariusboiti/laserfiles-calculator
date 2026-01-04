@@ -14,6 +14,7 @@ export type FaceName =
   | 'top'
   | 'bottom'
   | 'lid'
+  | 'lid_inner'
   | 'lid_lip'
   | 'divider_x'
   | 'divider_z'

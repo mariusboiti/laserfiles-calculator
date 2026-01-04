@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import type { KeychainInputs, KeychainShape, HolePosition } from '../types/keychain';
 import { generateKeychainSvg, generateFilename, generateKeychainWarnings } from '../core/generateKeychainSvg';
 import { DEFAULTS, KEYCHAIN_PRESETS } from '../config/defaults';
@@ -22,6 +23,12 @@ interface KeychainToolProps {
 }
 
 export function KeychainTool({ onResetCallback }: KeychainToolProps) {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   const [shape, setShape] = useState<KeychainShape>(DEFAULTS.shape as KeychainShape);
   const [widthMm, setWidthMm] = useState(DEFAULTS.w);
   const [heightMm, setHeightMm] = useState(DEFAULTS.h);

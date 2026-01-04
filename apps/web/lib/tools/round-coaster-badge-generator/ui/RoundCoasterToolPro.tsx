@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useReducer, useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useReducer, useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
-  RotateCcw, Download, ZoomIn, ZoomOut, Maximize2,
+  RotateCcw, ZoomIn, ZoomOut, Maximize2,
   Undo2, Redo2, Layers, Eye, EyeOff, ChevronDown, ChevronUp,
-  Type, Circle, Hexagon, Shield, Octagon, Sparkles
+  Type, Circle, Hexagon, Shield, Octagon, Sparkles,
+  Wand2, Image, Flower2, AlignCenter
 } from 'lucide-react';
+
+import { jobManager } from '../../../jobs/jobManager';
 
 import type { CanvasDocument, ViewTransform, HistoryState } from '../types/canvas';
 import { DEFAULT_VIEW, DEFAULT_SELECTION } from '../types/canvas';
@@ -15,11 +18,30 @@ import {
   canUndo,
   canRedo,
 } from '../core/canvas/canvasReducer';
-import { createCoasterDocument, createTextElement } from '../core/canvas/elements';
+import { createCoasterDocument, createOrnamentElement, createTracedElement, createLogoElement } from '../core/canvas/elements';
 import { fitToContainer } from '../core/canvas/coords';
 import type { ShapeType } from '../core/canvas/shapes';
 import { CanvasStage } from './components/CanvasStage';
-import { buildExportSvg } from '../core/exportSvg';
+import { buildExportSvgAsync } from '../core/exportSvg';
+import { ensureFontsLoaded, getCssFontFamily } from '@/lib/fonts/fontLoader';
+import { loadFont } from '@/lib/fonts/sharedFontRegistry';
+import { generateCurvedTextPath } from '../core/canvas/curvedText';
+import { ExportMiniDisclaimer } from '@/components/legal';
+
+// New panel components
+import { FontPicker } from './components/FontPicker';
+import { CurvedTextControls, DEFAULT_CURVED_TEXT_CONFIG, type CurvedTextConfig } from './components/CurvedTextControls';
+import { AlignmentControls, type AlignmentAction } from './components/AlignmentControls';
+import { PathfinderPanel, type PathfinderOperation } from './components/PathfinderPanel';
+import { AIGeneratePanel } from './components/AIGeneratePanel';
+import { ImageTracePanel, type TraceOptions } from './components/ImageTracePanel';
+import { OrnamentLibrary, type OrnamentAsset } from './components/OrnamentLibrary';
+import type { FontId } from '../../../fonts/sharedFontRegistry';
+
+import { useOpenTraceAndInsertLogo } from './hooks/useOpenTraceAndInsertLogo';
+import { sanitizeTracedPaths } from '../core/trace/sanitizeTracedPaths';
+import { showToast } from './toast';
+import type { TraceModalResult } from '@/components/trace/TraceModal';
 
 // ============ UI Components ============
 
@@ -163,9 +185,12 @@ const QUICK_PRESETS: QuickPreset[] = [
 
 interface RoundCoasterToolProProps {
   onResetCallback?: (callback: () => void) => void;
+  onGetExportPayload?: (
+    getExportPayload: () => Promise<{ svg: string; name?: string; meta?: any }> | { svg: string; name?: string; meta?: any }
+  ) => void;
 }
 
-export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProps) {
+export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: RoundCoasterToolProProps) {
   // Canvas state with history
   const [history, dispatch] = useReducer(
     canvasReducer,
@@ -185,6 +210,11 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
   const doc = history.present.doc;
   const selection = history.present.selection;
 
+  const preservedElementsRef = useRef<typeof doc.elements>([]);
+  useEffect(() => {
+    preservedElementsRef.current = doc.elements.filter((e: any) => e?.system !== true);
+  }, [doc.elements]);
+
   // Shape and dimension state (derived from artboard)
   const [shape, setShape] = useState<ShapeType>(doc.artboard.shapeType);
   const [diameter, setDiameter] = useState(doc.artboard.widthMm);
@@ -197,12 +227,102 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
   const [bottomText, setBottomText] = useState('');
   const [uppercase, setUppercase] = useState(false);
 
+  const [centerFontSizeMm, setCenterFontSizeMm] = useState(16);
+  const [topFontSizeMm, setTopFontSizeMm] = useState(10);
+  const [bottomFontSizeMm, setBottomFontSizeMm] = useState(10);
+
   // Border state
   const [borderEnabled, setBorderEnabled] = useState(true);
   const [borderInset, setBorderInset] = useState(3);
   const [borderThickness, setBorderThickness] = useState(0.4);
   const [doubleBorder, setDoubleBorder] = useState(false);
   const [doubleBorderGap, setDoubleBorderGap] = useState(1.2);
+
+  // Font state
+  const [fontId, setFontId] = useState<FontId>('Milkshake');
+
+  // Curved text state
+  const [topCurvedText, setTopCurvedText] = useState<CurvedTextConfig>({
+    ...DEFAULT_CURVED_TEXT_CONFIG,
+    text: '',
+  });
+  const [centerCurvedText, setCenterCurvedText] = useState<CurvedTextConfig>({
+    ...DEFAULT_CURVED_TEXT_CONFIG,
+    text: '',
+  });
+  const [bottomCurvedText, setBottomCurvedText] = useState<CurvedTextConfig>({
+    ...DEFAULT_CURVED_TEXT_CONFIG,
+    text: '',
+  });
+
+  useEffect(() => {
+    ensureFontsLoaded([fontId, topCurvedText.fontId, centerCurvedText.fontId, bottomCurvedText.fontId]);
+  }, [bottomCurvedText.fontId, centerCurvedText.fontId, fontId, topCurvedText.fontId]);
+
+  // Active tools panel
+  const [activeToolPanel, setActiveToolPanel] = useState<'none' | 'ai' | 'trace' | 'ornaments'>('none');
+
+  const logoElements = useMemo(() => {
+    return doc.elements.filter((e): e is any => e.kind === 'logo' && e.visible !== false);
+  }, [doc.elements]);
+
+  const activeLogo = logoElements[0] ?? null;
+
+  const handleTraceLogoInsert = useCallback(
+    (result: TraceModalResult) => {
+      const sanitized = sanitizeTracedPaths(result.paths);
+      for (const w of sanitized.warnings) {
+        showToast(w, 'warning');
+      }
+      if (sanitized.paths.length === 0) return;
+
+      const marginMm = 4;
+      const safeW = Math.max(1, doc.artboard.widthMm - marginMm * 2);
+      const safeH = Math.max(1, doc.artboard.heightMm - marginMm * 2);
+
+      const bboxW = Math.max(0.001, result.localBounds.widthMm);
+      const bboxH = Math.max(0.001, result.localBounds.heightMm);
+      const fitScale = Math.min(1, 0.95 * Math.min(safeW / bboxW, safeH / bboxH));
+
+      const cx = doc.artboard.widthMm / 2;
+      const cy = doc.artboard.heightMm / 2;
+
+      const logoEl = createLogoElement({
+        paths: sanitized.paths,
+        localBounds: result.localBounds,
+        xMm: cx,
+        yMm: cy,
+        op: 'ENGRAVE',
+      });
+      logoEl.transform.scaleX = fitScale;
+      logoEl.transform.scaleY = fitScale;
+
+      dispatch({ type: 'ADD_ELEMENT', element: logoEl });
+      dispatch({ type: 'COMMIT' });
+    },
+    [doc.artboard.heightMm, doc.artboard.widthMm]
+  );
+
+  const trace = useOpenTraceAndInsertLogo({
+    defaultTargetWidthMm: Math.max(10, Math.min(doc.artboard.widthMm, doc.artboard.heightMm) - 8),
+    onInsert: handleTraceLogoInsert,
+  });
+
+  const handleSetLogoOp = useCallback(
+    (op: 'ENGRAVE' | 'CUT_OUT') => {
+      if (!activeLogo) return;
+      dispatch({
+        type: 'UPDATE_ELEMENT',
+        id: activeLogo.id,
+        updates: {
+          op,
+          layer: op === 'CUT_OUT' ? 'CUT' : 'ENGRAVE',
+        },
+      });
+      dispatch({ type: 'COMMIT' });
+    },
+    [activeLogo]
+  );
 
   // Reset function
   const resetToDefaults = useCallback(() => {
@@ -220,6 +340,14 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
     setBorderThickness(0.4);
     setDoubleBorder(false);
     setDoubleBorderGap(1.2);
+    setFontId('Milkshake');
+    setCenterFontSizeMm(16);
+    setTopFontSizeMm(10);
+    setBottomFontSizeMm(10);
+    setTopCurvedText({ ...DEFAULT_CURVED_TEXT_CONFIG, text: '' });
+    setCenterCurvedText({ ...DEFAULT_CURVED_TEXT_CONFIG, text: '' });
+    setBottomCurvedText({ ...DEFAULT_CURVED_TEXT_CONFIG, text: '' });
+    setActiveToolPanel('none');
   }, []);
 
   // Register reset callback
@@ -230,7 +358,8 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
   }, [onResetCallback, resetToDefaults]);
 
   // Rebuild document when shape/dimensions/border/text change
-  const rebuildDocument = useCallback(() => {
+  const rebuildDocument = useCallback(async () => {
+    const preserved = preservedElementsRef.current;
     const size = shape === 'shield' ? Math.max(width, height) : diameter;
     const w = shape === 'shield' ? width : undefined;
     const h = shape === 'shield' ? height : undefined;
@@ -241,6 +370,9 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
     const newDoc = createCoasterDocument(shape, size, w, h, text, {
       topText: top,
       bottomText: bottom,
+      centerFontSizeMm,
+      topFontSizeMm,
+      bottomFontSizeMm,
       border: {
         enabled: borderEnabled,
         inset: borderInset,
@@ -249,12 +381,115 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
         doubleBorderGap,
       },
     });
+
+    // Preserve any user-inserted elements (logos, ornaments, traces etc)
+    if (preserved.length > 0) {
+      newDoc.elements.push(...preserved);
+    }
+
+    const cx = newDoc.artboard.widthMm / 2;
+    const cy = newDoc.artboard.heightMm / 2;
+    const baseRadius = Math.min(newDoc.artboard.widthMm, newDoc.artboard.heightMm) / 2;
+
+    const buildCurved = async (
+      position: 'top' | 'center' | 'bottom',
+      cfg: CurvedTextConfig,
+      content: string
+    ) => {
+      const arcText = (content || '').trim();
+      if (!cfg.enabled || !arcText) return null;
+      try {
+        const font = await loadFont(String(cfg.fontId));
+        const radiusMm = baseRadius * (cfg.radius / 100);
+        const { pathD, boundingRadius } = await generateCurvedTextPath(font as any, {
+          text: arcText,
+          radius: radiusMm,
+          startAngle: cfg.startAngle,
+          fontSize: cfg.fontSize,
+          letterSpacing: cfg.letterSpacing,
+          position: position === 'bottom' ? 'bottom' : 'top',
+          flip: cfg.flip,
+        });
+
+        if (!pathD) return null;
+        const el = createTracedElement(pathD, boundingRadius * 2, boundingRadius * 2, cx, cy, 'ENGRAVE');
+        el.system = true;
+        el.name = position === 'top' ? 'Top Curved Text' : position === 'bottom' ? 'Bottom Curved Text' : 'Center Curved Text';
+        return el;
+      } catch (err) {
+        console.warn('Curved text generation failed', position, err);
+        return null;
+      }
+    };
+
+    const curvedTop = await buildCurved('top', topCurvedText, top);
+    const curvedCenter = await buildCurved('center', centerCurvedText, text);
+    const curvedBottom = await buildCurved('bottom', bottomCurvedText, bottom);
+
+    const removeSystemTextByName = (name: string) => {
+      newDoc.elements = newDoc.elements.filter((e: any) => !(e.kind === 'text' && e.system === true && e.name === name));
+    };
+
+    if (curvedTop) {
+      removeSystemTextByName('Top Text');
+      newDoc.elements.push(curvedTop);
+    }
+    if (curvedCenter) {
+      removeSystemTextByName('Center Text');
+      newDoc.elements.push(curvedCenter);
+    }
+    if (curvedBottom) {
+      removeSystemTextByName('Bottom Text');
+      newDoc.elements.push(curvedBottom);
+    }
+
+    // Ensure any text elements use the selected font
+    const cssFont = getCssFontFamily(fontId);
+    newDoc.elements = newDoc.elements.map((el: any) => {
+      if (el.kind !== 'text') return el;
+      return { ...el, fontId, fontFamily: cssFont };
+    });
+
     dispatch({ type: 'RESET', doc: newDoc });
-  }, [shape, diameter, width, height, centerText, topText, bottomText, uppercase, borderEnabled, borderInset, borderThickness, doubleBorder, doubleBorderGap]);
+  }, [bottomCurvedText, borderEnabled, borderInset, borderThickness, centerCurvedText, centerFontSizeMm, centerText, diameter, doubleBorder, doubleBorderGap, fontId, height, shape, topCurvedText, topFontSizeMm, topText, bottomFontSizeMm, bottomText, uppercase, width]);
+
+  const handleUpdateTransforms = useCallback(
+    (updates: Array<{ id: string; transform: any }>) => {
+      for (const u of updates) {
+        dispatch({ type: 'UPDATE_TRANSFORM', id: u.id, transform: u.transform });
+      }
+    },
+    []
+  );
+
+  const selectedElement = useMemo(() => {
+    if (!selection.activeId) return null;
+    return doc.elements.find(el => el.id === selection.activeId) ?? null;
+  }, [doc.elements, selection.activeId]);
+
+  const getExportPayload = useCallback(async () => {
+    // buildExportSvgAsync now produces an SVG with text converted to paths
+    const svg = await buildExportSvgAsync(doc, false);
+    return {
+      svg,
+      name: `coaster-${shape}-${Math.round(diameter)}mm`,
+      meta: {
+        bboxMm: { width: doc.artboard.widthMm, height: doc.artboard.heightMm },
+        shape,
+        diameter,
+      },
+    };
+  }, [diameter, doc, shape]);
+
+  useEffect(() => {
+    onGetExportPayload?.(getExportPayload);
+  }, [getExportPayload, onGetExportPayload]);
 
   // Debounced rebuild
   useEffect(() => {
-    const timer = setTimeout(rebuildDocument, 150);
+    const timer = setTimeout(() => {
+      void rebuildDocument();
+    }, 150);
     return () => clearTimeout(timer);
   }, [rebuildDocument]);
 
@@ -325,69 +560,120 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
     setView(v => ({ ...v, zoom: 1 }));
   }, []);
 
-  // Export
-  const handleExport = useCallback(() => {
-    const svg = buildExportSvg(doc, showLayerColors);
-    const blob = new Blob([svg], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `coaster-${shape}-${diameter}mm.svg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [doc, showLayerColors, shape, diameter]);
+  // Alignment handler
+  const handleAlignment = useCallback((action: AlignmentAction) => {
+    const cx = doc.artboard.widthMm / 2;
+    const cy = doc.artboard.heightMm / 2;
+    
+    selection.selectedIds.forEach(id => {
+      const el = doc.elements.find(e => e.id === id);
+      if (!el) return;
+
+      let newX = el.transform.xMm;
+      let newY = el.transform.yMm;
+
+      switch (action) {
+        case 'center-artboard':
+        case 'align-center-h':
+          newX = cx;
+          break;
+        case 'align-center-v':
+          newY = cy;
+          break;
+      }
+
+      if (newX !== el.transform.xMm || newY !== el.transform.yMm) {
+        dispatch({
+          type: 'UPDATE_TRANSFORM',
+          id,
+          transform: { xMm: newX, yMm: newY },
+        });
+      }
+    });
+    dispatch({ type: 'COMMIT' });
+  }, [doc, selection.selectedIds]);
+
+  // Pathfinder handler (stub - would use PathOps WASM)
+  const handlePathfinder = useCallback(async (op: PathfinderOperation) => {
+    console.log('Pathfinder operation:', op, 'on', selection.selectedIds);
+    // TODO: Implement with PathOps WASM
+  }, [selection.selectedIds]);
+
+  // AI Generation handler (stub)
+  const handleAIGenerate = useCallback(async (prompt: string) => {
+    console.log('AI Generate:', prompt);
+    // TODO: Implement AI generation API call
+    return null;
+  }, []);
+
+  // AI Insert handler
+  const handleAIInsert = useCallback((pathD: string, prompt: string) => {
+    const cx = doc.artboard.widthMm / 2;
+    const cy = doc.artboard.heightMm / 2;
+    const tracedEl = createTracedElement(pathD, 30, 30, cx, cy, 'ENGRAVE', prompt);
+    dispatch({ type: 'ADD_ELEMENT', element: tracedEl });
+    dispatch({ type: 'COMMIT' });
+  }, [doc.artboard]);
+
+  // Image Trace handler (legacy panel) - uses existing Potrace route
+  const handleImageTrace = useCallback(async (imageDataUrl: string, options: TraceOptions) => {
+    const res = await jobManager.runJob({
+      id: 'round-coaster-image-trace',
+      label: 'Tracing image',
+      fn: async (signal) => {
+        const r = await fetch('/api/trace/potrace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dataUrl: imageDataUrl,
+            mode: 'CUT_SILHOUETTE',
+            targetWidthMm: doc.artboard.widthMm,
+            targetHeightMm: doc.artboard.heightMm,
+            threshold: options.threshold,
+            invert: options.invert,
+            optTolerance: options.smoothing / 2,
+            autoInvert: false,
+          }),
+          signal,
+        });
+        return (await r.json()) as any;
+      },
+      timeoutMs: 60000,
+    });
+
+    if (!res.ok || !res.data) return null;
+    if (!res.data.ok) return null;
+    return String(res.data.combinedPath || '');
+  }, [doc.artboard.widthMm, doc.artboard.heightMm]);
+
+  // Traced Insert handler
+  const handleTracedInsert = useCallback((pathD: string) => {
+    const cx = doc.artboard.widthMm / 2;
+    const cy = doc.artboard.heightMm / 2;
+    const tracedEl = createTracedElement(pathD, 30, 30, cx, cy, 'ENGRAVE');
+    dispatch({ type: 'ADD_ELEMENT', element: tracedEl });
+    dispatch({ type: 'COMMIT' });
+  }, [doc.artboard]);
+
+  // Ornament Insert handler
+  const handleOrnamentInsert = useCallback((ornament: OrnamentAsset) => {
+    const cx = doc.artboard.widthMm / 2;
+    const cy = doc.artboard.heightMm / 2;
+    const ornamentEl = createOrnamentElement(ornament.id, ornament.pathD, 20, 20, cx, cy, 'ENGRAVE');
+    dispatch({ type: 'ADD_ELEMENT', element: ornamentEl });
+    dispatch({ type: 'COMMIT' });
+  }, [doc.artboard]);
 
   const isShield = shape === 'shield';
+  const selectionCount = selection.selectedIds.length;
 
   return (
-    <div className="lfs-tool flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      {/* Header */}
-      <header className="border-b border-slate-900 bg-slate-950/80">
-        <div className="mx-auto flex w-full items-center justify-between gap-4 px-4 py-3">
-          <div>
-            <h1 className="text-sm font-semibold text-slate-100 md:text-base">
-              Round Coaster & Badge Generator
-              <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-emerald-600 rounded">PRO</span>
-            </h1>
-            <p className="text-[11px] text-slate-400">Canvas editor with undo/redo, selection, layers</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleUndo}
-              disabled={!canUndo(history)}
-              className="p-2 bg-slate-800 rounded hover:bg-slate-700 disabled:opacity-50"
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo2 className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleRedo}
-              disabled={!canRedo(history)}
-              className="p-2 bg-slate-800 rounded hover:bg-slate-700 disabled:opacity-50"
-              title="Redo (Ctrl+Y)"
-            >
-              <Redo2 className="w-4 h-4" />
-            </button>
-            <div className="h-6 w-px bg-slate-700" />
-            <button
-              type="button"
-              onClick={resetToDefaults}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-300 hover:text-white border border-slate-700 rounded-md hover:bg-slate-800"
-            >
-              <RotateCcw className="w-3 h-3" /> Reset
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="lfs-tool bg-slate-950 text-slate-100">
+      {trace.TraceModal}
 
-      <main className="mx-auto flex w-full flex-1 flex-col gap-4 px-4 py-4 md:flex-row">
-        {/* Controls Panel */}
-        <section className="w-full md:w-80 lg:w-96">
-          <div className="max-h-[calc(100vh-96px)] overflow-y-auto space-y-3 pr-1">
+      <div className="grid w-full grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-[360px_1fr]">
+        {/* Left Panel: Insert + Settings */}
+        <aside className="max-h-[calc(100vh-160px)] overflow-y-auto space-y-3 pr-1">
 
             {/* Quick Presets */}
             <Section title="Quick Presets">
@@ -404,6 +690,72 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
                 ))}
               </div>
             </Section>
+
+            {/* Selection */}
+            <Section title="Selection" defaultOpen={false}>
+              {selectedElement ? (
+                <div className="space-y-3">
+                  <div className="text-xs text-slate-400">{selectedElement.name || selectedElement.kind}</div>
+                  <NumberInput
+                    label="Scale X"
+                    value={selectedElement.transform.scaleX}
+                    onChange={(v) => dispatch({ type: 'UPDATE_TRANSFORM', id: selectedElement.id, transform: { scaleX: v } })}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit="×"
+                  />
+                  <NumberInput
+                    label="Scale Y"
+                    value={selectedElement.transform.scaleY}
+                    onChange={(v) => dispatch({ type: 'UPDATE_TRANSFORM', id: selectedElement.id, transform: { scaleY: v } })}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit="×"
+                  />
+                  {selectedElement.kind === 'text' && (
+                    <NumberInput
+                      label="Font size"
+                      value={(selectedElement as any).fontSizeMm}
+                      onChange={(v) => dispatch({ type: 'UPDATE_ELEMENT', id: selectedElement.id, updates: { fontSizeMm: v } })}
+                      min={3}
+                      max={60}
+                      step={0.5}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="text-xs text-slate-500">Select an element to edit size.</div>
+              )}
+            </Section>
+
+            {activeLogo && (
+              <Section title="Logo" defaultOpen={false}>
+                <div className="space-y-2">
+                  <div className="text-[11px] text-slate-400">Logo operation</div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSetLogoOp('ENGRAVE')}
+                      className={`flex-1 px-2 py-1.5 rounded text-xs border ${activeLogo.op === 'ENGRAVE' ? 'bg-sky-600 border-sky-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}
+                    >
+                      Engrave
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetLogoOp('CUT_OUT')}
+                      className={`flex-1 px-2 py-1.5 rounded text-xs border ${activeLogo.op === 'CUT_OUT' ? 'bg-sky-600 border-sky-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}
+                    >
+                      Cut out
+                    </button>
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    Cut out subtracts the logo from the base shape on export.
+                  </div>
+                </div>
+              </Section>
+            )}
 
             {/* Shape */}
             <Section title="Shape">
@@ -543,16 +895,11 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
             {/* Text */}
             <Section title="Text">
               <div className="space-y-3">
-                <label className="grid gap-1">
-                  <div className="text-[11px] text-slate-400">Top text (optional)</div>
-                  <input
-                    type="text"
-                    value={topText}
-                    onChange={(e) => setTopText(e.target.value)}
-                    placeholder="Top line"
-                    className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs"
-                  />
-                </label>
+                <FontPicker
+                  value={fontId}
+                  onChange={setFontId}
+                  label="Font"
+                />
 
                 <label className="grid gap-1">
                   <div className="text-[11px] text-slate-400">Center text</div>
@@ -565,16 +912,54 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
                   />
                 </label>
 
+                <NumberInput
+                  label="Center size"
+                  value={centerFontSizeMm}
+                  onChange={setCenterFontSizeMm}
+                  min={3}
+                  max={40}
+                  step={0.5}
+                />
+
                 <label className="grid gap-1">
-                  <div className="text-[11px] text-slate-400">Bottom text (optional)</div>
+                  <div className="text-[11px] text-slate-400">Top text</div>
+                  <input
+                    type="text"
+                    value={topText}
+                    onChange={(e) => setTopText(e.target.value)}
+                    placeholder="Top text"
+                    className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs"
+                  />
+                </label>
+
+                <NumberInput
+                  label="Top size"
+                  value={topFontSizeMm}
+                  onChange={setTopFontSizeMm}
+                  min={3}
+                  max={30}
+                  step={0.5}
+                />
+
+                <label className="grid gap-1">
+                  <div className="text-[11px] text-slate-400">Bottom text</div>
                   <input
                     type="text"
                     value={bottomText}
                     onChange={(e) => setBottomText(e.target.value)}
-                    placeholder="Bottom line"
+                    placeholder="Bottom text"
                     className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs"
                   />
                 </label>
+
+                <NumberInput
+                  label="Bottom size"
+                  value={bottomFontSizeMm}
+                  onChange={setBottomFontSizeMm}
+                  min={3}
+                  max={30}
+                  step={0.5}
+                />
 
                 <Checkbox
                   label="UPPERCASE"
@@ -584,22 +969,154 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
               </div>
             </Section>
 
-            {/* Export */}
-            <div className="space-y-2 pt-2">
-              <button
-                type="button"
-                onClick={handleExport}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                <Download className="w-4 h-4" /> Export SVG
-              </button>
-            </div>
-          </div>
-        </section>
+            {/* Curved Text */}
+            <Section title="Curved Text" defaultOpen={false}>
+              <div className="space-y-4">
+                <CurvedTextControls
+                  position="top"
+                  config={topCurvedText}
+                  onChange={setTopCurvedText}
+                  maxRadius={diameter / 2}
+                  hideTextInput
+                />
+                <div className="border-t border-slate-800" />
+                <CurvedTextControls
+                  position="center"
+                  config={centerCurvedText}
+                  onChange={setCenterCurvedText}
+                  maxRadius={diameter / 2}
+                  hideTextInput
+                />
+                <div className="border-t border-slate-800" />
+                <CurvedTextControls
+                  position="bottom"
+                  config={bottomCurvedText}
+                  onChange={setBottomCurvedText}
+                  maxRadius={diameter / 2}
+                  hideTextInput
+                />
+              </div>
+            </Section>
 
-        {/* Canvas Panel */}
-        <section className="mt-2 flex flex-1 flex-col gap-3 md:mt-0">
-          <div className="flex flex-1 flex-col rounded-lg border border-slate-800 bg-slate-900/40">
+            {/* Selection */}
+            <Section title="Selection" defaultOpen={false}>
+              {selectedElement ? (
+                <div className="space-y-3">
+                  <div className="text-xs text-slate-400">
+                    {selectedElement.name || selectedElement.kind}
+                  </div>
+
+                  <NumberInput
+                    label="Scale X"
+                    value={selectedElement.transform.scaleX ?? 1}
+                    onChange={(v) =>
+                      dispatch({
+                        type: 'UPDATE_TRANSFORM',
+                        id: selectedElement.id,
+                        transform: { scaleX: v },
+                      })
+                    }
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit="×"
+                  />
+
+                  <NumberInput
+                    label="Scale Y"
+                    value={selectedElement.transform.scaleY ?? 1}
+                    onChange={(v) =>
+                      dispatch({
+                        type: 'UPDATE_TRANSFORM',
+                        id: selectedElement.id,
+                        transform: { scaleY: v },
+                      })
+                    }
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit="×"
+                  />
+
+                  {selectedElement.kind === 'text' && (
+                    <NumberInput
+                      label="Font size"
+                      value={(selectedElement as any).fontSizeMm ?? 10}
+                      onChange={(v) =>
+                        dispatch({
+                          type: 'UPDATE_ELEMENT',
+                          id: selectedElement.id,
+                          updates: { fontSizeMm: v },
+                        })
+                      }
+                      min={3}
+                      max={60}
+                      step={0.5}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="text-xs text-slate-500">Select an element to edit size.</div>
+              )}
+            </Section>
+
+            {/* Alignment & Pathfinder */}
+            <Section title="Transform" defaultOpen={false}>
+              <div className="space-y-4">
+                <AlignmentControls
+                  onAlign={handleAlignment}
+                  selectionCount={selectionCount}
+                />
+                <div className="border-t border-slate-800" />
+                <PathfinderPanel
+                  onOperation={handlePathfinder}
+                  selectionCount={selectionCount}
+                />
+              </div>
+            </Section>
+
+            {/* Insert - No Dropdown */}
+            <Section title="Insert">
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={trace.openTrace}
+                  data-tour="trace-add-logo"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-md"
+                >
+                  Add Logo/Icon (Trace)
+                </button>
+
+                <div className="p-2 bg-slate-900 rounded border border-slate-800">
+                  <div className="text-[10px] font-medium text-purple-400 mb-2">AI Generate</div>
+                  <AIGeneratePanel
+                    onGenerate={handleAIGenerate}
+                    onInsert={handleAIInsert}
+                  />
+                </div>
+
+                <div className="p-2 bg-slate-900 rounded border border-slate-800">
+                  <div className="text-[10px] font-medium text-orange-400 mb-2">Image Trace</div>
+                  <ImageTracePanel
+                    onTrace={handleImageTrace}
+                    onInsert={handleTracedInsert}
+                  />
+                </div>
+
+                <div className="p-2 bg-slate-900 rounded border border-slate-800">
+                  <div className="text-[10px] font-medium text-pink-400 mb-2">Ornaments</div>
+                  <OrnamentLibrary
+                    onInsert={handleOrnamentInsert}
+                  />
+                </div>
+              </div>
+            </Section>
+
+          </aside>
+
+        {/* Center Panel: Canvas */}
+        <section className="min-h-[560px] sticky top-4">
+          <div className="flex h-[calc(100vh-160px)] flex-col rounded-lg border border-slate-800 bg-slate-900/40">
             {/* Canvas toolbar */}
             <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
               <div className="text-sm font-medium text-slate-100">Canvas</div>
@@ -671,6 +1188,7 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
                 onSelect={handleSelect}
                 onClearSelection={handleClearSelection}
                 onUpdateTransform={handleUpdateTransform}
+                onUpdateTransforms={handleUpdateTransforms}
                 onCommit={handleCommit}
                 showLayerColors={showLayerColors}
                 showGuide={showGuide}
@@ -689,9 +1207,53 @@ export function RoundCoasterToolPro({ onResetCallback }: RoundCoasterToolProProp
                 }
               </span>
             </div>
+
+            {/* Download SVG Button */}
+            <div className="border-t border-slate-800 px-3 py-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const svgString = await buildExportSvgAsync(doc, false);
+                    
+                    // Aggressive sanitization for LightBurn - keep only safe ASCII
+                    const cleanSvg = svgString
+                      .split('')
+                      .map(char => {
+                        const code = char.charCodeAt(0);
+                        // Keep only: space (32), printable ASCII (33-126), newline (10)
+                        if (code === 10 || code === 32 || (code >= 33 && code <= 126)) {
+                          return char;
+                        }
+                        return '';
+                      })
+                      .join('')
+                      .replace(/\n+/g, '\n') // Normalize newlines
+                      .trim();
+                    
+                    const blob = new Blob([cleanSvg], { type: 'image/svg+xml;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `coaster-${Date.now()}.svg`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (e) {
+                    console.error('Export failed:', e);
+                    alert('Export failed: ' + (e as Error).message);
+                  }
+                }}
+                className="w-full px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium rounded-md"
+              >
+                Download SVG
+              </button>
+
+              <ExportMiniDisclaimer className="mt-2" />
+            </div>
           </div>
         </section>
-      </main>
+
+      </div>
     </div>
   );
 }

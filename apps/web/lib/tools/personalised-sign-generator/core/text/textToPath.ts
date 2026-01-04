@@ -12,6 +12,10 @@ export interface TextPathResult {
   pathD: string;
   width: number;
   height: number;
+  bbox: { x: number; y: number; width: number; height: number };
+  ascenderMm: number;
+  descenderMm: number;
+  advanceWidthMm: number;
   baselineY: number;
   requestedFontId: FontId;
   usedFontId: FontId;
@@ -49,6 +53,10 @@ export async function textElementToPath(
       pathD: '',
       width: 0,
       height: 0,
+      bbox: { x: 0, y: 0, width: 0, height: 0 },
+      ascenderMm: 0,
+      descenderMm: 0,
+      advanceWidthMm: 0,
       baselineY: 0,
       requestedFontId: element.fontId,
       usedFontId: element.fontId,
@@ -62,6 +70,16 @@ export async function textElementToPath(
     let usedFontId: FontId = requestedFontId;
 
     let font = await loadFont(requestedFontId);
+    // Convert font units -> mm. Our system uses y-down coordinates in SVG.
+    // In font units, ascender is typically positive and descender negative (y-up).
+    // For y-down SVG, we negate them.
+    const unitsPerEm = (font as any).unitsPerEm || 1000;
+    const scaleMm = element.sizeMm / unitsPerEm;
+    const ascenderMm = -((font as any).ascender || 0) * scaleMm;
+    const descenderMm = -((font as any).descender || 0) * scaleMm;
+    const sizePx = element.sizeMm * 3.7795275591;
+    const baseAdvancePx = typeof (font as any).getAdvanceWidth === 'function' ? (font as any).getAdvanceWidth(text, sizePx) : 0;
+    const advanceWidthMm = baseAdvancePx / 3.7795275591 + (text.length > 1 ? (text.length - 1) * element.letterSpacingMm : 0);
 
     try {
       const result = textToPathD(font, text, element.sizeMm, element.letterSpacingMm);
@@ -69,6 +87,10 @@ export async function textElementToPath(
         pathD: result.pathD,
         width: result.width,
         height: result.height,
+        bbox: result.bbox,
+        ascenderMm,
+        descenderMm,
+        advanceWidthMm,
         baselineY: element.sizeMm * 0.85,
         requestedFontId,
         usedFontId,
@@ -85,11 +107,22 @@ export async function textElementToPath(
     if (fallbackFontId && fallbackFontId !== element.fontId) {
       try {
         const fallbackFont = await loadFont(fallbackFontId);
+        const unitsPerEm = (fallbackFont as any).unitsPerEm || 1000;
+        const scaleMm = element.sizeMm / unitsPerEm;
+        const ascenderMm = -((fallbackFont as any).ascender || 0) * scaleMm;
+        const descenderMm = -((fallbackFont as any).descender || 0) * scaleMm;
+        const sizePx = element.sizeMm * 3.7795275591;
+        const baseAdvancePx = typeof (fallbackFont as any).getAdvanceWidth === 'function' ? (fallbackFont as any).getAdvanceWidth(text, sizePx) : 0;
+        const advanceWidthMm = baseAdvancePx / 3.7795275591 + (text.length > 1 ? (text.length - 1) * element.letterSpacingMm : 0);
         const result = textToPathD(fallbackFont, text, element.sizeMm, element.letterSpacingMm);
         return {
           pathD: result.pathD,
           width: result.width,
           height: result.height,
+          bbox: result.bbox,
+          ascenderMm,
+          descenderMm,
+          advanceWidthMm,
           baselineY: element.sizeMm * 0.85,
           requestedFontId: element.fontId,
           usedFontId: fallbackFontId,
@@ -104,6 +137,10 @@ export async function textElementToPath(
       pathD: '',
       width: 0,
       height: 0,
+      bbox: { x: 0, y: 0, width: 0, height: 0 },
+      ascenderMm: 0,
+      descenderMm: 0,
+      advanceWidthMm: 0,
       baselineY: 0,
       requestedFontId: element.fontId,
       usedFontId: element.fontId,

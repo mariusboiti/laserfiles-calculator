@@ -109,7 +109,7 @@ export const templateLibrary: TemplateLibraryItem[] = [
     name: 'Round Ornament with Hole (50x55)',
     description: 'Ornament circle with a top hanging hole',
     svg: `<svg xmlns="http://www.w3.org/2000/svg" width="50mm" height="55mm" viewBox="0 0 50 55">
-  <circle cx="25" cy="30" r="23" fill="none" stroke="black" stroke-width="0.2" />
+  <circle cx="25" cy="32" r="22" fill="none" stroke="black" stroke-width="0.2" />
   <circle cx="25" cy="8" r="2.5" fill="none" stroke="black" stroke-width="0.2" />
 </svg>`
   },

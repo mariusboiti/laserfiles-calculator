@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import { Lock, Sparkles, Image as ImageIcon, Settings, Download, ZoomIn, ZoomOut, Box, RotateCcw } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { downloadTextFile } from '@/lib/studio/export/download';
@@ -29,7 +30,7 @@ import {
   DEFAULT_ENGRAVE_SETTINGS,
   DEFAULT_FRAME_SETTINGS,
 } from '../types';
-import { generateCurvedPhotoFrameV3 } from '../core/geometry';
+import { computeEngraveSafeAreaMm, generateCurvedPhotoFrameV3 } from '../core/geometry';
 
 // Dynamic import for 3D preview to avoid SSR issues
 const CurvedPhotoFramePreview3D = dynamic(
@@ -48,29 +49,23 @@ export function CurvedPhotoFrameV3Tool({
   onExportCallback,
   featureFlags = { isProUser: false },
 }: CurvedPhotoFrameV3ToolProps) {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(undefined);
   const [processedPhotoDataUrl, setProcessedPhotoDataUrl] = useState<string | undefined>(undefined);
   const [isProcessing, setIsProcessing] = useState(false);
   const [cropPreview, setCropPreview] = useState<string | undefined>(undefined);
 
-  const [batchItems, setBatchItems] = useState<
-    {
-      id: string;
-      fileName: string;
-      dataUrl?: string;
-      processedDataUrl?: string;
-      status: 'queued' | 'processing' | 'done' | 'error';
-      error?: string;
-    }[]
-  >([]);
-  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
-
   const [aiSettings, setAiSettings] = useState(DEFAULT_AI_SETTINGS);
   const [engraveSettings, setEngraveSettings] = useState(DEFAULT_ENGRAVE_SETTINGS);
   const [frameSettings, setFrameSettings] = useState(DEFAULT_FRAME_SETTINGS);
 
-  const [activeTab, setActiveTab] = useState<'photo' | 'ai' | 'frame'>('frame');
+  const [activeTab, setActiveTab] = useState<'photo' | 'frame'>('frame');
 
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const [previewMode, setPreviewMode] = useState<'2d' | '3d'>('2d');
@@ -78,6 +73,8 @@ export function CurvedPhotoFrameV3Tool({
   const [zoom, setZoom] = useState(1);
   const [rotationYDeg, setRotationYDeg] = useState(18);
   const [tiltXDeg, setTiltXDeg] = useState(-18);
+
+  const liveProcessRequestIdRef = useRef(0);
 
   const approxEq = useCallback((a: number, b: number, eps: number = 1e-6) => Math.abs(a - b) <= eps, []);
 
@@ -111,18 +108,62 @@ export function CurvedPhotoFrameV3Tool({
     });
   }, []);
 
+  const cropImageDataToAspectWithFocus = useCallback((
+    img: ImageData,
+    targetAspect: number,
+    focusX: number,
+    focusY: number
+  ): ImageData => {
+    if (!img || img.width <= 0 || img.height <= 0) return img;
+    if (!isFinite(targetAspect) || targetAspect <= 0) return img;
+
+    const srcW = img.width;
+    const srcH = img.height;
+    const srcAspect = srcW / srcH;
+
+    if (!isFinite(srcAspect) || srcAspect <= 0) return img;
+    if (Math.abs(srcAspect - targetAspect) < 0.01) return img;
+
+    const fx = Math.max(0, Math.min(1, focusX));
+    const fy = Math.max(0, Math.min(1, focusY));
+
+    let cropX = 0;
+    let cropY = 0;
+    let cropW = srcW;
+    let cropH = srcH;
+
+    if (srcAspect > targetAspect) {
+      // too wide -> crop width
+      cropW = Math.max(1, Math.round(srcH * targetAspect));
+      cropX = Math.max(0, Math.min(srcW - cropW, Math.round((srcW - cropW) * fx)));
+    } else {
+      // too tall -> crop height
+      cropH = Math.max(1, Math.round(srcW / targetAspect));
+      cropY = Math.max(0, Math.min(srcH - cropH, Math.round((srcH - cropH) * fy)));
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = srcW;
+    canvas.height = srcH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return img;
+
+    ctx.putImageData(img, 0, 0);
+    return ctx.getImageData(cropX, cropY, cropW, cropH);
+  }, []);
+
   const processPhotoDataUrl = useCallback(
     async (srcDataUrl: string) => {
       let imageData = await loadImageFromUrl(srcDataUrl);
 
-      if (aiSettings.removeBackground && featureFlags.isProUser) {
-        try {
-          const bgResult = await aiClient.removeBackground(srcDataUrl);
-          imageData = bgResult.imageData;
-        } catch (error) {
-          console.warn('Background removal failed, continuing without it', error);
-        }
-      }
+      const safe = computeEngraveSafeAreaMm(frameSettings);
+      const targetAspect = safe.safeWmm / safe.safeHmm;
+      imageData = cropImageDataToAspectWithFocus(
+        imageData,
+        targetAspect,
+        aiSettings.cropFocusX ?? 0.5,
+        aiSettings.cropFocusY ?? 0
+      );
 
       const woodPreset = engraveSettings.woodStyle
         ? WOOD_STYLE_PRESETS.find((p) => p.id === engraveSettings.woodStyle)
@@ -135,11 +176,11 @@ export function CurvedPhotoFrameV3Tool({
         contrast: engraveSettings.contrast,
         gamma: woodPreset?.settings.gamma ?? 1.0,
         sharpen: woodPreset?.settings.sharpen ?? 0,
-        denoise: aiSettings.enhanceEdges ? 1 : 0,
+        denoise: 0,
       };
 
-      const targetWidthPx = Math.round((frameSettings.photoWidthMm / 25.4) * 254);
-      const targetHeightPx = Math.round((frameSettings.photoHeightMm / 25.4) * 254);
+      const targetWidthPx = Math.round((safe.safeWmm / 25.4) * 254);
+      const targetHeightPx = Math.round((safe.safeHmm / 25.4) * 254);
 
       const processed = processImagePipeline(
         imageData,
@@ -152,14 +193,19 @@ export function CurvedPhotoFrameV3Tool({
       return imageDataToDataUrl(processed);
     },
     [
-      aiSettings.enhanceEdges,
-      aiSettings.removeBackground,
+      cropImageDataToAspectWithFocus,
+      aiSettings.cropFocusX,
+      aiSettings.cropFocusY,
       engraveSettings.contrast,
       engraveSettings.ditherMode,
       engraveSettings.woodStyle,
       featureFlags.isProUser,
       frameSettings.photoHeightMm,
       frameSettings.photoWidthMm,
+      frameSettings.borderMm,
+      frameSettings.bendZoneHeightMm,
+      frameSettings.supportLipHeightMm,
+      frameSettings.kerfRowSpacingMm,
     ]
   );
 
@@ -172,7 +218,8 @@ export function CurvedPhotoFrameV3Tool({
 
     setIsProcessing(true);
     try {
-      const aspectRatio = frameSettings.photoWidthMm / frameSettings.photoHeightMm;
+      const safe = computeEngraveSafeAreaMm(frameSettings);
+      const aspectRatio = safe.safeWmm / safe.safeHmm;
       const result = await aiClient.autoCrop(photoDataUrl, aspectRatio);
 
       const img = await loadImageFromUrl(photoDataUrl);
@@ -199,7 +246,16 @@ export function CurvedPhotoFrameV3Tool({
     } finally {
       setIsProcessing(false);
     }
-  }, [photoDataUrl, frameSettings.photoWidthMm, frameSettings.photoHeightMm, featureFlags.isProUser]);
+  }, [
+    photoDataUrl,
+    frameSettings.photoWidthMm,
+    frameSettings.photoHeightMm,
+    frameSettings.borderMm,
+    frameSettings.bendZoneHeightMm,
+    frameSettings.supportLipHeightMm,
+    frameSettings.kerfRowSpacingMm,
+    featureFlags.isProUser,
+  ]);
 
   const handleProcessPhoto = useCallback(async () => {
     if (!photoDataUrl) return;
@@ -221,127 +277,31 @@ export function CurvedPhotoFrameV3Tool({
     processPhotoDataUrl,
   ]);
 
-  const handleBatchUpload = useCallback(
-    async (files: FileList | null) => {
-      if (!files || files.length === 0) return;
-      if (!featureFlags.isProUser) {
-        alert('Batch mode is a PRO feature');
-        return;
+  useEffect(() => {
+    if (!photoDataUrl) return;
+    // Only do live updates after the user has processed at least once.
+    if (!processedPhotoDataUrl) return;
+
+    const requestId = ++liveProcessRequestIdRef.current;
+    const t = window.setTimeout(async () => {
+      setIsProcessing(true);
+      try {
+        const next = await processPhotoDataUrl(photoDataUrl);
+        if (liveProcessRequestIdRef.current !== requestId) return;
+        setProcessedPhotoDataUrl(next);
+      } catch (error) {
+        // ignore live preview errors
+        if (liveProcessRequestIdRef.current !== requestId) return;
+        console.warn('Live photo processing failed:', error);
+      } finally {
+        if (liveProcessRequestIdRef.current !== requestId) return;
+        setIsProcessing(false);
       }
+    }, 250);
 
-      const fileArr = Array.from(files);
-      const items = await Promise.all(
-        fileArr.map(async (file, idx) => {
-          const id = `${Date.now()}-${idx}-${Math.random().toString(16).slice(2)}`;
-          try {
-            const dataUrl = await dataUrlFromFile(file);
-            return {
-              id,
-              fileName: file.name,
-              dataUrl,
-              processedDataUrl: undefined as string | undefined,
-              status: 'queued' as const,
-              error: undefined as string | undefined,
-            };
-          } catch (e) {
-            return {
-              id,
-              fileName: file.name,
-              dataUrl: undefined as string | undefined,
-              processedDataUrl: undefined as string | undefined,
-              status: 'error' as const,
-              error: e instanceof Error ? e.message : 'Failed to load image',
-            };
-          }
-        })
-      );
+    return () => window.clearTimeout(t);
+  }, [aiSettings.cropFocusX, aiSettings.cropFocusY, photoDataUrl, processedPhotoDataUrl, processPhotoDataUrl]);
 
-      setBatchItems(items);
-    },
-    [dataUrlFromFile, featureFlags.isProUser]
-  );
-
-  const processAllBatch = useCallback(async () => {
-    if (!featureFlags.isProUser) {
-      alert('Batch mode is a PRO feature');
-      return;
-    }
-
-    setIsBatchProcessing(true);
-    try {
-      for (const item of batchItems) {
-        if (!item.dataUrl) continue;
-
-        setBatchItems((prev) =>
-          prev.map((p) => (p.id === item.id ? { ...p, status: 'processing', error: undefined } : p))
-        );
-
-        try {
-          const processed = await processPhotoDataUrl(item.dataUrl);
-          setBatchItems((prev) =>
-            prev.map((p) => (p.id === item.id ? { ...p, processedDataUrl: processed, status: 'done' } : p))
-          );
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : 'Processing failed';
-          setBatchItems((prev) =>
-            prev.map((p) => (p.id === item.id ? { ...p, status: 'error', error: msg } : p))
-          );
-        }
-      }
-    } finally {
-      setIsBatchProcessing(false);
-    }
-  }, [batchItems, featureFlags.isProUser, processPhotoDataUrl]);
-
-  const exportBatchZip = useCallback(async () => {
-    if (!featureFlags.isProUser) {
-      alert('Batch mode is a PRO feature');
-      return;
-    }
-
-    const ready = batchItems.filter((i) => i.dataUrl && i.processedDataUrl && i.status === 'done');
-    if (ready.length === 0) {
-      alert('No processed batch items. Click “Process All” first.');
-      return;
-    }
-
-    const files: { name: string; content: string }[] = [];
-    const seen = new Set<string>();
-
-    for (const item of ready) {
-      const base0 = sanitizeBaseName(item.fileName);
-      let base = base0 || 'photo';
-      let n = 1;
-      while (seen.has(base)) {
-        n += 1;
-        base = `${base0 || 'photo'}-${n}`;
-      }
-      seen.add(base);
-
-      const inputsForItem: CurvedPhotoFrameV3Inputs = {
-        photoDataUrl: item.dataUrl,
-        processedPhotoDataUrl: item.processedDataUrl,
-        aiSettings,
-        engraveSettings,
-        frameSettings,
-      };
-
-      const r = generateCurvedPhotoFrameV3(inputsForItem);
-
-      files.push({ name: `${base}/front-plate.svg`, content: r.svgs.front });
-      files.push({ name: `${base}/side-support.svg`, content: r.svgs.back });
-      files.push({ name: `${base}/layout-combined.svg`, content: r.svgs.combined });
-    }
-
-    await downloadZip('curved-photo-frame-v3-batch.zip', files);
-  }, [
-    aiSettings,
-    batchItems,
-    engraveSettings,
-    featureFlags.isProUser,
-    frameSettings,
-    sanitizeBaseName,
-  ]);
 
   useEffect(() => {
     if (!frameSettings.autoKerf) return;
@@ -653,7 +613,6 @@ export function CurvedPhotoFrameV3Tool({
               <div class="k">Thickness</div><div class="v">${safe(frameSettings.thicknessMm)} mm</div>
               <div class="k">Curve</div><div class="v">${safe(strengthLabel)}</div>
               <div class="k">Viewing angle</div><div class="v">${safe(frameSettings.viewingAngleDeg)}°</div>
-              <div class="k">Stop notch</div><div class="v">${frameSettings.addStopNotch ? 'Yes' : 'No'}</div>
               <div class="k">Kerf</div><div class="v">${safe(frameSettings.kerfMm)} mm</div>
               <div class="k">Smart kerf</div><div class="v">${frameSettings.autoKerf ? 'On' : 'Off'}</div>
               <div class="k">Edge safety</div><div class="v">${frameSettings.edgeSafety ? 'On' : 'Off'}</div>
@@ -699,7 +658,6 @@ export function CurvedPhotoFrameV3Tool({
     w.print();
   }, [
     featureFlags.isProUser,
-    frameSettings.addStopNotch,
     frameSettings.autoKerf,
     frameSettings.bendRadiusMm,
     frameSettings.borderMm,
@@ -737,7 +695,7 @@ export function CurvedPhotoFrameV3Tool({
   }, [onExportCallback, exportSvgZip]);
 
   return (
-    <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-[350px_1fr]">
       <div className="space-y-4">
         <div className="flex gap-2 border-b border-slate-800">
           <button
@@ -762,17 +720,6 @@ export function CurvedPhotoFrameV3Tool({
             <ImageIcon className="inline w-4 h-4 mr-2" />
             Photo
           </button>
-          <button
-            onClick={() => setActiveTab('ai')}
-            className={`px-4 py-2 text-sm font-medium ${
-              activeTab === 'ai'
-                ? 'border-b-2 border-sky-500 text-sky-400'
-                : 'text-slate-400 hover:text-slate-300'
-            }`}
-          >
-            <Sparkles className="inline w-4 h-4 mr-2" />
-            AI Prep
-          </button>
         </div>
 
         {activeTab === 'photo' && (
@@ -791,71 +738,6 @@ export function CurvedPhotoFrameV3Tool({
               {photoFile && (
                 <div className="mt-2 text-xs text-slate-400">
                   {photoFile.name} ({Math.round(photoFile.size / 1024)}KB)
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-              <div className="text-sm font-medium text-slate-100 mb-3">
-                Batch mode {!featureFlags.isProUser && <span className="text-amber-400">(PRO)</span>}
-              </div>
-              <input
-                type="file"
-                multiple
-                accept="image/png,image/jpeg,image/webp"
-                disabled={!featureFlags.isProUser}
-                className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-sm file:text-slate-200 hover:file:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                onChange={(e) => handleBatchUpload(e.target.files)}
-              />
-
-              {batchItems.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={processAllBatch}
-                      disabled={!featureFlags.isProUser || isBatchProcessing}
-                      className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Process All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={exportBatchZip}
-                      disabled={!featureFlags.isProUser || isBatchProcessing}
-                      className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Export Batch ZIP
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBatchItems([])}
-                      disabled={isBatchProcessing}
-                      className="rounded-md border border-slate-800 px-3 py-2 text-xs text-slate-400 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Clear
-                    </button>
-                  </div>
-
-                  <div className="max-h-48 overflow-auto rounded-lg border border-slate-800">
-                    {batchItems.map((it) => (
-                      <div key={it.id} className="flex items-center justify-between gap-3 border-b border-slate-800 px-3 py-2 text-xs">
-                        <div className="truncate text-slate-300">{it.fileName}</div>
-                        <div className="shrink-0 text-slate-400">
-                          {it.status === 'queued' && 'Queued'}
-                          {it.status === 'processing' && 'Processing…'}
-                          {it.status === 'done' && 'Ready'}
-                          {it.status === 'error' && <span className="text-amber-400">Error</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {batchItems.some((b) => b.status === 'error') && (
-                    <div className="text-xs text-amber-300">
-                      Some items failed to load/process. Check console for details.
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -890,104 +772,226 @@ export function CurvedPhotoFrameV3Tool({
                 </div>
               </>
             )}
-          </div>
-        )}
 
-        {activeTab === 'ai' && (
-          <div className="space-y-4">
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-              <div className="text-sm font-medium text-slate-100 mb-3">Wood Style Presets</div>
-              <div className="grid grid-cols-2 gap-2">
-                {WOOD_STYLE_PRESETS.map((preset) => (
+              <div className="text-sm font-medium text-slate-100 mb-3">AI Photo Prep</div>
+              
+              <div className="mb-4">
+                <div className="text-xs font-medium text-slate-300 mb-2">Wood Style Presets</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {WOOD_STYLE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => applyWoodPreset(preset.id)}
+                      disabled={!featureFlags.isProUser}
+                      className={`p-2 rounded-lg text-left text-xs transition-colors ${
+                        engraveSettings.woodStyle === preset.id
+                          ? 'bg-sky-600 text-white'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      } ${!featureFlags.isProUser ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {!featureFlags.isProUser && <Lock className="w-3 h-3 inline mr-1" />}
+                      <div className="font-medium">{preset.name}</div>
+                      <div className="text-xs opacity-75">{preset.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 mb-3">
+                <div className="text-xs font-medium text-slate-300 mb-2">Engraving Settings</div>
+                <div className="space-y-2">
+                  <label className="grid gap-1">
+                    <div className="text-xs text-slate-300">Contrast: {engraveSettings.contrast}</div>
+                    <input
+                      type="range"
+                      min="-50"
+                      max="50"
+                      value={engraveSettings.contrast}
+                      onChange={(e) =>
+                        setEngraveSettings((prev) => ({ ...prev, contrast: Number(e.target.value) }))
+                      }
+                      className="w-full"
+                    />
+                  </label>
+
+                  <label className="grid gap-1">
+                    <div className="text-xs text-slate-300">Dithering</div>
+                    <select
+                      value={engraveSettings.ditherMode}
+                      onChange={(e) =>
+                        setEngraveSettings((prev) => ({ ...prev, ditherMode: e.target.value as any }))
+                      }
+                      className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
+                    >
+                      <option value="stucki">Stucki (recommended)</option>
+                      <option value="floyd-steinberg">Floyd-Steinberg</option>
+                      <option value="jarvis">Jarvis</option>
+                      <option value="atkinson">Atkinson</option>
+                      <option value="none">None</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800">
+                <div className="text-xs font-medium text-slate-300 mb-2">Photo Position & Size</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="grid gap-1">
+                    <div className="text-xs text-slate-400">X Offset (mm)</div>
+                    <input
+                      type="number"
+                      step={1}
+                      value={aiSettings.photoOffsetXMm}
+                      onChange={(e) => setAiSettings((prev) => ({ ...prev, photoOffsetXMm: Number(e.target.value) }))}
+                      className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-sm text-slate-100"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <div className="text-xs text-slate-400">Y Offset (mm)</div>
+                    <input
+                      type="number"
+                      step={1}
+                      value={aiSettings.photoOffsetYMm}
+                      onChange={(e) => setAiSettings((prev) => ({ ...prev, photoOffsetYMm: Number(e.target.value) }))}
+                      className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-sm text-slate-100"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <div className="text-xs text-slate-400">Scale (%)</div>
+                    <input
+                      type="number"
+                      step={5}
+                      min={50}
+                      max={100}
+                      value={Math.round(aiSettings.photoScale * 100)}
+                      onChange={(e) => {
+                        const pct = Number(e.target.value);
+                        const clampedPct = Math.max(50, Math.min(100, pct));
+                        setAiSettings((prev) => ({ ...prev, photoScale: clampedPct / 100 }));
+                      }}
+                      className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-sm text-slate-100"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-3">
+                  <label className="grid gap-1">
+                    <div className="text-xs text-slate-400">Top corner radius (mm)</div>
+                    <input
+                      type="number"
+                      step={1}
+                      min={0}
+                      max={30}
+                      value={aiSettings.photoCornerRadiusMm}
+                      onChange={(e) =>
+                        setAiSettings((prev) => ({ ...prev, photoCornerRadiusMm: Number(e.target.value) }))
+                      }
+                      className="w-24 rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-sm text-slate-100"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <label className="grid gap-1">
+                    <div className="text-xs text-slate-400">Focus X (%)</div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={Math.round((aiSettings.cropFocusX ?? 0.5) * 100)}
+                      onChange={(e) =>
+                        setAiSettings((prev) => ({ ...prev, cropFocusX: Number(e.target.value) / 100 }))
+                      }
+                      className="w-full"
+                    />
+                  </label>
+                  <label className="grid gap-1">
+                    <div className="text-xs text-slate-400">Focus Y (%)</div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={Math.round((aiSettings.cropFocusY ?? 0) * 100)}
+                      onChange={(e) =>
+                        setAiSettings((prev) => ({ ...prev, cropFocusY: Number(e.target.value) / 100 }))
+                      }
+                      className="w-full"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-2 grid grid-cols-3 gap-2">
                   <button
-                    key={preset.id}
-                    onClick={() => applyWoodPreset(preset.id)}
-                    disabled={!featureFlags.isProUser}
-                    className={`p-3 rounded-lg text-left text-sm transition-colors ${
-                      engraveSettings.woodStyle === preset.id
-                        ? 'bg-sky-600 text-white'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    } ${!featureFlags.isProUser ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    type="button"
+                    onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusY: 0 }))}
+                    className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                   >
-                    {!featureFlags.isProUser && <Lock className="w-3 h-3 inline mr-1" />}
-                    <div className="font-medium">{preset.name}</div>
-                    <div className="text-xs opacity-75">{preset.description}</div>
+                    Top
                   </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-              <div className="text-sm font-medium text-slate-100 mb-3">AI Settings</div>
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={aiSettings.removeBackground}
-                    onChange={(e) =>
-                      setAiSettings((prev) => ({ ...prev, removeBackground: e.target.checked }))
-                    }
-                    disabled={!featureFlags.isProUser}
-                    className="rounded"
-                  />
-                  {!featureFlags.isProUser && <Lock className="w-3 h-3" />}
-                  Remove background
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={aiSettings.enhanceEdges}
-                    onChange={(e) => setAiSettings((prev) => ({ ...prev, enhanceEdges: e.target.checked }))}
-                    className="rounded"
-                  />
-                  Enhance subject edges
-                </label>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-              <div className="text-sm font-medium text-slate-100 mb-3">Engraving Settings</div>
-              <div className="space-y-3">
-                <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Contrast: {engraveSettings.contrast}</div>
-                  <input
-                    type="range"
-                    min="-50"
-                    max="50"
-                    value={engraveSettings.contrast}
-                    onChange={(e) =>
-                      setEngraveSettings((prev) => ({ ...prev, contrast: Number(e.target.value) }))
-                    }
-                    className="w-full"
-                  />
-                </label>
-
-                <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Dithering</div>
-                  <select
-                    value={engraveSettings.ditherMode}
-                    onChange={(e) =>
-                      setEngraveSettings((prev) => ({ ...prev, ditherMode: e.target.value as any }))
-                    }
-                    className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                  <button
+                    type="button"
+                    onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusX: 0.5, cropFocusY: 0.5 }))}
+                    className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                   >
-                    <option value="stucki">Stucki (recommended)</option>
-                    <option value="floyd-steinberg">Floyd-Steinberg</option>
-                    <option value="jarvis">Jarvis</option>
-                    <option value="atkinson">Atkinson</option>
-                    <option value="none">None</option>
-                  </select>
-                </label>
-              </div>
-            </div>
+                    Center
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusY: 1 }))}
+                    className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+                  >
+                    Bottom
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusX: 0 }))}
+                    className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+                  >
+                    Left
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusX: 0.5 }))}
+                    className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+                  >
+                    Middle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusX: 1 }))}
+                    className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+                  >
+                    Right
+                  </button>
+                </div>
 
-            <button
-              onClick={handleProcessPhoto}
-              disabled={!photoDataUrl || isProcessing}
-              className="w-full rounded-md bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isProcessing ? 'Processing...' : 'Process Photo for Engraving'}
-            </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAiSettings((prev) => ({
+                      ...prev,
+                      photoOffsetXMm: 0,
+                      photoOffsetYMm: 0,
+                      photoScale: 1.0,
+                      cropFocusX: 0.5,
+                      cropFocusY: 0,
+                    }))
+                  }
+                  className="mt-2 text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Reset position
+                </button>
+              </div>
+
+              <button
+                onClick={handleProcessPhoto}
+                disabled={!photoDataUrl || isProcessing}
+                className="w-full mt-4 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? 'Processing...' : 'Process Photo for Engraving'}
+              </button>
+            </div>
 
             {processedPhotoDataUrl && (
               <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
@@ -1003,6 +1007,7 @@ export function CurvedPhotoFrameV3Tool({
             )}
           </div>
         )}
+
 
         {activeTab === 'frame' && (
           <div className="space-y-4">
@@ -1074,7 +1079,7 @@ export function CurvedPhotoFrameV3Tool({
                     onChange={(e) =>
                       setFrameSettings((prev) => ({ ...prev, borderMm: Number(e.target.value) }))
                     }
-                    className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                    className="w-24 rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   />
                 </label>
 
@@ -1086,7 +1091,7 @@ export function CurvedPhotoFrameV3Tool({
                     onChange={(e) =>
                       setFrameSettings((prev) => ({ ...prev, cornerRadiusMm: Number(e.target.value) }))
                     }
-                    className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                    className="w-24 rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   />
                 </label>
 
@@ -1155,15 +1160,6 @@ export function CurvedPhotoFrameV3Tool({
                   />
                 </div>
 
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={frameSettings.addStopNotch}
-                    onChange={(e) => setFrameSettings((prev) => ({ ...prev, addStopNotch: e.target.checked }))}
-                  />
-                  <span className="text-xs text-slate-300">Stop notch</span>
-                </label>
-
                 <label className="grid gap-1">
                   <div className="text-xs text-slate-300">Kerf (mm)</div>
                   <input
@@ -1173,7 +1169,7 @@ export function CurvedPhotoFrameV3Tool({
                     onChange={(e) =>
                       setFrameSettings((prev) => ({ ...prev, kerfMm: Number(e.target.value) }))
                     }
-                    className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                    className="w-24 rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   />
                 </label>
 
@@ -1361,7 +1357,7 @@ export function CurvedPhotoFrameV3Tool({
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+      <div className="lg:sticky lg:top-4 lg:self-start rounded-xl border border-slate-800 bg-slate-950/40 p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="text-sm font-medium text-slate-100">Preview</div>
           <div className="flex items-center gap-2">

@@ -1,14 +1,10 @@
 /**
  * PathOps WASM Client
- * Lazy-loads PathKit/CanvasKit WASM and provides geometry operations
- * Falls back to mock implementation if WASM fails to load
+ * Lazy-loads PathKit WASM and provides geometry operations for boolean path operations
  */
-
-import { PathOpsMock, getPathOpsMock } from './pathopsMock';
 
 let pathKitInstance: any = null;
 let loadingPromise: Promise<any> | null = null;
-let useMock = false;
 
 /**
  * Load PathKit WASM (lazy, cached)
@@ -24,27 +20,33 @@ export async function loadPathOps(): Promise<any> {
   
   loadingPromise = (async () => {
     try {
-      // Try to load PathKit from CDN
-      const PathKitInit = (window as any).PathKitInit;
+      console.log('[Jigsaw PathKit] Loading WASM...');
       
-      if (!PathKitInit) {
-        // Dynamically load PathKit script
-        await loadPathKitScript();
-      }
+      // Dynamic import from npm package
+      const PathKitInit = (await import('pathkit-wasm')).default;
       
-      const PathKit = await (window as any).PathKitInit({
-        locateFile: (file: string) => `https://unpkg.com/pathkit-wasm@0.8.1/bin/${file}`
+      // Initialize with WASM from CDN with timeout
+      const initPromise = PathKitInit({
+        locateFile: (file: string) => {
+          const url = `https://unpkg.com/pathkit-wasm@1.0.0/bin/${file}`;
+          console.log('[Jigsaw PathKit] Loading:', url);
+          return url;
+        }
       });
+
+      const timeoutMs = 15000;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`PathKit WASM load timed out after ${timeoutMs}ms`)), timeoutMs);
+      });
+
+      pathKitInstance = await Promise.race([initPromise, timeoutPromise]);
       
-      pathKitInstance = PathKit;
-      useMock = false;
-      console.log('PathKit WASM loaded successfully');
-      return PathKit;
-    } catch (error) {
-      console.warn('Failed to load PathKit WASM, using mock implementation:', error);
-      useMock = true;
-      pathKitInstance = await getPathOpsMock();
+      console.log('[Jigsaw PathKit] Loaded successfully!');
       return pathKitInstance;
+    } catch (error) {
+      console.error('[Jigsaw PathKit] Failed to load:', error);
+      loadingPromise = null;
+      throw error;
     }
   })();
   
@@ -52,146 +54,122 @@ export async function loadPathOps(): Promise<any> {
 }
 
 /**
- * Load PathKit script dynamically
- */
-function loadPathKitScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/pathkit-wasm@0.8.1/bin/pathkit.js';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load PathKit script'));
-    document.head.appendChild(script);
-  });
-}
-
-/**
- * PathOps wrapper for common operations
- * Works with both real PathKit WASM and mock implementation
+ * PathOps wrapper for common operations using real PathKit WASM
  */
 export class PathOps {
-  private PathKit: any;
-  private isMock: boolean;
+  private pk: any;
   
-  constructor(PathKit: any, isMock: boolean = false) {
-    this.PathKit = PathKit;
-    this.isMock = isMock;
+  constructor(PathKit: any) {
+    this.pk = PathKit;
   }
   
   /**
    * Parse SVG path string to PathKit path
    */
   fromSVGString(d: string): any {
-    if (this.isMock) {
-      return { d, toSVGString: () => d };
+    if (!d || d.trim() === '') return this.pk.NewPath();
+    try {
+      return this.pk.FromSVGString(d);
+    } catch (e) {
+      console.warn('[PathOps] Failed to parse SVG:', e);
+      return this.pk.NewPath();
     }
-    return this.PathKit.FromSVGString(d);
   }
   
   /**
    * Convert PathKit path to SVG string
    */
   toSVGString(path: any): string {
-    if (this.isMock) {
-      return this.PathKit.toSVGString(path);
+    if (!path) return '';
+    try {
+      return path.toSVGString();
+    } catch (e) {
+      console.warn('[PathOps] Failed to convert to SVG:', e);
+      return '';
     }
-    return path.toSVGString();
   }
   
   /**
    * Union multiple paths
    */
   union(paths: any[]): any {
-    if (this.isMock) {
-      return this.PathKit.union(paths);
-    }
+    if (paths.length === 0) return this.pk.NewPath();
+    if (paths.length === 1) return paths[0].copy();
     
-    if (paths.length === 0) return null;
-    if (paths.length === 1) return paths[0];
-    
-    let result = paths[0];
-    for (let i = 1; i < paths.length; i++) {
-      const next = result.op(paths[i], this.PathKit.PathOp.UNION);
-      result.delete();
-      result = next;
+    try {
+      let result = paths[0].copy();
+      for (let i = 1; i < paths.length; i++) {
+        const bCopy = paths[i].copy();
+        result.op(bCopy, this.pk.PathOp.UNION);
+        bCopy.delete();
+      }
+      return result;
+    } catch (e) {
+      console.warn('[PathOps] Union failed:', e);
+      return this.pk.NewPath();
     }
-    return result;
   }
   
   /**
    * Difference (A - B)
    */
   diff(pathA: any, pathB: any): any {
-    if (this.isMock) {
-      return this.PathKit.diff(pathA, pathB);
+    if (!pathA) return this.pk.NewPath();
+    if (!pathB) return pathA.copy();
+    try {
+      const aCopy = pathA.copy();
+      const bCopy = pathB.copy();
+      aCopy.op(bCopy, this.pk.PathOp.DIFFERENCE);
+      bCopy.delete();
+      return aCopy;
+    } catch (e) {
+      console.warn('[PathOps] Difference failed:', e);
+      return pathA.copy();
     }
-    return pathA.op(pathB, this.PathKit.PathOp.DIFFERENCE);
   }
   
   /**
-   * Intersection (A ∩ B)
+   * Intersection (A ∩ B) - clips pathA to pathB
    */
   intersect(pathA: any, pathB: any): any {
-    if (this.isMock) {
-      return this.PathKit.intersect(pathA, pathB);
+    if (!pathA || !pathB) return this.pk.NewPath();
+    try {
+      const aCopy = pathA.copy();
+      const bCopy = pathB.copy();
+      aCopy.op(bCopy, this.pk.PathOp.INTERSECT);
+      bCopy.delete();
+      return aCopy;
+    } catch (e) {
+      console.warn('[PathOps] Intersect failed:', e);
+      return this.pk.NewPath();
     }
-    return pathA.op(pathB, this.PathKit.PathOp.INTERSECT);
-  }
-  
-  /**
-   * XOR (A ⊕ B)
-   */
-  xor(pathA: any, pathB: any): any {
-    if (this.isMock) {
-      return pathA; // Mock doesn't support XOR
-    }
-    return pathA.op(pathB, this.PathKit.PathOp.XOR);
-  }
-  
-  /**
-   * Offset path (positive = outward, negative = inward)
-   */
-  offset(path: any, delta: number): any {
-    if (this.isMock) {
-      return this.PathKit.offset(path, delta);
-    }
-    
-    // PathKit uses stroke to create offset
-    const offsetPath = path.stroke({
-      width: Math.abs(delta) * 2,
-      join: this.PathKit.StrokeJoin.ROUND,
-      cap: this.PathKit.StrokeCap.ROUND,
-      miter_limit: 4,
-    });
-    
-    if (delta < 0) {
-      // For inward offset, we need to use the inner contour
-      // This is a simplification; proper implementation may need more logic
-      return offsetPath;
-    }
-    
-    return offsetPath;
   }
   
   /**
    * Simplify path (remove self-intersections, redundant points)
    */
   simplify(path: any): any {
-    if (this.isMock) {
-      return this.PathKit.simplify(path);
+    if (!path) return this.pk.NewPath();
+    try {
+      const copy = path.copy();
+      copy.simplify();
+      return copy;
+    } catch (e) {
+      console.warn('[PathOps] Simplify failed:', e);
+      return path.copy();
     }
-    return path.simplify();
   }
   
   /**
    * Create rectangle path
    */
   rect(x: number, y: number, w: number, h: number): any {
-    if (this.isMock) {
-      return this.PathKit.rect(x, y, w, h);
-    }
-    
-    const path = new this.PathKit.SkPath();
-    path.addRect([x, y, x + w, y + h]);
+    const path = this.pk.NewPath();
+    path.moveTo(x, y);
+    path.lineTo(x + w, y);
+    path.lineTo(x + w, y + h);
+    path.lineTo(x, y + h);
+    path.close();
     return path;
   }
   
@@ -199,12 +177,10 @@ export class PathOps {
    * Create circle path
    */
   circle(cx: number, cy: number, r: number): any {
-    if (this.isMock) {
-      return this.PathKit.circle(cx, cy, r);
-    }
-    
-    const path = new this.PathKit.SkPath();
-    path.addCircle(cx, cy, r);
+    const path = this.pk.NewPath();
+    path.moveTo(cx + r, cy);
+    path.arc(cx, cy, r, 0, Math.PI * 2, false);
+    path.close();
     return path;
   }
   
@@ -212,13 +188,12 @@ export class PathOps {
    * Delete path (free memory)
    */
   delete(path: any): void {
-    if (this.isMock) {
-      this.PathKit.delete(path);
-      return;
-    }
-    
-    if (path && path.delete) {
-      path.delete();
+    if (path && typeof path.delete === 'function') {
+      try {
+        path.delete();
+      } catch (e) {
+        // Ignore deletion errors
+      }
     }
   }
 }
@@ -228,5 +203,5 @@ export class PathOps {
  */
 export async function getPathOps(): Promise<PathOps> {
   const PathKit = await loadPathOps();
-  return new PathOps(PathKit, useMock);
+  return new PathOps(PathKit);
 }

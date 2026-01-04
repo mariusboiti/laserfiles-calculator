@@ -96,6 +96,36 @@ export function getElementBounds(element: CanvasElement): BoundingBox {
         heightMm: h,
       };
     }
+    case 'basicShape': {
+      const w = element.widthMm * transform.scaleX;
+      const h = element.heightMm * transform.scaleY;
+      return {
+        xMm: transform.xMm - w / 2,
+        yMm: transform.yMm - h / 2,
+        widthMm: w,
+        heightMm: h,
+      };
+    }
+    case 'logo': {
+      const w = element.widthMm * transform.scaleX;
+      const h = element.heightMm * transform.scaleY;
+      return {
+        xMm: transform.xMm - w / 2,
+        yMm: transform.yMm - h / 2,
+        widthMm: w,
+        heightMm: h,
+      };
+    }
+    case 'icon': {
+      const w = element.widthMm * transform.scaleX;
+      const h = element.heightMm * transform.scaleY;
+      return {
+        xMm: transform.xMm - w / 2,
+        yMm: transform.yMm - h / 2,
+        widthMm: w,
+        heightMm: h,
+      };
+    }
     case 'text': {
       const bounds = element._bounds || { width: element.fontSizeMm * element.content.length * 0.6, height: element.fontSizeMm };
       const w = bounds.width * transform.scaleX;

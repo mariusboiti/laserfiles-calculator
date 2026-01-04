@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import dynamic from 'next/dynamic';
 
 const App = dynamic(() => import('../src/App'), {
@@ -12,6 +13,12 @@ interface BulkNameTagsToolProps {
 }
 
 export function BulkNameTagsTool({ onResetCallback }: BulkNameTagsToolProps) {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   return (
     <div className="lfs-tool lfs-tool-bulk-name-tags">
       <App onResetCallback={onResetCallback} />

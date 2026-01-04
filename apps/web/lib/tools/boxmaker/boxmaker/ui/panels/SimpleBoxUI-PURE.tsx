@@ -5,6 +5,19 @@ import type { SimpleBoxInputs } from '../../core/geometry-core/simpleBox';
 import { buildSimpleBox, validateSimpleBox } from '../../core/geometry-core/simpleBox';
 import { layoutPanels, panelToSvg } from '../../core/geometry-core/svgExporter';
 
+type FaceArtworkPlacement = {
+  x: number;
+  y: number;
+  scale: number;
+  rotationDeg: number;
+};
+
+type FaceArtworkConfig = {
+  prompt: string;
+  imageDataUrl: string;
+  placement: FaceArtworkPlacement;
+};
+
 interface SimpleBoxUIProps {
   boxTypeSelector: React.ReactNode;
   unitSystem: 'mm' | 'in';
@@ -25,11 +38,28 @@ const DEFAULTS: SimpleBoxInputs = {
 export function SimpleBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: SimpleBoxUIProps) {
   const [input, setInput] = useState<SimpleBoxInputs>(DEFAULTS);
   const [error, setError] = useState<string | null>(null);
+  const [activePanel, setActivePanel] = useState<string>('all');
+
+  const panelKeys = ['front', 'back', 'left', 'right', 'bottom', 'lid'] as const;
+
+  const [faceArtworkTargets, setFaceArtworkTargets] = useState<string[]>(['front']);
+  const [faceArtworkPrompt, setFaceArtworkPrompt] = useState<string>('');
+  const [faceArtworkByPanel, setFaceArtworkByPanel] = useState<Record<string, FaceArtworkConfig | undefined>>({});
+  const [selectedArtworkPanel, setSelectedArtworkPanel] = useState<string>('front');
+  const [isArtworkGenerating, setIsArtworkGenerating] = useState(false);
+  const [artworkError, setArtworkError] = useState<string | null>(null);
 
   // Reset function
   const resetToDefaults = useCallback(() => {
     setInput(DEFAULTS);
     setError(null);
+    setActivePanel('all');
+    setFaceArtworkTargets(['front']);
+    setFaceArtworkPrompt('');
+    setFaceArtworkByPanel({});
+    setSelectedArtworkPanel('front');
+    setIsArtworkGenerating(false);
+    setArtworkError(null);
   }, []);
 
   useEffect(() => {
@@ -132,6 +162,108 @@ export function SimpleBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Si
     [parseValue]
   );
 
+  const setSelectedArtworkPlacement = (patch: Partial<FaceArtworkPlacement>) => {
+    if (!selectedArtworkPanel) return;
+    setFaceArtworkByPanel((prev) => {
+      const cur = prev[selectedArtworkPanel];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [selectedArtworkPanel]: {
+          ...cur,
+          placement: {
+            ...cur.placement,
+            ...patch,
+          },
+        },
+      };
+    });
+  };
+
+  const toggleArtworkTarget = (panel: string) => {
+    setFaceArtworkTargets((prev) => {
+      const has = prev.includes(panel);
+      const next = has ? prev.filter((x) => x !== panel) : [...prev, panel];
+      return next.length ? next : prev;
+    });
+  };
+
+  const handleGenerateArtwork = async () => {
+    const prompt = faceArtworkPrompt.trim();
+    if (!prompt) {
+      setArtworkError('Please enter a prompt');
+      return;
+    }
+
+    const targets = faceArtworkTargets.filter((t) => panelKeys.includes(t as any));
+    if (targets.length === 0) {
+      setArtworkError('Select at least one face');
+      return;
+    }
+
+    setIsArtworkGenerating(true);
+    setArtworkError(null);
+
+    try {
+      const enhancedPrompt = `${prompt}, white background`;
+      const res = await fetch('/api/ai/silhouette', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: enhancedPrompt }),
+      });
+
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errJson: any = await res.json().catch(() => ({}));
+          throw new Error(errJson?.error || 'AI generation failed');
+        }
+        const text = await res.text().catch(() => '');
+        throw new Error(text || 'AI generation failed');
+      }
+
+      const json: any = await res.json().catch(() => ({}));
+      const dataUrl = typeof json?.dataUrl === 'string' ? json.dataUrl : '';
+      if (!dataUrl) {
+        throw new Error('AI image endpoint returned no dataUrl');
+      }
+
+      setFaceArtworkByPanel((prev) => {
+        const next = { ...prev };
+        for (const panelName of targets) {
+          const p = panels ? (panels as any)[panelName.toLowerCase()] : null;
+          // Note: buildSimpleBox returns lowercase keys in panels object (front, back, left, right, bottom, lid)
+          const vertices = p || [];
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          vertices.forEach((pt: any) => {
+            minX = Math.min(minX, pt.x);
+            minY = Math.min(minY, pt.y);
+            maxX = Math.max(maxX, pt.x);
+            maxY = Math.max(maxY, pt.y);
+          });
+          const w = Math.max(1, maxX - minX);
+          const h = Math.max(1, maxY - minY);
+
+          const existing = next[panelName];
+          next[panelName] = {
+            prompt,
+            imageDataUrl: dataUrl,
+            placement: existing?.placement ?? { x: w / 2, y: h / 2, scale: 0.5, rotationDeg: 0 },
+          };
+        }
+        return next;
+      });
+
+      if (!targets.includes(selectedArtworkPanel)) {
+        setSelectedArtworkPanel(targets[0]);
+      }
+    } catch (e) {
+      setArtworkError(e instanceof Error ? e.message : 'AI generation failed');
+    } finally {
+      setIsArtworkGenerating(false);
+    }
+  };
+
   const unitLabel = unitSystem === 'mm' ? 'mm' : 'in';
 
   return (
@@ -212,6 +344,127 @@ export function SimpleBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Si
           <div className="text-[10px] text-slate-500">Pure geometry: M/L/Z only</div>
         </fieldset>
 
+        <div className="rounded-md border border-slate-700 bg-slate-950/30 px-3 py-2">
+          <div className="text-xs font-medium text-slate-200">Face Artwork</div>
+          <div className="mt-1 text-[10px] text-slate-400">Preview-only overlay (not included in exports)</div>
+
+          <div className="mt-2 grid gap-2">
+            <label className="grid gap-1">
+              <span className="text-[11px] text-slate-400">Prompt</span>
+              <input
+                type="text"
+                value={faceArtworkPrompt}
+                onChange={(e) => setFaceArtworkPrompt(e.target.value)}
+                placeholder="e.g. floral silhouette"
+                className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+              />
+            </label>
+
+            <div className="grid gap-1">
+              <span className="text-[11px] text-slate-400">Faces</span>
+              <div className="flex flex-wrap gap-2">
+                {panelKeys.map((k) => (
+                  <label key={k} className="flex items-center gap-1 text-[11px] text-slate-200">
+                    <input type="checkbox" checked={faceArtworkTargets.includes(k)} onChange={() => toggleArtworkTarget(k)} />
+                    <span className="uppercase">{k}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleGenerateArtwork}
+                disabled={isArtworkGenerating}
+                className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-60"
+              >
+                {isArtworkGenerating ? 'Generating…' : 'Generate'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFaceArtworkByPanel({});
+                  setArtworkError(null);
+                }}
+                className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
+              >
+                Clear
+              </button>
+            </div>
+
+            {artworkError ? (
+              <div className="rounded-md border border-amber-800 bg-amber-950/30 p-2 text-[11px] text-amber-200">{artworkError}</div>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="grid gap-1">
+                <span className="text-[11px] text-slate-400">Edit face</span>
+                <select
+                  value={selectedArtworkPanel}
+                  onChange={(e) => setSelectedArtworkPanel(e.target.value)}
+                  className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                >
+                  {panelKeys.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="text-[10px] text-slate-500 self-end">Center-based X/Y in mm</div>
+            </div>
+
+            {faceArtworkByPanel[selectedArtworkPanel] ? (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-slate-400">X (mm)</span>
+                  <input
+                    type="number"
+                    value={Number(faceArtworkByPanel[selectedArtworkPanel]?.placement.x.toFixed(2))}
+                    onChange={(e) => setSelectedArtworkPlacement({ x: Number(e.target.value) || 0 })}
+                    className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-slate-400">Y (mm)</span>
+                  <input
+                    type="number"
+                    value={Number(faceArtworkByPanel[selectedArtworkPanel]?.placement.y.toFixed(2))}
+                    onChange={(e) => setSelectedArtworkPlacement({ y: Number(e.target.value) || 0 })}
+                    className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-slate-400">Scale</span>
+                  <input
+                    type="number"
+                    min={0.05}
+                    step={0.05}
+                    value={Number(faceArtworkByPanel[selectedArtworkPanel]?.placement.scale.toFixed(2))}
+                    onChange={(e) =>
+                      setSelectedArtworkPlacement({ scale: Math.max(0.05, Number(e.target.value) || 0.05) })
+                    }
+                    className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-[11px] text-slate-400">Rotate (deg)</span>
+                  <input
+                    type="number"
+                    step={1}
+                    value={Number(faceArtworkByPanel[selectedArtworkPanel]?.placement.rotationDeg.toFixed(0))}
+                    onChange={(e) => setSelectedArtworkPlacement({ rotationDeg: Number(e.target.value) || 0 })}
+                    className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-500">No artwork on this face yet.</div>
+            )}
+          </div>
+        </div>
+
         {/* Export Buttons */}
         <div className="grid gap-2 mt-auto">
           <button
@@ -239,27 +492,77 @@ export function SimpleBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Si
       </div>
 
       {/* Right Panel - Preview */}
-      <div className="flex flex-col overflow-hidden">
+      <div className="flex flex-col gap-2 p-4 bg-slate-950 rounded-lg">
+        {/* Panel selector tabs */}
+        <div className="flex gap-1 flex-wrap">
+          {['all', ...panelKeys].map((panel) => (
+            <button
+              key={panel}
+              onClick={() => setActivePanel(panel)}
+              className={`px-3 py-1 text-xs rounded ${
+                activePanel === panel
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              {panel}
+            </button>
+          ))}
+        </div>
+
         {validationError && (
-          <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-md">
-            <p className="text-red-300 text-xs">{validationError}</p>
+          <div className="px-3 py-2 bg-red-950 border border-red-800 rounded text-red-300 text-xs">
+            {validationError}
           </div>
         )}
-        
-        <div className="flex-1 bg-white rounded-lg shadow-inner overflow-hidden">
-          {svgContent ? (
-            <div className="w-full h-full">
-              <iframe
-                srcDoc={svgContent}
-                className="w-full h-full border-0"
-                title="Box Preview"
+
+        <div className="flex-1 bg-white rounded-lg overflow-auto p-4">
+          {svgContent && activePanel === 'all' && (
+            <div
+              dangerouslySetInnerHTML={{ __html: svgContent }}
+              className="w-full h-full"
+            />
+          )}
+          {panelSvgs && activePanel !== 'all' && panelSvgs[activePanel as keyof typeof panelSvgs] && (
+            <div className="relative w-full h-full">
+              <div
+                className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
+                dangerouslySetInnerHTML={{ __html: panelSvgs[activePanel as keyof typeof panelSvgs] }}
               />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full text-slate-500">
-              <div className="text-center">
-                <p className="text-sm">Generating preview...</p>
-              </div>
+              {(() => {
+                const art = faceArtworkByPanel[activePanel];
+                const p = panels ? (panels as any)[activePanel] : null;
+                if (!art || !art.imageDataUrl || !p) return null;
+                const vertices = p || [];
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                vertices.forEach((pt: any) => {
+                  minX = Math.min(minX, pt.x);
+                  minY = Math.min(minY, pt.y);
+                  maxX = Math.max(maxX, pt.x);
+                  maxY = Math.max(maxY, pt.y);
+                });
+                const w = Math.max(1, maxX - minX);
+                const h = Math.max(1, maxY - minY);
+
+                const leftPct = (art.placement.x / w) * 100;
+                const topPct = (art.placement.y / h) * 100;
+                const wPct = Math.max(1, Math.min(200, (Math.max(0.05, art.placement.scale) * (Math.min(w, h) / w)) * 100));
+                return (
+                  <img
+                    src={art.imageDataUrl}
+                    alt="Artwork"
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: `${leftPct}%`,
+                      top: `${topPct}%`,
+                      width: `${wPct}%`,
+                      transform: `translate(-50%, -50%) rotate(${art.placement.rotationDeg}deg)`,
+                      transformOrigin: 'center',
+                      opacity: 0.85,
+                    }}
+                  />
+                );
+              })()}
             </div>
           )}
         </div>

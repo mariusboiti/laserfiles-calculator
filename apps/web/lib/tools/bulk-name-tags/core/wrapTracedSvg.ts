@@ -127,7 +127,7 @@ export function wrapTracedSvg(tracedSvg: string, options: WrapOptions): WrapResu
       innerContent.push(new XMLSerializer().serializeToString(g));
     });
 
-    const wrappedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${targetWidthMm}mm" height="${targetHeightMm}mm" viewBox="0 0 ${canvasWidth} ${canvasHeight}" fill="none" stroke="black" stroke-width="0.8" vector-effect="non-scaling-stroke">
+    const wrappedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${targetWidthMm}mm" height="${targetHeightMm}mm" viewBox="0 0 ${targetWidthMm} ${targetHeightMm}" fill="none" stroke="black" stroke-width="0.8" vector-effect="non-scaling-stroke">
   <g transform="translate(${translateX.toFixed(3)}, ${translateY.toFixed(3)}) scale(${scale.toFixed(6)})">
     ${innerContent.join('\n    ')}
   </g>

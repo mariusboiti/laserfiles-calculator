@@ -46,11 +46,11 @@ function isOpenAIConfigured(): { ok: boolean; message?: string } {
 function buildSilhouettePrompt(userPrompt: string): string {
   const hardRules = [
     'Create a simple vector-like silhouette for laser cutting.',
-    'Transparent PNG, single black silhouette, no shadow, no gradients, no text.',
+    'Solid white background (opaque), single black silhouette, no shadow, no gradients, no text, no transparency.',
     'Orientation: perfectly horizontal (no rotation, no tilt).',
     'Centered, occupies ~75% of canvas width.',
     'Single subject, smooth edges, solid black fill.',
-    'No watermark, no background elements.',
+    'No watermark, no background elements or patterns.',
   ].join(' ');
   return `${userPrompt}. ${hardRules}`;
 }

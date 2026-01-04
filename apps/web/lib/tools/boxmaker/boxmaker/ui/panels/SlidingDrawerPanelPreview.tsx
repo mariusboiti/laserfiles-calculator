@@ -19,6 +19,34 @@ function bbox(points: { x: number; y: number }[]) {
   return { minX, minY, maxX, maxY };
 }
 
+function parseViewBox(svg: string): { minX: number; minY: number; w: number; h: number } | null {
+  const m = svg.match(/viewBox=["']([^"']+)["']/i);
+  if (!m) return null;
+  const parts = m[1]
+    .trim()
+    .split(/[\s,]+/)
+    .map((n) => Number(n));
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
+  return { minX: parts[0], minY: parts[1], w: parts[2], h: parts[3] };
+}
+
+function parsePanelTranslations(svg: string): Record<string, { x: number; y: number }> {
+  const out: Record<string, { x: number; y: number }> = {};
+  const re = /data-panel-id=["']([^"']+)[^>]*transform=["']translate\(([^)]+)\)["']/gi;
+  let match: RegExpExecArray | null = null;
+  while ((match = re.exec(svg))) {
+    const id = match[1];
+    const nums = match[2]
+      .trim()
+      .split(/[\s,]+/)
+      .map((n) => Number(n));
+    if (nums.length >= 2 && nums.every((n) => Number.isFinite(n))) {
+      out[id] = { x: nums[0], y: nums[1] };
+    }
+  }
+  return out;
+}
+
 function parseLengthNum(value: string | null): number | null {
   if (!value) return null;
   const m = String(value).trim().match(/^([+-]?[0-9]*\.?[0-9]+)/);
@@ -81,15 +109,29 @@ export function SlidingDrawerPanelPreview({
   layoutSvg,
   panels,
   initialView = 'layout',
+  artworkOverlays,
 }: {
   layoutSvg: string;
   panels: { outer: SlidingDrawerOuterPanels; drawer: SlidingDrawerDrawerPanels };
   initialView?: SlidingDrawerPanelView;
+  artworkOverlays?:
+    | Record<
+        string,
+        {
+          imageDataUrl: string;
+          placement: { x: number; y: number; scale: number; rotationDeg: number };
+          panelW: number;
+          panelH: number;
+        }
+      >
+    | undefined;
 }) {
   const [view, setView] = useState<SlidingDrawerPanelView>(initialView);
   const [zoom, setZoom] = useState(1);
 
   const preparedLayoutSvg = useMemo(() => prepareSvgForPreview(layoutSvg), [layoutSvg]);
+  const preparedViewBox = useMemo(() => parseViewBox(preparedLayoutSvg), [preparedLayoutSvg]);
+  const panelTranslations = useMemo(() => parsePanelTranslations(preparedLayoutSvg), [preparedLayoutSvg]);
 
   const outerRows = useMemo(() => {
     const rows: { group: string; face: string; w: number; h: number }[] = [];
@@ -192,6 +234,35 @@ export function SlidingDrawerPanelPreview({
           <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
             <div className="relative h-[520px] w-full overflow-hidden rounded border border-slate-200 bg-white">
               <div className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block" dangerouslySetInnerHTML={{ __html: preparedLayoutSvg }} />
+              {preparedViewBox && artworkOverlays ? (
+                <svg
+                  className="absolute inset-0 h-full w-full pointer-events-none"
+                  viewBox={`${preparedViewBox.minX} ${preparedViewBox.minY} ${preparedViewBox.w} ${preparedViewBox.h}`}
+                  preserveAspectRatio="xMidYMid meet"
+                >
+                  {Object.entries(artworkOverlays).map(([panelId, art]) => {
+                    const t = panelTranslations[panelId];
+                    if (!t || !art.imageDataUrl) return null;
+                    const base = Math.max(1, Math.min(art.panelW, art.panelH));
+                    const size = Math.max(1, base * Math.max(0.05, art.placement.scale));
+                    const cx = t.x + art.placement.x;
+                    const cy = t.y + art.placement.y;
+                    return (
+                      <g key={panelId} transform={`translate(${cx} ${cy}) rotate(${art.placement.rotationDeg})`}>
+                        <image
+                          href={art.imageDataUrl}
+                          x={-size / 2}
+                          y={-size / 2}
+                          width={size}
+                          height={size}
+                          opacity={0.85}
+                          preserveAspectRatio="xMidYMid meet"
+                        />
+                      </g>
+                    );
+                  })}
+                </svg>
+              ) : null}
             </div>
           </div>
         )}

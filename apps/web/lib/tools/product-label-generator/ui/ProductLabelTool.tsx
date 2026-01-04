@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useToolUx } from '@/components/ux/ToolUxProvider';
 import { downloadTextFile } from '@/lib/studio/export/download';
 import { generateLabelSvg } from '../core/generateLabelSvg';
 
@@ -10,7 +11,17 @@ function safeFilenamePart(value: string) {
   return trimmed.replace(/[^a-z0-9-_]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 }
 
-export function ProductLabelTool() {
+export function ProductLabelTool({
+  onGetExportPayload,
+}: {
+  onGetExportPayload?: (getExportPayload: () => Promise<{ svg: string; name?: string; meta?: any }> | { svg: string; name?: string; meta?: any }) => void;
+}) {
+  const { api } = useToolUx();
+
+  useEffect(() => {
+    api.setIsEmpty(false);
+  }, [api]);
+
   const [productName, setProductName] = useState('Product Name');
   const [sku, setSku] = useState('SKU-001');
   const [price, setPrice] = useState('');
@@ -49,6 +60,22 @@ export function ProductLabelTool() {
     showQr,
     qrText,
   ]);
+
+  const getExportPayload = useCallback(() => {
+    return {
+      svg,
+      name: `product-label-${safeFilenamePart(sku)}`,
+      meta: {
+        bboxMm: { width: widthMm, height: heightMm },
+        sku,
+        productName,
+      },
+    };
+  }, [heightMm, productName, sku, svg, widthMm]);
+
+  useEffect(() => {
+    onGetExportPayload?.(getExportPayload);
+  }, [getExportPayload, onGetExportPayload]);
 
   function setPreset(w: number, h: number) {
     setWidthMm(w);
