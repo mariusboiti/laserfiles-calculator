@@ -41,6 +41,9 @@ COPY . .
 # Ensure public folder exists so later COPY never fails
 RUN mkdir -p /app/apps/web/public
 
+# Generate Prisma client before building
+RUN pnpm prisma generate
+
 # Build only the web app (Next.js)
 RUN pnpm --filter ./apps/web... build
 
