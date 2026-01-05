@@ -1,5 +1,5 @@
-import { ToolsHub } from '../../components/studio/ToolsHub';
+import { redirect } from 'next/navigation';
 
 export default function StudioPage() {
-  return <ToolsHub />;
+  redirect('/studio/dashboard');
 }
