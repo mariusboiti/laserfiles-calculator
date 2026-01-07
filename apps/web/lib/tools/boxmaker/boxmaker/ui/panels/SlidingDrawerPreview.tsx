@@ -130,24 +130,24 @@ export function SlidingDrawerPreview({ svgs, dims }: { svgs: SlidingDrawerSvgs; 
           {panelGroup === 'outer'
             ? outerKeys.map((k) => (
                 <div key={k} className="rounded-md border border-slate-200 bg-white p-2">
-                  <div className="mb-1 text-xs font-medium text-slate-700">{k}</div>
                   <div className="relative h-56 w-full overflow-hidden rounded border border-slate-100 bg-white">
                     <div
                       className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
                       dangerouslySetInnerHTML={{ __html: preparedOuterSvgs[k] ?? '' }}
                     />
                   </div>
+                  <div className="mt-2 text-xs font-medium text-slate-700 text-center uppercase">{k}</div>
                 </div>
               ))
             : drawerKeys.map((k) => (
                 <div key={k} className="rounded-md border border-slate-200 bg-white p-2">
-                  <div className="mb-1 text-xs font-medium text-slate-700">{k}</div>
                   <div className="relative h-56 w-full overflow-hidden rounded border border-slate-100 bg-white">
                     <div
                       className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
                       dangerouslySetInnerHTML={{ __html: preparedDrawerSvgs[k] }}
                     />
                   </div>
+                  <div className="mt-2 text-xs font-medium text-slate-700 text-center uppercase">{k}</div>
                 </div>
               ))}
         </div>

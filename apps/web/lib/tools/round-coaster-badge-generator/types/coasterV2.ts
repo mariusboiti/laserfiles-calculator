@@ -2,7 +2,7 @@
  * Round Coaster & Badge Generator V2 - Types
  */
 
-export type ShapeType = 'circle' | 'hex' | 'shield' | 'octagon' | 'scalloped';
+export type ShapeType = 'circle' | 'hex' | 'octagon' | 'scalloped';
 
 export type LayerType = 'CUT' | 'ENGRAVE' | 'SCORE';
 

@@ -7,11 +7,11 @@ import { DEFAULTS, SHEET_PRESETS } from '../config/defaults';
 import { parseSvgSize } from '../core/parseSvgSize';
 import { BUILT_IN_TEMPLATES } from '../core/builtInTemplates';
 import { buildLayoutsV2 } from '../core/layoutEngine';
-import { computeLabels } from '../core/labeling';
 import { validateLayout } from '../core/validateLayout';
 import { generateSheetSvg, generateSheetFilename, generateZipFilename } from '../core/exportSvg';
 import { generateZipExport, downloadZip } from '../core/exportZip';
 import type { TemplateItem, LayoutSettings, SheetLayout } from '../types/layout';
+import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 
 interface OrnamentLayoutToolProps {
   onResetCallback?: (callback: () => void) => void;
@@ -44,13 +44,6 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
 
     const result = buildLayoutsV2({ templates, settings });
     
-    // Add labels if enabled
-    if (settings.showLabels || settings.exportLabels) {
-      result.sheets = computeLabels(result.sheets, {
-        style: settings.labelStyle,
-        templates,
-      });
-    }
 
     // Validate
     const validation = validateLayout(result.sheets, settings);
@@ -75,7 +68,6 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
       templates,
       settings: {
         ...settings,
-        exportLabels: settings.showLabels, // Preview uses showLabels
       },
     });
   }, [currentSheet, templates, settings]);
@@ -585,38 +577,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
             </div>
           </div>
 
-          {/* Labels */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-            <div className="text-sm font-medium text-slate-100 mb-3">Labels</div>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-xs text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={settings.showLabels}
-                  onChange={(e) => setSettings((s) => ({ ...s, showLabels: e.target.checked }))}
-                />
-                Show in preview
-              </label>
-              <label className="flex items-center gap-2 text-xs text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={settings.exportLabels}
-                  onChange={(e) => setSettings((s) => ({ ...s, exportLabels: e.target.checked }))}
-                />
-                Export labels
-              </label>
-              <select
-                value={settings.labelStyle}
-                onChange={(e) => setSettings((s) => ({ ...s, labelStyle: e.target.value as any }))}
-                className="w-full rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
-              >
-                <option value="index">Index (#1, #2...)</option>
-                <option value="templateName">Template name</option>
-                <option value="templateName+index">Name + Index</option>
-              </select>
-            </div>
-          </div>
-
+          
           {/* Export */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="text-sm font-medium text-slate-100 mb-3">Export</div>
@@ -637,6 +598,31 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                   {isExporting ? 'Exporting...' : `Export All Sheets (ZIP)`}
                 </button>
               )}
+              <button
+                onClick={async () => {
+                  if (!currentSheet) return;
+                  try {
+                    const svg = generateSheetSvg({ sheet: currentSheet, templates, settings, sheetIndex: currentSheetIndex });
+                    const artifact = await createArtifact({
+                      toolSlug: 'ornament-layout-planner',
+                      name: `ornament-layout-${Date.now()}`,
+                      svg,
+                      meta: {
+                        bboxMm: { width: settings.sheetW, height: settings.sheetH },
+                        operations: { hasCuts: true },
+                        notes: `${currentSheet.items.length} items on sheet`,
+                      },
+                    });
+                    addToPriceCalculator(artifact);
+                  } catch (e) {
+                    console.error('Failed to add to price calculator:', e);
+                  }
+                }}
+                disabled={!currentSheet}
+                className="w-full rounded-md border-2 border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                💰 Add to Price Calculator
+              </button>
             </div>
           </div>
         </div>

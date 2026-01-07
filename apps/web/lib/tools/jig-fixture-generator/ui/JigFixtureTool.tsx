@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
 import { downloadTextFile } from '@/lib/studio/export/download';
+import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { generateJigSvg } from '../core/generateJigSvg';
 import type { ObjectShape, CustomShapeData } from '../types/jig';
 import { DEFAULTS, JIG_PRESETS } from '../config/defaults';
@@ -430,18 +431,18 @@ export function JigFixtureTool({ onResetCallback, onGetExportPayload }: JigFixtu
                 <div className="text-xs text-slate-300">Object width (mm)</div>
                 <input
                   type="number"
-                  className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                  className="w-full rounded-md border border-slate-800 bg-slate-700 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
                   value={objectWidthMm}
-                  onChange={(e) => setObjectWidthMm(Number(e.target.value))}
+                  readOnly
                 />
               </label>
               <label className="grid gap-1">
                 <div className="text-xs text-slate-300">Object height (mm)</div>
                 <input
                   type="number"
-                  className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                  className="w-full rounded-md border border-slate-800 bg-slate-700 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
                   value={objectHeightMm}
-                  onChange={(e) => setObjectHeightMm(Number(e.target.value))}
+                  readOnly
                 />
               </label>
 
@@ -652,6 +653,29 @@ export function JigFixtureTool({ onResetCallback, onGetExportPayload }: JigFixtu
               >
                 Copy Layout
               </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const artifact = await createArtifact({
+                      toolSlug: 'jig-fixture-generator',
+                      name: `jig-fixture-${Date.now()}`,
+                      svg,
+                      meta: {
+                        bboxMm: { width: bedWidthMm, height: bedHeightMm },
+                        operations: { hasCuts: true },
+                        notes: `${rows * cols} objects, ${meta.gridWidthMm.toFixed(1)}×${meta.gridHeightMm.toFixed(1)}mm grid`,
+                      },
+                    });
+                    addToPriceCalculator(artifact);
+                  } catch (e) {
+                    console.error('Failed to add to price calculator:', e);
+                  }
+                }}
+                className="rounded-md border-2 border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20"
+              >
+                💰 Add to Price Calculator
+              </button>
             </div>
 
             <div className="mt-3 text-xs text-slate-400">
@@ -660,7 +684,7 @@ export function JigFixtureTool({ onResetCallback, onGetExportPayload }: JigFixtu
           </div>
         </div>
 
-        <div className="min-w-0 overflow-hidden">
+        <div className="min-w-0 overflow-hidden sticky top-4 self-start">
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <div className="text-sm font-medium text-slate-100">Preview</div>

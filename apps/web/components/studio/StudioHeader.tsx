@@ -5,11 +5,13 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { STUDIO_NAV, isActivePath } from '@/lib/studio/navigation/studioNav';
 import { AICreditsInfoPanel } from '@/components/ai';
+import { useDisclaimer } from '@/components/legal';
 
 export function StudioHeader() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [aiCreditsOpen, setAiCreditsOpen] = useState(false);
+  const { openDisclaimer } = useDisclaimer();
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -60,6 +62,13 @@ export function StudioHeader() {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openDisclaimer}
+              className="hidden rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 md:inline-flex"
+            >
+              Disclaimer
+            </button>
             <button
               type="button"
               onClick={() => setAiCreditsOpen(true)}
@@ -126,6 +135,16 @@ export function StudioHeader() {
               })}
             </div>
             <div className="mt-4 border-t border-slate-800 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  openDisclaimer();
+                }}
+                className="mb-2 block w-full rounded-md border border-slate-700 px-3 py-2 text-left text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+              >
+                Disclaimer & Responsibility
+              </button>
               <button
                 type="button"
                 onClick={() => {

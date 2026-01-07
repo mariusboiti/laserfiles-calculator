@@ -8,7 +8,7 @@ import { buildPieceFromSharedEdges, type PieceFromEdgesConfig } from './pieceFro
 import { assembledLayout } from './layout/assembled';
 import { packedGridLayout } from './layout/packGrid';
 import type { JigsawSettings, JigsawOutput, PieceInfo } from '../types/jigsawV2';
-import { generateTemplateOutline, isCenterCutoutExcluded, generateCenterCutoutPath } from './templates';
+import { generateTemplateOutline, isCenterCutoutExcluded } from './templates';
 import { getPathOps } from './pathops/pathopsClient';
 
 /**
@@ -250,20 +250,74 @@ function generateCutLayer(pieces: PieceInfo[], settings: JigsawSettings): string
   }
   
   // Add center cutout guide (blue stroke) if center cutout is enabled
-  // The guide follows the same shape as the template but scaled down
+  // The guide follows the contour of the missing pieces (inner edges of remaining pieces)
   let centerCutoutGuide = '';
   if (settings.centerCutout) {
-    const cutoutPath = generateCenterCutoutPath(
-      settings.widthMm,
-      settings.heightMm,
-      settings.centerCutoutRatio ?? 0.3,
-      settings.cornerRadiusMm,
-      template
-    );
-    centerCutoutGuide = `\n  <g id="GUIDE_CENTER_CUTOUT" fill="none" stroke="blue" stroke-width="0.5" stroke-dasharray="2,2">\n    <path d="${cutoutPath}" data-part="center-cutout-guide" />\n  </g>`;
+    const cutoutGuidePath = generateCenterCutoutFromPieces(pieces, settings);
+    if (cutoutGuidePath) {
+      centerCutoutGuide = `\n  <g id="GUIDE_CENTER_CUTOUT" fill="none" stroke="blue" stroke-width="0.5" stroke-dasharray="2,2">\n    <path d="${cutoutGuidePath}" data-part="center-cutout-guide" />\n  </g>`;
+    }
   }
   
-  return `  <g id="CUT_PIECES" fill="none" stroke="red" stroke-width="0.001">\n${paths}${outlinePath}\n  </g>${centerCutoutGuide}`;
+  // Add center cutout text if enabled
+  let centerCutoutText = '';
+  if (settings.centerCutout && settings.centerCutoutText) {
+    const cx = settings.widthMm / 2;
+    const cy = settings.heightMm / 2;
+    const fontSize = Math.min(settings.widthMm, settings.heightMm) * (settings.centerCutoutRatio ?? 0.3) * 0.15;
+    centerCutoutText = `\n  <g id="ENGRAVE_CENTER_TEXT" fill="black" stroke="none">\n    <text x="${cx.toFixed(2)}" y="${cy.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="${fontSize.toFixed(1)}" font-weight="bold">${escapeXml(settings.centerCutoutText)}</text>\n  </g>`;
+  }
+  
+  return `  <g id="CUT_PIECES" fill="none" stroke="red" stroke-width="0.001">\n${paths}${outlinePath}\n  </g>${centerCutoutGuide}${centerCutoutText}`;
+}
+
+/**
+ * Escape XML special characters
+ */
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+/**
+ * Generate center cutout guide path from the contours of missing pieces
+ * This creates a path that follows the inner edges of the remaining pieces
+ */
+function generateCenterCutoutFromPieces(pieces: PieceInfo[], settings: JigsawSettings): string {
+  const cellWidth = settings.widthMm / settings.columns;
+  const cellHeight = settings.heightMm / settings.rows;
+  const centerCutoutRatio = settings.centerCutoutRatio ?? 0.3;
+  
+  // Find which cells are excluded (missing pieces)
+  const excludedCells: { row: number; col: number }[] = [];
+  for (let row = 0; row < settings.rows; row++) {
+    for (let col = 0; col < settings.columns; col++) {
+      if (isCenterCutoutExcluded(row, col, settings.rows, settings.columns, centerCutoutRatio)) {
+        excludedCells.push({ row, col });
+      }
+    }
+  }
+  
+  if (excludedCells.length === 0) return '';
+  
+  // Find the bounding rectangle of excluded cells
+  const minRow = Math.min(...excludedCells.map(c => c.row));
+  const maxRow = Math.max(...excludedCells.map(c => c.row));
+  const minCol = Math.min(...excludedCells.map(c => c.col));
+  const maxCol = Math.max(...excludedCells.map(c => c.col));
+  
+  // Generate a simple rectangular path around the excluded area
+  // This follows the grid lines where pieces were removed
+  const x1 = minCol * cellWidth;
+  const y1 = minRow * cellHeight;
+  const x2 = (maxCol + 1) * cellWidth;
+  const y2 = (maxRow + 1) * cellHeight;
+  
+  return `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)} L ${x1.toFixed(3)} ${y2.toFixed(3)} Z`;
 }
 
 /**
@@ -304,16 +358,59 @@ function generateBackingBoard(settings: JigsawSettings): string {
         `a ${cornerR} ${cornerR} 0 0 1 ${cornerR} ${-cornerR} Z`
       : `M ${boardX} ${boardY} h ${boardWidth} v ${boardHeight} h ${-boardWidth} Z`;
   } else {
-    // Use the same template shape but scaled up by the margin
-    boardPath = generateTemplateOutline(
+    // For non-rectangle templates (heart, circle, etc.), generate the template
+    // at the original size and use SVG transform for scaling and positioning
+    // This avoids issues with complex path translation
+    const innerPath = generateTemplateOutline(
       template,
-      settings.widthMm + margin * 2,
-      settings.heightMm + margin * 2,
+      settings.widthMm,
+      settings.heightMm,
       settings.cornerRadiusMm
     );
-    // Offset the path to center it (since template is generated from 0,0)
-    // We need to translate by -margin to account for the larger size
-    boardPath = translatePath(boardPath, -margin, -margin);
+    // Use SVG group transform to scale and translate the backing board
+    // Scale from center and translate to position correctly
+    const scale = (settings.widthMm + margin * 2) / settings.widthMm;
+    const translateX = -margin;
+    const translateY = -margin;
+    // Return early with transformed group for non-rectangle templates
+    const paths: string[] = [];
+    paths.push(`    <g transform="translate(${translateX.toFixed(2)}, ${translateY.toFixed(2)}) scale(${scale.toFixed(4)})">`);
+    paths.push(`      <path d="${innerPath}" data-part="backing-outline" />`);
+    paths.push(`    </g>`);
+    
+    // Add hanging holes if enabled
+    if (settings.hangingHoles) {
+      const holeDia = settings.hangingHoleDiameter ?? 6;
+      const holeR = holeDia / 2;
+      const spacing = settings.hangingHoleSpacing ?? 80;
+      const yOffset = settings.hangingHoleYOffset ?? 10;
+      const centerX = settings.widthMm / 2;
+      const holeY = -margin + yOffset + holeR;
+      const hole1X = centerX - spacing / 2;
+      const hole2X = centerX + spacing / 2;
+      paths.push(`    <circle cx="${hole1X.toFixed(2)}" cy="${holeY.toFixed(2)}" r="${holeR}" data-part="hanging-hole" />`);
+      paths.push(`    <circle cx="${hole2X.toFixed(2)}" cy="${holeY.toFixed(2)}" r="${holeR}" data-part="hanging-hole" />`);
+    }
+    
+    // Add magnet holes if enabled
+    if (settings.magnetHoles) {
+      const holeDia = settings.magnetHoleDiameter ?? 8;
+      const holeR = holeDia / 2;
+      const inset = settings.magnetHoleInset ?? 15;
+      const boardHeight = settings.heightMm + margin * 2;
+      const boardWidth = settings.widthMm + margin * 2;
+      const boardX = -margin;
+      const boardY = -margin;
+      const corners = [
+        { x: boardX + inset + holeR, y: boardY + boardHeight - inset - holeR },
+        { x: boardX + boardWidth - inset - holeR, y: boardY + boardHeight - inset - holeR },
+      ];
+      corners.forEach((c, i) => {
+        paths.push(`    <circle cx="${c.x.toFixed(2)}" cy="${c.y.toFixed(2)}" r="${holeR}" data-part="magnet-hole-${i + 1}" />`);
+      });
+    }
+    
+    return `  <g id="CUT_BACKING" fill="none" stroke="blue" stroke-width="0.001">\n${paths.join('\n')}\n  </g>`;
   }
   
   const paths: string[] = [
@@ -441,18 +538,38 @@ function generateImageLayer(settings: JigsawSettings): string {
   );
 
   const hasCutout = !!settings.centerCutout;
-  const innerPath = hasCutout
-    ? generateCenterCutoutPath(
-        settings.widthMm,
-        settings.heightMm,
-        settings.centerCutoutRatio ?? 0.3,
-        settings.cornerRadiusMm,
-        template
-      )
-    : '';
+  let innerPath = '';
+  
+  if (hasCutout) {
+    // Generate inner cutout path based on excluded cells (same logic as generateCenterCutoutFromPieces)
+    const cellWidth = settings.widthMm / settings.columns;
+    const cellHeight = settings.heightMm / settings.rows;
+    const centerCutoutRatio = settings.centerCutoutRatio ?? 0.3;
+    
+    // Find bounding box of excluded cells
+    let minRow = settings.rows, maxRow = 0, minCol = settings.columns, maxCol = 0;
+    for (let row = 0; row < settings.rows; row++) {
+      for (let col = 0; col < settings.columns; col++) {
+        if (isCenterCutoutExcluded(row, col, settings.rows, settings.columns, centerCutoutRatio)) {
+          minRow = Math.min(minRow, row);
+          maxRow = Math.max(maxRow, row);
+          minCol = Math.min(minCol, col);
+          maxCol = Math.max(maxCol, col);
+        }
+      }
+    }
+    
+    if (minRow <= maxRow && minCol <= maxCol) {
+      const x1 = minCol * cellWidth;
+      const y1 = minRow * cellHeight;
+      const x2 = (maxCol + 1) * cellWidth;
+      const y2 = (maxRow + 1) * cellHeight;
+      innerPath = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)} L ${x1.toFixed(3)} ${y2.toFixed(3)} Z`;
+    }
+  }
 
   // Use even-odd fill rule so inner path becomes a "hole" in the clip
-  const clipD = hasCutout ? `${outerPath} ${innerPath}` : outerPath;
+  const clipD = hasCutout && innerPath ? `${outerPath} ${innerPath}` : outerPath;
   
   return `  <defs>
     <clipPath id="puzzle-clip">

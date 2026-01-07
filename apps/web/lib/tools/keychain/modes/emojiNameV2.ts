@@ -332,29 +332,19 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
   const textOnlyTranslated = pk.transform(textOnlyPath, translateMatrix);
   const textOnlyPathD = pk.toSVG(textOnlyTranslated);
 
-  // Union text subpaths so overlapping script letters become a single outline
-  // (removes internal letter intersections)
-  let textUnionPath: any = null;
+  // Weld text (merge overlaps) without removing inner counters (letter holes).
+  // Using boolean-union per-subpath can destroy counters; simplify on the full path
+  // tends to resolve overlaps while preserving holes.
+  let textUnionPathD = textOnlyPathD;
   if (textOnlyPathD) {
-    const subpaths: string[] = [];
-    const re = /M[^M]*?(?:Z|(?=M)|$)/gi;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(textOnlyPathD)) !== null) {
-      const sp = m[0].trim();
-      if (sp) subpaths.push(sp);
-    }
-
-    for (const sp of subpaths) {
-      try {
-        const p = pk.fromSVG(sp);
-        textUnionPath = textUnionPath ? pk.union(textUnionPath, p) : p;
-      } catch {
-        // ignore malformed subpath
-      }
+    try {
+      const p = pk.fromSVG(textOnlyPathD);
+      const simplified = pk.simplify(p);
+      textUnionPathD = pk.toSVG(simplified) || textOnlyPathD;
+    } catch {
+      textUnionPathD = textOnlyPathD;
     }
   }
-
-  const textUnionPathD = textUnionPath ? pk.toSVG(textUnionPath) : textOnlyPathD;
   const textOutlineOnlyD = extractOuterSubpaths(textUnionPathD || '');
   
   // Translate icon paths
@@ -373,15 +363,15 @@ async function buildEmojiNameV2(state: EmojiNameState): Promise<BuildResult> {
   // ENGRAVE LAYER: Text (filled) + Icon paths (as outlines to preserve details)
   if (showTop) {
     // Text as filled shape (no stroke), plus a separate stroke-only outer outline.
-    if (textOnlyPathD) {
-      topLayerContent += `<path d="${textOnlyPathD}" fill="#000" stroke="none" />`;
+    if (textUnionPathD) {
+      topLayerContent += `<path d="${textUnionPathD}" fill="#000" stroke="none" />`;
     }
     if (textOutlineOnlyD) {
-      topLayerContent += `<path d="${textOutlineOnlyD}" fill="none" stroke="#0066ff" stroke-width="0.3" />`;
+      topLayerContent += `<path d="${textOutlineOnlyD}" fill="none" stroke="#000" stroke-width="0.3" />`;
     }
     // Icon paths rendered individually (stroke only - preserves internal details)
     for (const iconD of iconPathsTranslated) {
-      topLayerContent += `<path d="${iconD}" fill="none" stroke="#0066ff" stroke-width="0.5" />`;
+      topLayerContent += `<path d="${iconD}" fill="none" stroke="#000" stroke-width="0.5" />`;
     }
   }
   

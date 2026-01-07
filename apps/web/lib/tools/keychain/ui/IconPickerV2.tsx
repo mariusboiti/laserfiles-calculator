@@ -23,6 +23,7 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
   const [activeTab, setActiveTab] = useState<IconTab>('pack');
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const packEnabled = false;
   
   // My Icons state
   const [myIcons, setMyIcons] = useState<MyIcon[]>([]);
@@ -54,6 +55,7 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
   
   // Filtered icons for pack tab
   const filteredIcons = useMemo(() => {
+    if (!packEnabled) return [];
     if (search.trim()) {
       return searchIcons(search);
     }
@@ -61,7 +63,7 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
       return getIconsByCategory(activeCategory);
     }
     return ICON_PACK;
-  }, [search, activeCategory]);
+  }, [packEnabled, search, activeCategory]);
   
   // Find selected icon
   const selectedIcon = useMemo(() => {
@@ -303,6 +305,7 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
                     onChange={(e) => { setSearch(e.target.value); setActiveCategory(null); }}
                     placeholder="Search icons..."
                     className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm"
+                    disabled={!packEnabled}
                   />
                 </div>
                 
@@ -310,6 +313,7 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
                 <div className="flex flex-wrap gap-1">
                   <button
                     onClick={() => { setActiveCategory(null); setSearch(''); }}
+                    disabled={!packEnabled}
                     className={`px-2 py-1 text-xs rounded transition-colors ${!activeCategory && !search ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
                   >
                     All
@@ -318,6 +322,7 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
                     <button
                       key={cat.id}
                       onClick={() => { setActiveCategory(cat.id); setSearch(''); }}
+                      disabled={!packEnabled}
                       className={`px-2 py-1 text-xs rounded transition-colors ${activeCategory === cat.id ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
                     >
                       {cat.label}
@@ -326,22 +331,29 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
                 </div>
                 
                 {/* Icons grid */}
-                <div className="grid grid-cols-8 gap-1">
-                  {filteredIcons.map(icon => (
-                    <button
-                      key={icon.id}
-                      onClick={() => { onSelect(icon.id); setIsOpen(false); }}
-                      title={icon.name}
-                      className={`aspect-square p-1.5 rounded flex items-center justify-center transition-colors ${selectedId === icon.id ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-slate-700 hover:bg-slate-600'}`}
-                    >
-                      <svg viewBox={icon.viewBox} className="w-full h-full">
-                        {icon.paths.map((d, i) => (
-                          <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth="5" />
-                        ))}
-                      </svg>
-                    </button>
-                  ))}
-                </div>
+                {!packEnabled ? (
+                  <div className="text-center py-8 text-slate-500 text-sm">
+                    <p>Icon Pack is temporarily disabled.</p>
+                    <p className="text-xs mt-1">We will add new icons here soon.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-8 gap-1">
+                    {filteredIcons.map(icon => (
+                      <button
+                        key={icon.id}
+                        onClick={() => { onSelect(icon.id); setIsOpen(false); }}
+                        title={icon.name}
+                        className={`aspect-square p-1.5 rounded flex items-center justify-center transition-colors ${selectedId === icon.id ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-slate-700 hover:bg-slate-600'}`}
+                      >
+                        <svg viewBox={icon.viewBox} className="w-full h-full">
+                          {icon.paths.map((d, i) => (
+                            <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth="5" />
+                          ))}
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             

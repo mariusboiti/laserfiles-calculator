@@ -12,13 +12,11 @@ import { emojiNameMode, EMOJI_NAME_DEFAULTS } from './emojiName';
 // V2 modes (PRO, uses text-to-path with opentype.js)
 import { simpleModeV2, SIMPLE_V2_DEFAULTS } from './simpleV2';
 import { emojiNameModeV2, EMOJI_NAME_V2_DEFAULTS } from './emojiNameV2';
-import { stickerBubbleMode } from './stickerBubble';
 
 // Mode registry (V2 PRO modes)
 export const MODES: Record<KeychainModeId, KeychainMode> = {
   'simple': simpleModeV2,
   'emoji-name': emojiNameModeV2,
-  'sticker-bubble': stickerBubbleMode,
 };
 
 // Legacy V1 modes (for fallback)
@@ -31,7 +29,6 @@ export const MODES_V1: Record<'simple' | 'emoji-name', KeychainMode> = {
 export const MODE_LIST: { id: KeychainModeId; label: string; description: string; icon: string }[] = [
   { id: 'simple', label: 'Simple', description: 'Basic shape with text', icon: 'tag' },
   { id: 'emoji-name', label: 'Emoji + Name', description: '2-layer with icon', icon: 'smile' },
-  { id: 'sticker-bubble', label: 'Sticker Bubble', description: '2-layer bubble keychain with thick border', icon: 'message-circle' },
 ];
 
 // Get mode by ID

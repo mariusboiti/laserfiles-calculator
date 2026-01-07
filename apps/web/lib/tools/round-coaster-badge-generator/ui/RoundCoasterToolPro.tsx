@@ -4,7 +4,7 @@ import React, { useReducer, useCallback, useMemo, useRef, useState, useEffect } 
 import {
   RotateCcw, ZoomIn, ZoomOut, Maximize2,
   Undo2, Redo2, Layers, Eye, EyeOff, ChevronDown, ChevronUp,
-  Type, Circle, Hexagon, Shield, Octagon, Sparkles,
+  Type, Circle, Hexagon, Octagon, Sparkles,
   Wand2, Image, Flower2, AlignCenter
 } from 'lucide-react';
 
@@ -156,7 +156,6 @@ const SHAPE_ICONS: Record<ShapeType, React.ElementType> = {
   hex: Hexagon,
   octagon: Octagon,
   scalloped: Sparkles,
-  shield: Shield,
 };
 
 // ============ Presets ============
@@ -178,7 +177,6 @@ const QUICK_PRESETS: QuickPreset[] = [
   { id: 'badge-60', name: 'Badge 60mm', shape: 'circle', diameter: 60, text: 'NAME' },
   { id: 'badge-70', name: 'Badge 70mm', shape: 'circle', diameter: 70, text: 'NAME' },
   { id: 'hex-90', name: 'Hex 90mm', shape: 'hex', diameter: 90, text: 'HEX' },
-  { id: 'shield-80', name: 'Shield', shape: 'shield', diameter: 80, width: 80, height: 92, text: 'BADGE' },
 ];
 
 // ============ Main Component ============
@@ -218,8 +216,6 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
   // Shape and dimension state (derived from artboard)
   const [shape, setShape] = useState<ShapeType>(doc.artboard.shapeType);
   const [diameter, setDiameter] = useState(doc.artboard.widthMm);
-  const [width, setWidth] = useState(doc.artboard.widthMm);
-  const [height, setHeight] = useState(doc.artboard.heightMm);
 
   // Text state
   const [centerText, setCenterText] = useState('COASTER');
@@ -330,8 +326,6 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     dispatch({ type: 'RESET', doc: newDoc });
     setShape('circle');
     setDiameter(90);
-    setWidth(90);
-    setHeight(90);
     setCenterText('COASTER');
     setTopText('');
     setBottomText('');
@@ -360,14 +354,12 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
   // Rebuild document when shape/dimensions/border/text change
   const rebuildDocument = useCallback(async () => {
     const preserved = preservedElementsRef.current;
-    const size = shape === 'shield' ? Math.max(width, height) : diameter;
-    const w = shape === 'shield' ? width : undefined;
-    const h = shape === 'shield' ? height : undefined;
+    const size = diameter;
     const text = uppercase ? centerText.toUpperCase() : centerText;
     const top = uppercase ? topText.toUpperCase() : topText;
     const bottom = uppercase ? bottomText.toUpperCase() : bottomText;
 
-    const newDoc = createCoasterDocument(shape, size, w, h, text, {
+    const newDoc = createCoasterDocument(shape, size, undefined, undefined, text, {
       topText: top,
       bottomText: bottom,
       centerFontSizeMm,
@@ -451,7 +443,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     });
 
     dispatch({ type: 'RESET', doc: newDoc });
-  }, [bottomCurvedText, borderEnabled, borderInset, borderThickness, centerCurvedText, centerFontSizeMm, centerText, diameter, doubleBorder, doubleBorderGap, fontId, height, shape, topCurvedText, topFontSizeMm, topText, bottomFontSizeMm, bottomText, uppercase, width]);
+  }, [bottomCurvedText, borderEnabled, borderInset, borderThickness, centerCurvedText, centerFontSizeMm, centerText, diameter, doubleBorder, doubleBorderGap, fontId, shape, topCurvedText, topFontSizeMm, topText, bottomFontSizeMm, bottomText, uppercase]);
 
   const handleUpdateTransforms = useCallback(
     (updates: Array<{ id: string; transform: any }>) => {
@@ -496,10 +488,6 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
   // Handlers
   const handleShapeChange = useCallback((newShape: ShapeType) => {
     setShape(newShape);
-    if (newShape === 'shield') {
-      setWidth(80);
-      setHeight(92);
-    }
   }, []);
 
   const handleDiameterPreset = useCallback((d: number) => {
@@ -509,8 +497,6 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
   const handleQuickPreset = useCallback((preset: QuickPreset) => {
     setShape(preset.shape);
     setDiameter(preset.diameter);
-    if (preset.width) setWidth(preset.width);
-    if (preset.height) setHeight(preset.height);
     setCenterText(preset.text);
   }, []);
 
@@ -548,6 +534,58 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     dispatch({ type: 'REDO' });
   }, []);
 
+  const handleDeleteSelection = useCallback(() => {
+    if (selection.selectedIds.length === 0) return;
+    const deletable = selection.selectedIds.filter((id) => {
+      const el = doc.elements.find((e) => e.id === id);
+      return el && el.system !== true;
+    });
+    if (deletable.length === 0) return;
+    dispatch({ type: 'REMOVE_ELEMENTS', ids: deletable });
+    dispatch({ type: 'COMMIT' });
+  }, [doc.elements, selection.selectedIds]);
+
+  useEffect(() => {
+    const isEditableTarget = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      if (!el) return false;
+      if (el.isContentEditable) return true;
+      const tag = el.tagName?.toLowerCase();
+      return tag === 'input' || tag === 'textarea' || tag === 'select';
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
+
+      const isMac = navigator.platform.toLowerCase().includes('mac');
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        return;
+      }
+
+      if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        handleDeleteSelection();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleDeleteSelection, handleRedo, handleUndo]);
+
   const handleZoomIn = useCallback(() => {
     setView(v => ({ ...v, zoom: Math.min(4, v.zoom * 1.25) }));
   }, []);
@@ -574,6 +612,9 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
 
       switch (action) {
         case 'center-artboard':
+          newX = cx;
+          newY = cy;
+          break;
         case 'align-center-h':
           newX = cx;
           break;
@@ -601,10 +642,64 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
 
   // AI Generation handler (stub)
   const handleAIGenerate = useCallback(async (prompt: string) => {
-    console.log('AI Generate:', prompt);
-    // TODO: Implement AI generation API call
-    return null;
-  }, []);
+    const cleanPrompt = (prompt || '').trim();
+    if (!cleanPrompt) return null;
+
+    const res = await jobManager.runJob({
+      id: 'round-coaster-ai-generate',
+      label: 'Generating with AI',
+      fn: async (signal) => {
+        const imageRes = await fetch('/api/ai/silhouette', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: cleanPrompt }),
+          signal,
+        });
+        const imageJson = await imageRes.json().catch(() => null);
+        if (!imageRes.ok) {
+          throw new Error(imageJson?.error || 'AI image generation failed');
+        }
+        const dataUrl = String(imageJson?.dataUrl || '');
+        if (!dataUrl) {
+          throw new Error('AI image generation returned no image');
+        }
+
+        const traceRes = await fetch('/api/trace/potrace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dataUrl,
+            mode: 'CUT_SILHOUETTE',
+            targetWidthMm: doc.artboard.widthMm,
+            targetHeightMm: doc.artboard.heightMm,
+            threshold: 180,
+            invert: false,
+            optTolerance: 0.2,
+            autoInvert: false,
+          }),
+          signal,
+        });
+        const traceJson = await traceRes.json().catch(() => null);
+        if (!traceRes.ok || !traceJson?.ok) {
+          throw new Error(traceJson?.error || 'Tracing failed');
+        }
+        const combinedPath = String(traceJson?.combinedPath || '');
+        if (!combinedPath) {
+          throw new Error('Tracing returned no vector path');
+        }
+
+        return { dataUrl, combinedPath };
+      },
+      timeoutMs: 90000,
+    });
+
+    if (!res.ok || !res.data) {
+      showToast('AI generation failed. Check AI configuration and try again.', 'error');
+      return null;
+    }
+
+    return { imageUrl: String(res.data.dataUrl), pathD: String(res.data.combinedPath) };
+  }, [doc.artboard.heightMm, doc.artboard.widthMm]);
 
   // AI Insert handler
   const handleAIInsert = useCallback((pathD: string, prompt: string) => {
@@ -664,7 +759,6 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     dispatch({ type: 'COMMIT' });
   }, [doc.artboard]);
 
-  const isShield = shape === 'shield';
   const selectionCount = selection.selectedIds.length;
 
   return (
@@ -760,7 +854,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
             {/* Shape */}
             <Section title="Shape">
               <div className="flex flex-wrap gap-2">
-                {(['circle', 'hex', 'octagon', 'scalloped', 'shield'] as ShapeType[]).map((s) => {
+                {(['circle', 'hex', 'octagon', 'scalloped'] as ShapeType[]).map((s) => {
                   const Icon = SHAPE_ICONS[s];
                   return (
                     <button
@@ -797,51 +891,28 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                 ))}
               </div>
 
-              {!isShield ? (
-                <>
-                  {/* Preset diameters */}
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {DIAMETER_PRESETS.map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => handleDiameterPreset(d)}
-                        className={`px-2 py-1 text-[11px] rounded ${diameter === d ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-                      >
-                        {d}mm
-                      </button>
-                    ))}
-                  </div>
+              {/* Preset diameters */}
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {DIAMETER_PRESETS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => handleDiameterPreset(d)}
+                    className={`px-2 py-1 text-[11px] rounded ${diameter === d ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                  >
+                    {d}mm
+                  </button>
+                ))}
+              </div>
 
-                  <NumberInput
-                    label="Diameter"
-                    value={diameter}
-                    onChange={setDiameter}
-                    min={30}
-                    max={300}
-                    step={stepSize}
-                  />
-                </>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <NumberInput
-                    label="Width"
-                    value={width}
-                    onChange={setWidth}
-                    min={30}
-                    max={300}
-                    step={stepSize}
-                  />
-                  <NumberInput
-                    label="Height"
-                    value={height}
-                    onChange={setHeight}
-                    min={40}
-                    max={300}
-                    step={stepSize}
-                  />
-                </div>
-              )}
+              <NumberInput
+                label="Diameter"
+                value={diameter}
+                onChange={setDiameter}
+                min={30}
+                max={300}
+                step={stepSize}
+              />
             </Section>
 
             {/* Border */}

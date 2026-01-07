@@ -6,7 +6,6 @@ import type {
   SlidingDrawerPanel2D,
 } from '../types';
 import { add, bbox, clamp, pathFromPoints, pt } from '../shared/panelUtils';
-import { calculateLabelPosition, generatePanelLabel } from '../labelUtils';
 import { svgForPanel, svgForPanelWithCutouts } from '../shared/panelUtils';
 import { computeDrawerDimensions, buildRectPanel } from './drawerMath';
 import type { BoxSettings, GeneratedFace } from '../../../src/lib/types';
@@ -482,9 +481,7 @@ function renderPlacedPanel(opts: {
 }): { svg: string; w: number; h: number } {
   const norm = normalizePanel(opts.panel);
   const d = panelToPathD(norm);
-  const labelPos = calculateLabelPosition(norm.w, norm.h, 8);
-  const labelSvg = generatePanelLabel(opts.label, labelPos.x, labelPos.y, labelPos.maxWidth, labelPos.maxHeight, 18);
-  const svg = `\n  <g data-panel-id="${opts.panelId}" transform="translate(${opts.x.toFixed(3)} ${opts.y.toFixed(3)})">\n    <path d="${d}" fill="none" stroke="#000" stroke-width="0.2" fill-rule="evenodd" />${labelSvg}\n  </g>`;
+  const svg = `\n  <g data-panel-id="${opts.panelId}" transform="translate(${opts.x.toFixed(3)} ${opts.y.toFixed(3)})">\n    <path d="${d}" fill="none" stroke="#000" stroke-width="0.2" fill-rule="evenodd" />\n  </g>`;
   return { svg, w: norm.w, h: norm.h };
 }
 

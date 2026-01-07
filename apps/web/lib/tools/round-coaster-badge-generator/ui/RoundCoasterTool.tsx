@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { DEFAULTS, COASTER_PRESETS, sanitizeDimensions, sanitizeBorder, sanitizePadding, sanitizeFontSizes } from '../config/defaults';
+import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { fitFontSize, calculateTextYPositions } from '../core/textFit';
 
 function downloadTextFile(filename: string, content: string, mimeType: string) {
@@ -21,7 +22,7 @@ interface RoundCoasterToolProps {
 }
 
 export function RoundCoasterTool({ onResetCallback }: RoundCoasterToolProps) {
-  const [shape, setShape] = useState<'circle' | 'hex' | 'shield'>(DEFAULTS.shape);
+  const [shape, setShape] = useState<'circle' | 'hex'>(DEFAULTS.shape);
   const [diameter, setDiameter] = useState(DEFAULTS.diameter);
   const [width, setWidth] = useState(DEFAULTS.width);
   const [height, setHeight] = useState(DEFAULTS.height);
@@ -64,7 +65,7 @@ export function RoundCoasterTool({ onResetCallback }: RoundCoasterToolProps) {
   }, [onResetCallback, resetToDefaults]);
 
   const applyPreset = useCallback((preset: typeof COASTER_PRESETS[0]) => {
-    setShape(preset.shape);
+    setShape(preset.shape as 'circle' | 'hex');
     if (preset.diameter) setDiameter(preset.diameter);
     if (preset.width) setWidth(preset.width);
     if (preset.height) setHeight(preset.height);
@@ -165,12 +166,11 @@ export function RoundCoasterTool({ onResetCallback }: RoundCoasterToolProps) {
                 <div className="mt-3">
                   <select
                     value={shape}
-                    onChange={(e) => setShape(e.target.value as 'circle' | 'hex' | 'shield')}
+                    onChange={(e) => setShape(e.target.value as 'circle' | 'hex')}
                     className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                   >
                     <option value="circle">Circle</option>
                     <option value="hex">Hexagon</option>
-                    <option value="shield">Shield</option>
                   </select>
                 </div>
               </div>
@@ -310,6 +310,29 @@ export function RoundCoasterTool({ onResetCallback }: RoundCoasterToolProps) {
                     className="w-full rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Export SVG
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const artifact = await createArtifact({
+                          toolSlug: 'round-coaster-badge-generator',
+                          name: `coaster-${shape}-${textCenter || 'design'}`,
+                          svg,
+                          meta: {
+                            bboxMm: { width: shape === 'circle' ? diameter : width, height: shape === 'circle' ? diameter : height },
+                            operations: { hasCuts: true, hasEngraves: true },
+                          },
+                        });
+                        addToPriceCalculator(artifact);
+                      } catch (e) {
+                        console.error('Failed to add to price calculator:', e);
+                      }
+                    }}
+                    disabled={!textCenter}
+                    className="w-full mt-2 rounded-md border-2 border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    💰 Add to Price Calculator
                   </button>
                 </div>
               </div>

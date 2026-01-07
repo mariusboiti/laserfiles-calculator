@@ -8,7 +8,7 @@ export function RoundCoasterHelp() {
       <div>
         <h3 className="mb-2 font-semibold text-slate-100">What is Round Coaster & Badge Generator?</h3>
         <p className="text-slate-400">
-          Create custom laser-cut coasters, badges, and decorative pieces with circle, hexagon, or shield shapes. Add engraved text and optional borders.
+          Create custom laser-cut coasters, badges, and decorative pieces with circle, hexagon, octagon, or scalloped shapes. Add engraved text and optional borders.
         </p>
       </div>
 
@@ -58,7 +58,6 @@ export function RoundCoasterHelp() {
         <ul className="ml-4 list-disc space-y-1 text-amber-200/80">
           <li>Long text will shrink to minimum font size</li>
           <li>Double border needs sufficient inset (3mm+)</li>
-          <li>Shield shape needs height for 3 text lines</li>
           <li>Test cut on scrap material first</li>
         </ul>
       </div>

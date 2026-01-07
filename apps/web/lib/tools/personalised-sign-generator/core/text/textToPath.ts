@@ -22,6 +22,11 @@ export interface TextPathResult {
   usedFallback: boolean;
 }
 
+export interface CurvedGlyph {
+  d: string;
+  transform: string;
+}
+
 /**
  * Apply text transform case
  */
@@ -38,6 +43,138 @@ export function applyTextCase(text: string, transformCase: TextTransformCase): s
     default:
       return text;
   }
+}
+
+function degToRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+function radToDeg(rad: number): number {
+  return (rad * 180) / Math.PI;
+}
+
+function scalePathData(pathData: string, scale: number): string {
+  return pathData.replace(/-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g, (match) => {
+    const num = parseFloat(match);
+    if (isNaN(num)) return match;
+    return (num * scale).toFixed(3);
+  });
+}
+
+/**
+ * Convert curved text element into per-glyph paths with transforms.
+ * Output is centered at element local origin (0,0); you still apply element.transform in the renderer.
+ */
+export async function textElementToCurvedGlyphs(element: TextElement): Promise<{ glyphs: CurvedGlyph[]; totalWidthMm: number }> {
+  const text = applyTextCase(element.text, element.transformCase);
+  if (!text || text.trim().length === 0) {
+    return { glyphs: [], totalWidthMm: 0 };
+  }
+
+  const requestedFontId = element.fontId;
+  let font: any;
+  try {
+    font = await loadFont(requestedFontId);
+  } catch {
+    const fallback = getFontConfigSafe('Milkshake').id;
+    if (fallback && fallback !== requestedFontId) {
+      try {
+        font = await loadFont(fallback);
+      } catch {
+        font = null;
+      }
+    }
+  }
+
+  if (!font) {
+    return { glyphs: [], totalWidthMm: 0 };
+  }
+
+  const glyphsRaw: Array<{ d: string; w: number; ox: number; oy: number; cw: number }> = [];
+  const sizeMm = element.sizeMm;
+  const letterSpacingMm = element.letterSpacingMm || 0;
+
+  const PX_PER_MM = 3.7795275591;
+  const sizePx = sizeMm * PX_PER_MM;
+
+  for (const ch of Array.from(text)) {
+    if (ch === ' ') {
+      glyphsRaw.push({ d: '', w: Math.max(0.1, sizeMm * 0.35 + letterSpacingMm), ox: 0, oy: 0, cw: 0 });
+      continue;
+    }
+
+    const path = font.getPath(ch, 0, 0, sizePx);
+    const bbox = path.getBoundingBox();
+    const pathDpx = path.toPathData(3);
+    const d = scalePathData(pathDpx, 1 / PX_PER_MM);
+
+    const cw = Math.max(0.01, (bbox.x2 - bbox.x1) / PX_PER_MM);
+    const chH = Math.max(0.01, (bbox.y2 - bbox.y1) / PX_PER_MM);
+    const ox = -(bbox.x1 / PX_PER_MM + cw / 2);
+    const oy = -(bbox.y1 / PX_PER_MM + chH / 2);
+
+    glyphsRaw.push({ d, w: cw + letterSpacingMm, ox, oy, cw });
+  }
+
+  if (glyphsRaw.length === 0) {
+    return { glyphs: [], totalWidthMm: 0 };
+  }
+
+  const totalWidthMm = Math.max(0, glyphsRaw.reduce((sum, it) => sum + it.w, 0) - letterSpacingMm);
+  if (totalWidthMm <= 0) {
+    return { glyphs: [], totalWidthMm: 0 };
+  }
+
+  const curvedEnabled = Boolean(element.curved?.enabled);
+  const placement = curvedEnabled
+    ? element.curved!.placement
+    : (element.curvedMode || 'straight') === 'arcDown'
+      ? 'bottom'
+      : 'top';
+  const direction = curvedEnabled ? element.curved!.direction : 'outside';
+  const sign = placement === 'top' ? -1 : 1;
+
+  const arcDeg = curvedEnabled
+    ? element.curved!.arcDeg
+    : Math.max(10, Math.min(180, 20 + (element.curvedIntensity ?? 0) * 1.6));
+  const arcRad = Math.max(0.001, degToRad(Math.max(0.001, arcDeg)));
+
+  const radiusMm = curvedEnabled
+    ? Math.max(1, element.curved!.radiusMm)
+    : Math.max(1, totalWidthMm / arcRad);
+
+  const occupiedRad = Math.max(0.001, totalWidthMm / radiusMm);
+  const startTheta =
+    element.align === 'left'
+      ? -arcRad / 2
+      : element.align === 'right'
+        ? arcRad / 2 - occupiedRad
+        : -occupiedRad / 2;
+
+  const y0 = sign * radiusMm * Math.cos(arcRad / 2);
+  let xCursor = 0;
+  const glyphs: CurvedGlyph[] = [];
+
+  for (const it of glyphsRaw) {
+    const charW = Math.max(0.01, it.cw);
+    const sCenter = xCursor + charW / 2;
+    xCursor += it.w;
+    if (!it.d) continue;
+
+    const theta = startTheta + sCenter / radiusMm;
+    const x = radiusMm * Math.sin(theta);
+    const y = y0 - sign * radiusMm * Math.cos(theta);
+
+    let a = radToDeg(Math.atan2(sign * Math.sin(theta), Math.cos(theta)));
+    if (direction === 'inside') {
+      a += 180;
+    }
+
+    const glyphTransform = `translate(${x.toFixed(3)}, ${y.toFixed(3)}) rotate(${a.toFixed(3)}) translate(${it.ox.toFixed(3)}, ${it.oy.toFixed(3)})`;
+    glyphs.push({ d: it.d, transform: glyphTransform });
+  }
+
+  return { glyphs, totalWidthMm };
 }
 
 /**

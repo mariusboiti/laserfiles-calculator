@@ -95,10 +95,6 @@ export const WOOD_STYLE_PRESETS: WoodStyleConfig[] = [
 ];
 
 export interface AISettings {
-  autoCrop: boolean;
-  // Photo position/size adjustments (relative to photo area)
-  photoOffsetXMm: number;
-  photoOffsetYMm: number;
   photoScale: number; // 1.0 = 100%
   photoCornerRadiusMm: number;
   cropFocusX: number; // 0..1
@@ -164,9 +160,6 @@ export interface FeatureFlags {
 }
 
 export const DEFAULT_AI_SETTINGS: AISettings = {
-  autoCrop: false,
-  photoOffsetXMm: 0,
-  photoOffsetYMm: 0,
   photoScale: 1.0,
   photoCornerRadiusMm: 0,
   cropFocusX: 0.5,

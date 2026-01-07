@@ -13,6 +13,7 @@ import { importSvgAsFace } from '../../../src/lib/svgImport';
 import { mergeSvgWithOverlays, type EngraveOverlayItem } from '../../core/shared/mergeSvgWithOverlays';
 import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
 import { AIWarningBanner } from '@/components/ai';
+import { Trash2 } from 'lucide-react';
 
 function clampNumber(n: number, min: number, max: number) {
   if (Number.isNaN(n)) return min;
@@ -283,8 +284,8 @@ export function SimpleBoxUI({
   }, [engraveItems, faces]);
 
   const faceKeys = useMemo(() => {
-    const order = ['front', 'back', 'left', 'right', 'bottom', 'top', 'lid', 'lid_inner'];
-    const keys = faces.map((f) => f.name);
+    const order = ['front', 'back', 'left', 'right', 'bottom', 'top', 'lid'];
+    const keys = faces.map((f) => f.name).filter((k) => k !== 'lid_inner');
     const uniq = Array.from(new Set(keys));
     uniq.sort((a, b) => order.indexOf(a) - order.indexOf(b));
     return uniq;
@@ -295,6 +296,8 @@ export function SimpleBoxUI({
     faces.forEach((f) => m.set(String(f.name), f));
     return m;
   }, [faces]);
+
+  const facesForUi = useMemo(() => faces.filter((f) => f.name !== 'lid_inner'), [faces]);
 
   useEffect(() => {
     if (!faceKeys.length) return;
@@ -749,18 +752,29 @@ export function SimpleBoxUI({
                   {engraveItems.length > 0 ? (
                     <div className="mt-1 space-y-1">
                       {engraveItems.map((item) => (
-                        <button
+                        <div
                           key={item.id}
-                          type="button"
-                          onClick={() => setSelectedEngraveId(item.id)}
                           className={
                             selectedEngraveId === item.id
-                              ? 'w-full rounded-md border border-sky-500 bg-slate-900 px-2 py-1 text-left text-[11px] text-slate-100'
-                              : 'w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-left text-[11px] text-slate-300 hover:border-slate-600'
+                              ? 'flex w-full items-center gap-2 rounded-md border border-sky-500 bg-slate-900 px-2 py-1 text-[11px] text-slate-100'
+                              : 'flex w-full items-center gap-2 rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[11px] text-slate-300 hover:border-slate-600'
                           }
                         >
-                          {item.fileName}
-                        </button>
+                          <button type="button" onClick={() => setSelectedEngraveId(item.id)} className="min-w-0 flex-1 truncate text-left">
+                            {item.fileName}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEngraveItems((prev) => prev.filter((x) => x.id !== item.id));
+                              setSelectedEngraveId((prev) => (prev === item.id ? null : prev));
+                            }}
+                            className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
+                            title="Delete layer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   ) : null}
@@ -1183,10 +1197,10 @@ export function SimpleBoxUI({
             </div>
 
             {previewMode === '3d' ? (
-              <BoxPreview3D settings={settings} faces={faces} importedItems={importedItems} />
+              <BoxPreview3D settings={settings} faces={facesForUi} importedItems={importedItems} />
             ) : previewMode === 'faces' ? (
               <div className="max-h-[520px] overflow-auto rounded-md border border-slate-800 bg-slate-950 p-2 text-xs text-slate-200">
-                {!faces.length ? (
+                {!facesForUi.length ? (
                   <p className="text-slate-500">No faces generated yet.</p>
                 ) : (
                   <table className="w-full border-collapse text-[11px]">
@@ -1198,7 +1212,7 @@ export function SimpleBoxUI({
                       </tr>
                     </thead>
                     <tbody>
-                      {faces.map((face) => (
+                      {facesForUi.map((face) => (
                         <tr key={face.id} className="odd:bg-slate-900/40">
                           <td className="border-b border-slate-900 px-2 py-1">{face.name}</td>
                           <td className="border-b border-slate-900 px-2 py-1 tabular-nums">{face.width.toFixed(2)}</td>
@@ -1222,7 +1236,6 @@ export function SimpleBoxUI({
                   <div className="grid gap-3 sm:grid-cols-2" style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
                     {faceKeys.map((k) => (
                       <div key={k} className="rounded-md border border-slate-200 bg-white p-2">
-                        <div className="mb-1 text-xs font-medium text-slate-700">{k}</div>
                         <div className="relative h-56 w-full overflow-hidden rounded border border-slate-100 bg-white">
                           <div className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block" dangerouslySetInnerHTML={{ __html: faceSvgs.get(k) ?? '' }} />
                           {(() => {
@@ -1249,6 +1262,7 @@ export function SimpleBoxUI({
                             );
                           })()}
                         </div>
+                        <div className="mt-2 text-xs font-medium text-slate-700 text-center uppercase">{k}</div>
                       </div>
                     ))}
                   </div>

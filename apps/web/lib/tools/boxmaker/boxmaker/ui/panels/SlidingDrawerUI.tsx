@@ -22,8 +22,10 @@ import { validateBoxInputs, validateDrawerInputs } from '../../core/shared/valid
 import { exportSlidingDrawerZip } from '../../export/exportZip';
 import { SlidingDrawerBoxPreview3D } from './SlidingDrawerBoxPreview3D';
 import { SlidingDrawerPanelPreview } from './SlidingDrawerPanelPreview';
+import { SlidingDrawerPreview } from './SlidingDrawerPreview';
 import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
 import { AIWarningBanner } from '@/components/ai';
+import { Trash2 } from 'lucide-react';
 
 type FaceArtworkPlacement = {
   x: number;
@@ -872,9 +874,10 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         setEngraveItems((prev) => prev.filter((x) => x.id !== selectedEngraveItem.id));
                         setSelectedEngraveId(null);
                       }}
-                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:border-rose-500 hover:text-rose-200"
+                      className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
+                      title="Delete layer"
                     >
-                      Remove
+                      <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
 
@@ -1279,18 +1282,29 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                   {engraveItems.length > 0 ? (
                     <div className="mt-1 space-y-1">
                       {engraveItems.map((item) => (
-                        <button
+                        <div
                           key={item.id}
-                          type="button"
-                          onClick={() => setSelectedEngraveId(item.id)}
                           className={
                             selectedEngraveId === item.id
-                              ? 'w-full rounded-md border border-sky-500 bg-slate-900 px-2 py-1 text-left text-[11px] text-slate-100'
-                              : 'w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-left text-[11px] text-slate-300 hover:border-slate-600'
+                              ? 'flex w-full items-center gap-2 rounded-md border border-sky-500 bg-slate-900 px-2 py-1 text-[11px] text-slate-100'
+                              : 'flex w-full items-center gap-2 rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[11px] text-slate-300 hover:border-slate-600'
                           }
                         >
-                          {item.fileName}
-                        </button>
+                          <button type="button" onClick={() => setSelectedEngraveId(item.id)} className="min-w-0 flex-1 truncate text-left">
+                            {item.fileName}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEngraveItems((prev) => prev.filter((x) => x.id !== item.id));
+                              setSelectedEngraveId((prev) => (prev === item.id ? null : prev));
+                            }}
+                            className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
+                            title="Delete layer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   ) : null}
@@ -1390,7 +1404,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                   }
                 >
-                  Faces list
+                  Layout
                 </button>
                 <button
                   type="button"
@@ -1410,9 +1424,9 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
             {previewMode === '3d' ? (
               <SlidingDrawerBoxPreview3D input={input} panels={panels} />
             ) : previewMode === 'faces' ? (
-              <SlidingDrawerPanelPreview key="faces" layoutSvg={layoutSvg} panels={panels} initialView="faces" artworkOverlays={artworkOverlays} />
+              <SlidingDrawerPanelPreview key="layout" layoutSvg={layoutSvg} panels={panels} initialView="layout" artworkOverlays={artworkOverlays} />
             ) : (
-              <SlidingDrawerPanelPreview key="2d" layoutSvg={layoutSvg} panels={panels} initialView="layout" artworkOverlays={artworkOverlays} />
+              <SlidingDrawerPreview svgs={svgs} dims={dims} />
             )}
           </div>
         </section>
