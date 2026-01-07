@@ -4,7 +4,7 @@
  */
 
 import type { PuzzleTemplate } from '../types/jigsawV2';
-import { generateCenterCutoutPath, generateTemplateOutline } from '../core/templates';
+import { generateTemplateOutline, isCenterCutoutExcluded } from '../core/templates';
 
 export interface PhotoProcessingSettings {
   enabled: boolean;
@@ -270,10 +270,38 @@ export async function maskImageToTemplate(
         ctx.clearRect(0, 0, canvasW, canvasH);
 
         const outerD = generateTemplateOutline(template, widthMm, heightMm, cornerRadiusMm);
-        const innerD = centerCutout
-          ? generateCenterCutoutPath(widthMm, heightMm, centerCutoutRatio, cornerRadiusMm, template)
-          : '';
-        const clipD = centerCutout ? `${outerD} ${innerD}` : outerD;
+        
+        // Generate inner cutout path based on grid cells (not scaled shape)
+        let innerD = '';
+        if (centerCutout) {
+          // Use default grid size for calculation (will be approximate)
+          const defaultRows = 4;
+          const defaultCols = 4;
+          const cellWidth = widthMm / defaultCols;
+          const cellHeight = heightMm / defaultRows;
+          
+          let minRow = defaultRows, maxRow = 0, minCol = defaultCols, maxCol = 0;
+          for (let row = 0; row < defaultRows; row++) {
+            for (let col = 0; col < defaultCols; col++) {
+              if (isCenterCutoutExcluded(row, col, defaultRows, defaultCols, centerCutoutRatio)) {
+                minRow = Math.min(minRow, row);
+                maxRow = Math.max(maxRow, row);
+                minCol = Math.min(minCol, col);
+                maxCol = Math.max(maxCol, col);
+              }
+            }
+          }
+          
+          if (minRow <= maxRow && minCol <= maxCol) {
+            const x1 = minCol * cellWidth;
+            const y1 = minRow * cellHeight;
+            const x2 = (maxCol + 1) * cellWidth;
+            const y2 = (maxRow + 1) * cellHeight;
+            innerD = `M ${x1.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y1.toFixed(3)} L ${x2.toFixed(3)} ${y2.toFixed(3)} L ${x1.toFixed(3)} ${y2.toFixed(3)} Z`;
+          }
+        }
+        
+        const clipD = centerCutout && innerD ? `${outerD} ${innerD}` : outerD;
         const clipPath = new Path2D(clipD);
 
         ctx.save();

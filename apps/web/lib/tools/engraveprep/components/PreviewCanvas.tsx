@@ -198,7 +198,7 @@ export function PreviewCanvas() {
   return (
     <div 
       ref={containerRef}
-      className="relative flex-1 flex items-center justify-center p-4 overflow-auto bg-gray-900"
+      className="relative flex-1 flex items-start justify-center overflow-auto bg-gray-900"
     >
       {isProcessing && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">

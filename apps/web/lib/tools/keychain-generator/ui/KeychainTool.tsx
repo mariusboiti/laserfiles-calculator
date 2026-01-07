@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
 import type { KeychainInputs, KeychainShape, HolePosition } from '../types/keychain';
 import { generateKeychainSvg, generateFilename, generateKeychainWarnings } from '../core/generateKeychainSvg';
+import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { DEFAULTS, KEYCHAIN_PRESETS } from '../config/defaults';
 
 function downloadTextFile(filename: string, content: string, mimeType: string) {
@@ -338,6 +339,28 @@ export function KeychainTool({ onResetCallback }: KeychainToolProps) {
                     className="w-full rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
                   >
                     Export SVG
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const artifact = await createArtifact({
+                          toolSlug: 'keychain-generator',
+                          name: `keychain-${text || 'design'}`,
+                          svg,
+                          meta: {
+                            bboxMm: { width: widthMm, height: heightMm },
+                            operations: { hasCuts: true, hasEngraves: true },
+                          },
+                        });
+                        addToPriceCalculator(artifact);
+                      } catch (e) {
+                        console.error('Failed to add to price calculator:', e);
+                      }
+                    }}
+                    className="w-full mt-2 rounded-md border-2 border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20"
+                  >
+                    💰 Add to Price Calculator
                   </button>
                 </div>
               </div>

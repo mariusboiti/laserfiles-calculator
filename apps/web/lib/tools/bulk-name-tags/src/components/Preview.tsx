@@ -75,12 +75,14 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
         </div>
       </div>
 
+      {/* Sheet dimensions info - always visible when in sheet mode */}
       {viewMode === 'sheet' && sheetWidth && sheetHeight && (
         <div className="text-xs text-slate-400 mb-2">
           Sheet: {sheetWidth} × {sheetHeight} mm
         </div>
       )}
       
+      {/* Preview area - always rendered, even if empty */}
       <div className="border border-slate-700 rounded-lg flex-1 min-h-0 bg-slate-100 overflow-auto relative">
         {displayContent ? (
           <div 

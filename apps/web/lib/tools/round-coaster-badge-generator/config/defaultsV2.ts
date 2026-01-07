@@ -19,9 +19,9 @@ export const DEFAULTS_V2: CoasterStateV2 = {
   dimensions: {
     diameter: 90,
     width: 90,
-    height: 103, // ~1.15 ratio for shield
+    height: 90,
     lockAspect: true,
-    aspectRatio: 1.15,
+    aspectRatio: 1,
   },
   border: {
     enabled: true,
@@ -96,15 +96,6 @@ export const PRESETS_V2: PresetConfig[] = [
     shape: 'circle',
     diameter: 70,
     textCenter: 'NAME',
-  },
-  {
-    id: 'shield-80',
-    name: 'Shield 80×92mm',
-    description: 'Classic shield badge',
-    shape: 'shield',
-    width: 80,
-    height: 92,
-    textCenter: 'BADGE',
   },
   {
     id: 'hex-90',
@@ -204,8 +195,6 @@ export function calculateSafeWidth(
   // For hex/shield, reduce slightly more
   if (shape === 'hex') {
     available *= 0.85;
-  } else if (shape === 'shield') {
-    available *= 0.80;
   }
   
   return Math.max(10, available);
@@ -226,14 +215,6 @@ export function generateWarnings(state: CoasterStateV2): Warning[] {
       id: 'min-diameter',
       level: 'warning',
       message: 'Diameter very small - text may not fit well',
-    });
-  }
-  
-  if (shape === 'shield' && dimensions.height < 50) {
-    warnings.push({
-      id: 'min-shield-height',
-      level: 'warning',
-      message: 'Shield height adjusted to minimum',
     });
   }
   

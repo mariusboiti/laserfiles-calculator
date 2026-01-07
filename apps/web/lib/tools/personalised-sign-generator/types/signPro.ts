@@ -78,6 +78,7 @@ export interface TextElement {
   curved?: CurvedTextConfig;
   // Computed (cached)
   _pathD?: string;
+  _curvedGlyphs?: Array<{ d: string; transform: string }>;
   _bounds?: { width: number; height: number };
   _fontUsedId?: FontId;
   _fontUsedFallback?: boolean;

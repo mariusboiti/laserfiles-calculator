@@ -2,6 +2,17 @@
 
 import React, { useEffect } from 'react';
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (el.isContentEditable) return true;
+  // In case the event target is a child inside a contenteditable container
+  const editableAncestor = el.closest?.('[contenteditable="true"]');
+  return Boolean(editableAncestor);
+}
+
 export interface CanvasKeyboardShortcutsProps {
   enabled: boolean;
   canUndo: boolean;
@@ -27,6 +38,9 @@ export function CanvasKeyboardShortcuts({
     if (!enabled) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
+      // Don't steal keystrokes while typing in inputs/textareas.
+      if (isEditableTarget(e.target)) return;
+
       const isMac = navigator.platform.toLowerCase().includes('mac');
       const mod = isMac ? e.metaKey : e.ctrlKey;
 

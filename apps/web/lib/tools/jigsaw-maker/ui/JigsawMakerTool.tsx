@@ -12,6 +12,8 @@ import type { JigsawSettings, PuzzleTemplate } from '../types/jigsawV2';
 import { DEFAULTS, LIMITS } from '../config/defaults';
 import { PUZZLE_TEMPLATES } from '../core/templates';
 import { exportProductKit } from '../core/productKitExport';
+import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
+import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 
 function downloadTextFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
@@ -42,6 +44,9 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
   const [puzzleTemplate, setPuzzleTemplate] = useState<PuzzleTemplate>('rectangle');
   const [centerCutout, setCenterCutout] = useState(false);
   const [centerCutoutRatio, setCenterCutoutRatio] = useState(0.3);
+  const [centerCutoutText, setCenterCutoutText] = useState('');
+  const [centerCutoutFontId, setCenterCutoutFontId] = useState<FontId>(() => (SHARED_FONTS[0]?.id ?? 'Milkshake'));
+  const [textPreviewSvg, setTextPreviewSvg] = useState<string | null>(null);
   const [widthMm, setWidthMm] = useState(DEFAULTS.widthMm);
   const [heightMm, setHeightMm] = useState(DEFAULTS.heightMm);
   const [rows, setRows] = useState(DEFAULTS.rows);
@@ -104,6 +109,38 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
   // PathOps loading state
   const [isLoadingPathOps, setIsLoadingPathOps] = useState(false);
   const [pathOpsError, setPathOpsError] = useState<string | null>(null);
+  
+  // Font preview effect for center cutout text
+  useEffect(() => {
+    if (!centerCutoutText.trim()) {
+      setTextPreviewSvg(null);
+      return;
+    }
+    
+    let cancelled = false;
+    const previewText = centerCutoutText.trim() || 'Preview';
+    const previewSize = 12;
+
+    (async () => {
+      try {
+        const font = await loadFont(centerCutoutFontId);
+        const res = textToPathD(font, previewText, previewSize, 0);
+        if (cancelled || !res?.pathD) return;
+
+        const pathD = res.pathD;
+        const w = res.width;
+        const h = res.height;
+        const pad = 2;
+        const vb = `${-pad} ${-h - pad} ${w + pad * 2} ${h + pad * 2}`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%"><path d="${pathD}" fill="#94a3b8"/></svg>`;
+        setTextPreviewSvg(svg);
+      } catch {
+        setTextPreviewSvg(null);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [centerCutoutText, centerCutoutFontId]);
   
   // Piece shape difficulty slider (0-100)
   const [pieceDifficulty, setPieceDifficulty] = useState(0);
@@ -261,6 +298,8 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
     template: puzzleTemplate,
     centerCutout,
     centerCutoutRatio,
+    centerCutoutText: centerCutoutText || undefined,
+    centerCutoutFontId: centerCutoutFontId || undefined,
     randomSeed,
     imageDataUrl: mode === 'photo' ? (maskedImageDataUrl ?? imageDataUrl) : undefined,
     cornerRadiusMm: cornerRadius,
@@ -289,7 +328,7 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
     knobSizePct,
     knobRoundness,
     knobJitter,
-  }), [widthMm, heightMm, rows, columns, puzzleTemplate, centerCutout, centerCutoutRatio, randomSeed, mode, imageDataUrl, maskedImageDataUrl, cornerRadius, kerfOffset, clearanceMm, layoutMode, materialSheet.widthMm, materialSheet.heightMm, materialSheet.marginMm, materialSheet.gapMm, pieceNumbering, backingBoard.enabled, backingBoard.marginMm, backingCornerRadius, backingBoard.hangingHoles, backingBoard.hangingHoleDiameter, backingBoard.hangingHoleSpacing, backingBoard.hangingHoleYOffset, backingBoard.magnetHoles, backingBoard.magnetHoleDiameter, backingBoard.magnetHoleInset, pieceDifficulty, knobStyle, knobSizePct, knobRoundness, knobJitter]);
+  }), [widthMm, heightMm, rows, columns, puzzleTemplate, centerCutout, centerCutoutRatio, centerCutoutText, centerCutoutFontId, randomSeed, mode, imageDataUrl, maskedImageDataUrl, cornerRadius, kerfOffset, clearanceMm, layoutMode, materialSheet.widthMm, materialSheet.heightMm, materialSheet.marginMm, materialSheet.gapMm, pieceNumbering, backingBoard.enabled, backingBoard.marginMm, backingCornerRadius, backingBoard.hangingHoles, backingBoard.hangingHoleDiameter, backingBoard.hangingHoleSpacing, backingBoard.hangingHoleYOffset, backingBoard.magnetHoles, backingBoard.magnetHoleDiameter, backingBoard.magnetHoleInset, pieceDifficulty, knobStyle, knobSizePct, knobRoundness, knobJitter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -478,6 +517,28 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
       productKit,
       filename
     );
+  }
+
+  async function handleAddToPriceCalculator() {
+    try {
+      const filename = generateFilename(inputs as JigsawInputs);
+      const svg = puzzleResult.fullSvg;
+      
+      const artifact = await createArtifact({
+        toolSlug: 'jigsaw-maker',
+        name: filename.replace('.svg', ''),
+        svg,
+        meta: {
+          bboxMm: { width: widthMm, height: heightMm },
+          operations: { hasCuts: true },
+          notes: `${rows}x${columns} puzzle, ${pieceCount} pieces`,
+        },
+      });
+      
+      addToPriceCalculator(artifact);
+    } catch (e) {
+      console.error('Failed to add to price calculator:', e);
+    }
   }
 
   return (
@@ -707,17 +768,49 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                     <div className="text-[10px] text-slate-500 mt-1">Remove center pieces (for photo frame effect)</div>
                     
                     {centerCutout && (
-                      <label className="grid gap-1 mt-2">
-                        <div className="text-[10px] text-slate-400">Cutout Size: {Math.round(centerCutoutRatio * 100)}%</div>
-                        <input
-                          type="range"
-                          min={20}
-                          max={50}
-                          value={centerCutoutRatio * 100}
-                          onChange={(e) => setCenterCutoutRatio(Number(e.target.value) / 100)}
-                          className="w-full"
-                        />
-                      </label>
+                      <>
+                        <label className="grid gap-1 mt-2">
+                          <div className="text-[10px] text-slate-400">Cutout Size: {Math.round(centerCutoutRatio * 100)}%</div>
+                          <input
+                            type="range"
+                            min={20}
+                            max={50}
+                            value={centerCutoutRatio * 100}
+                            onChange={(e) => setCenterCutoutRatio(Number(e.target.value) / 100)}
+                            className="w-full"
+                          />
+                        </label>
+                        <label className="grid gap-1 mt-2">
+                          <div className="text-[10px] text-slate-400">Center Text (optional)</div>
+                          <textarea
+                            value={centerCutoutText}
+                            onChange={(e) => setCenterCutoutText(e.target.value)}
+                            placeholder="e.g., Happy Birthday!&#10;Love, Mom & Dad"
+                            rows={3}
+                            className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100 resize-none"
+                          />
+                        </label>
+                        {textPreviewSvg && (
+                          <div
+                            className="h-10 w-full rounded-md border border-slate-700 bg-slate-950 p-1 mt-1"
+                            dangerouslySetInnerHTML={{ __html: textPreviewSvg }}
+                          />
+                        )}
+                        <label className="grid gap-1 mt-2">
+                          <div className="text-[10px] text-slate-400">Font</div>
+                          <select
+                            value={centerCutoutFontId}
+                            onChange={(e) => setCenterCutoutFontId(e.target.value as FontId)}
+                            className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] text-slate-200"
+                          >
+                            {SHARED_FONTS.map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1263,6 +1356,13 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                   >
                     📦 Export Product Kit (ZIP)
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleAddToPriceCalculator}
+                    className="w-full rounded-md border-2 border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20"
+                  >
+                    💰 Add to Price Calculator
+                  </button>
                 </div>
               </div>
             </div>
@@ -1303,6 +1403,13 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                   title="Reset Zoom"
                 >
                   Reset
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="px-3 py-1 text-xs bg-sky-500 hover:bg-sky-600 text-white rounded font-medium"
+                  title="Export Full SVG"
+                >
+                  Export SVG
                 </button>
               </div>
             </div>

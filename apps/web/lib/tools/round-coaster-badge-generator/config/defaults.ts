@@ -25,7 +25,7 @@ export const DEFAULTS = {
 export interface CoasterPresetConfig {
   name: string;
   description: string;
-  shape: 'circle' | 'hex' | 'shield';
+  shape: 'circle' | 'hex';
   diameter?: number;
   width?: number;
   height?: number;

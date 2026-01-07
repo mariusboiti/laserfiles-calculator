@@ -32,6 +32,9 @@ export const SIMPLE_V2_DEFAULTS: SimpleKeychainState = {
   fontFamily: 'Angelina Bold', // Default font from available fonts
   fontWeight: '700',
   fontSize: 14,
+  letterSpacing: 0,
+  textOffsetX: 0,
+  textOffsetY: 0,
   autoFit: true,
   fontMin: 8,
   fontMax: 22,
@@ -66,6 +69,10 @@ function clampState(state: Partial<SimpleKeychainState>): SimpleKeychainState {
   s.fontMin = clamp(s.fontMin, 4, 80);
   s.fontMax = clamp(s.fontMax, 4, 80);
   if (s.fontMin > s.fontMax) [s.fontMin, s.fontMax] = [s.fontMax, s.fontMin];
+
+  s.letterSpacing = clamp(s.letterSpacing ?? 0, -2, 10);
+  s.textOffsetX = clamp(s.textOffsetX ?? 0, -1000, 1000);
+  s.textOffsetY = clamp(s.textOffsetY ?? 0, -1000, 1000);
 
   s.lineGap = clamp(s.lineGap, 0.2, 1.0);
   s.cutStroke = clamp(s.cutStroke, 0.001, 0.2);
@@ -207,8 +214,8 @@ async function buildSimpleV2(state: SimpleKeychainState): Promise<BuildResult> {
     textEndX = viewWidth + holeReserveX;
   }
   const textWidth = textEndX - textStartX;
-  const textCenterX = (textStartX + textEndX) / 2;
-  const textCenterY = viewHeight / 2;
+  const textCenterX = (textStartX + textEndX) / 2 + (state.textOffsetX ?? 0);
+  const textCenterY = viewHeight / 2 + (state.textOffsetY ?? 0);
 
   // Fit font size using real measurements
   let fontSize = state.fontSize;
@@ -230,7 +237,7 @@ async function buildSimpleV2(state: SimpleKeychainState): Promise<BuildResult> {
       text2,
       textCenterX,
       textCenterY,
-      { fontId, fontSize, align: 'center' },
+      { fontId, fontSize, align: 'center', letterSpacing: state.letterSpacing ?? 0 },
       lineGap,
       isCut,
       isCut ? engraveStroke : 0.001
@@ -241,7 +248,7 @@ async function buildSimpleV2(state: SimpleKeychainState): Promise<BuildResult> {
       text,
       textCenterX,
       textCenterY,
-      { fontId, fontSize, align: 'center' },
+      { fontId, fontSize, align: 'center', letterSpacing: state.letterSpacing ?? 0 },
       isCut,
       isCut ? engraveStroke : 0.001
     );
@@ -301,7 +308,7 @@ async function buildSimpleV2(state: SimpleKeychainState): Promise<BuildResult> {
     }
   }
 
-  const cutContent = `${pathElement(finalShapePath, true, cutStroke)}\n    ${holeSvg}`;
+  const cutContent = `${pathElement(finalShapePath, true, cutStroke).replace('stroke="#000"', 'stroke="#ff0000"')}\n    ${holeSvg.replace('<circle ', '<circle stroke="#ff0000" fill="none" ')}`;
   const engraveContent = logoEngraveSvg ? `${textSvg}\n    ${logoEngraveSvg}` : textSvg;
 
   const options = { width: viewWidth, height: viewHeight, cutStroke, includeGuides: false };

@@ -31,14 +31,6 @@ export const DEFAULTS: LayoutSettings = {
   maxSheets: 20,
   overflowPolicy: 'new-sheet',
   
-  // Labels
-  showLabels: false,
-  exportLabels: false,
-  labelStyle: 'index',
-  labelFontSize: 3.2,
-  labelOffsetX: 1.2,
-  labelOffsetY: 1.2,
-  
   // Display
   showSheetOutline: true,
   showTileBounds: false,

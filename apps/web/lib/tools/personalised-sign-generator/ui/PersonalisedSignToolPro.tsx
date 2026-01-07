@@ -66,7 +66,7 @@ import {
 } from '../core/layers/model';
 
 import { generateTextOutline, offsetPath as offsetPathOps, translatePathD } from '../core/text/outlineOffset';
-import { textElementToPath } from '../core/text/textToPath';
+import { textElementToCurvedGlyphs, textElementToPath } from '../core/text/textToPath';
 
 import { renderPreviewSvgAsync, renderExportSvgAsync, generateProFilename } from '../core/renderProSvgAsync';
 import { sanitizeSvg, extractSvgFromResponse } from '../core/ai/sanitizeSvg';
@@ -384,13 +384,120 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
     const fontIds: string[] = [];
     for (const layer of doc.layers) {
       for (const el of layer.elements) {
-        if (el.kind === 'text' && el.fontId) {
+        if (el.kind === 'text') {
           fontIds.push(el.fontId);
         }
       }
     }
     void ensureFontsLoaded(Array.from(new Set(fontIds)));
   }, [doc]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const updates: Array<{ id: string; patch: Partial<TextElement> }> = [];
+
+      for (const layer of doc.layers) {
+        for (const el of layer.elements) {
+          if (el.kind !== 'text') continue;
+
+          const curvedMode = el.curvedMode || 'straight';
+          const curvedIntensity = el.curvedIntensity ?? 0;
+          const shouldCurve = Boolean(el.curved?.enabled) || (curvedMode !== 'straight' && curvedIntensity > 0);
+
+          try {
+            if (shouldCurve) {
+              const { glyphs, totalWidthMm } = await textElementToCurvedGlyphs(el);
+              if (glyphs.length > 0 && totalWidthMm > 0) {
+                const nextBounds = { width: totalWidthMm, height: el.sizeMm * 1.2 };
+                const sameGlyphs =
+                  Array.isArray(el._curvedGlyphs) &&
+                  el._curvedGlyphs.length === glyphs.length &&
+                  el._curvedGlyphs.every((g: any, i: number) => g?.d === glyphs[i]?.d && g?.transform === glyphs[i]?.transform);
+                const sameBounds = !!el._bounds && el._bounds.width === nextBounds.width && el._bounds.height === nextBounds.height;
+
+                if (!sameGlyphs || el._pathD !== undefined || !sameBounds) {
+                  updates.push({
+                    id: el.id,
+                    patch: {
+                      _curvedGlyphs: glyphs,
+                      _pathD: undefined,
+                      _bounds: nextBounds,
+                    },
+                  });
+                }
+              } else {
+                if (el._curvedGlyphs !== undefined) {
+                  updates.push({
+                    id: el.id,
+                    patch: { _curvedGlyphs: undefined },
+                  });
+                }
+              }
+              continue;
+            }
+
+            const textPath = await textElementToPath(el);
+            const basePathD: string = textPath.pathD || '';
+            if (!basePathD) {
+              updates.push({ id: el.id, patch: { _pathD: undefined, _curvedGlyphs: undefined, _bounds: undefined } });
+              continue;
+            }
+
+            let dx = 0;
+            if (el.align === 'right') {
+              dx = -textPath.advanceWidthMm;
+            } else if (el.align === 'center') {
+              dx = -textPath.advanceWidthMm / 2;
+            }
+
+            const emMiddleMm = (textPath.ascenderMm + textPath.descenderMm) / 2;
+            const dy = -emMiddleMm;
+
+            const alignedPathD = await translatePathD(basePathD, dx, dy);
+            const nextBounds = {
+              width: textPath.advanceWidthMm,
+              height: Math.abs(textPath.ascenderMm - textPath.descenderMm) || el.sizeMm * 1.2,
+            };
+            const sameBounds = !!el._bounds && el._bounds.width === nextBounds.width && el._bounds.height === nextBounds.height;
+            const sameFont = el._fontUsedId === textPath.usedFontId && el._fontUsedFallback === textPath.usedFallback;
+
+            if (el._pathD !== alignedPathD || el._curvedGlyphs !== undefined || !sameBounds || !sameFont) {
+              updates.push({
+                id: el.id,
+                patch: {
+                  _pathD: alignedPathD,
+                  _curvedGlyphs: undefined,
+                  _bounds: nextBounds,
+                  _fontUsedId: textPath.usedFontId,
+                  _fontUsedFallback: textPath.usedFallback,
+                },
+              });
+            }
+          } catch {
+            if (el._pathD !== undefined || el._curvedGlyphs !== undefined || el._bounds !== undefined) {
+              updates.push({ id: el.id, patch: { _pathD: undefined, _curvedGlyphs: undefined, _bounds: undefined } });
+            }
+          }
+        }
+      }
+
+      if (cancelled) return;
+      if (updates.length === 0) return;
+
+      updateDoc((d) => {
+        let next = d;
+        for (const u of updates) {
+          next = updateElement(next, u.id, u.patch as any);
+        }
+        return next;
+      }, false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [doc.layers, updateDoc]);
 
   // Export handler
   const handleExport = useCallback(async () => {
