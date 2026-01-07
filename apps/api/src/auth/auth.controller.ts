@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
@@ -8,6 +8,7 @@ import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import { EntitlementsService } from '../entitlements/entitlements.service';
+import { computeWpSsoSignatureHex, secureCompareHex } from '../common/wp-hmac';
 
 class LoginDto {
   @IsEmail()
@@ -30,6 +31,17 @@ class WpSsoDto {
   wpToken!: string;
 }
 
+class WpHmacSsoDto {
+  wpUserId!: number;
+  @IsEmail()
+  email!: string;
+  @IsString()
+  name!: string;
+  iat!: number;
+  @IsString()
+  signature!: string;
+}
+
 const prisma = new PrismaClient();
 
 @ApiTags('auth')
@@ -39,6 +51,65 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly entitlementsService: EntitlementsService,
   ) {}
+
+  @Post('wp/sso')
+  async wpHmacSso(@Body() body: WpHmacSsoDto) {
+    const secret = process.env.WP_SSO_SECRET;
+    if (!secret) {
+      throw new BadRequestException('WP SSO not configured');
+    }
+
+    const maxSkewSeconds = process.env.WP_SSO_MAX_SKEW_SECONDS
+      ? Number(process.env.WP_SSO_MAX_SKEW_SECONDS)
+      : 120;
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const skew = Math.abs(nowSeconds - Number(body.iat));
+    if (!Number.isFinite(skew) || skew > maxSkewSeconds) {
+      throw new UnauthorizedException('SSO token expired');
+    }
+
+    const expected = computeWpSsoSignatureHex({
+      wpUserId: body.wpUserId,
+      email: body.email,
+      iat: body.iat,
+      secret,
+    });
+    if (!secureCompareHex(body.signature, expected)) {
+      throw new UnauthorizedException('Invalid SSO signature');
+    }
+
+    let user = await prisma.user.findUnique({ where: { email: body.email } });
+    if (!user) {
+      const randomPassword = Math.random().toString(36).slice(2);
+      const hashed = await bcrypt.hash(randomPassword, 10);
+      user = await prisma.user.create({
+        data: {
+          email: body.email,
+          name: body.name,
+          role: 'WORKER',
+          password: hashed,
+        },
+      });
+    }
+
+    await (prisma as any).user.update({
+      where: { id: user.id },
+      data: { wpUserId: String(body.wpUserId) },
+    });
+
+    const accessToken = (jwt as any).sign(
+      {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        wpUserId: String(body.wpUserId),
+      },
+      process.env.JWT_ACCESS_SECRET || 'dev-access-secret',
+      { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' },
+    );
+
+    return { token: accessToken };
+  }
 
   @Post('login')
   async login(@Body() body: LoginDto) {

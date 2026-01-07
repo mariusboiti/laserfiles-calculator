@@ -18,3 +18,82 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+function clearAuthStorage() {
+  try {
+    window.localStorage.removeItem('accessToken');
+    window.localStorage.removeItem('refreshToken');
+    window.localStorage.removeItem('token');
+    window.localStorage.removeItem('user');
+    window.localStorage.removeItem('entitlements');
+  } catch {
+    // ignore
+  }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refreshToken = window.localStorage.getItem('refreshToken');
+    if (!refreshToken) return null;
+
+    try {
+      const res = await axios.post(
+        `${baseURL}/auth/refresh`,
+        { refreshToken },
+        { withCredentials: true }
+      );
+
+      const accessToken = res.data?.accessToken;
+      const nextRefreshToken = res.data?.refreshToken;
+
+      if (typeof accessToken === 'string' && accessToken.length > 0) {
+        window.localStorage.setItem('accessToken', accessToken);
+        if (typeof nextRefreshToken === 'string' && nextRefreshToken.length > 0) {
+          window.localStorage.setItem('refreshToken', nextRefreshToken);
+        }
+        return accessToken;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+apiClient.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const originalRequest = error?.config;
+    const status = error?.response?.status;
+
+    if (typeof window === 'undefined') throw error;
+
+    const reqAny = originalRequest as any;
+
+    if (status === 401 && originalRequest && !reqAny?.__isRetryRequest) {
+      reqAny.__isRetryRequest = true;
+      const newAccessToken = await refreshAccessToken();
+
+      if (newAccessToken) {
+        originalRequest.headers = originalRequest.headers ?? {};
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return apiClient.request(originalRequest);
+      }
+
+      clearAuthStorage();
+      window.location.href = '/login';
+    }
+
+    throw error;
+  }
+);
