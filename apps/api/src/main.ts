@@ -19,7 +19,7 @@ async function bootstrap() {
 
   app.use(
     bodyParser.json({
-      verify: (req: any, _res, buf) => {
+      verify: (req: any, _res: any, buf: Buffer) => {
         req.rawBody = buf;
       },
     }),
@@ -28,7 +28,7 @@ async function bootstrap() {
   app.use(
     bodyParser.urlencoded({
       extended: true,
-      verify: (req: any, _res, buf) => {
+      verify: (req: any, _res: any, buf: Buffer) => {
         req.rawBody = buf;
       },
     }),
