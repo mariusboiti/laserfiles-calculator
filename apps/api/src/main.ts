@@ -10,6 +10,7 @@ import { AppGlobals } from './app.globals';
 import { OffcutsService } from './offcuts/offcuts.service';
 import { SalesChannelsConnectionsService } from './sales-channels/sales-channels.connections.service';
 import * as bodyParser from 'body-parser';
+import * as express from 'express';
 
 async function bootstrap() {
   dotenv.config({ path: join(__dirname, '..', '.env') });
@@ -28,6 +29,7 @@ async function bootstrap() {
   app.use(
     bodyParser.urlencoded({
       extended: true,
+    express.json({
       verify: (req: any, _res, buf) => {
         req.rawBody = buf;
       },

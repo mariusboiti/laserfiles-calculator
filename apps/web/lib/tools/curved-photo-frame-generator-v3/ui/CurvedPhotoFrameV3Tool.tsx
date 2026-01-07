@@ -2,16 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
-import { Lock, Sparkles, Image as ImageIcon, Settings, Download, ZoomIn, ZoomOut, Box, RotateCcw } from 'lucide-react';
+import { Lock, Image as ImageIcon, Settings, Download, ZoomIn, ZoomOut, Box, RotateCcw } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { downloadTextFile } from '@/lib/studio/export/download';
+import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { downloadZip } from '@/lib/studio/export/zip';
 import { exportCurvedPhotoFrameV3Dxf } from '../core/exportDxf';
 import {
   processImagePipeline,
   imageDataToDataUrl,
   loadImageFromUrl,
-  aiClient,
   type ImageAdjustments,
   DEFAULT_ADJUSTMENTS,
 } from '@/lib/shared/image-pipeline';
@@ -59,7 +59,6 @@ export function CurvedPhotoFrameV3Tool({
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(undefined);
   const [processedPhotoDataUrl, setProcessedPhotoDataUrl] = useState<string | undefined>(undefined);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [cropPreview, setCropPreview] = useState<string | undefined>(undefined);
 
   const [aiSettings, setAiSettings] = useState(DEFAULT_AI_SETTINGS);
   const [engraveSettings, setEngraveSettings] = useState(DEFAULT_ENGRAVE_SETTINGS);
@@ -85,7 +84,6 @@ export function CurvedPhotoFrameV3Tool({
       const dataUrl = reader.result as string;
       setPhotoDataUrl(dataUrl);
       setProcessedPhotoDataUrl(undefined);
-      setCropPreview(undefined);
     };
     reader.readAsDataURL(file);
   }, []);
@@ -208,54 +206,6 @@ export function CurvedPhotoFrameV3Tool({
       frameSettings.kerfRowSpacingMm,
     ]
   );
-
-  const handleAutoCrop = useCallback(async () => {
-    if (!photoDataUrl) return;
-    if (!featureFlags.isProUser) {
-      alert('Auto-Crop is a PRO feature');
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      const safe = computeEngraveSafeAreaMm(frameSettings);
-      const aspectRatio = safe.safeWmm / safe.safeHmm;
-      const result = await aiClient.autoCrop(photoDataUrl, aspectRatio);
-
-      const img = await loadImageFromUrl(photoDataUrl);
-      const canvas = document.createElement('canvas');
-      const crop = result.crop;
-      canvas.width = crop.width;
-      canvas.height = crop.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Failed to get canvas context');
-
-      const tempImg = new Image();
-      tempImg.src = photoDataUrl;
-      await new Promise((resolve) => {
-        tempImg.onload = resolve;
-      });
-
-      ctx.drawImage(tempImg, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
-      const croppedDataUrl = canvas.toDataURL('image/png');
-      setCropPreview(croppedDataUrl);
-      setPhotoDataUrl(croppedDataUrl);
-    } catch (error) {
-      console.error('Auto-crop failed:', error);
-      alert('Auto-crop failed. Using original image.');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [
-    photoDataUrl,
-    frameSettings.photoWidthMm,
-    frameSettings.photoHeightMm,
-    frameSettings.borderMm,
-    frameSettings.bendZoneHeightMm,
-    frameSettings.supportLipHeightMm,
-    frameSettings.kerfRowSpacingMm,
-    featureFlags.isProUser,
-  ]);
 
   const handleProcessPhoto = useCallback(async () => {
     if (!photoDataUrl) return;
@@ -679,7 +629,6 @@ export function CurvedPhotoFrameV3Tool({
     setPhotoFile(null);
     setPhotoDataUrl(undefined);
     setProcessedPhotoDataUrl(undefined);
-    setCropPreview(undefined);
     setAiSettings(DEFAULT_AI_SETTINGS);
     setEngraveSettings(DEFAULT_ENGRAVE_SETTINGS);
     setFrameSettings(DEFAULT_FRAME_SETTINGS);
@@ -745,26 +694,10 @@ export function CurvedPhotoFrameV3Tool({
             {photoDataUrl && (
               <>
                 <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                  <div className="text-sm font-medium text-slate-100 mb-3">Crop & Adjust</div>
-                  <button
-                    onClick={handleAutoCrop}
-                    disabled={isProcessing || !featureFlags.isProUser}
-                    className="w-full rounded-md bg-sky-600 px-4 py-2 text-sm text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {!featureFlags.isProUser && <Lock className="w-4 h-4" />}
-                    <Sparkles className="w-4 h-4" />
-                    {isProcessing ? 'Processing...' : 'Auto-Crop (Smart)'}
-                  </button>
-                  {!featureFlags.isProUser && (
-                    <div className="mt-2 text-xs text-amber-400">PRO feature: Face/subject aware cropping</div>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
                   <div className="text-sm font-medium text-slate-100 mb-3">Preview</div>
                   <div className="aspect-[3/4] bg-slate-900 rounded-lg overflow-hidden">
                     <img
-                      src={cropPreview || photoDataUrl}
+                      src={photoDataUrl}
                       alt="Photo preview"
                       className="w-full h-full object-contain"
                     />
@@ -836,27 +769,7 @@ export function CurvedPhotoFrameV3Tool({
 
               <div className="pt-3 border-t border-slate-800">
                 <div className="text-xs font-medium text-slate-300 mb-2">Photo Position & Size</div>
-                <div className="grid grid-cols-3 gap-2">
-                  <label className="grid gap-1">
-                    <div className="text-xs text-slate-400">X Offset (mm)</div>
-                    <input
-                      type="number"
-                      step={1}
-                      value={aiSettings.photoOffsetXMm}
-                      onChange={(e) => setAiSettings((prev) => ({ ...prev, photoOffsetXMm: Number(e.target.value) }))}
-                      className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-sm text-slate-100"
-                    />
-                  </label>
-                  <label className="grid gap-1">
-                    <div className="text-xs text-slate-400">Y Offset (mm)</div>
-                    <input
-                      type="number"
-                      step={1}
-                      value={aiSettings.photoOffsetYMm}
-                      onChange={(e) => setAiSettings((prev) => ({ ...prev, photoOffsetYMm: Number(e.target.value) }))}
-                      className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-sm text-slate-100"
-                    />
-                  </label>
+                <div className="grid grid-cols-1 gap-2">
                   <label className="grid gap-1">
                     <div className="text-xs text-slate-400">Scale (%)</div>
                     <input
@@ -971,8 +884,6 @@ export function CurvedPhotoFrameV3Tool({
                   onClick={() =>
                     setAiSettings((prev) => ({
                       ...prev,
-                      photoOffsetXMm: 0,
-                      photoOffsetYMm: 0,
                       photoScale: 1.0,
                       cropFocusX: 0.5,
                       cropFocusY: 0,
@@ -1336,6 +1247,27 @@ export function CurvedPhotoFrameV3Tool({
                 >
                   {!featureFlags.isProUser && <Lock className="inline w-3 h-3 mr-1" />}
                   PDF
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const artifact = await createArtifact({
+                        toolSlug: 'curved-photo-frame-v3',
+                        name: `curved-frame-${Date.now()}`,
+                        svg: result.svgs.combined,
+                        meta: {
+                          bboxMm: { width: frameSettings.photoWidthMm + frameSettings.borderMm * 2, height: frameSettings.photoHeightMm + frameSettings.borderMm * 2 },
+                          operations: { hasCuts: true, hasEngraves: true },
+                        },
+                      });
+                      addToPriceCalculator(artifact);
+                    } catch (e) {
+                      console.error('Failed to add to price calculator:', e);
+                    }
+                  }}
+                  className="col-span-2 rounded-md border-2 border-emerald-500 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/20"
+                >
+                  💰 Add to Price Calculator
                 </button>
               </div>
               <div className="mt-3 text-xs text-slate-400">

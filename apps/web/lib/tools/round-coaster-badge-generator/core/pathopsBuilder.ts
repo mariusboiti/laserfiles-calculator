@@ -22,9 +22,9 @@ export interface BadgeBuilderConfig {
     widthMm: number;
   };
   
-  // Base shape (for round/shield badges)
+  // Base shape (optional)
   baseShape?: {
-    type: 'circle' | 'shield' | 'custom';
+    type: 'circle' | 'custom';
     path?: string; // For custom shapes
     cx: number;
     cy: number;
@@ -102,7 +102,7 @@ export async function buildBadgeWithPathOps(
   let basePath: any;
   
   if (config.baseShape) {
-    // Use base shape (circle/shield) instead of sticker outline
+    // Use base shape instead of sticker outline
     if (config.baseShape.type === 'circle') {
       basePath = pk.makeCircle(
         config.baseShape.cx,

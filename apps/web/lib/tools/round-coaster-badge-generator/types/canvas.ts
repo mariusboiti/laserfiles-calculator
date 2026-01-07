@@ -34,7 +34,7 @@ export interface BaseElement {
 
 export interface ShapeElement extends BaseElement {
   kind: 'shape';
-  shapeType: 'circle' | 'hex' | 'octagon' | 'scalloped' | 'shield';
+  shapeType: 'circle' | 'hex' | 'octagon' | 'scalloped';
   pathD: string;
   widthMm: number;
   heightMm: number;
@@ -134,7 +134,7 @@ export interface CanvasDocument {
   artboard: {
     widthMm: number;
     heightMm: number;
-    shapeType: 'circle' | 'hex' | 'octagon' | 'scalloped' | 'shield';
+    shapeType: 'circle' | 'hex' | 'octagon' | 'scalloped';
     basePathD: string;
   };
   elements: CanvasElement[];

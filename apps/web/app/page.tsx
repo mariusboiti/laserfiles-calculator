@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function StudioPage() {
+export default function HomePage() {
   redirect('/studio/dashboard');
 }

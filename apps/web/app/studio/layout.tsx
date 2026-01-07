@@ -23,7 +23,8 @@ function StudioShell({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
-  const BYPASS_LOGIN = true;
+  const BYPASS_LOGIN =
+    process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_BYPASS_LOGIN === 'true';
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
@@ -77,28 +78,11 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             <div className="min-h-screen bg-slate-950 text-slate-100">
               <StudioHeader />
               <main className="mx-auto w-full max-w-7xl px-6 py-6 md:px-8 overflow-x-hidden">{children}</main>
-              <StudioFooter />
             </div>
             <ReleaseChecklist />
           </DisclaimerProvider>
         </ToastProvider>
       </NetworkProvider>
     </AppErrorBoundary>
-  );
-}
-
-function StudioFooter() {
-  const { openDisclaimer } = useDisclaimer();
-
-  return (
-    <footer className="mx-auto w-full max-w-7xl px-6 pb-8 md:px-8">
-      <button
-        type="button"
-        onClick={openDisclaimer}
-        className="text-xs text-slate-500 hover:text-slate-300"
-      >
-        Disclaimer & Responsibility
-      </button>
-    </footer>
   );
 }

@@ -12,6 +12,7 @@ import { importSvgAsFace } from '../../../src/lib/svgImport';
 import { mergeSvgWithOverlays, type EngraveOverlayItem } from '../../core/shared/mergeSvgWithOverlays';
 import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
 import { AIWarningBanner } from '@/components/ai';
+import { Trash2 } from 'lucide-react';
 
 type FaceArtworkPlacement = {
   x: number;
@@ -585,7 +586,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
       };
     };
 
-    const faces: GeneratedFace[] = out.faces.map((f): GeneratedFace => {
+    const facesRaw: GeneratedFace[] = out.faces.map((f): GeneratedFace => {
       if (f.name === 'lid') {
         return {
           ...f,
@@ -607,6 +608,8 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
       }
       return f;
     });
+
+    const faces: GeneratedFace[] = facesRaw.filter((f) => f.name !== 'lid_inner');
 
     // Calculate hinge holes for left and right panels
     const hingeHoles: { left: { cx: number; cy: number; r: number } | null; right: { cx: number; cy: number; r: number } | null } = {
@@ -748,7 +751,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
   const faceKeys = useMemo(() => {
     const order = ['front', 'back', 'left', 'right', 'bottom', 'top', 'lid'];
-    const keys = faces.map((f) => f.name);
+    const keys = faces.map((f) => f.name).filter((k) => k !== 'lid_inner');
     const uniq = Array.from(new Set(keys));
     uniq.sort((a, b) => order.indexOf(a) - order.indexOf(b));
     return uniq;
@@ -1037,53 +1040,93 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
   };
 
   const handleExportAll = () => {
-    // Export each panel as a separate SVG file in a combined layout
+    // Export all faces into a single SVG laid out in 2 columns.
     const margin = 10;
-    let currentX = 0;
-    let maxHeight = 0;
-    
-    // Calculate layout
-    const layouts: { name: string; x: number; y: number; width: number; height: number; svg: string }[] = [];
-    
-    faceKeys.forEach((name) => {
+    const columns = 2;
+
+    type FaceLayout = {
+      name: string;
+      col: number;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      vbMinX: number;
+      vbMinY: number;
+      inner: string;
+    };
+
+    const parsed: Array<{ name: string; vb: [number, number, number, number]; inner: string }> = [];
+
+    for (const name of faceKeys) {
       const svg = faceSvgs.get(name) || '';
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(svg, 'image/svg+xml');
+      if (!svg) continue;
+      const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
       const svgEl = doc.querySelector('svg');
-      
-      if (svgEl) {
-        const viewBox = svgEl.getAttribute('viewBox')?.split(' ').map(parseFloat) || [0, 0, 100, 100];
-        const width = viewBox[2] - viewBox[0];
-        const height = viewBox[3] - viewBox[1];
-        
-        layouts.push({
-          name,
-          x: currentX,
-          y: 0,
-          width,
-          height,
-          svg: svgEl.innerHTML
-        });
-        
-        currentX += width + margin;
-        maxHeight = Math.max(maxHeight, height);
-      }
-    });
-    
-    // Create combined SVG
-    const totalWidth = currentX - margin;
-    const combinedSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${maxHeight}" width="${totalWidth}mm" height="${maxHeight}mm">
-${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
-    ${l.svg}
-  </g>`).join('\n')}
-</svg>`;
-    
+      if (!svgEl) continue;
+
+      const vbRaw = svgEl.getAttribute('viewBox')?.trim() || '0 0 100 100';
+      const vbParts = vbRaw
+        .split(/[\s,]+/)
+        .map((n) => Number(n))
+        .filter((n) => Number.isFinite(n));
+      const vb: [number, number, number, number] =
+        vbParts.length === 4 ? [vbParts[0], vbParts[1], vbParts[2], vbParts[3]] : [0, 0, 100, 100];
+
+      parsed.push({ name, vb, inner: svgEl.innerHTML });
+    }
+
+    if (parsed.length === 0) return;
+
+    // Column widths are based on max panel width per column in the given order (index%2).
+    const colMaxW = new Array(columns).fill(0);
+    for (let i = 0; i < parsed.length; i += 1) {
+      const col = i % columns;
+      const [, , w] = parsed[i].vb;
+      colMaxW[col] = Math.max(colMaxW[col], Math.max(1, w));
+    }
+
+    const colX: number[] = [];
+    let xCursor = 0;
+    for (let c = 0; c < columns; c += 1) {
+      colX[c] = xCursor;
+      xCursor += colMaxW[c] + (c === columns - 1 ? 0 : margin);
+    }
+
+    const yCursor = new Array(columns).fill(0);
+    const layouts: FaceLayout[] = [];
+
+    for (let i = 0; i < parsed.length; i += 1) {
+      const p = parsed[i];
+      const col = i % columns;
+      const [vbMinX, vbMinY, vbW, vbH] = p.vb;
+      const w = Math.max(1, vbW);
+      const h = Math.max(1, vbH);
+
+      const x = colX[col];
+      const y = yCursor[col];
+      yCursor[col] += h + margin;
+
+      layouts.push({ name: p.name, col, x, y, w, h, vbMinX, vbMinY, inner: p.inner });
+    }
+
+    const totalW = colX[columns - 1] + colMaxW[columns - 1];
+    const totalH = Math.max(...yCursor.map((v) => (v > 0 ? v - margin : 0)));
+
+    const combinedSvg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}" width="${totalW}mm" height="${totalH}mm">\n${layouts
+      .map((l) => {
+        // Translate inner content so its viewBox origin aligns at the placed panel origin.
+        const tx = (l.x - l.vbMinX).toFixed(3);
+        const ty = (l.y - l.vbMinY).toFixed(3);
+        return `  <g transform="translate(${tx} ${ty})">\n    ${l.inner}\n  </g>`;
+      })
+      .join('\n')}\n</svg>`;
+
     const blob = new Blob([combinedSvg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'hinged-box-all.svg';
+    a.download = 'boxmaker-hinged-all-panels.svg';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1260,9 +1303,10 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
                   setEngraveItems((prev) => prev.filter((x) => x.id !== selectedEngraveItem.id));
                   setSelectedEngraveId(null);
                 }}
-                className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:border-rose-500 hover:text-rose-200"
+                className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
+                title="Delete layer"
               >
-                Remove
+                <Trash2 className="h-3 w-3" />
               </button>
             </div>
 
@@ -1460,18 +1504,29 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
             {engraveItems.length > 0 ? (
               <div className="mt-1 space-y-1">
                 {engraveItems.map((item) => (
-                  <button
+                  <div
                     key={item.id}
-                    type="button"
-                    onClick={() => setSelectedEngraveId(item.id)}
                     className={
                       selectedEngraveId === item.id
-                        ? 'w-full rounded-md border border-sky-500 bg-slate-900 px-2 py-1 text-left text-[11px] text-slate-100'
-                        : 'w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-left text-[11px] text-slate-300 hover:border-slate-600'
+                        ? 'flex w-full items-center gap-2 rounded-md border border-sky-500 bg-slate-900 px-2 py-1 text-[11px] text-slate-100'
+                        : 'flex w-full items-center gap-2 rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[11px] text-slate-300 hover:border-slate-600'
                     }
                   >
-                    {item.fileName}
-                  </button>
+                    <button type="button" onClick={() => setSelectedEngraveId(item.id)} className="min-w-0 flex-1 truncate text-left">
+                      {item.fileName}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEngraveItems((prev) => prev.filter((x) => x.id !== item.id));
+                        setSelectedEngraveId((prev) => (prev === item.id ? null : prev));
+                      }}
+                      className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
+                      title="Delete layer"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -1653,12 +1708,11 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
           ) : viewMode === 'all' ? (
             <div
               id="preview-content"
-              className="grid w-full max-w-5xl grid-cols-3 gap-6 transition-transform"
+              className="grid w-full max-w-5xl grid-cols-2 gap-6 transition-transform"
               style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: 'center' }}
             >
               {faceKeys.map((name) => (
                 <div key={name} className="bg-slate-900 rounded p-3 w-full">
-                  <div className="text-[10px] text-slate-500 mb-2 uppercase font-medium">{name}</div>
                   <div className="relative w-full aspect-square bg-white rounded flex items-center justify-center overflow-hidden">
                     <div
                       className="absolute inset-0 [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
@@ -1688,6 +1742,7 @@ ${layouts.map(l => `  <g transform="translate(${l.x}, ${l.y})">
                       );
                     })()}
                   </div>
+                  <div className="mt-2 text-xs font-medium text-slate-300 text-center uppercase">{name}</div>
                 </div>
               ))}
             </div>

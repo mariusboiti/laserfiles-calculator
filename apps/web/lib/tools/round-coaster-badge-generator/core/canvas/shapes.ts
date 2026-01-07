@@ -4,7 +4,7 @@
  * Shapes are generated centered at ORIGIN (0,0) - transform handles positioning
  */
 
-export type ShapeType = 'circle' | 'hex' | 'octagon' | 'scalloped' | 'shield';
+export type ShapeType = 'circle' | 'hex' | 'octagon' | 'scalloped';
 
 /**
  * Generate circle path centered at origin
@@ -70,27 +70,6 @@ export function scallopedPath(r: number, scallops: number = 12): string {
 }
 
 /**
- * Generate shield path centered at origin
- */
-export function shieldPath(w: number, h: number): string {
-  const halfW = w / 2;
-  const halfH = h / 2;
-  const topY = -halfH;
-  const midY = h * 0.1 - halfH;
-  const bottomY = halfH;
-  const cornerR = w * 0.08;
-
-  return `M ${-halfW + cornerR} ${topY} ` +
-    `L ${halfW - cornerR} ${topY} ` +
-    `Q ${halfW} ${topY} ${halfW} ${topY + cornerR} ` +
-    `L ${halfW} ${midY} ` +
-    `Q ${halfW} ${midY + h * 0.15} 0 ${bottomY} ` +
-    `Q ${-halfW} ${midY + h * 0.15} ${-halfW} ${midY} ` +
-    `L ${-halfW} ${topY + cornerR} ` +
-    `Q ${-halfW} ${topY} ${-halfW + cornerR} ${topY} Z`;
-}
-
-/**
  * Generate shape path based on type - centered at origin (0,0)
  */
 export function generateShapePath(
@@ -110,8 +89,6 @@ export function generateShapePath(
       return octagonPath(r);
     case 'scalloped':
       return scallopedPath(r);
-    case 'shield':
-      return shieldPath(width || size, height || size * 1.15);
     default:
       return circlePath(r);
   }
@@ -132,8 +109,6 @@ export function getShapeBounds(
     case 'octagon':
     case 'scalloped':
       return { widthMm: size, heightMm: size };
-    case 'shield':
-      return { widthMm: width || size, heightMm: height || size * 1.15 };
     default:
       return { widthMm: size, heightMm: size };
   }
@@ -159,11 +134,6 @@ export function getInscribedRadius(
       return r * Math.cos(Math.PI / 8); // ~0.924
     case 'scalloped':
       return r * 0.85;
-    case 'shield': {
-      const w = width || size;
-      const h = height || size * 1.15;
-      return Math.min(w, h) * 0.4; // Conservative estimate for shield
-    }
     default:
       return r;
   }

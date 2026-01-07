@@ -1,5 +1,7 @@
 export type AspectRatio = '1:1' | '4:5' | '16:9' | '9:16';
 
+export type CanvasShape = 'rectangle' | 'circle';
+
 export type DepthStyle = 'bas-relief-engraving';
 
 export type BackgroundStyle = 'clean' | 'cinematic' | 'minimal';
@@ -149,4 +151,9 @@ export const ASPECT_RATIOS: Record<AspectRatio, { label: string; width: number; 
   '4:5': { label: '4:5 (Portrait)', width: 896, height: 1120 },
   '16:9': { label: '16:9 (Landscape)', width: 1344, height: 768 },
   '9:16': { label: '9:16 (Vertical)', width: 768, height: 1344 },
+};
+
+export const CANVAS_SHAPES: Record<CanvasShape, { label: string }> = {
+  'rectangle': { label: 'Rectangle' },
+  'circle': { label: 'Circle' },
 };

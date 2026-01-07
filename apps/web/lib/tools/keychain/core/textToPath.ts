@@ -54,12 +54,10 @@ export async function textToSvgPath(
     const letterSpacingPx = (opts.letterSpacing || 0) * PX_PER_MM;
 
     // Generate path at origin
-    const path = font.getPath(text, 0, 0, fontSizePx);
-
-    // Apply letter spacing if needed
-    if (letterSpacingPx > 0) {
-      applyLetterSpacing(path, text, letterSpacingPx);
-    }
+    // If letterSpacing is used, generate per-glyph so spacing is accurate.
+    const path = Math.abs(letterSpacingPx) > 0.0001
+      ? buildTextPathWithLetterSpacing(font, text, fontSizePx, letterSpacingPx)
+      : font.getPath(text, 0, 0, fontSizePx);
 
     // Get bounding box
     const opentypeBBox = path.getBoundingBox();
@@ -429,8 +427,45 @@ function commandsToPathData(commands: PathCommand[]): string {
 /**
  * Apply letter spacing to path (simplified - shifts glyphs)
  */
-function applyLetterSpacing(path: opentype.Path, text: string, spacingPx: number): void {
-  // Note: This is a simplified approach. For proper letter spacing,
-  // you'd need to generate paths per-character and position them.
-  // opentype.js path commands are already combined, so we skip this for now.
+function buildTextPathWithLetterSpacing(
+  font: opentype.Font,
+  text: string,
+  fontSizePx: number,
+  letterSpacingPx: number
+): opentype.Path {
+  const out = new opentype.Path();
+  const scale = fontSizePx / (font.unitsPerEm || 1000);
+
+  let x = 0;
+  let prevGlyph: opentype.Glyph | null = null;
+
+  for (const ch of Array.from(text)) {
+    const glyph = font.charToGlyph(ch);
+
+    // Apply kerning
+    if (prevGlyph) {
+      try {
+        const k = font.getKerningValue(prevGlyph, glyph);
+        x += k * scale;
+      } catch {
+        // ignore kerning errors
+      }
+    }
+
+    // Add glyph outline
+    // For whitespace glyphs, getPath may be empty (that's fine).
+    try {
+      const gp = glyph.getPath(x, 0, fontSizePx);
+      out.commands.push(...gp.commands);
+    } catch {
+      // ignore glyph errors
+    }
+
+    // Advance width + requested spacing
+    const adv = (glyph.advanceWidth || font.unitsPerEm || 1000) * scale;
+    x += adv + letterSpacingPx;
+    prevGlyph = glyph;
+  }
+
+  return out;
 }

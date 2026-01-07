@@ -139,7 +139,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           className={`${buttonClass(hasSelection)} px-2 text-[10px]`}
           title="Center on artboard"
         >
-          Center
+          Snap to center
         </button>
       </div>
 

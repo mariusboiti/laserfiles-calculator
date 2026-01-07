@@ -50,26 +50,6 @@ function octagonToPath(cx: number, cy: number, r: number): string {
     points.slice(1).map(p => `L ${p[0]} ${p[1]}`).join(' ') + ' Z';
 }
 
-// Generate shield path
-function shieldToPath(cx: number, cy: number, w: number, h: number): string {
-  const halfW = w / 2;
-  const topY = cy - h / 2;
-  const midY = cy + h * 0.1;
-  const bottomY = cy + h / 2;
-  
-  // Shield shape: flat top with rounded corners, pointed bottom
-  const cornerR = w * 0.08;
-  
-  return `M ${cx - halfW + cornerR} ${topY} ` +
-    `L ${cx + halfW - cornerR} ${topY} ` +
-    `Q ${cx + halfW} ${topY} ${cx + halfW} ${topY + cornerR} ` +
-    `L ${cx + halfW} ${midY} ` +
-    `Q ${cx + halfW} ${midY + h * 0.15} ${cx} ${bottomY} ` +
-    `Q ${cx - halfW} ${midY + h * 0.15} ${cx - halfW} ${midY} ` +
-    `L ${cx - halfW} ${topY + cornerR} ` +
-    `Q ${cx - halfW} ${topY} ${cx - halfW + cornerR} ${topY} Z`;
-}
-
 // Generate scalloped circle path
 function scallopedCircleToPath(cx: number, cy: number, r: number, scallops: number = 12): string {
   const points: string[] = [];
@@ -116,8 +96,6 @@ function generateShapePath(
       return octagonToPath(cx, cy, r);
     case 'scalloped':
       return scallopedCircleToPath(cx, cy, r);
-    case 'shield':
-      return shieldToPath(cx, cy, width || size, height || size * 1.15);
     default:
       return circleToPath(cx, cy, r);
   }
@@ -144,12 +122,6 @@ function generateInnerShapePath(
       return octagonToPath(cx, cy, r);
     case 'scalloped':
       return scallopedCircleToPath(cx, cy, r);
-    case 'shield': {
-      const scale = 1 - (inset * 2 / (width || size));
-      const w = ((width || size) - inset * 2);
-      const h = ((height || size * 1.15) - inset * 2);
-      return shieldToPath(cx, cy, w, h);
-    }
     default:
       return circleToPath(cx, cy, r);
   }

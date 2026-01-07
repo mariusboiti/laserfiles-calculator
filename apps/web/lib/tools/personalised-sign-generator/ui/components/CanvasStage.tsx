@@ -110,6 +110,16 @@ interface MarqueeState {
   startClientY: number;
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (el.isContentEditable) return true;
+  const editableAncestor = el.closest?.('[contenteditable="true"]');
+  return Boolean(editableAncestor);
+}
+
 export const CanvasStage = React.forwardRef<
   { fitView: () => void; zoomIn: () => void; zoomOut: () => void },
   CanvasStageProps
@@ -343,6 +353,9 @@ export const CanvasStage = React.forwardRef<
   // Handle keyboard
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't steal Space while the user is typing in an input.
+      if (isEditableTarget(e.target)) return;
+
       if (e.code === 'Space' && !isSpacePressed) {
         setIsSpacePressed(true);
         e.preventDefault();
@@ -427,6 +440,7 @@ export const CanvasStage = React.forwardRef<
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
       if (e.code === 'Space') {
         setIsSpacePressed(false);
       }
@@ -1194,7 +1208,24 @@ export const CanvasStage = React.forwardRef<
 
     switch (element.kind) {
       case 'text': {
-        // Render text as path if available, otherwise as text
+        // Render text as curved glyphs if available, otherwise as path, otherwise as text
+        if (element._curvedGlyphs && element._curvedGlyphs.length > 0) {
+          return (
+            <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
+              {element._curvedGlyphs.map((g, i) => (
+                <g key={i} transform={g.transform}>
+                  <path d={g.d} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
+                  <path
+                    d={g.d}
+                    fill={isEngraveLayer || element.mode === 'ENGRAVE_FILLED' ? '#000' : 'none'}
+                    stroke={element.mode === 'CUT_OUTLINE' ? strokeColor : 'none'}
+                    strokeWidth={0.3}
+                  />
+                </g>
+              ))}
+            </g>
+          );
+        }
         if (element._pathD) {
           return (
             <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>

@@ -14,7 +14,6 @@ export type LayoutOptions = {
 // V2 Types
 export type LayoutMode = 'grid' | 'pack';
 
-export type LabelStyle = 'index' | 'templateName' | 'templateName+index';
 
 export type OverflowPolicy = 'new-sheet' | 'stop-and-warn';
 
@@ -58,13 +57,6 @@ export interface LayoutSettings {
   maxSheets: number;
   overflowPolicy: OverflowPolicy;
   
-  // Labels
-  showLabels: boolean;
-  exportLabels: boolean;
-  labelStyle: LabelStyle;
-  labelFontSize: number;
-  labelOffsetX: number;
-  labelOffsetY: number;
   
   // Display
   showSheetOutline: boolean;
@@ -86,7 +78,6 @@ export interface PlacedItem {
   w: number;
   h: number;
   rotateDeg: number;
-  label?: string;
 }
 
 export interface SheetLayout {
