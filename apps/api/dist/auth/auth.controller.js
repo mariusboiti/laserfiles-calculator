@@ -56,6 +56,7 @@ const client_1 = require("@prisma/client");
 const bcrypt = __importStar(require("bcryptjs"));
 const jwt = __importStar(require("jsonwebtoken"));
 const entitlements_service_1 = require("../entitlements/entitlements.service");
+const wp_hmac_1 = require("../common/wp-hmac");
 class LoginDto {
 }
 __decorate([
@@ -81,11 +82,72 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], WpSsoDto.prototype, "wpToken", void 0);
+class WpHmacSsoDto {
+}
+__decorate([
+    (0, class_validator_1.IsEmail)(),
+    __metadata("design:type", String)
+], WpHmacSsoDto.prototype, "email", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], WpHmacSsoDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], WpHmacSsoDto.prototype, "signature", void 0);
 const prisma = new client_1.PrismaClient();
 let AuthController = class AuthController {
     constructor(authService, entitlementsService) {
         this.authService = authService;
         this.entitlementsService = entitlementsService;
+    }
+    async wpHmacSso(body) {
+        const secret = process.env.WP_SSO_SECRET;
+        if (!secret) {
+            throw new common_1.BadRequestException('WP SSO not configured');
+        }
+        const maxSkewSeconds = process.env.WP_SSO_MAX_SKEW_SECONDS
+            ? Number(process.env.WP_SSO_MAX_SKEW_SECONDS)
+            : 120;
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const skew = Math.abs(nowSeconds - Number(body.iat));
+        if (!Number.isFinite(skew) || skew > maxSkewSeconds) {
+            throw new common_1.UnauthorizedException('SSO token expired');
+        }
+        const expected = (0, wp_hmac_1.computeWpSsoSignatureHex)({
+            wpUserId: body.wpUserId,
+            email: body.email,
+            iat: body.iat,
+            secret,
+        });
+        if (!(0, wp_hmac_1.secureCompareHex)(body.signature, expected)) {
+            throw new common_1.UnauthorizedException('Invalid SSO signature');
+        }
+        let user = await prisma.user.findUnique({ where: { email: body.email } });
+        if (!user) {
+            const randomPassword = Math.random().toString(36).slice(2);
+            const hashed = await bcrypt.hash(randomPassword, 10);
+            user = await prisma.user.create({
+                data: {
+                    email: body.email,
+                    name: body.name,
+                    role: 'WORKER',
+                    password: hashed,
+                },
+            });
+        }
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { wpUserId: String(body.wpUserId) },
+        });
+        const accessToken = jwt.sign({
+            sub: user.id,
+            email: user.email,
+            role: user.role,
+            wpUserId: String(body.wpUserId),
+        }, process.env.JWT_ACCESS_SECRET || 'dev-access-secret', { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' });
+        return { token: accessToken };
     }
     async login(body) {
         const user = await prisma.user.findUnique({ where: { email: body.email } });
@@ -174,6 +236,13 @@ let AuthController = class AuthController {
     }
 };
 exports.AuthController = AuthController;
+__decorate([
+    (0, common_1.Post)('wp/sso'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [WpHmacSsoDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "wpHmacSso", null);
 __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),
