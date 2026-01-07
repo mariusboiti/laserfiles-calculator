@@ -9,6 +9,7 @@ import { join } from 'path';
 import { AppGlobals } from './app.globals';
 import { OffcutsService } from './offcuts/offcuts.service';
 import { SalesChannelsConnectionsService } from './sales-channels/sales-channels.connections.service';
+import * as bodyParser from 'body-parser';
 import * as express from 'express';
 
 async function bootstrap() {
@@ -18,6 +19,16 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
 
   app.use(
+    bodyParser.json({
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use(
+    bodyParser.urlencoded({
+      extended: true,
     express.json({
       verify: (req: any, _res, buf) => {
         req.rawBody = buf;
