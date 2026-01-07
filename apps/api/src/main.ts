@@ -9,12 +9,30 @@ import { join } from 'path';
 import { AppGlobals } from './app.globals';
 import { OffcutsService } from './offcuts/offcuts.service';
 import { SalesChannelsConnectionsService } from './sales-channels/sales-channels.connections.service';
+import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
   dotenv.config({ path: join(__dirname, '..', '.env') });
   console.log('DATABASE_URL at runtime:', process.env.DATABASE_URL);
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+
+  app.use(
+    bodyParser.json({
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use(
+    bodyParser.urlencoded({
+      extended: true,
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
 
   // Initialize global service references for controllers that cannot rely on normal DI
   try {
