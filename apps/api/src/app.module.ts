@@ -17,6 +17,7 @@ import { SalesChannelsModule } from './sales-channels/sales-channels.module';
 import { ProductionModule } from './production/production.module';
 import { OffcutsModule } from './offcuts/offcuts.module';
 import { UsageModule } from './usage/usage.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UsageModule } from './usage/usage.module';
     ProductionModule,
     OffcutsModule,
     UsageModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}

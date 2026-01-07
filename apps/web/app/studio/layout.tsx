@@ -23,7 +23,8 @@ function StudioShell({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
-  const BYPASS_LOGIN = true;
+  const BYPASS_LOGIN =
+    process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_BYPASS_LOGIN === 'true';
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken') || localStorage.getItem('token');

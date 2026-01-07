@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { STUDIO_NAV, isActivePath } from '@/lib/studio/navigation/studioNav';
 import { AICreditsInfoPanel } from '@/components/ai';
 import { useDisclaimer } from '@/components/legal';
+import { LanguageSwitcher } from '@/app/(app)/i18n';
 
 export function StudioHeader() {
   const pathname = usePathname();
@@ -62,6 +63,7 @@ export function StudioHeader() {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             <button
               type="button"
               onClick={openDisclaimer}
