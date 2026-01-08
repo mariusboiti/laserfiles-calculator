@@ -43,12 +43,18 @@ const path_1 = require("path");
 const app_globals_1 = require("./app.globals");
 const offcuts_service_1 = require("./offcuts/offcuts.service");
 const sales_channels_connections_service_1 = require("./sales-channels/sales-channels.connections.service");
-const express = __importStar(require("express"));
+const bodyParser = __importStar(require("body-parser"));
 async function bootstrap() {
     dotenv.config({ path: (0, path_1.join)(__dirname, '..', '.env') });
     console.log('DATABASE_URL at runtime:', process.env.DATABASE_URL);
     const app = await core_1.NestFactory.create(app_module_1.AppModule, { bodyParser: false });
-    app.use(express.json({
+    app.use(bodyParser.json({
+        verify: (req, _res, buf) => {
+            req.rawBody = buf;
+        },
+    }));
+    app.use(bodyParser.urlencoded({
+        extended: true,
         verify: (req, _res, buf) => {
             req.rawBody = buf;
         },
