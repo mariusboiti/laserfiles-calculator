@@ -20,8 +20,9 @@ export class WebhooksService {
   constructor(private readonly prisma: PrismaService) {}
 
   async processWpBillingWebhook(params: {
-    signature: string;
-    rawBody: Buffer;
+    signature?: string;
+    webhookSecretHeader?: string;
+    rawBody?: Buffer;
     body: BillingWebhookDto;
   }): Promise<void> {
     const webhookSecret = process.env.WP_WEBHOOK_SECRET;
@@ -29,13 +30,29 @@ export class WebhooksService {
       throw new BadRequestException('Webhook not configured');
     }
 
-    const expected = computeHmacSha256Hex(params.rawBody, webhookSecret);
-    const provided = params.signature.startsWith('sha256=')
-      ? params.signature.slice('sha256='.length)
-      : params.signature;
-    if (!secureCompareHex(provided, expected)) {
-      this.logger.warn('WP billing webhook signature mismatch');
-      throw new BadRequestException('Invalid signature');
+    // Auth path 1: shared secret passed as header (does not require rawBody)
+    if (params.webhookSecretHeader) {
+      if (!secureCompareHex(params.webhookSecretHeader, webhookSecret)) {
+        this.logger.warn('WP billing webhook secret header mismatch');
+        throw new BadRequestException('Invalid signature');
+      }
+    } else {
+      // Auth path 2: HMAC signature over rawBody
+      if (!params.signature) {
+        throw new BadRequestException('Missing signature');
+      }
+      if (!params.rawBody) {
+        throw new BadRequestException('Invalid webhook payload');
+      }
+
+      const expected = computeHmacSha256Hex(params.rawBody, webhookSecret);
+      const provided = params.signature.startsWith('sha256=')
+        ? params.signature.slice('sha256='.length)
+        : params.signature;
+      if (!secureCompareHex(provided, expected)) {
+        this.logger.warn('WP billing webhook signature mismatch');
+        throw new BadRequestException('Invalid signature');
+      }
     }
 
     const eventId = params.body?.eventId;
