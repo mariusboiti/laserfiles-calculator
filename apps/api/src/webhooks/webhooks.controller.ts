@@ -33,6 +33,7 @@ export class WebhooksController {
   async handleWpBilling(
     @Req() req: Request & { rawBody?: Buffer },
     @Headers('x-wp-signature') signature?: string,
+    @Headers('x-wp-webhook-secret') webhookSecretHeader?: string,
   ): Promise<{ ok: true }> {
     if (!process.env.WP_WEBHOOK_SECRET) {
       this.logger.error('WP_WEBHOOK_SECRET not configured');
@@ -40,14 +41,15 @@ export class WebhooksController {
     }
 
     const rawBody = req.rawBody;
-    if (!rawBody) {
-      this.logger.error('Missing rawBody on request (body parser misconfigured)');
-      throw new BadRequestException('Invalid webhook payload');
+
+    if (!webhookSecretHeader && !signature) {
+      this.logger.warn('Webhook received without signature/secret header');
+      throw new BadRequestException('Missing signature');
     }
 
-    if (!signature) {
-      this.logger.warn('Webhook received without X-WP-Signature');
-      throw new BadRequestException('Missing signature');
+    if (signature && !rawBody) {
+      this.logger.error('Missing rawBody on request (body parser misconfigured)');
+      throw new BadRequestException('Invalid webhook payload');
     }
 
     let body: BillingWebhookDto;
@@ -59,6 +61,7 @@ export class WebhooksController {
 
     await this.webhooksService.processWpBillingWebhook({
       signature,
+      webhookSecretHeader,
       rawBody,
       body,
     });
