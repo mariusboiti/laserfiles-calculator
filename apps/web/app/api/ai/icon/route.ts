@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
     }
     
     // Build image prompt (short, like Sign Generator)
-    const imagePrompt = `${prompt}, black silhouette icon, centered, no text, white background`;
+    // Enforce: white background only, no border/frame/outline/shadow.
+    const imagePrompt = `${prompt}, black silhouette icon, centered, no text, plain white background, no border, no outline, no frame, no stroke, no shadow, no gradient`;
     
     console.log('[AI Icon] Generating image for:', prompt);
     
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         prompt: imagePrompt,
         mode: 'shapeSilhouette',
-        transparent: true,
+        transparent: false,
         aspect: '1:1',
       }),
     });

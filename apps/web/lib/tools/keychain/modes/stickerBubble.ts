@@ -214,7 +214,7 @@ function getFilenameBase(state: StickerBubbleState): string {
 }
 
 export const stickerBubbleMode: KeychainMode<StickerBubbleState> = {
-  id: 'sticker-bubble',
+  id: 'simple',
   label: 'Sticker Bubble',
   description: '2-layer bubble keychain with thick border',
   icon: 'message-circle',

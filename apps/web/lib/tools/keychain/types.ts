@@ -4,7 +4,7 @@
  */
 
 // Mode identifiers (implemented modes only)
-export type KeychainModeId = 'simple' | 'emoji-name' | 'sticker-bubble';
+export type KeychainModeId = 'simple' | 'emoji-name';
 
 // Warning types
 export type WarningLevel = 'info' | 'warn' | 'error';
@@ -95,6 +95,9 @@ export interface SimpleKeychainState {
   fontFamily: string;
   fontWeight: string;
   fontSize: number;
+  letterSpacing: number;
+  textOffsetX: number;
+  textOffsetY: number;
   autoFit: boolean;
   fontMin: number;
   fontMax: number;

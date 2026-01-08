@@ -223,25 +223,6 @@ export function RoundCoasterToolV2({ onResetCallback }: RoundCoasterToolV2Props)
     updateState('dimensions', { diameter });
   }, [updateState]);
   
-  // Handle aspect lock for shield
-  const handleWidthChange = useCallback((width: number) => {
-    if (state.dimensions.lockAspect && state.shape === 'shield') {
-      const height = Math.round(width * state.dimensions.aspectRatio);
-      updateState('dimensions', { width, height: clamp(height, LIMITS.height.min, LIMITS.height.max) });
-    } else {
-      updateState('dimensions', { width });
-    }
-  }, [state.dimensions.lockAspect, state.dimensions.aspectRatio, state.shape, updateState]);
-  
-  const handleHeightChange = useCallback((height: number) => {
-    if (state.dimensions.lockAspect && state.shape === 'shield') {
-      const width = Math.round(height / state.dimensions.aspectRatio);
-      updateState('dimensions', { width: clamp(width, LIMITS.width.min, LIMITS.width.max), height });
-    } else {
-      updateState('dimensions', { height });
-    }
-  }, [state.dimensions.lockAspect, state.dimensions.aspectRatio, state.shape, updateState]);
-  
   // Build SVG
   const buildResult = useMemo(() => buildCoasterSvgV2(state), [state]);
   
@@ -312,8 +293,6 @@ export function RoundCoasterToolV2({ onResetCallback }: RoundCoasterToolV2Props)
     localStorage.setItem('lfs_coaster_presets_v2', JSON.stringify(newPresets));
   }, [savedPresets]);
   
-  const isShield = state.shape === 'shield';
-  
   return (
     <div className="lfs-tool flex min-h-screen flex-col bg-slate-950 text-slate-100">
       {/* Header */}
@@ -374,7 +353,6 @@ export function RoundCoasterToolV2({ onResetCallback }: RoundCoasterToolV2Props)
                 <option value="hex">Hexagon</option>
                 <option value="octagon">Octagon</option>
                 <option value="scalloped">Scalloped Circle</option>
-                <option value="shield">Shield</option>
               </select>
             </Section>
             
@@ -395,74 +373,34 @@ export function RoundCoasterToolV2({ onResetCallback }: RoundCoasterToolV2Props)
                 ))}
               </div>
               
-              {!isShield ? (
-                <>
-                  {/* Preset diameters */}
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {PRESET_DIAMETERS.map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => handleDiameterPreset(d)}
-                        className={`px-2 py-1 text-[11px] rounded ${state.dimensions.diameter === d ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-                      >
-                        {d}mm
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      className="px-2 py-1 text-[11px] rounded bg-slate-800 text-slate-400"
-                    >
-                      Custom
-                    </button>
-                  </div>
-                  
-                  <NumberInput
-                    label="Diameter"
-                    value={state.dimensions.diameter}
-                    onChange={(v) => updateState('dimensions', { diameter: v })}
-                    min={LIMITS.diameter.min}
-                    max={LIMITS.diameter.max}
-                    step={stepSize}
-                  />
-                </>
-              ) : (
-                <>
-                  {/* Lock aspect ratio */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <button
-                      type="button"
-                      onClick={() => updateState('dimensions', { lockAspect: !state.dimensions.lockAspect })}
-                      className={`p-1.5 rounded ${state.dimensions.lockAspect ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400'}`}
-                      title={state.dimensions.lockAspect ? 'Unlock proportions' : 'Lock proportions'}
-                    >
-                      {state.dimensions.lockAspect ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                    </button>
-                    <span className="text-[11px] text-slate-400">
-                      {state.dimensions.lockAspect ? 'Proportions locked' : 'Proportions unlocked'}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <NumberInput
-                      label="Width"
-                      value={state.dimensions.width}
-                      onChange={handleWidthChange}
-                      min={LIMITS.width.min}
-                      max={LIMITS.width.max}
-                      step={stepSize}
-                    />
-                    <NumberInput
-                      label="Height"
-                      value={state.dimensions.height}
-                      onChange={handleHeightChange}
-                      min={LIMITS.height.min}
-                      max={LIMITS.height.max}
-                      step={stepSize}
-                    />
-                  </div>
-                </>
-              )}
+              {/* Preset diameters */}
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {PRESET_DIAMETERS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => handleDiameterPreset(d)}
+                    className={`px-2 py-1 text-[11px] rounded ${state.dimensions.diameter === d ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                  >
+                    {d}mm
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="px-2 py-1 text-[11px] rounded bg-slate-800 text-slate-400"
+                >
+                  Custom
+                </button>
+              </div>
+
+              <NumberInput
+                label="Diameter"
+                value={state.dimensions.diameter}
+                onChange={(v) => updateState('dimensions', { diameter: v })}
+                min={LIMITS.diameter.min}
+                max={LIMITS.diameter.max}
+                step={stepSize}
+              />
             </Section>
             
             {/* Border */}

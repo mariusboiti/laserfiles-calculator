@@ -212,10 +212,11 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
   const engraveParts: string[] = [];
   if (processedPhotoDataUrl) {
     const { aiSettings } = inputs;
-    const offsetX = aiSettings?.photoOffsetXMm ?? 0;
-    const offsetY = aiSettings?.photoOffsetYMm ?? 0;
     const scale = clamp(aiSettings?.photoScale ?? 1.0, 0.5, 1.0);
     const photoCornerR = clamp(aiSettings?.photoCornerRadiusMm ?? 0, 0, 30);
+
+    const focusX = clamp(aiSettings?.cropFocusX ?? 0.5, 0, 1);
+    const focusY = clamp(aiSettings?.cropFocusY ?? 0, 0, 1);
 
     // Default: fill the entire safe engraving area (full width, height up to the top kerf line),
     // aligned to the top red cut line.
@@ -226,8 +227,8 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
     const scaledW = safeW * scale;
     const scaledH = safeH * scale;
 
-    let scaledX = plateX + (safeW - scaledW) / 2 + offsetX;
-    let scaledY = plateY + offsetY;
+    let scaledX = plateX + (safeW - scaledW) * focusX;
+    let scaledY = plateY + (safeH - scaledH) * focusY;
 
     // Keep the image fully inside the safe area.
     scaledX = clamp(scaledX, plateX, plateX + safeW - scaledW);

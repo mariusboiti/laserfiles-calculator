@@ -8,7 +8,6 @@ import type {
   TemplateItem,
   LayoutSettings,
 } from '../types/layout';
-import { renderLabelSvg } from './labeling';
 
 export interface ExportOptions {
   sheetIndex: number;
@@ -53,22 +52,6 @@ export function generateSheetSvg(options: ExportOptions): string {
     content += `  </g>\n`;
   }
 
-  // Optional: Labels
-  if (settings.exportLabels) {
-    content += `  <g id="LABELS">\n`;
-    for (const item of sheet.items) {
-      const labelSvg = renderLabelSvg(
-        item,
-        settings.labelFontSize,
-        settings.labelOffsetX,
-        settings.labelOffsetY
-      );
-      if (labelSvg) {
-        content += `    ${labelSvg}\n`;
-      }
-    }
-    content += `  </g>\n`;
-  }
 
   // Build complete SVG
   return `<?xml version="1.0" encoding="UTF-8"?>

@@ -17,6 +17,8 @@ export interface JigsawSettings {
   template?: PuzzleTemplate;  // Puzzle shape template
   centerCutout?: boolean;     // Remove center pieces (works with any template)
   centerCutoutRatio?: number; // Size of center cutout (0.2-0.5)
+  centerCutoutText?: string;  // Optional text to engrave in center cutout area
+  centerCutoutFontId?: string; // Font ID for center cutout text
   
   // Knob style
   knobStyle?: 'classic' | 'organic' | 'simple';  // classic = smooth round, organic = irregular natural, simple = basic geometric

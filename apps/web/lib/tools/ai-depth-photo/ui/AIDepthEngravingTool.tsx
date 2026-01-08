@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
-import type { AspectRatio, DepthStyle, MaterialProfile, DepthZones, PreviewMode } from '../types';
-import { ASPECT_RATIOS, STYLE_PRESETS, MATERIAL_PROFILES } from '../types';
+import type { AspectRatio, DepthStyle, MaterialProfile, DepthZones, PreviewMode, CanvasShape } from '../types';
+import { ASPECT_RATIOS, STYLE_PRESETS, MATERIAL_PROFILES, CANVAS_SHAPES } from '../types';
 
 type TabView = 'final' | 'depth' | 'layers';
 type HistStatus = 'missingBlacks' | 'tooFlat' | 'ready' | null;
@@ -124,6 +124,42 @@ function computeHistogram(imageData: ImageData): { bins: number[]; status: HistS
   return { bins, status: 'ready' };
 }
 
+// Helper: Apply circular mask to ImageData (pixels outside circle become white/transparent)
+function applyCircularMask(imageData: ImageData): ImageData {
+  const { width, height, data } = imageData;
+  const result = new ImageData(width, height);
+  const dst = result.data;
+  
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = Math.min(width, height) / 2;
+  
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const dx = x - centerX;
+      const dy = y - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance <= radius) {
+        // Inside circle - keep original pixel
+        dst[i] = data[i];
+        dst[i + 1] = data[i + 1];
+        dst[i + 2] = data[i + 2];
+        dst[i + 3] = data[i + 3];
+      } else {
+        // Outside circle - make white (for depth map, white = no engraving)
+        dst[i] = 255;
+        dst[i + 1] = 255;
+        dst[i + 2] = 255;
+        dst[i + 3] = 255;
+      }
+    }
+  }
+  
+  return result;
+}
+
 export function AIDepthEngravingTool() {
   const { api } = useToolUx();
 
@@ -134,6 +170,7 @@ export function AIDepthEngravingTool() {
   const [prompt, setPrompt] = useState('');
   const [style] = useState<DepthStyle>('bas-relief-engraving');
   const [ratio, setRatio] = useState<AspectRatio>('1:1');
+  const [canvasShape, setCanvasShape] = useState<CanvasShape>('rectangle');
   const [activeTab, setActiveTab] = useState<TabView>('depth');
   
   // V3 Engraving Controls
@@ -222,7 +259,7 @@ export function AIDepthEngravingTool() {
     }
   };
 
-  // Reactive effect: Process height map when it changes or viewMode changes
+  // Reactive effect: Process height map when it changes or viewMode/canvasShape changes
   useEffect(() => {
     if (!heightMapDataUrl) {
       setHeightMapImageData(null);
@@ -235,7 +272,13 @@ export function AIDepthEngravingTool() {
     async function processHeightMap() {
       try {
         // 1. Decode to ImageData
-        const imageData = await decodeToImageData(heightMapDataUrl!);
+        let imageData = await decodeToImageData(heightMapDataUrl!);
+        
+        // 1.5. Apply circular mask if canvasShape is circle
+        if (canvasShape === 'circle') {
+          imageData = applyCircularMask(imageData);
+        }
+        
         setHeightMapImageData(imageData);
 
         // 2. Compute histogram
@@ -261,13 +304,15 @@ export function AIDepthEngravingTool() {
     }
 
     processHeightMap();
-  }, [heightMapDataUrl, viewMode]);
+  }, [heightMapDataUrl, viewMode, canvasShape]);
 
   const downloadHeightMap = () => {
-    if (!heightMapDataUrl) return;
+    if (!heightMapImageData) return;
+    // Export the processed height map (with circular mask if applied)
+    const exportUrl = imageDataToDataUrl(heightMapImageData);
     const link = document.createElement('a');
-    link.href = heightMapDataUrl;
-    link.download = `height-map-${Date.now()}.png`;
+    link.href = exportUrl;
+    link.download = `height-map-${canvasShape === 'circle' ? 'circle-' : ''}${Date.now()}.png`;
     link.click();
   };
 
@@ -327,6 +372,29 @@ export function AIDepthEngravingTool() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Canvas Shape */}
+        <div>
+          <label className="block text-sm font-medium text-slate-200">Canvas Shape</label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(Object.keys(CANVAS_SHAPES) as CanvasShape[]).map((shape) => (
+              <button
+                key={shape}
+                onClick={() => setCanvasShape(shape)}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  canvasShape === shape
+                    ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                    : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
+                }`}
+              >
+                {CANVAS_SHAPES[shape].label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-slate-400">
+            Circle will mask the image to a circular shape
+          </p>
         </div>
 
         {/* Engraving Depth Boost */}

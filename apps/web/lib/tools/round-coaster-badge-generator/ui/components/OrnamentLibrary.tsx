@@ -25,80 +25,15 @@ interface OrnamentLibraryProps {
 // Ornament categories
 const CATEGORIES = [
   { id: 'all', label: 'All' },
-  { id: 'floral', label: 'Floral' },
-  { id: 'frames', label: 'Frames' },
-  { id: 'borders', label: 'Borders' },
-  { id: 'icons', label: 'Icons' },
-  { id: 'patterns', label: 'Patterns' },
+  { id: 'animals', label: 'Animals' },
+  { id: 'geometric', label: 'Geometric' },
+  { id: 'flowers', label: 'Flowers' },
+  { id: 'accesories', label: 'Accesories' },
+  { id: 'beverages', label: 'Beverages' },
+  { id: 'landscapes', label: 'Landscapes' },
 ];
 
-// Sample ornaments (would be loaded from API/files in production)
-const SAMPLE_ORNAMENTS: OrnamentAsset[] = [
-  {
-    id: 'flower-1',
-    name: 'Simple Flower',
-    category: 'floral',
-    pathD: 'M0,-20 Q10,-10 0,0 Q-10,-10 0,-20 M0,20 Q10,10 0,0 Q-10,10 0,20 M-20,0 Q-10,10 0,0 Q-10,-10 -20,0 M20,0 Q10,10 0,0 Q10,-10 20,0',
-    viewBox: '-25 -25 50 50',
-    tags: ['flower', 'simple', 'nature'],
-  },
-  {
-    id: 'star-1',
-    name: 'Star',
-    category: 'icons',
-    pathD: 'M0,-20 L5,-7 L19,-7 L8,3 L12,17 L0,8 L-12,17 L-8,3 L-19,-7 L-5,-7 Z',
-    viewBox: '-25 -25 50 50',
-    tags: ['star', 'icon'],
-  },
-  {
-    id: 'heart-1',
-    name: 'Heart',
-    category: 'icons',
-    pathD: 'M0,8 C-10,-5 -20,-5 -20,5 C-20,15 0,25 0,25 C0,25 20,15 20,5 C20,-5 10,-5 0,8',
-    viewBox: '-25 -15 50 50',
-    tags: ['heart', 'love', 'icon'],
-  },
-  {
-    id: 'leaf-1',
-    name: 'Leaf',
-    category: 'floral',
-    pathD: 'M0,-20 Q15,0 0,20 Q-15,0 0,-20 M0,-15 L0,15',
-    viewBox: '-20 -25 40 50',
-    tags: ['leaf', 'nature', 'plant'],
-  },
-  {
-    id: 'corner-1',
-    name: 'Corner Flourish',
-    category: 'frames',
-    pathD: 'M-20,-20 Q-10,-20 -10,-10 Q-10,0 0,0 M-15,-20 Q-15,-15 -10,-15 Q-5,-15 -5,-10',
-    viewBox: '-25 -25 30 30',
-    tags: ['corner', 'flourish', 'decorative'],
-  },
-  {
-    id: 'divider-1',
-    name: 'Simple Divider',
-    category: 'borders',
-    pathD: 'M-30,0 L-10,0 M10,0 L30,0 M-5,-5 L0,0 L-5,5 M5,-5 L0,0 L5,5',
-    viewBox: '-35 -10 70 20',
-    tags: ['divider', 'line', 'separator'],
-  },
-  {
-    id: 'scroll-1',
-    name: 'Scroll',
-    category: 'frames',
-    pathD: 'M-20,0 Q-20,-15 -5,-15 Q10,-15 10,0 Q10,15 -5,15 Q-20,15 -20,0',
-    viewBox: '-25 -20 40 40',
-    tags: ['scroll', 'banner', 'decorative'],
-  },
-  {
-    id: 'diamond-1',
-    name: 'Diamond',
-    category: 'icons',
-    pathD: 'M0,-15 L10,0 L0,15 L-10,0 Z',
-    viewBox: '-15 -20 30 40',
-    tags: ['diamond', 'shape', 'geometric'],
-  },
-];
+const SAMPLE_ORNAMENTS: OrnamentAsset[] = [];
 
 export function OrnamentLibrary({ onInsert, disabled }: OrnamentLibraryProps) {
   const [search, setSearch] = useState('');

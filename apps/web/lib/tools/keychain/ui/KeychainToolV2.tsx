@@ -31,6 +31,7 @@ import { prepareForExport } from '../../../export/svgSafety';
 
 import { fitFontSizePath, fitFontSizeDoubleLinePath } from '../core/textFitPath';
 import { measureTextBBoxMm } from '../core/textToPath';
+import { gridOverlay, safeZoneOverlay } from '../core/export';
 
 // Default empty build result
 const EMPTY_BUILD: BuildResult = {
@@ -439,11 +440,6 @@ export default function KeychainToolV2() {
         <button onClick={handleReset} className="w-full px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm flex items-center justify-center gap-2">
           <RefreshCw className="w-4 h-4" /> Reset to Defaults
         </button>
-
-        {/* PRO Badge */}
-        <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-purple-700/50 rounded-lg p-3 text-center">
-          <span className="text-xs text-purple-300 font-medium">✨ PRO: Text exported as real paths (no &lt;text&gt; elements)</span>
-        </div>
       </div>
 
       {/* Preview Panel */}
@@ -537,6 +533,14 @@ export default function KeychainToolV2() {
             <div
               dangerouslySetInnerHTML={{ 
                 __html: buildResult.svgCombined
+                  .replace(
+                    '</svg>',
+                    `${
+                      preview.showGrid || preview.showSafeZones
+                        ? `\n  <g id="GUIDES" opacity="0.35">\n    ${preview.showGrid ? gridOverlay(buildResult.meta.width || 0, buildResult.meta.height || 0, 10) : ''}\n    ${preview.showSafeZones ? safeZoneOverlay(3, 3, Math.max(0, (buildResult.meta.width || 0) - 6), Math.max(0, (buildResult.meta.height || 0) - 6)) : ''}\n  </g>`
+                        : ''
+                    }\n</svg>`
+                  )
                   .replace(/width="[^"]*"/, `width="${(buildResult.meta.width || 70) * 3}px"`)
                   .replace(/height="[^"]*"/, `height="${(buildResult.meta.height || 25) * 3}px"`)
               }}
@@ -615,6 +619,16 @@ function SimpleControlsV2({
       <div>
         <label className="block text-xs text-slate-400 mb-1">Text</label>
         <input type="text" value={state.text} onChange={e => onChange({ text: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <NumberInput label="Font Size (mm)" value={state.fontSize} onChange={v => onChange({ fontSize: v, autoFit: false })} min={4} max={80} step={0.5} />
+        <NumberInput label="Letter Spacing (mm)" value={state.letterSpacing} onChange={v => onChange({ letterSpacing: v })} min={-2} max={10} step={0.1} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <NumberInput label="Text X (mm)" value={state.textOffsetX} onChange={v => onChange({ textOffsetX: v })} min={-1000} max={1000} step={0.5} />
+        <NumberInput label="Text Y (mm)" value={state.textOffsetY} onChange={v => onChange({ textOffsetY: v })} min={-1000} max={1000} step={0.5} />
       </div>
 
       {/* Font */}
@@ -768,7 +782,7 @@ function EmojiNameControlsV2({ state, onChange, onOpenTraceLogo }: { state: Emoj
       {/* Name */}
       <div>
         <label className="block text-xs text-slate-400 mb-1">Name</label>
-        <input type="text" value={state.name} onChange={e => onChange({ name: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" placeholder="Enter name..." />
+        <input type="text" value={state.name} onChange={e => onChange({ name: e.target.value })} onKeyDownCapture={e => e.stopPropagation()} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" placeholder="Enter name..." />
       </div>
 
       {/* Font */}
@@ -952,6 +966,7 @@ function NumberInput({ label, value, onChange, min, max, step = 1 }: { label: st
         type="number"
         value={localValue}
         onChange={handleChange}
+        onKeyDownCapture={e => e.stopPropagation()}
         onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
         min={min}

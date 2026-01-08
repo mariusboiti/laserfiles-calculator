@@ -18,6 +18,16 @@ enum UserPlan {
   BUSINESS
 }
 
+enum SubscriptionType {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+}
+
 enum UsageAction {
   EXPORT
 }
@@ -179,6 +189,9 @@ model User {
   name      String
   role      UserRole         @default(WORKER)
   plan      UserPlan         @default(FREE)
+  wpUserId  String?          @unique
+  subscriptionType   SubscriptionType?
+  subscriptionStatus SubscriptionStatus?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -239,6 +252,13 @@ model WorkspacePlanSnapshot {
   createdAt           DateTime  @default(now())
 
   @@index([wpUserId, fetchedAt])
+}
+
+model WpWebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  payloadJson Json
+  createdAt   DateTime @default(now())
 }
 
 model Customer {

@@ -20,7 +20,7 @@ import type {
 } from '../types/signPro';
 import { loadFont, getFontConfigSafe } from '../../../fonts/sharedFontRegistry';
 import { textElementToPath, applyTextCase, buildTextSvgElement } from './text/textToPath';
-import { offsetFilledPath } from './text/outlineOffset';
+import { offsetFilledPath, translatePathD } from './text/outlineOffset';
 import { computeHolesPro, holesToSvg } from './holesPro';
 import { renderOrnamentElement } from './renderOrnament';
 
@@ -668,7 +668,19 @@ async function renderTextElementAsync(
 
     const { xMm, yMm, rotateDeg, scaleX, scaleY } = element.transform;
 
-    let d = pathResult.pathD;
+    // Align to match CanvasStage <text x=0 y=0 dominantBaseline="middle"> anchored at (xMm,yMm)
+    // - X uses advance width (text-anchor behavior)
+    // - Y uses em-box middle (ascender/descender), not glyph bbox
+    let dx = 0;
+    if (element.align === 'right') {
+      dx = -pathResult.advanceWidthMm;
+    } else if (element.align === 'center') {
+      dx = -pathResult.advanceWidthMm / 2;
+    }
+    const emMiddleMm = (pathResult.ascenderMm + pathResult.descenderMm) / 2;
+    const dy = -emMiddleMm;
+
+    let d = await translatePathD(pathResult.pathD, dx, dy);
     if (
       forExport &&
       (layer.type === 'CUT' || layer.type === 'OUTLINE') &&
@@ -686,34 +698,17 @@ async function renderTextElementAsync(
       }
     }
 
-    // Calculate offset based on alignment
-    let offsetX = 0;
-    switch (element.align) {
-      case 'left':
-        offsetX = 0;
-        break;
-      case 'right':
-        offsetX = -pathResult.width;
-        break;
-      case 'center':
-      default:
-        offsetX = -pathResult.width / 2;
-        break;
-    }
-
-    // Build transform
+    // Build transform (anchor at (xMm,yMm) like CanvasStage group transform)
     const transforms: string[] = [];
-    const tx = xMm + offsetX;
-    const ty = yMm - pathResult.height / 2;
+    const tx = xMm;
+    const ty = yMm;
     
     if (tx !== 0 || ty !== 0) {
       transforms.push(`translate(${mm(tx)}, ${mm(ty)})`);
     }
     
     if (rotateDeg !== 0) {
-      const cx = pathResult.width / 2;
-      const cy = pathResult.height / 2;
-      transforms.push(`rotate(${rotateDeg}, ${mm(cx)}, ${mm(cy)})`);
+      transforms.push(`rotate(${rotateDeg})`);
     }
     
     if (scaleX !== 1 || scaleY !== 1) {
