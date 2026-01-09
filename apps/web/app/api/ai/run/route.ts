@@ -3,6 +3,8 @@
  * Centralized AI Gateway - handles all AI calls with credit consumption
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { consumeAiCredit, isEntitlementError, type EntitlementError } from '@/lib/entitlements/server';

@@ -3,6 +3,8 @@
  * Returns the current user's entitlement status
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getEntitlementStatus } from '@/lib/entitlements/server';
 import { cookies } from 'next/headers';

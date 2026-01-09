@@ -3,6 +3,8 @@
  * Creates a Stripe checkout session for starting a trial subscription
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getOrCreateStripeCustomer, createTrialCheckoutSession, stripe } from '@/lib/stripe/server';
