@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:16
+    container_name: laserfilespro-db
+    env_file:
+      - .env.prod
+    volumes:
+      - laserfilespro_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    profiles: ["prod"]
+
+  api:
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+  container_name: laserfilespro-api
+  env_file:
+    - .env.prod
+  environment:
+    DATABASE_URL: postgresql://laser:laser@db:5432/laser
+    AI_PROVIDER: gemini
+    AI_API_KEY: ${AI_API_KEY}
+    GEMINI_API_KEY: ${GEMINI_API_KEY}
+    GEMINI_MODEL: ${GEMINI_MODEL}
+    GOOGLE_AI_TEXT_MODEL: ${GOOGLE_AI_TEXT_MODEL}
+  depends_on:
+    - db
+  expose:
+    - "4000"
+  profiles: ["prod"]
+
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api
+        AI_PROVIDER: gemini
+    container_name: laserfilespro-web
+    env_file:
+      - .env.prod
+    environment:
+      NEXT_PUBLIC_API_URL: /api
+      AI_PROVIDER: gemini
+    expose:
+      - "3000"
+    profiles: ["prod"]
+
+  nginx:
+    image: nginx:alpine
+    container_name: laserfilespro-nginx
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+      - api
+    profiles: ["prod"]
+
+volumes:
+  laserfilespro_db_data:
+

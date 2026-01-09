@@ -1,0 +1,44 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Post,
+  Req,
+} from '@nestjs/common';
+import { Request } from 'express';
+import { WebhooksService } from './webhooks.service';
+
+@Controller('webhooks/wp')
+export class WebhooksController {
+  private readonly logger = new Logger(WebhooksController.name);
+
+  constructor(private readonly webhooksService: WebhooksService) {}
+
+  // Final URL: /webhooks/wp/billing  (and behind nginx: /api-backend/webhooks/wp/billing)
+  @Post('billing')
+  @HttpCode(HttpStatus.OK)
+  async handleWpBillingWebhook(
+    @Req() req: Request & { rawBody?: Buffer },
+    @Body() body: any,
+    @Headers('x-wp-webhook-secret') wpWebhookSecret?: string,
+    @Headers('x-wc-webhook-signature') wcSignature?: string,
+  ) {
+    if (!wpWebhookSecret && !wcSignature) {
+      this.logger.warn('Webhook received without signature/secret header');
+      throw new BadRequestException('Missing signature');
+    }
+
+    await this.webhooksService.processWpBillingWebhook({
+      webhookSecretHeader: wpWebhookSecret,
+      signature: wcSignature,
+      rawBody: req.rawBody,
+      body,
+    });
+
+    return { ok: true };
+  }
+}

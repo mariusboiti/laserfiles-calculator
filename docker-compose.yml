@@ -12,8 +12,6 @@ services:
       - db-data:/var/lib/postgresql/data
 
   api:
-    # Only start in production profile so local `docker compose up -d`
-    # still behaves as "DB only" for dev, as described in README.
     profiles: ["prod"]
     build:
       context: .
@@ -21,15 +19,16 @@ services:
     restart: unless-stopped
     depends_on:
       - db
+    env_file: 
+      - ./.env.prod
     environment:
+      WP_SSO_SECRET: V4x9pQ2mK8sL1nR7tZ0yH3uE6cA9dF2gX5wB8jN1
+      WP_WEBHOOK_SECRET: K9mD3pR7xT1qW6zY2nL8cV0hA5uE9fG4bS7jP2tX6
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: "postgresql://laser:laser@db:5432/laser?schema=public"
     expose:
       - "4000"
-    # (opțional) dacă vrei să fie accesibil direct pe host:
-    # ports:
-    #   - "4000:4000"
 
   web:
     profiles: ["prod"]
@@ -37,18 +36,17 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_API_URL: /api-backend
     restart: unless-stopped
     depends_on:
       - api
+    env_file:
+      - ./.env.prod
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: /api
+      NEXT_PUBLIC_API_URL: /api-backend
     expose:
       - "3000"
-    # (opțional) dacă vrei să fie accesibil direct pe host:
-    # ports:
-    #   - "3000:3000"
 
   nginx:
     profiles: ["prod"]
@@ -59,9 +57,11 @@ services:
       - api
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
 
 volumes:
   db-data:

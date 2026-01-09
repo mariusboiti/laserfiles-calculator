@@ -1,0 +1,73 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Post,
+  Req,
+} from '@nestjs/common';
+import { Request } from 'express';
+import { WebhooksService } from './webhooks.service';
+import { createHmac, timingSafeEqual } from 'crypto';
+
+type BillingEvent = 'order.completed' | 'subscription.renewed' | 'subscription.cancelled';
+
+type BillingWebhookDto = {
+  eventId: string;
+  event: BillingEvent;
+  email: string;
+  wpUserId: number;
+  items: Array<{ productId: number; qty: number }>;
+  timestamp: number;
+};
+
+@Controller('webhooks/wp')
+export class WebhooksController {
+  private readonly logger = new Logger(WebhooksController.name);
+
+  constructor(private readonly webhooksService: WebhooksService) {}
+
+  @Post('billing')
+async handleWpBillingWebhook(
+  @Req() req: Request & { rawBody?: Buffer },
+  @Headers('x-wp-signature') wpSignature?: string,
+  @Headers('x-wc-webhook-signature') wcSignature?: string,
+  @Body() payload: any,
+) {
+  const signature = wpSignature || wcSignature;
+
+  if (!signature) {
+    this.logger.warn('Webhook received without signature/secret header');
+    throw new BadRequestException('Missing signature');
+  }
+
+  const secret = process.env.WP_WEBHOOK_SECRET;
+  if (!secret) {
+    this.logger.error('WP_WEBHOOK_SECRET is not set');
+    throw new BadRequestException('Server missing webhook secret');
+  }
+
+  // WooCommerce semnează body-ul brut (raw). Dacă nu avem rawBody, fallback la JSON.stringify(payload)
+  const raw = req.rawBody ?? Buffer.from(JSON.stringify(payload), 'utf8');
+
+  const expected = createHmac('sha256', secret).update(raw).digest('base64');
+
+  const sigBuf = Buffer.from(signature, 'utf8');
+  const expBuf = Buffer.from(expected, 'utf8');
+
+  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+    this.logger.warn('WP billing webhook signature mismatch');
+    throw new BadRequestException('Invalid signature');
+  }
+
+  // aici continui logica ta existentă (update user entitlements, credits, etc.)
+  return { ok: true };
+}
+
+
+}
+
+}
