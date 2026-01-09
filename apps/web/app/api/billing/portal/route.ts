@@ -3,6 +3,8 @@
  * Creates a Stripe billing portal session for managing subscription
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createBillingPortalSession, stripe } from '@/lib/stripe/server';

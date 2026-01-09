@@ -4,6 +4,8 @@
  * GET /api/feedback/mine - Get user's feedback (handled in separate file)
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { PrismaClient } from '@prisma/client';

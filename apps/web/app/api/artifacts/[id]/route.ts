@@ -4,6 +4,8 @@
  * DELETE /api/artifacts/:id - Delete artifact
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getArtifact, deleteArtifact } from '@/lib/artifacts/server';

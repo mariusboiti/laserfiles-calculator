@@ -2,6 +2,8 @@
  * GET /api/feedback/mine - Get current user's feedback tickets
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { PrismaClient } from '@prisma/client';

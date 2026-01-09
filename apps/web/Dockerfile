@@ -1,7 +1,9 @@
 # Multi-stage Dockerfile for Next.js web app (apps/web)
 # Build with pnpm workspace from monorepo root
 
-FROM node:22-alpine AS base
+FROM node:22-bookworm-slim AS base
+
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Enable pnpm via corepack
 ENV PNPM_HOME="/usr/local/share/pnpm"
@@ -50,7 +52,9 @@ RUN pnpm --filter ./apps/web... build
 # ------------------------
 # Stage 3: runtime image
 # ------------------------
-FROM node:22-alpine AS web
+FROM node:22-bookworm-slim AS web
+
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV="production"
 ENV PNPM_HOME="/usr/local/share/pnpm"

@@ -4,6 +4,8 @@
  * GET /api/artifacts - List artifacts
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import {
