@@ -24,6 +24,67 @@ export class EntitlementsService {
     this.wpPluginApiKey = process.env.WP_PLUGIN_API_KEY || null;
   }
 
+    /**
+   * UI entitlement endpoint (Studio):
+   * Reads UserEntitlement by internal UUID userId and returns credits + status.
+   */
+  async getUiEntitlementsForUserId(userId: string): Promise<{
+    plan: 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+    trialStartedAt: string | null;
+    trialEndsAt: string | null;
+    aiCreditsTotal: number;
+    aiCreditsUsed: number;
+    aiCreditsRemaining: number;
+    isActive: boolean;
+    daysLeftInTrial: number | null;
+    stripeCustomerId: string | null;
+  }> {
+    if (!this.prisma) {
+      // Should not happen in prod, but keep safe fallback
+      return {
+        plan: 'NONE',
+        trialStartedAt: null,
+        trialEndsAt: null,
+        aiCreditsTotal: 0,
+        aiCreditsUsed: 0,
+        aiCreditsRemaining: 0,
+        isActive: false,
+        daysLeftInTrial: null,
+        stripeCustomerId: null,
+      };
+    }
+
+    const ent = await this.prisma.userEntitlement.findUnique({
+      where: { userId },
+    });
+
+    const total = Number(ent?.aiCreditsTotal ?? 0);
+    const used = Number(ent?.aiCreditsUsed ?? 0);
+    const remaining = Math.max(0, total - used);
+
+    // NOTE: in DB you currently have plan like ACTIVE (status), which matches UI type.
+    const plan =
+  (ent?.plan as any) &&
+  ['NONE', 'TRIALING', 'ACTIVE', 'INACTIVE', 'EXPIRED'].includes(String(ent?.plan))
+    ? (ent?.plan as any)
+    : ent
+      ? 'ACTIVE'
+      : 'NONE';
+
+    return {
+      plan,
+      trialStartedAt: null,
+      trialEndsAt: null,
+      aiCreditsTotal: total,
+      aiCreditsUsed: used,
+      aiCreditsRemaining: remaining,
+      isActive: plan === 'ACTIVE' || plan === 'TRIALING',
+      daysLeftInTrial: null,
+      stripeCustomerId: null,
+    };
+  }
+
+
   async getEntitlementsForWpUser(wpUserId: string): Promise<IdentityEntitlements> {
     // Dev mode: return a fixed PRO entitlement without calling WordPress.
     if (process.env.ENTITLEMENTS_DEV_MODE === '1') {
