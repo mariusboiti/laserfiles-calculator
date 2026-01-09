@@ -19,3 +19,15 @@ export function secureCompareHex(a: string, b: string): boolean {
   }
   return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
 }
+
+
+export function computeHmacSha256Base64(payload: Buffer, secret: string): string {
+  return crypto.createHmac("sha256", secret).update(payload).digest("base64");
+}
+
+export function secureCompareString(a: string, b: string): boolean {
+  const ab = Buffer.from(a ?? "", "utf8");
+  const bb = Buffer.from(b ?? "", "utf8");
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}

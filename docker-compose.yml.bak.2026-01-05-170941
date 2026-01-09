@@ -1,0 +1,125 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: laserfilespro-db-1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: laser
+      POSTGRES_PASSWORD: laser
+      POSTGRES_DB: laser
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - laserfilespro_default
+    profiles: ["prod"]
+
+  api:
+    # Dacă tu deja ai build / image pentru api, păstrează ce ai.
+    # Variante:
+    # 1) build:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    # 2) sau image: laserfilespro-api (dacă ai publicat imaginea)
+    # image: laserfilespro-api
+    container_name: laserfilespro-api-1
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      # DB (adaptează dacă tu folosești alt host/port/db/user/pass)
+      DATABASE_URL: postgresql://laser:laser@db:5432/laser
+
+      # AI (dacă api are endpoints de AI / proxy / jobs)
+      AI_PROVIDER: gemini
+      GEMINI_API_KEY: AIzaSyDNxNh2q5eXOVOWquEArXOEXltn54j-HBM
+      AI_API_KEY: AIzaSyDNxNh2q5eXOVOWquEArXOEXltn54j-HBM
+      GEMINI_MODEL: gemini-2.0-flash
+      GOOGLE_AI_TEXT_MODEL: gemini-1.5-flash
+
+      # (opțional) dacă ai folosit VITE_ în unele module/shared
+      VITE_AI_API_KEY: AIzaSyDNxNh2q5eXOVOWquEArXOEXltn54j-HBM
+      VITE_AI_STYLIZE_ENDPOINT: https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent
+      VITE_GOOGLE_AI_IMAGE_MODEL: models/gemini-3-pro-image-preview
+
+      # Stripe (dacă webhook-ul e în api sau folosești stripe și aici)
+      STRIPE_SECRET_KEY: sk_test_your_secret_key_here
+      STRIPE_WEBHOOK_SECRET: whsec_your_webhook_secret_here
+      STRIPE_PRICE_ID_STUDIO: price_your_price_id_here
+
+    expose:
+      - "4000"
+    networks:
+      - laserfilespro_default
+    profiles: ["prod"]
+
+  web:
+    # Dacă tu deja ai build / image pentru web, păstrează ce ai.
+    # Variante:
+    # 1) build:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    # 2) sau image: laserfilespro-web
+    # image: laserfilespro-web
+    container_name: laserfilespro-web-1
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # IMPORTANT: în production trebuie să fie /api (nginx reverse proxy)
+      NEXT_PUBLIC_API_URL: /api
+
+      # AI (AICI e cheia pentru route handlers /api/ai/* din Next.js)
+      AI_PROVIDER: gemini
+      GEMINI_API_KEY: AIzaSyDNxNh2q5eXOVOWquEArXOEXltn54j-HBM
+      AI_API_KEY: AIzaSyDNxNh2q5eXOVOWquEArXOEXltn54j-HBM
+      GEMINI_MODEL: gemini-2.0-flash
+      GOOGLE_AI_TEXT_MODEL: gemini-1.5-flash
+
+      # Dacă ai încă bucăți Vite/shared care citesc VITE_
+      VITE_AI_API_KEY: AIzaSyDNxNh2q5eXOVOWquEArXOEXltn54j-HBM
+      VITE_AI_STYLIZE_ENDPOINT: https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent
+      VITE_GOOGLE_AI_IMAGE_MODEL: models/gemini-3-pro-image-preview
+
+      # Stripe (server-side, Next routes)
+      STRIPE_SECRET_KEY: sk_test_your_secret_key_here
+      STRIPE_WEBHOOK_SECRET: whsec_your_webhook_secret_here
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_your_publishable_key_here
+      STRIPE_PRICE_ID_STUDIO: price_your_price_id_here
+      STRIPE_CUSTOMER_PORTAL_RETURN_URL: http://studio.laserfilespro.com/studio/dashboard
+
+    expose:
+      - "3000"
+    networks:
+      - laserfilespro_default
+    profiles: ["prod"]
+
+  nginx:
+    image: nginx:alpine
+    container_name: laserfilespro-nginx-1
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+    ports:
+      - "80:80"
+    volumes:
+      # ATENȚIE: păstrează exact calea ta de config (tu ai deja /opt/laserfilespro/nginx/...)
+      - /opt/laserfilespro/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /opt/laserfilespro/nginx/conf.d:/etc/nginx/conf.d:ro
+    networks:
+      - laserfilespro_default
+    profiles: ["prod"]
+
+networks:
+  laserfilespro_default:
+    name: laserfilespro_default
+
+volumes:
+  db_data:
+

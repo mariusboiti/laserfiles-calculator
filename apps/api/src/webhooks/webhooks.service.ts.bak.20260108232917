@@ -1,0 +1,329 @@
+import * as crypto from 'crypto';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { computeHmacSha256Hex, computeHmacSha256Base64, secureCompareHex, secureCompareString } from '../common/wp-hmac';
+
+type BillingEvent = 'order.completed' | 'subscription.renewed' | 'subscription.cancelled';
+
+type BillingWebhookDto = {
+  eventId: string;
+  event: BillingEvent;
+  email: string;
+  wpUserId: number;
+  items: Array<{ productId: number; qty: number }>;
+  timestamp: number;
+};
+
+@Injectable()
+export class WebhooksService {
+  private readonly logger = new Logger(WebhooksService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async processWpBillingWebhook(params: {
+    signature?: string;
+    webhookSecretHeader?: string;
+    rawBody?: Buffer;
+    body: any;
+  }): Promise<void> {
+    const webhookSecret = process.env.WP_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      throw new BadRequestException('Webhook not configured');
+    }
+
+    // Auth path 1: shared secret passed as header (does not require rawBody)
+    if (params.webhookSecretHeader) {
+      if (!secureCompareString(params.webhookSecretHeader, webhookSecret)) {
+        this.logger.warn('WP billing webhook secret header mismatch');
+        // hotfix removed: signature is now verified strictly
+      }
+    } else {
+      // Auth path 2: HMAC signature over rawBody
+      if (!params.signature) {
+        throw new BadRequestException('Missing signature');
+      }
+      if (!params.rawBody) {
+        throw new BadRequestException('Invalid webhook payload');
+      }
+
+      const expected = computeHmacSha256Hex(params.rawBody, webhookSecret);
+      const provided = params.signature.startsWith('sha256=')
+        ? params.signature.slice('sha256='.length)
+        : params.signature;
+
+      if (!secureCompareHex(provided, expected)) {
+        this.logger.warn('WP billing webhook signature mismatch');
+        // hotfix removed: signature is now verified strictly
+      }
+    }
+
+    // -----------------------------
+    // Normalize WooCommerce payload
+    // -----------------------------
+    // Woo sends: { id, status, customer_id, billing.email, line_items[] }
+    // We normalize into BillingWebhookDto so the rest of the logic stays unchanged.
+    if (!params.body?.eventId && params.body?.id) {
+      const wcOrderId = params.body.id;
+      const status = String(params.body?.status ?? '');
+      const email = params.body?.billing?.email;
+      const wpUserId = Number(params.body?.customer_id ?? 0) || 0;
+
+      const items = Array.isArray(params.body?.line_items)
+        ? params.body.line_items.map((li: any) => ({
+            productId: Number(li?.product_id),
+            qty: Number(li?.quantity ?? 1),
+          }))
+        : [];
+
+      const timestamp = (() => {
+        const raw = params.body?.date_created_gmt || params.body?.date_created;
+        const t = raw ? new Date(raw).getTime() : Date.now();
+        return Math.floor(t / 1000);
+      })();
+
+      params.body = {
+        eventId: String(wcOrderId),
+        event: status === 'completed' ? 'order.completed' : 'order.completed',
+        email,
+        wpUserId,
+        items,
+        timestamp,
+      } satisfies BillingWebhookDto;
+    }
+
+    const body: BillingWebhookDto = params.body as BillingWebhookDto;
+
+    const eventId = body?.eventId;
+    if (!eventId || typeof eventId !== 'string') {
+      throw new BadRequestException('Missing eventId');
+    }
+
+    // Persist event for dedupe if table exists; otherwise keep going.
+    try {
+      await (this.prisma as any).wpWebhookEvent.create({
+        data: {
+          eventId,
+          payloadJson: body as any,
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        return; // already processed
+      }
+      // Table missing or other DB issue: log and continue (don’t block billing)
+      this.logger.warn('Skipping wpWebhookEvent persistence (table missing or DB error)');
+    }
+
+    const email = body.email;
+    if (!email) {
+      throw new BadRequestException('Missing email');
+    }
+
+    // ─────────────────────────────────────────────
+    // APPLY BILLING (CREDITS / PLAN)
+    // ─────────────────────────────────────────────
+
+    // Minimal + safe: resolve user by email (payload includes it)
+    const billingUser = await this.prisma.user.findUnique({ where: { email } });    if (!billingUser) {
+      this.logger.warn(`Billing webhook: user not found email=${email}`);
+      return;
+    }
+
+    // Ensure entitlement row exists
+    await this.prisma.userEntitlement.upsert({
+      where: { userId: billingUser.id },
+      create: { userId: billingUser.id },
+      update: {},
+    });
+
+    for (const item of (body.items ?? [])) {
+      const productId = Number((item as any)?.productId ?? 0) || 0;
+      const qty = Number((item as any)?.qty ?? 1) || 1;
+      if (!productId) continue;
+
+      const add = creditsForProduct(productId);
+      if (add > 0) {
+        await this.prisma.userEntitlement.update({
+          where: { userId: billingUser.id },
+          data: { aiCreditsTotal: { increment: add * qty } },
+        });
+        this.logger.log(`Credits topup: +${add * qty} for userId=${billingUser.id} productId=${productId}`);
+      }
+
+      if (isProProduct(productId)) {
+        await this.prisma.userEntitlement.update({
+          where: { userId: billingUser.id },
+          data: { plan: 'ACTIVE' },
+        });
+        this.logger.log(`Plan ACTIVE for userId=${billingUser.id} productId=${productId}`);
+      }
+    }
+
+    // ─────────────────────────────────────────────
+
+
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      this.logger.warn(`Webhook for unknown email: ${email}`);
+      return;
+    }
+
+    await (this.prisma as any).user.update({
+      where: { id: user.id },
+      data: {
+        wpUserId: String(body.wpUserId),
+      },
+    });
+
+    if (body.event === 'subscription.cancelled') {
+      await (this.prisma as any).user.update({
+        where: { id: user.id },
+        data: {
+          plan: 'FREE',
+          subscriptionStatus: 'CANCELLED',
+          subscriptionType: null,
+        },
+      });
+      return;
+    }
+
+    const productIds = this.getProductIdConfig();
+
+    for (const item of body.items || []) {
+      const productId = String(item.productId);
+      const qty = item.qty ?? 1;
+
+      if (productIds.topup100 && productId === productIds.topup100) {
+        await this.addCredits(user.id, 100 * qty);
+      } else if (productIds.topup200 && productId === productIds.topup200) {
+        await this.addCredits(user.id, 200 * qty);
+      } else if (productIds.topup500 && productId === productIds.topup500) {
+        await this.addCredits(user.id, 500 * qty);
+      } else if (productIds.proMonthly && productId === productIds.proMonthly) {
+        await (this.prisma as any).user.update({
+          where: { id: user.id },
+          data: {
+            plan: 'PRO',
+            subscriptionType: 'MONTHLY',
+            subscriptionStatus: 'ACTIVE',
+          },
+        });
+      } else if (productIds.proAnnual && productId === productIds.proAnnual) {
+        await (this.prisma as any).user.update({
+          where: { id: user.id },
+          data: {
+            plan: 'PRO',
+            subscriptionType: 'ANNUAL',
+            subscriptionStatus: 'ACTIVE',
+          },
+        });
+      }
+    }
+
+    if (body.event === 'subscription.renewed') {
+      await (this.prisma as any).user.update({
+        where: { id: user.id },
+        data: { subscriptionStatus: 'ACTIVE' },
+      });
+
+      await this.ensureMonthlyCreditsAllowance(user.id, 200);
+    }
+  }
+
+  private async ensureMonthlyCreditsAllowance(userId: string, allowance: number): Promise<void> {
+    if (allowance <= 0) return;
+
+    const entitlement = await this.prisma.userEntitlement.upsert({
+      where: { userId },
+      update: {},
+      create: {
+        userId,
+        plan: 'ACTIVE',
+        aiCreditsTotal: allowance,
+        aiCreditsUsed: 0,
+      },
+    });
+
+    const remaining = entitlement.aiCreditsTotal - entitlement.aiCreditsUsed;
+    if (remaining >= allowance) return;
+
+    await this.prisma.userEntitlement.update({
+      where: { id: entitlement.id },
+      data: {
+        aiCreditsTotal: { increment: allowance - remaining },
+      },
+    });
+  }
+
+  private async addCredits(userId: string, credits: number): Promise<void> {
+    if (credits <= 0) return;
+
+    await this.prisma.userEntitlement.upsert({
+      where: { userId },
+      update: {
+        aiCreditsTotal: { increment: credits },
+        plan: 'ACTIVE',
+      },
+      create: {
+        userId,
+        plan: 'ACTIVE',
+        aiCreditsTotal: credits,
+        aiCreditsUsed: 0,
+      },
+    });
+  }
+
+  private parseOptionalInt(value: string | undefined): number | null {
+    if (!value) return null;
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private getProductIdConfig(): {
+    topup100: number | null;
+    topup200: number | null;
+    topup500: number | null;
+    proMonthly: number | null;
+    proAnnual: number | null;
+  } {
+    return {
+      topup100: this.parseOptionalInt(process.env.WP_PRODUCT_TOPUP_100),
+      topup200: this.parseOptionalInt(process.env.WP_PRODUCT_TOPUP_200),
+      topup500: this.parseOptionalInt(process.env.WP_PRODUCT_TOPUP_500),
+      proMonthly: this.parseOptionalInt(process.env.WP_PRODUCT_PRO_MONTHLY),
+      proAnnual: this.parseOptionalInt(process.env.WP_PRODUCT_PRO_ANNUAL),
+    };
+  }
+}
+
+function computeWooSignatureBase64(rawBody: Buffer, secret: string): string {
+  return crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
+}
+
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const ab = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
+
+function parseJsonEnv(name: string): Record<string, any> {
+  try {
+    return JSON.parse(process.env[name] || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function creditsForProduct(productId: number): number {
+  const map = parseJsonEnv('WC_CREDITS_MAP');
+  return Number(map[String(productId)] || 0);
+}
+
+function isProProduct(productId: number): boolean {
+  const proMonthly = Number(process.env.WP_PRODUCT_PRO_MONTHLY_ID || 0);
+  const proAnnual = Number(process.env.WP_PRODUCT_PRO_ANNUAL_ID || 0);
+  return (proMonthly !== 0 && productId === proMonthly) || (proAnnual !== 0 && productId === proAnnual);
+}
+
