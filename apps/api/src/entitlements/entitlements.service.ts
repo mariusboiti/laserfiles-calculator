@@ -102,19 +102,21 @@ export class EntitlementsService {
     const isTrialValid =
       ent?.plan === 'TRIALING' && Boolean(ent.trialEndsAt) && (ent.trialEndsAt as Date) > now;
 
-    const plan: 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED' = hasPaidPlanFromWp
-      ? 'ACTIVE'
-      : isTrialValid
-        ? 'TRIALING'
-        : ent?.plan === 'EXPIRED'
-          ? 'EXPIRED'
-          : ent?.plan === 'INACTIVE'
-            ? 'INACTIVE'
-            : ent?.plan === 'ACTIVE'
-              ? 'ACTIVE'
-              : 'NONE';
+    type UiEntitlementPlan = 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+    let plan: UiEntitlementPlan = 'NONE';
+    if (hasPaidPlanFromWp) {
+      plan = 'ACTIVE';
+    } else if (isTrialValid) {
+      plan = 'TRIALING';
+    } else if (ent?.plan === 'EXPIRED') {
+      plan = 'EXPIRED';
+    } else if (ent?.plan === 'INACTIVE') {
+      plan = 'INACTIVE';
+    } else if (ent?.plan === 'ACTIVE') {
+      plan = 'ACTIVE';
+    }
 
-    const isActive = plan === 'ACTIVE' || (plan === 'TRIALING' && isTrialValid);
+    const isActive = plan === 'ACTIVE' || plan === 'TRIALING';
 
     return {
       plan,
