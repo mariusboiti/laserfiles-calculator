@@ -82,23 +82,50 @@ export class EntitlementsService {
       where: { userId },
     });
 
+    const now = new Date();
+
+    const trialStartedAt = ent?.trialStartedAt ? ent.trialStartedAt.toISOString() : null;
+    const trialEndsAt = ent?.trialEndsAt ? ent.trialEndsAt.toISOString() : null;
+
+    let daysLeftInTrial: number | null = null;
+    if (ent?.plan === 'TRIALING' && ent.trialEndsAt) {
+      const msLeft = ent.trialEndsAt.getTime() - now.getTime();
+      daysLeftInTrial = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
+    }
+
     const total = Number(ent?.aiCreditsTotal ?? 0);
     const used = Number(ent?.aiCreditsUsed ?? 0);
     const remaining = Math.max(0, total - used);
 
-    const plan: 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED' =
-      identityEntitlements.plan === 'GUEST' ? 'NONE' : 'ACTIVE';
+    const hasPaidPlanFromWp = identityEntitlements.plan !== 'GUEST';
+
+    const isTrialValid =
+      ent?.plan === 'TRIALING' && Boolean(ent.trialEndsAt) && (ent.trialEndsAt as Date) > now;
+
+    const plan: 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED' = hasPaidPlanFromWp
+      ? 'ACTIVE'
+      : isTrialValid
+        ? 'TRIALING'
+        : ent?.plan === 'EXPIRED'
+          ? 'EXPIRED'
+          : ent?.plan === 'INACTIVE'
+            ? 'INACTIVE'
+            : ent?.plan === 'ACTIVE'
+              ? 'ACTIVE'
+              : 'NONE';
+
+    const isActive = plan === 'ACTIVE' || (plan === 'TRIALING' && isTrialValid);
 
     return {
       plan,
-      trialStartedAt: null,
-      trialEndsAt: null,
+      trialStartedAt,
+      trialEndsAt,
       aiCreditsTotal: total,
       aiCreditsUsed: used,
       aiCreditsRemaining: remaining,
-      isActive: plan === 'ACTIVE' || plan === 'TRIALING',
-      daysLeftInTrial: null,
-      stripeCustomerId: null,
+      isActive,
+      daysLeftInTrial,
+      stripeCustomerId: ent?.stripeCustomerId ?? null,
     };
   }
 
