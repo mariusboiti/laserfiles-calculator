@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import axios from 'axios';
 
 type WpExchangeResponse = {
@@ -11,11 +11,14 @@ type WpExchangeResponse = {
 
 @Injectable()
 export class WpSsoExchangeService {
+  private readonly logger = new Logger(WpSsoExchangeService.name);
+
   async exchangeCode(code: string): Promise<WpExchangeResponse> {
     const baseUrl = process.env.WP_PLUGIN_BASE_URL;
     const apiKey = process.env.WP_PLUGIN_API_KEY;
 
     if (!baseUrl || !apiKey) {
+      this.logger.warn('WP exchange requested but WP_PLUGIN_BASE_URL / WP_PLUGIN_API_KEY not configured');
       throw new UnauthorizedException('WP integration not configured');
     }
 
@@ -40,8 +43,22 @@ export class WpSsoExchangeService {
       }
 
       return data;
-    } catch (_e: any) {
-      throw new UnauthorizedException('Invalid or expired SSO code');
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const responseData = e?.response?.data;
+      const message = e?.message;
+
+      this.logger.warn(
+        `WP exchange failed: status=${status ?? 'n/a'} message=${message ?? 'n/a'} data=${
+          responseData ? JSON.stringify(responseData) : 'n/a'
+        }`,
+      );
+
+      if (status === 401 || status === 400) {
+        throw new UnauthorizedException('Invalid or expired SSO code');
+      }
+
+      throw new BadGatewayException('WP SSO exchange upstream failure');
     }
   }
 }
