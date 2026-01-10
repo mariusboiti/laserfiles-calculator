@@ -24,7 +24,7 @@ export class EntitlementsService {
     this.wpPluginApiKey = process.env.WP_PLUGIN_API_KEY || null;
   }
 
-    /**
+  /**
    * UI entitlement endpoint (Studio):
    * Reads UserEntitlement by internal UUID userId and returns credits + status.
    */
@@ -54,6 +54,30 @@ export class EntitlementsService {
       };
     }
 
+    const identityLink = await this.prisma.userIdentityLink.findFirst({
+      where: {
+        userId,
+        provider: 'WORDPRESS',
+      },
+    });
+
+    if (!identityLink?.externalUserId) {
+      return {
+        plan: 'NONE',
+        trialStartedAt: null,
+        trialEndsAt: null,
+        aiCreditsTotal: 0,
+        aiCreditsUsed: 0,
+        aiCreditsRemaining: 0,
+        isActive: false,
+        daysLeftInTrial: null,
+        stripeCustomerId: null,
+      };
+    }
+
+    const wpUserId = String(identityLink.externalUserId);
+    const identityEntitlements = await this.getEntitlementsForWpUser(wpUserId);
+
     const ent = await this.prisma.userEntitlement.findUnique({
       where: { userId },
     });
@@ -62,14 +86,8 @@ export class EntitlementsService {
     const used = Number(ent?.aiCreditsUsed ?? 0);
     const remaining = Math.max(0, total - used);
 
-    // NOTE: in DB you currently have plan like ACTIVE (status), which matches UI type.
-    const plan =
-  (ent?.plan as any) &&
-  ['NONE', 'TRIALING', 'ACTIVE', 'INACTIVE', 'EXPIRED'].includes(String(ent?.plan))
-    ? (ent?.plan as any)
-    : ent
-      ? 'ACTIVE'
-      : 'NONE';
+    const plan: 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED' =
+      identityEntitlements.plan === 'GUEST' ? 'NONE' : 'ACTIVE';
 
     return {
       plan,
@@ -111,10 +129,24 @@ export class EntitlementsService {
       return fromDb;
     }
 
-    // Ultimate fallback: dev-style PRO entitlements
-    const fresh = this.getDevEntitlements(wpUserId);
-    this.cache.set(wpUserId, { data: fresh, expiresAt: now + this.ttlMs });
-    return fresh;
+    if (process.env.ENTITLEMENTS_DEV_MODE === '1') {
+      const fresh = this.getDevEntitlements(wpUserId);
+      this.cache.set(wpUserId, { data: fresh, expiresAt: now + this.ttlMs });
+      return fresh;
+    }
+
+    const locked: IdentityEntitlements = {
+      entitlementsVersion: ENTITLEMENTS_VERSION,
+      plan: 'GUEST',
+      features: {} as any,
+      limits: {} as any,
+      validUntil: null,
+      wpUserId,
+      email: `${wpUserId}@unknown.local`,
+      displayName: `User ${wpUserId}`,
+    };
+    this.cache.set(wpUserId, { data: locked, expiresAt: now + this.ttlMs });
+    return locked;
   }
 
   /**
@@ -122,18 +154,26 @@ export class EntitlementsService {
    * Returns null if WP plugin is not configured or the request fails.
    */
   private async fetchEntitlementsFromWpPlugin(wpUserId: string): Promise<IdentityEntitlements | null> {
-    if (!this.wpPluginBaseUrl || !this.wpPluginApiKey) {
+    if (!this.wpPluginBaseUrl) {
       // WP plugin not configured, skip
       return null;
     }
 
     try {
-      const url = `${this.wpPluginBaseUrl}/entitlements/${encodeURIComponent(wpUserId)}`;
+      const url = `${this.normalizeWpBaseUrl(this.wpPluginBaseUrl)}/entitlements/${encodeURIComponent(
+        wpUserId,
+      )}`;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.wpPluginApiKey) {
+        headers.Authorization = `Bearer ${this.wpPluginApiKey}`;
+      }
+
       const response = await axios.get<WpGetEntitlementsResponse>(url, {
-        headers: {
-          Authorization: `Bearer ${this.wpPluginApiKey}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
         timeout: 5000, // 5 second timeout
       });
 
@@ -158,6 +198,17 @@ export class EntitlementsService {
       );
       return null;
     }
+  }
+
+  private normalizeWpBaseUrl(baseUrl: string): string {
+    const trimmed = baseUrl.replace(/\/$/, '');
+    if (trimmed.includes('/wp-json/laserfiles/v1')) {
+      return trimmed;
+    }
+    if (trimmed.includes('/wp-json/')) {
+      return trimmed;
+    }
+    return `${trimmed}/wp-json/laserfiles/v1`;
   }
 
   clearCacheForWpUser(wpUserId: string): void {
