@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards, UnauthorizedException, BadRequestException, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
@@ -9,6 +9,9 @@ import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { computeWpSsoSignatureHex, secureCompareHex } from '../common/wp-hmac';
+import type { Response } from 'express';
+import { WpExchangeDto } from './dto/wp-exchange.dto';
+import { WpSsoExchangeService } from './wp-sso-exchange.service';
 
 class LoginDto {
   @IsEmail()
@@ -50,6 +53,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly entitlementsService: EntitlementsService,
+    private readonly wpSsoExchangeService: WpSsoExchangeService,
   ) {}
 
   @Post('wp/sso')
@@ -181,6 +185,51 @@ export class AuthController {
     const wpUserId = body.wpToken;
     const entitlements = await this.entitlementsService.getEntitlementsForWpUser(wpUserId);
     return this.authService.loginWithWp(entitlements);
+  }
+
+  @Post('wp/exchange')
+  async wpExchange(@Body() dto: WpExchangeDto, @Res({ passthrough: true }) res: Response) {
+    // curl -X POST http://localhost:4000/auth/wp/exchange -H "Content-Type: application/json" -d "{\"code\":\"YOUR_CODE\"}" -i
+    const { wpUserId, email, displayName, name, entitlements } =
+      await this.wpSsoExchangeService.exchangeCode(dto.code);
+
+    const loginResult = await this.authService.loginWithWp({
+      wpUserId: String(wpUserId),
+      email,
+      displayName: displayName ?? name ?? email,
+      plan: (entitlements as any)?.plan ?? 'PRO',
+      entitlementsVersion: (entitlements as any)?.entitlementsVersion ?? 'unknown',
+      features: (entitlements as any)?.features ?? {},
+      limits: (entitlements as any)?.limits ?? {},
+      validUntil: (entitlements as any)?.validUntil ?? null,
+    } as any);
+
+    const cookieDomain = process.env.COOKIE_DOMAIN || '.laserfilespro.com';
+    const secure = (process.env.COOKIE_SECURE ?? 'true').toLowerCase() === 'true';
+
+    const common = {
+      httpOnly: true,
+      secure,
+      sameSite: 'lax' as const,
+      domain: cookieDomain,
+      path: '/',
+    };
+
+    res.cookie('lf_access_token', loginResult.accessToken, {
+      ...common,
+      maxAge: 1000 * 60 * 15,
+    });
+
+    res.cookie('lf_refresh_token', loginResult.refreshToken, {
+      ...common,
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
+
+    return {
+      ok: true,
+      user: loginResult.user,
+      entitlements: loginResult.entitlements ?? null,
+    };
   }
 
   @ApiBearerAuth('access-token')
