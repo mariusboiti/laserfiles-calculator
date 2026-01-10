@@ -204,14 +204,11 @@ export class AuthController {
       validUntil: (entitlements as any)?.validUntil ?? null,
     } as any);
 
-    const cookieDomain = process.env.COOKIE_DOMAIN || '.laserfilespro.com';
-    const secure = (process.env.COOKIE_SECURE ?? 'true').toLowerCase() === 'true';
-
     const common = {
       httpOnly: true,
-      secure,
+      secure: true,
       sameSite: 'lax' as const,
-      domain: cookieDomain,
+      // domain: '.laserfilespro.com',
       path: '/',
     };
 
