@@ -206,11 +206,13 @@ export class AuthController {
       validUntil: (entitlements as any)?.validUntil ?? null,
     } as any);
 
+    const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
     const cookieOptions = {
       httpOnly: true,
       secure: true,
       sameSite: 'lax' as const,
       path: '/',
+      ...(cookieDomain ? { domain: cookieDomain } : {}),
     };
 
     res.cookie('lf_access_token', loginResult.accessToken, cookieOptions);
