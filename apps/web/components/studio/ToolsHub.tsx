@@ -23,8 +23,25 @@ const TOOL_CATEGORIES = {
 } as const;
 
 export function ToolsHub() {
-  const { plan } = usePlan();
+  const { plan, entitlement, entitlementLoading } = usePlan();
   const [query, setQuery] = useState('');
+
+  const isTrialValid = useMemo(() => {
+    if (!entitlement) return false;
+    if (entitlement.plan !== 'TRIALING') return true;
+    if (!entitlement.trialEndsAt) return false;
+    const ends = new Date(entitlement.trialEndsAt).getTime();
+    return Number.isFinite(ends) && ends > Date.now();
+  }, [entitlement]);
+
+  const isLocked = useMemo(() => {
+    if (entitlementLoading) return false;
+    if (!entitlement) return true;
+    if (entitlement.plan === 'NONE' || entitlement.plan === 'INACTIVE' || entitlement.plan === 'EXPIRED') return true;
+    if (!isTrialValid) return true;
+    if (entitlement.plan === 'TRIALING' && entitlement.aiCreditsRemaining <= 0) return true;
+    return false;
+  }, [entitlement, entitlementLoading, isTrialValid]);
 
   const filteredTools = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -47,6 +64,35 @@ export function ToolsHub() {
   }, [filteredTools]);
 
   const hasSearchQuery = query.trim().length > 0;
+
+  if (entitlementLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-slate-400">Loading…</div>
+      </div>
+    );
+  }
+
+  if (isLocked) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-full max-w-xl rounded-xl border border-slate-800 bg-slate-900/40 p-8 text-center">
+          <div className="text-xl font-semibold text-slate-100">Access locked</div>
+          <div className="mt-2 text-sm text-slate-400">
+            Your plan is not active, or your trial has ended / run out of credits.
+          </div>
+          <div className="mt-5">
+            <Link
+              href="/studio/dashboard"
+              className="inline-flex items-center justify-center rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
+            >
+              Go to dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -80,7 +126,7 @@ export function ToolsHub() {
           <h2 className="mb-4 text-xl font-semibold text-slate-100">Search Results</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredTools.map((tool) => (
-              <ToolCard key={tool.slug} tool={tool} plan={plan} />
+              <ToolCard key={tool.slug} tool={tool} plan={plan} aiCreditsRemaining={entitlement?.aiCreditsRemaining ?? 0} />
             ))}
           </div>
           {filteredTools.length === 0 && (
@@ -99,7 +145,7 @@ export function ToolsHub() {
                 <h2 className="mb-4 text-xl font-semibold text-slate-100">{category}</h2>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {tools.map((tool) => (
-                    <ToolCard key={tool.slug} tool={tool} plan={plan} />
+                    <ToolCard key={tool.slug} tool={tool} plan={plan} aiCreditsRemaining={entitlement?.aiCreditsRemaining ?? 0} />
                   ))}
                 </div>
               </div>
@@ -111,8 +157,17 @@ export function ToolsHub() {
   );
 }
 
-function ToolCard({ tool, plan }: { tool: typeof studioTools[0]; plan: string }) {
+function ToolCard({
+  tool,
+  plan,
+  aiCreditsRemaining,
+}: {
+  tool: typeof studioTools[0];
+  plan: string;
+  aiCreditsRemaining: number;
+}) {
   const tutorialAvailable = hasTutorial(tool.slug);
+  const aiLocked = Boolean(tool.usesAI) && aiCreditsRemaining <= 0;
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 transition-colors hover:border-slate-700">
@@ -137,7 +192,9 @@ function ToolCard({ tool, plan }: { tool: typeof studioTools[0]; plan: string })
       <div className="mt-5 flex items-center gap-2">
         <Link
           href={`/studio/tools/${tool.slug}`}
-          className="inline-flex items-center justify-center rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-600"
+          className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors ${
+            aiLocked ? 'bg-slate-700 cursor-not-allowed pointer-events-none' : 'bg-sky-500 hover:bg-sky-600'
+          }`}
         >
           Open tool
         </Link>

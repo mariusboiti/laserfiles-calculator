@@ -96,7 +96,7 @@ function ToolShellInner({
   help,
   getExportPayload,
 }: ToolShellProps) {
-  const { plan, canUse } = usePlan();
+  const { plan, canUse, entitlement, entitlementLoading, aiAllowed } = usePlan();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>(undefined);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -121,6 +121,30 @@ function ToolShellInner({
   }, [effectiveToolSlug]);
 
   const showAIInfo = Boolean(toolMeta?.usesAI);
+  const showAiPanels = showAIInfo && aiAllowed;
+
+  const isTrialValid = useMemo(() => {
+    if (!entitlement) return false;
+    if (entitlement.plan !== 'TRIALING') return true;
+    if (!entitlement.trialEndsAt) return false;
+    const ends = new Date(entitlement.trialEndsAt).getTime();
+    return Number.isFinite(ends) && ends > Date.now();
+  }, [entitlement]);
+
+  const isLocked = useMemo(() => {
+    if (entitlementLoading) return false;
+    if (!entitlement) return true;
+    if (entitlement.plan === 'NONE' || entitlement.plan === 'INACTIVE' || entitlement.plan === 'EXPIRED') return true;
+    if (!isTrialValid) return true;
+    if (entitlement.plan === 'TRIALING' && entitlement.aiCreditsRemaining <= 0) return true;
+    return false;
+  }, [entitlement, entitlementLoading, isTrialValid]);
+
+  const canUseThisTool = useMemo(() => {
+    if (isLocked) return false;
+    if (!showAIInfo) return true;
+    return Boolean(aiAllowed);
+  }, [aiAllowed, entitlement?.plan, isLocked, showAIInfo]);
 
   // Tutorial state
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -435,7 +459,7 @@ function ToolShellInner({
             </div>
             <div className="mt-1 text-sm text-slate-300">{description}</div>
 
-            {showAIInfo && (
+            {showAiPanels && (
               <div className="mt-3 space-y-2">
                 <AIWarningBanner />
                 <AICreditInfo />
@@ -483,7 +507,7 @@ function ToolShellInner({
               >
                 Reset
               </button>
-              {showAIInfo && (
+              {showAiPanels && (
                 <button
                   type="button"
                   onClick={() => setAiLibraryOpen(true)}
@@ -661,7 +685,40 @@ function ToolShellInner({
 
       <div className={`lfs-tool lfs-tool-${slug} flex-1 min-h-0 overflow-x-hidden relative`}>
         <ToolErrorBoundary toolSlug={effectiveToolSlug}>
-          {children}
+          {entitlementLoading ? (
+            <div className="flex h-full items-center justify-center p-6">
+              <div className="text-sm text-slate-400">Loading…</div>
+            </div>
+          ) : !canUseThisTool ? (
+            <div className="flex h-full items-center justify-center p-6">
+              <div className="w-full max-w-xl rounded-xl border border-slate-800 bg-slate-950 p-6 text-center">
+                <div className="text-lg font-semibold text-slate-100">Access locked</div>
+                <div className="mt-2 text-sm text-slate-400">
+                  {showAIInfo
+                    ? 'This AI tool requires an active plan and available AI credits.'
+                    : 'This tool requires an active plan.'}
+                </div>
+                <div className="mt-5 flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUpgradeOpen(true)}
+                    className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
+                  >
+                    View options
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => (window.location.href = '/studio/dashboard')}
+                    className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-900"
+                  >
+                    Back to dashboard
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
         </ToolErrorBoundary>
       </div>
 
@@ -713,7 +770,7 @@ function ToolShellInner({
       />
 
       {/* AI Image Library Panel */}
-      {showAIInfo && (
+      {showAiPanels && (
         <AIImageLibraryPanel
           open={aiLibraryOpen}
           onClose={() => setAiLibraryOpen(false)}

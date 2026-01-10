@@ -179,7 +179,7 @@ export function BillingCard() {
           </button>
         )}
 
-        {entitlement.stripeCustomerId && (
+        {plan === 'ACTIVE' && entitlement.stripeCustomerId && (
           <button
             onClick={handleManageBilling}
             disabled={actionLoading === 'billing'}
