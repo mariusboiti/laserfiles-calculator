@@ -17,6 +17,24 @@ interface JwtPayload {
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async ensureUserEntitlement(userId: string) {
+    const existing = await this.prisma.userEntitlement.findUnique({
+      where: { userId },
+    });
+    if (existing) return existing;
+
+    return this.prisma.userEntitlement.create({
+      data: {
+        userId,
+        plan: 'INACTIVE',
+        aiCreditsTotal: 0,
+        aiCreditsUsed: 0,
+        trialStartedAt: null,
+        trialEndsAt: null,
+      },
+    });
+  }
+
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -86,6 +104,8 @@ export class AuthService {
         },
       });
     }
+
+    await this.ensureUserEntitlement(user.id);
 
     // Upsert UserIdentityLink to link this user to the WordPress identity
     await this.prisma.userIdentityLink.upsert({
