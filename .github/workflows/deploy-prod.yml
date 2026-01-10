@@ -1,0 +1,37 @@
+name: Deploy Prod
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ${{ secrets.PROD_DEPLOY_PATH }}
+
+            git fetch --prune origin
+            git checkout main
+            git reset --hard origin/main
+
+            docker compose --profile prod build api web
+            docker compose --profile prod up -d api web nginx
+
+            docker compose --profile prod exec -T api sh -lc 'pnpm exec prisma migrate deploy --schema=./prisma/schema.prisma'
+
+            docker image prune -f
