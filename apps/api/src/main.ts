@@ -10,6 +10,7 @@ import { AppGlobals } from './app.globals';
 import { OffcutsService } from './offcuts/offcuts.service';
 import { SalesChannelsConnectionsService } from './sales-channels/sales-channels.connections.service';
 import * as bodyParser from 'body-parser';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   dotenv.config({ path: join(__dirname, '..', '.env') });
@@ -33,6 +34,8 @@ async function bootstrap() {
       },
     }),
   );
+
+  app.use(cookieParser());
 
   // Initialize global service references for controllers that cannot rely on normal DI
   try {

@@ -1,43 +1,42 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { Request } from 'express';
 import * as jwt from 'jsonwebtoken';
-import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    const reflector = new Reflector();
-    const isPublic = reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+  constructor(private readonly reflector: Reflector) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
+
     if (isPublic) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
-    const authHeader: string | undefined = request.headers['authorization'];
+    const request = context.switchToHttp().getRequest<Request>();
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing access token');
+    const token =
+      (request as any).cookies?.lf_access_token ||
+      request.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      return false;
     }
-
-    const token = authHeader.substring(7);
 
     try {
       const payload = jwt.verify(
         token,
         process.env.JWT_ACCESS_SECRET || 'dev-access-secret',
       );
-      request.user = payload;
+      (request as any).user = payload;
       return true;
-    } catch (e) {
-      throw new UnauthorizedException('Invalid or expired token');
+    } catch {
+      return false;
     }
   }
 }
