@@ -16,8 +16,11 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { EntitlementsService } from './entitlements.service';
 import type { WpEntitlementsChangedWebhook } from '@laser/shared/wp-plugin-contract';
 import * as crypto from 'crypto';
+import { IsEmail, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 class EntitlementsWebhookDto {
   event!: string;
@@ -26,6 +29,34 @@ class EntitlementsWebhookDto {
   previousPlan?: string;
   occurredAt!: string;
   eventId!: string;
+}
+
+class AdminAdjustCreditsDto {
+  @IsOptional()
+  @IsString()
+  targetUserId?: string;
+
+  @IsOptional()
+  @IsEmail()
+  targetEmail?: string;
+
+  @IsOptional()
+  @IsInt()
+  addCredits?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  setTotal?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  setUsed?: number;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
 
 @ApiTags('entitlements')
@@ -51,6 +82,46 @@ export class EntitlementsController {
 
     const data = await this.entitlementsService.getUiEntitlementsForUserId(String(userId));
     return { ok: true, data };
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('admin/credits')
+  @ApiOperation({ summary: 'Admin: adjust AI credits for a user (manual top-up / contests)' })
+  async adminAdjustCredits(@Req() req: any, @Body() dto: AdminAdjustCreditsDto) {
+    const actorUserId = req?.user?.id ?? req?.user?.sub ?? req?.user?.userId;
+    if (!actorUserId) {
+      throw new UnauthorizedException('Missing user id in token');
+    }
+
+    if (!dto.targetUserId && !dto.targetEmail) {
+      throw new BadRequestException('Provide targetUserId or targetEmail');
+    }
+
+    if (
+      dto.addCredits === undefined &&
+      dto.setTotal === undefined &&
+      dto.setUsed === undefined
+    ) {
+      throw new BadRequestException('Provide addCredits or setTotal or setUsed');
+    }
+
+    try {
+      const data = await this.entitlementsService.adminAdjustAiCredits({
+        actorUserId: String(actorUserId),
+        targetUserId: dto.targetUserId,
+        targetEmail: dto.targetEmail,
+        addCredits: dto.addCredits,
+        setTotal: dto.setTotal,
+        setUsed: dto.setUsed,
+        reason: dto.reason,
+      });
+      return { ok: true, data };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to adjust credits';
+      throw new BadRequestException(msg);
+    }
   }
 
   /**
