@@ -8,7 +8,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('admin@example.com');
   const [password, setPassword] = useState('admin123');
-  const [wpToken, setWpToken] = useState('demo-wp-user-1');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,27 +32,13 @@ export default function LoginPage() {
     }
   }
 
-  async function handleWpSso() {
+  function handleWpSso() {
     setError(null);
-    setLoading(true);
-    try {
-      const res = await apiClient.post('/auth/wp-sso', { wpToken });
-      const { accessToken, refreshToken, user, entitlements } = res.data;
-
-      window.localStorage.setItem('accessToken', accessToken);
-      window.localStorage.setItem('refreshToken', refreshToken);
-      window.localStorage.setItem('user', JSON.stringify(user));
-      if (entitlements) {
-        window.localStorage.setItem('entitlements', JSON.stringify(entitlements));
-      }
-
-      router.push('/');
-    } catch (err: any) {
-      const message = err?.response?.data?.message || 'SSO login failed';
-      setError(Array.isArray(message) ? message.join(', ') : message);
-    } finally {
-      setLoading(false);
-    }
+    const WP_BASE = 'https://laserfilespro.com';
+    const returnUrl = encodeURIComponent(
+      'https://studio.laserfilespro.com/auth/wp/callback',
+    );
+    window.location.href = `${WP_BASE}/wp-json/laserfiles/v1/sso/start?returnUrl=${returnUrl}`;
   }
 
   return (
@@ -102,26 +87,15 @@ export default function LoginPage() {
         <div className="mt-4 space-y-2 border-t border-slate-800 pt-4">
           <p className="text-xs text-slate-400">Or sign in with your LaserfilesPro membership account.</p>
           <div className="space-y-2">
-            <input
-              type="text"
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-              value={wpToken}
-              onChange={(e) => setWpToken(e.target.value)}
-              placeholder="Dev WP token (treated as wpUserId)"
-            />
             <button
               type="button"
               disabled={loading}
               onClick={handleWpSso}
               className="inline-flex w-full items-center justify-center rounded-md border border-sky-500 px-4 py-2 text-sm font-medium text-sky-100 hover:bg-sky-500/10 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
-              {loading ? 'Connecting…' : 'Continue with LaserfilesPro account'}
+              {loading ? 'Connecting…' : 'Continue with LaserFilesPro'}
             </button>
           </div>
-          <p className="text-[10px] text-slate-500">
-            Dev note: in production this will redirect through the WordPress SSO gateway instead of
-            asking for a raw token.
-          </p>
         </div>
         <p className="text-xs text-slate-500">
           Demo users: admin@example.com / admin123, worker@example.com / worker123
