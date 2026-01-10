@@ -57,6 +57,32 @@ export class AuthController {
     private readonly wpSsoExchangeService: WpSsoExchangeService,
   ) {}
 
+  @Public()
+  @Get('wp/debug-config')
+  async wpDebugConfig() {
+    const baseUrl = process.env.WP_PLUGIN_BASE_URL || '';
+    const apiKey = process.env.WP_PLUGIN_API_KEY || '';
+    const maxSkewSeconds = process.env.WP_SSO_MAX_SKEW_SECONDS
+      ? Number(process.env.WP_SSO_MAX_SKEW_SECONDS)
+      : 120;
+
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+    const exchangeEndpoint = normalizedBaseUrl
+      ? `${normalizedBaseUrl}/wp-json/laserfiles/v1/sso/exchange`
+      : '/wp-json/laserfiles/v1/sso/exchange';
+
+    const redactedBaseUrl = normalizedBaseUrl
+      ? normalizedBaseUrl.replace(/^https?:\/\//, 'https://')
+      : '';
+
+    return {
+      baseUrl: redactedBaseUrl,
+      hasApiKey: Boolean(apiKey),
+      exchangeEndpoint,
+      maxSkewSeconds,
+    };
+  }
+
   @Post('wp/sso')
   async wpHmacSso(@Body() body: WpHmacSsoDto) {
     const secret = process.env.WP_SSO_SECRET;
@@ -191,7 +217,7 @@ export class AuthController {
   @Public()
   @Post('wp/exchange')
   async wpExchange(@Body() dto: WpExchangeDto, @Res({ passthrough: true }) res: Response) {
-    // curl -X POST http://localhost:4000/auth/wp/exchange -H "Content-Type: application/json" -d "{\"code\":\"YOUR_CODE\"}" -i
+    // curl -i -X POST http://127.0.0.1:4000/auth/wp/exchange -H "Content-Type: application/json" -d '{"code":"..."}'
     const { wpUserId, email, displayName, name, entitlements } =
       await this.wpSsoExchangeService.exchangeCode(dto.code);
 
@@ -206,11 +232,13 @@ export class AuthController {
       validUntil: (entitlements as any)?.validUntil ?? null,
     } as any);
 
+    const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
     const cookieOptions = {
       httpOnly: true,
       secure: true,
       sameSite: 'lax' as const,
       path: '/',
+      ...(cookieDomain ? { domain: cookieDomain } : {}),
     };
 
     res.cookie('lf_access_token', loginResult.accessToken, cookieOptions);

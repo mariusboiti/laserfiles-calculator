@@ -131,6 +131,117 @@ export class EntitlementsService {
     };
   }
 
+  async adminAdjustAiCredits(input: {
+    actorUserId: string;
+    targetUserId?: string;
+    targetEmail?: string;
+    addCredits?: number;
+    setTotal?: number;
+    setUsed?: number;
+    reason?: string;
+  }): Promise<{
+    userId: string;
+    aiCreditsTotal: number;
+    aiCreditsUsed: number;
+    aiCreditsRemaining: number;
+  }> {
+    if (!this.prisma) {
+      throw new Error('Prisma not available');
+    }
+
+    if (!input.targetUserId && !input.targetEmail) {
+      throw new Error('Missing targetUserId or targetEmail');
+    }
+
+    const hasAnyAction =
+      typeof input.addCredits === 'number' ||
+      typeof input.setTotal === 'number' ||
+      typeof input.setUsed === 'number';
+    if (!hasAnyAction) {
+      throw new Error('No credits adjustment specified');
+    }
+
+    const addCredits = Number(input.addCredits ?? 0);
+    const setTotal = input.setTotal;
+    const setUsed = input.setUsed;
+
+    if (typeof input.addCredits === 'number' && (!Number.isFinite(addCredits) || addCredits === 0)) {
+      throw new Error('addCredits must be a non-zero number');
+    }
+    if (typeof setTotal === 'number' && (!Number.isFinite(setTotal) || setTotal < 0)) {
+      throw new Error('setTotal must be a non-negative number');
+    }
+    if (typeof setUsed === 'number' && (!Number.isFinite(setUsed) || setUsed < 0)) {
+      throw new Error('setUsed must be a non-negative number');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        ...(input.targetUserId ? { id: input.targetUserId } : {}),
+        ...(input.targetEmail ? { email: input.targetEmail } : {}),
+      },
+      select: { id: true, email: true },
+    });
+
+    if (!user?.id) {
+      throw new Error('Target user not found');
+    }
+
+    const current = await this.prisma.userEntitlement.findUnique({
+      where: { userId: user.id },
+      select: {
+        aiCreditsTotal: true,
+        aiCreditsUsed: true,
+      },
+    });
+
+    const currentTotal = Number(current?.aiCreditsTotal ?? 0);
+    const currentUsed = Number(current?.aiCreditsUsed ?? 0);
+
+    let nextTotal = currentTotal;
+    let nextUsed = currentUsed;
+
+    if (typeof setTotal === 'number') {
+      nextTotal = Math.floor(setTotal);
+    }
+    if (typeof setUsed === 'number') {
+      nextUsed = Math.floor(setUsed);
+    }
+    if (typeof input.addCredits === 'number') {
+      nextTotal = nextTotal + Math.floor(addCredits);
+    }
+
+    if (nextTotal < 0) nextTotal = 0;
+    if (nextUsed < 0) nextUsed = 0;
+    if (nextUsed > nextTotal) {
+      throw new Error('aiCreditsUsed cannot exceed aiCreditsTotal');
+    }
+
+    await this.prisma.userEntitlement.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        aiCreditsTotal: nextTotal,
+        aiCreditsUsed: nextUsed,
+      },
+      update: {
+        aiCreditsTotal: nextTotal,
+        aiCreditsUsed: nextUsed,
+      },
+    });
+
+    this.logger.log(
+      `Admin credits adjustment: actor=${input.actorUserId} target=${user.id} email=${user.email} add=${input.addCredits ?? null} setTotal=${setTotal ?? null} setUsed=${setUsed ?? null} reason=${input.reason ?? ''}`,
+    );
+
+    return {
+      userId: user.id,
+      aiCreditsTotal: nextTotal,
+      aiCreditsUsed: nextUsed,
+      aiCreditsRemaining: Math.max(0, nextTotal - nextUsed),
+    };
+  }
+
 
   async getEntitlementsForWpUser(wpUserId: string): Promise<IdentityEntitlements> {
     // Dev mode: return a fixed PRO entitlement without calling WordPress.
