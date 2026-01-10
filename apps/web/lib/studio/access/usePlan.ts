@@ -1,9 +1,14 @@
 import { useMemo } from 'react';
 import type { Plan } from '../tools/types';
+import { useEntitlement, canUseAi } from '@/lib/entitlements/client';
 
 export function usePlan() {
-  // Enable Pro access for all features
-  const plan = 'pro' as Plan;
+  const { entitlement, loading, error, refetch } = useEntitlement();
+  const plan =
+    entitlement && (entitlement.plan === 'ACTIVE' || entitlement.plan === 'TRIALING')
+      ? ('pro' as Plan)
+      : ('free' as Plan);
+  const aiAllowed = canUseAi(entitlement);
 
   const canUse = useMemo(() => {
     return (feature?: string) => {
@@ -13,5 +18,13 @@ export function usePlan() {
     };
   }, [plan]);
 
-  return { plan, canUse };
+  return {
+    plan,
+    canUse,
+    entitlement,
+    aiAllowed,
+    entitlementLoading: loading,
+    entitlementError: error,
+    refetchEntitlement: refetch,
+  };
 }

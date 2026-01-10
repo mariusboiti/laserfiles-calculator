@@ -8,6 +8,7 @@ import { StudioHeader } from '@/components/studio/StudioHeader';
 import { DisclaimerProvider, useDisclaimer } from '@/components/legal';
 import { AppErrorBoundary, ToastProvider, NetworkProvider } from '@/components/system';
 import { ReleaseChecklist } from '@/components/dev';
+import { apiClient } from '@/lib/api-client';
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,39 +24,30 @@ function StudioShell({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
-  const BYPASS_LOGIN =
-    process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_BYPASS_LOGIN === 'true';
-
   useEffect(() => {
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    let cancelled = false;
 
-    if (!token || !storedUser) {
-      if (BYPASS_LOGIN) {
-        setUser({ name: 'Guest' });
+    (async () => {
+      try {
+        const res = await apiClient.get('/auth/me', { withCredentials: true });
+        if (cancelled) return;
+        setUser(res.data?.user ?? null);
+        if (!res.data?.user) {
+          router.push('/login');
+        }
+      } catch {
+        if (cancelled) return;
+        setUser(null);
+        router.push('/login');
+      } finally {
+        if (cancelled) return;
         setLoading(false);
-        return;
       }
-      router.push('/login');
-      setLoading(false);
-      return;
-    }
+    })();
 
-    try {
-      const parsed = JSON.parse(storedUser);
-      setUser(parsed);
-    } catch {
-      if (BYPASS_LOGIN) {
-        setUser({ name: 'Guest' });
-        setLoading(false);
-        return;
-      }
-      router.push('/login');
-      setLoading(false);
-      return;
-    }
-
-    setLoading(false);
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   if (loading) {
