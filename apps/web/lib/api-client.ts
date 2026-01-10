@@ -1,10 +1,7 @@
 import axios from 'axios';
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || '/api';
-
-
 export const apiClient = axios.create({
-  baseURL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true,
 });
 
@@ -44,7 +41,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
     try {
       const res = await axios.post(
-        `${baseURL}/auth/refresh`,
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
         { refreshToken },
         { withCredentials: true }
       );
