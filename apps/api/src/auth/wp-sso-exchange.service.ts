@@ -17,23 +17,28 @@ export class WpSsoExchangeService {
     const baseUrl = process.env.WP_PLUGIN_BASE_URL;
     const apiKey = process.env.WP_PLUGIN_API_KEY;
 
-    if (!baseUrl || !apiKey) {
-      this.logger.warn('WP exchange requested but WP_PLUGIN_BASE_URL / WP_PLUGIN_API_KEY not configured');
+    if (!baseUrl) {
+      this.logger.warn('WP exchange requested but WP_PLUGIN_BASE_URL not configured');
       throw new UnauthorizedException('WP integration not configured');
     }
 
     const url = `${baseUrl.replace(/\/$/, '')}/wp-json/laserfiles/v1/sso/exchange`;
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (apiKey) {
+        headers['x-laserfiles-api-key'] = apiKey;
+        headers.Authorization = `Bearer ${apiKey}`;
+      }
+
       const { data } = await axios.post<WpExchangeResponse>(
         url,
         { code },
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-laserfiles-api-key': apiKey,
-            Authorization: `Bearer ${apiKey}`,
-          },
+          headers,
           timeout: 10_000,
         },
       );
