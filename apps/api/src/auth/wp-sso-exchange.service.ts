@@ -1,4 +1,10 @@
-import { BadGatewayException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import axios from 'axios';
 
 type WpExchangeResponse = {
@@ -30,21 +36,68 @@ export class WpSsoExchangeService {
       };
 
       if (apiKey) {
-        headers['x-laserfiles-api-key'] = apiKey;
         headers.Authorization = `Bearer ${apiKey}`;
+        headers['x-api-key'] = apiKey;
+        headers['x-laserfiles-api-key'] = apiKey;
       }
 
-      const { data } = await axios.post<WpExchangeResponse>(
+      this.logger.log(
+        `WP SSO exchange request: url=${url} hasApiKey=${Boolean(apiKey)}`,
+      );
+
+      const response = await axios.post<WpExchangeResponse>(
         url,
         { code },
         {
           headers,
           timeout: 10_000,
+          validateStatus: () => true,
         },
       );
 
+      const status = response.status;
+      const responseData = response.data as any;
+      const responseText = (() => {
+        try {
+          const raw =
+            typeof responseData === 'string'
+              ? responseData
+              : JSON.stringify(responseData);
+          return raw.length > 500 ? `${raw.slice(0, 500)}...` : raw;
+        } catch {
+          return '[unserializable]';
+        }
+      })();
+
+      if (status < 200 || status >= 300) {
+        this.logger.warn(
+          `WP SSO exchange non-2xx: url=${url} status=${status} body=${responseText}`,
+        );
+
+        if (status === 401 || status === 403) {
+          throw new UnauthorizedException(
+            `WP SSO exchange rejected (status=${status})`,
+          );
+        }
+        if (status === 400) {
+          throw new BadRequestException(
+            `WP SSO exchange invalid request (status=${status})`,
+          );
+        }
+        throw new BadGatewayException(
+          `WP SSO exchange upstream error (status=${status})`,
+        );
+      }
+
+      const data = response.data;
+
       if (!data?.wpUserId || !data?.email) {
-        throw new UnauthorizedException('Invalid WP exchange response');
+        this.logger.warn(
+          `WP SSO exchange invalid payload: url=${url} status=${status} body=${responseText}`,
+        );
+        throw new UnauthorizedException(
+          `Invalid WP exchange response (status=${status})`,
+        );
       }
 
       return data;
@@ -52,18 +105,31 @@ export class WpSsoExchangeService {
       const status = e?.response?.status;
       const responseData = e?.response?.data;
       const message = e?.message;
+      const responseText = (() => {
+        try {
+          const raw =
+            typeof responseData === 'string'
+              ? responseData
+              : JSON.stringify(responseData);
+          return raw.length > 500 ? `${raw.slice(0, 500)}...` : raw;
+        } catch {
+          return '[unserializable]';
+        }
+      })();
 
-      this.logger.warn(
-        `WP exchange failed: status=${status ?? 'n/a'} message=${message ?? 'n/a'} data=${
-          responseData ? JSON.stringify(responseData) : 'n/a'
-        }`,
+      this.logger.error(
+        `WP SSO exchange request failed: url=${url} status=${status ?? 'n/a'} message=${
+          message ?? 'n/a'
+        } body=${responseText}`,
       );
 
-      if (status === 401 || status === 400) {
-        throw new UnauthorizedException('Invalid or expired SSO code');
+      if (e instanceof UnauthorizedException || e instanceof BadRequestException) {
+        throw e;
       }
 
-      throw new BadGatewayException('WP SSO exchange upstream failure');
+      throw new BadGatewayException(
+        `WP SSO exchange upstream failure (status=${status ?? 'n/a'})`,
+      );
     }
   }
 }
