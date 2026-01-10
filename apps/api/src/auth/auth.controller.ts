@@ -294,6 +294,8 @@ export class AuthController {
       ok: true,
       user: loginResult.user,
       entitlements: loginResult.entitlements ?? null,
+      accessToken: loginResult.accessToken,
+      refreshToken: loginResult.refreshToken,
     };
   }
 
