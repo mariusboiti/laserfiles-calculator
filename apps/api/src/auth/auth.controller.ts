@@ -204,26 +204,15 @@ export class AuthController {
       validUntil: (entitlements as any)?.validUntil ?? null,
     } as any);
 
-    const cookieDomain = process.env.COOKIE_DOMAIN || '.laserfilespro.com';
-    const secure = (process.env.COOKIE_SECURE ?? 'true').toLowerCase() === 'true';
-
-    const common = {
+    const cookieOptions = {
       httpOnly: true,
-      secure,
+      secure: true,
       sameSite: 'lax' as const,
-      domain: cookieDomain,
       path: '/',
     };
 
-    res.cookie('lf_access_token', loginResult.accessToken, {
-      ...common,
-      maxAge: 1000 * 60 * 15,
-    });
-
-    res.cookie('lf_refresh_token', loginResult.refreshToken, {
-      ...common,
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    });
+    res.cookie('lf_access_token', loginResult.accessToken, cookieOptions);
+    res.cookie('lf_refresh_token', loginResult.refreshToken, cookieOptions);
 
     return {
       ok: true,

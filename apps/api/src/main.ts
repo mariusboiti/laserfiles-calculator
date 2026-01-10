@@ -56,10 +56,11 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: ['http://77.42.38.96:3000', 'http://localhost:3000'],
+    origin: [
+      'https://studio.laserfilespro.com',
+      'https://laserfilespro.com',
+    ],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
