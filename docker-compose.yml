@@ -19,9 +19,11 @@ services:
     restart: unless-stopped
     depends_on:
       - db
-    env_file: 
-      - ./.env.prod
+    env_file:
+      - .env.prod
     environment:
+      WP_PLUGIN_API_KEY: f764149a0da4947554e29e22526bd92af47a70a21770290936303cf554ae9548
+      WP_PLUGIN_BASE_URL: https://laserfilespro.com
       WP_SSO_SECRET: V4x9pQ2mK8sL1nR7tZ0yH3uE6cA9dF2gX5wB8jN1
       WP_WEBHOOK_SECRET: K9mD3pR7xT1qW6zY2nL8cV0hA5uE9fG4bS7jP2tX6
       NODE_ENV: production
@@ -29,6 +31,8 @@ services:
       DATABASE_URL: "postgresql://laser:laser@db:5432/laser?schema=public"
     expose:
       - "4000"
+    ports:
+      - "127.0.0.1:4000:4000"
 
   web:
     profiles: ["prod"]
@@ -41,7 +45,7 @@ services:
     depends_on:
       - api
     env_file:
-      - ./.env.prod
+      - .env.prod
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: /api-backend
@@ -65,3 +69,4 @@ services:
 
 volumes:
   db-data:
+

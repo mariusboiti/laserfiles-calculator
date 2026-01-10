@@ -22,6 +22,15 @@ export class WpSsoExchangeService {
   async exchangeCode(code: string): Promise<WpExchangeResponse> {
     const baseUrl = process.env.WP_PLUGIN_BASE_URL;
     const apiKey = process.env.WP_PLUGIN_API_KEY;
+    
+    const res = await fetch(url, {
+  method: 'POST',
+  headers: {
+    'content-type': 'application/json',
+    'x-api-key': apiKey ?? '',
+  },
+  body: JSON.stringify(payload),
+});
 
     if (!baseUrl) {
       this.logger.warn('WP exchange requested but WP_PLUGIN_BASE_URL not configured');
