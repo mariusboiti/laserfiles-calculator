@@ -12,6 +12,7 @@ import { computeWpSsoSignatureHex, secureCompareHex } from '../common/wp-hmac';
 import type { Response } from 'express';
 import { WpExchangeDto } from './dto/wp-exchange.dto';
 import { WpSsoExchangeService } from './wp-sso-exchange.service';
+import { Public } from './decorators/public.decorator';
 
 class LoginDto {
   @IsEmail()
@@ -188,6 +189,7 @@ export class AuthController {
   }
 
   @Post('wp/exchange')
+  @Public()
   async wpExchange(@Body() dto: WpExchangeDto, @Res({ passthrough: true }) res: Response) {
     // curl -X POST http://localhost:4000/auth/wp/exchange -H "Content-Type: application/json" -d "{\"code\":\"YOUR_CODE\"}" -i
     const { wpUserId, email, displayName, name, entitlements } =
