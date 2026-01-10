@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Post, UseGuards, UnauthorizedException, BadRequestException, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards, UnauthorizedException, BadRequestException, Res, Query, BadGatewayException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { User } from '../common/decorators/user.decorator';
 import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PrismaClient } from '@prisma/client';
+import axios from 'axios';
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import { EntitlementsService } from '../entitlements/entitlements.service';
@@ -56,6 +57,51 @@ export class AuthController {
     private readonly entitlementsService: EntitlementsService,
     private readonly wpSsoExchangeService: WpSsoExchangeService,
   ) {}
+
+  @Public()
+  @Get('wp/start')
+  async wpStart(
+    @Query('returnUrl') returnUrl: string | undefined,
+    @Res({ passthrough: false }) res: Response,
+  ) {
+    if (!returnUrl) {
+      throw new BadRequestException('Missing returnUrl');
+    }
+
+    const baseUrl = process.env.WP_PLUGIN_BASE_URL;
+    const apiKey = process.env.WP_PLUGIN_API_KEY;
+    if (!baseUrl || !apiKey) {
+      throw new BadRequestException('WP integration not configured');
+    }
+
+    const url = `${baseUrl.replace(/\/$/, '')}/wp-json/laserfiles/v1/sso/start?returnUrl=${encodeURIComponent(
+      returnUrl,
+    )}`;
+
+    const response = await axios.get(url, {
+      headers: {
+        'x-api-key': apiKey,
+      },
+      maxRedirects: 0,
+      validateStatus: () => true,
+    });
+
+    const location = (response.headers as any)?.location as string | undefined;
+    if (location) {
+      return res.redirect(location);
+    }
+
+    const data: any = response.data;
+    const redirectUrl =
+      (typeof data === 'string' ? undefined : data?.redirectUrl) ??
+      (typeof data === 'string' ? undefined : data?.url);
+
+    if (redirectUrl && typeof redirectUrl === 'string') {
+      return res.redirect(redirectUrl);
+    }
+
+    throw new BadGatewayException('WP start did not return a redirect');
+  }
 
   @Public()
   @Get('wp/debug-config')
