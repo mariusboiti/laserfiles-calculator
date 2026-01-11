@@ -22,6 +22,12 @@ export class WpSubscriptionController {
     @Body() payload: any,
     @Headers('x-wc-webhook-signature') signature?: string,
   ) {
+    // WooCommerce validates Delivery URL on save and may send a POST without signature.
+    // Treat it as a health check; real webhooks will always include the signature header.
+    if (!signature) {
+      return { ok: true, data: { processed: false } };
+    }
+
     const result = await this.webhooksService.handleWcSubscriptionWebhook({
       payload,
       signature: signature || '',
