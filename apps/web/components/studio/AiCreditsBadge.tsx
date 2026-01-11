@@ -30,7 +30,7 @@ export function AiCreditsBadge() {
   const { plan, aiCreditsRemaining, aiCreditsTotal, daysLeftInTrial } = entitlement;
 
   // No entitlement - show start trial CTA
-  if (plan === 'NONE') {
+  if (plan === 'INACTIVE') {
     const handleStartTrial = async () => {
       setStarting(true);
       const result = await startTrial();
@@ -52,12 +52,12 @@ export function AiCreditsBadge() {
     );
   }
 
-  // Expired or inactive
-  if (plan === 'EXPIRED' || plan === 'INACTIVE') {
+  // Inactive or canceled
+  if (plan === 'CANCELED') {
     return (
       <div className="flex items-center gap-1.5 rounded-full border border-red-600/50 bg-red-900/30 px-2.5 py-1 text-xs text-red-300">
         <AlertTriangle className="h-3.5 w-3.5" />
-        <span>{plan === 'EXPIRED' ? 'Trial Expired' : 'Subscription Inactive'}</span>
+        <span>Subscription Canceled</span>
       </div>
     );
   }
