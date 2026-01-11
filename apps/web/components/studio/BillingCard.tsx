@@ -61,11 +61,13 @@ export function BillingCard() {
   }
 
   const { plan, aiCreditsRemaining, aiCreditsTotal, aiCreditsUsed, daysLeftInTrial } = entitlement;
+  const effectivePlan =
+    plan === 'TRIALING' || plan === 'ACTIVE' || plan === 'INACTIVE' || plan === 'CANCELED' ? plan : 'INACTIVE';
   const creditPercent = aiCreditsTotal > 0 ? (aiCreditsRemaining / aiCreditsTotal) * 100 : 0;
   const hasCredits = canUseAi(entitlement);
 
   const getPlanBadge = () => {
-    switch (plan) {
+    switch (effectivePlan) {
       case 'TRIALING':
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-sky-900/50 border border-sky-700 px-2 py-0.5 text-xs text-sky-300">
@@ -144,7 +146,7 @@ export function BillingCard() {
       </div>
 
       {/* Trial info */}
-      {plan === 'TRIALING' && daysLeftInTrial !== null && (
+      {effectivePlan === 'TRIALING' && daysLeftInTrial !== null && (
         <div className="mb-6 p-3 rounded-lg bg-sky-900/20 border border-sky-800">
           <div className="flex items-center gap-2 text-sky-300">
             <Clock className="h-4 w-4" />
@@ -167,7 +169,7 @@ export function BillingCard() {
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        {plan === 'INACTIVE' && (
+        {effectivePlan === 'INACTIVE' && (
           <button
             onClick={handleStartTrial}
             disabled={actionLoading === 'trial'}
@@ -178,7 +180,7 @@ export function BillingCard() {
           </button>
         )}
 
-        {(plan === 'INACTIVE' || plan === 'CANCELED') && (
+        {(effectivePlan === 'INACTIVE' || effectivePlan === 'CANCELED') && (
           <>
             <button
               onClick={() => handleSubscribe('monthly')}
@@ -199,7 +201,7 @@ export function BillingCard() {
           </>
         )}
 
-        {plan === 'ACTIVE' && (
+        {effectivePlan === 'ACTIVE' && (
           <>
             <button
               onClick={() => handleTopup(2807)}
@@ -237,7 +239,7 @@ export function BillingCard() {
       </div>
 
       {/* Info text */}
-      {plan === 'INACTIVE' && (
+      {effectivePlan === 'INACTIVE' && (
         <p className="mt-4 text-xs text-slate-500">
           Start your 7-day free trial with 25 AI credits. Credit card required.
           Cancel anytime before the trial ends to avoid charges.

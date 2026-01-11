@@ -93,7 +93,17 @@ export function useEntitlement(): UseEntitlementResult {
       const data = await response.json().catch(() => null);
 
       if (data?.ok && data?.data) {
-        setEntitlement(data.data as EntitlementStatus);
+        const incoming = data.data as any;
+        const planRaw = String(incoming?.plan ?? '').toUpperCase();
+        const plan: EntitlementStatus['plan'] =
+          planRaw === 'TRIALING' || planRaw === 'ACTIVE' || planRaw === 'INACTIVE' || planRaw === 'CANCELED'
+            ? (planRaw as EntitlementStatus['plan'])
+            : 'INACTIVE';
+
+        setEntitlement({
+          ...(incoming as EntitlementStatus),
+          plan,
+        });
       } else {
         setError(data?.error?.message || 'Failed to fetch entitlement');
         setEntitlement(defaultEntitlement);
