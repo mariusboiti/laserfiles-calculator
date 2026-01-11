@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export type EntitlementStatus = {
-  plan: 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+  plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED';
   trialStartedAt: string | null;
   trialEndsAt: string | null;
   aiCreditsTotal: number;
@@ -26,7 +26,7 @@ type UseEntitlementResult = {
 
 // IMPORTANT: do NOT mask connectivity/auth issues with fake credits
 const defaultEntitlement: EntitlementStatus = {
-  plan: 'NONE',
+  plan: 'INACTIVE',
   trialStartedAt: null,
   trialEndsAt: null,
   aiCreditsTotal: 0,
@@ -52,6 +52,19 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
     ...(extra ?? {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+function getWpBaseUrl(): string {
+  // Keep this configurable. In production, set NEXT_PUBLIC_WP_BASE_URL=https://laserfilespro.com
+  return (
+    (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_WP_BASE_URL || '')) ||
+    'https://laserfilespro.com'
+  ).replace(/\/$/, '');
+}
+
+function getWpCheckoutAddToCartUrl(productId: number): string {
+  const base = getWpBaseUrl();
+  return `${base}/checkout/?add-to-cart=${encodeURIComponent(String(productId))}`;
 }
 
 export function useEntitlement(): UseEntitlementResult {
@@ -110,46 +123,37 @@ export function useEntitlement(): UseEntitlementResult {
  */
 export async function startTrial(): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch('/api/billing/start-trial', {
-      method: 'POST',
-      headers: authHeaders(),
-      credentials: 'include',
-    });
-
-    const data = await response.json().catch(() => null);
-
-    if (data?.ok && data?.data?.checkoutUrl) {
-      window.location.href = data.data.checkoutUrl;
-      return { success: true };
-    }
-
-    return { success: false, error: data?.error?.message || 'Failed to start trial' };
+    // Plans are purchased in WordPress (WooCommerce). Studio only redirects.
+    // Monthly product id (trial starts here): 2817
+    window.location.href = getWpCheckoutAddToCartUrl(2817);
+    return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to start trial' };
   }
 }
 
-/**
- * Open billing portal
- */
-export async function openBillingPortal(): Promise<{ success: boolean; error?: string }> {
+export async function startSubscription(
+  interval: 'monthly' | 'annual',
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch('/api/billing/portal', {
-      method: 'POST',
-      headers: authHeaders(),
-      credentials: 'include',
-    });
-
-    const data = await response.json().catch(() => null);
-
-    if (data?.ok && data?.data?.portalUrl) {
-      window.location.href = data.data.portalUrl;
-      return { success: true };
-    }
-
-    return { success: false, error: data?.error?.message || 'Failed to open billing portal' };
+    // Plans are purchased in WordPress (WooCommerce)
+    const productId = interval === 'annual' ? 2820 : 2817;
+    window.location.href = getWpCheckoutAddToCartUrl(productId);
+    return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to open billing portal' };
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to start subscription' };
+  }
+}
+
+export async function startTopup(
+  wpProductId: number,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Top-ups should appear in WordPress “My Account”, so Studio redirects to WooCommerce checkout.
+    window.location.href = getWpCheckoutAddToCartUrl(wpProductId);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to purchase top-up' };
   }
 }
 
@@ -214,10 +218,6 @@ export async function callAiGateway<T = any>(
 export function getEntitlementMessage(entitlement: EntitlementStatus | null): string {
   if (!entitlement) return 'Checking your AI credits...';
 
-  if (entitlement.plan === 'NONE') {
-    return 'No plan active. Start a trial to get AI credits.';
-  }
-
   if (entitlement.plan === 'TRIALING') {
     const days = entitlement.daysLeftInTrial;
     if (typeof days === 'number') return `Trial active — ${days} day(s) left.`;
@@ -229,9 +229,8 @@ export function getEntitlementMessage(entitlement: EntitlementStatus | null): st
       ? `${entitlement.aiCreditsRemaining} AI credits remaining.`
       : 'No AI credits remaining.';
   }
-
-  if (entitlement.plan === 'EXPIRED') return 'Your plan expired. Renew to continue using AI credits.';
   if (entitlement.plan === 'INACTIVE') return 'Your plan is inactive. Renew to continue using AI credits.';
+  if (entitlement.plan === 'CANCELED') return 'Your subscription was canceled. Renew to continue using AI credits.';
 
   return 'AI credits status unavailable.';
 }
