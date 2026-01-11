@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { STUDIO_NAV, isActivePath } from '@/lib/studio/navigation/studioNav';
 import { AICreditsInfoPanel } from '@/components/ai';
@@ -10,9 +10,18 @@ import { LanguageSwitcher } from '@/app/(app)/i18n';
 
 export function StudioHeader() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [aiCreditsOpen, setAiCreditsOpen] = useState(false);
   const { openDisclaimer } = useDisclaimer();
+
+  const logout = () => {
+    window.localStorage.removeItem('accessToken');
+    window.localStorage.removeItem('refreshToken');
+    window.localStorage.removeItem('user');
+    window.localStorage.removeItem('entitlements');
+    router.push('/login');
+  };
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -84,6 +93,14 @@ export function StudioHeader() {
             >
               Open Tools
             </Link>
+
+            <button
+              type="button"
+              onClick={logout}
+              className="hidden rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 md:inline-flex"
+            >
+              Logout
+            </button>
 
             {/* Mobile Menu Button */}
             <button
@@ -163,6 +180,17 @@ export function StudioHeader() {
               >
                 Open Tools
               </Link>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  logout();
+                }}
+                className="mt-2 block w-full rounded-md border border-slate-700 px-3 py-2 text-center text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
+              >
+                Logout
+              </button>
             </div>
           </nav>
         </div>

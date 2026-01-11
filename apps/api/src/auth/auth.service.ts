@@ -26,7 +26,7 @@ export class AuthService {
     return this.prisma.userEntitlement.create({
       data: {
         userId,
-        plan: 'INACTIVE',
+        plan: 'NONE',
         aiCreditsTotal: 0,
         aiCreditsUsed: 0,
         trialStartedAt: null,
