@@ -43,7 +43,7 @@ export default function WpCallbackPage() {
         setStatus('done');
         setMessage('Done. Redirecting…');
 
-        window.location.replace('/');
+        window.location.replace('/studio');
       } catch (e: any) {
         setStatus('error');
         setMessage(e?.message || 'Unknown error');
@@ -56,7 +56,7 @@ export default function WpCallbackPage() {
   return (
     <div style={{ padding: 24 }}>
       <h1 style={{ fontSize: 18, fontWeight: 600 }}>WordPress SSO</h1>
-      <p style={{ marginTop: 12 }}>{status === 'loading' ? '⏳ ' : status === 'done' ? '✅ ' : '❌ '}{message}</p>
+      <p style={{ marginTop: 12 }}>{message}</p>
     </div>
   );
 }
