@@ -51,6 +51,8 @@ services:
       NEXT_PUBLIC_API_URL: /api-backend
     expose:
       - "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
 
   nginx:
     profiles: ["prod"]
