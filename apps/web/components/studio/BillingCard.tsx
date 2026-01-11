@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { Sparkles, CreditCard, Clock, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
-import { useEntitlement, startTrial, openBillingPortal, canUseAi } from '@/lib/entitlements/client';
+import { useEntitlement, startTrial, startSubscription, startTopup, canUseAi } from '@/lib/entitlements/client';
 
 export function BillingCard() {
   const { entitlement, loading, refetch } = useEntitlement();
@@ -24,12 +24,22 @@ export function BillingCard() {
     setActionLoading(null);
   };
 
-  const handleManageBilling = async () => {
-    setActionLoading('billing');
+  const handleSubscribe = async (interval: 'monthly' | 'annual') => {
+    setActionLoading('subscribe');
     setError(null);
-    const result = await openBillingPortal();
+    const result = await startSubscription(interval);
     if (!result.success) {
-      setError(result.error || 'Failed to open billing portal');
+      setError(result.error || 'Failed to subscribe');
+    }
+    setActionLoading(null);
+  };
+
+  const handleTopup = async (wpProductId: number) => {
+    setActionLoading(`topup-${wpProductId}`);
+    setError(null);
+    const result = await startTopup(wpProductId);
+    if (!result.success) {
+      setError(result.error || 'Failed to purchase top-up');
     }
     setActionLoading(null);
   };
@@ -70,18 +80,18 @@ export function BillingCard() {
             Active
           </span>
         );
-      case 'EXPIRED':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-red-900/50 border border-red-700 px-2 py-0.5 text-xs text-red-300">
-            <AlertTriangle className="h-3 w-3" />
-            Expired
-          </span>
-        );
       case 'INACTIVE':
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-900/50 border border-amber-700 px-2 py-0.5 text-xs text-amber-300">
             <AlertTriangle className="h-3 w-3" />
             Inactive
+          </span>
+        );
+      case 'CANCELED':
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-900/50 border border-red-700 px-2 py-0.5 text-xs text-red-300">
+            <AlertTriangle className="h-3 w-3" />
+            Canceled
           </span>
         );
       default:
@@ -157,7 +167,7 @@ export function BillingCard() {
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        {plan === 'NONE' && (
+        {plan === 'INACTIVE' && (
           <button
             onClick={handleStartTrial}
             disabled={actionLoading === 'trial'}
@@ -168,26 +178,54 @@ export function BillingCard() {
           </button>
         )}
 
-        {(plan === 'EXPIRED' || plan === 'INACTIVE') && (
-          <button
-            onClick={handleStartTrial}
-            disabled={actionLoading === 'trial'}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
-          >
-            <CreditCard className="h-4 w-4" />
-            {actionLoading === 'trial' ? 'Loading...' : 'Subscribe Now'}
-          </button>
+        {(plan === 'INACTIVE' || plan === 'CANCELED') && (
+          <>
+            <button
+              onClick={() => handleSubscribe('monthly')}
+              disabled={actionLoading === 'subscribe'}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+            >
+              <CreditCard className="h-4 w-4" />
+              {actionLoading === 'subscribe' ? 'Loading...' : 'Subscribe Monthly'}
+            </button>
+            <button
+              onClick={() => handleSubscribe('annual')}
+              disabled={actionLoading === 'subscribe'}
+              className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Subscribe Annual
+            </button>
+          </>
         )}
 
-        {plan === 'ACTIVE' && entitlement.stripeCustomerId && (
-          <button
-            onClick={handleManageBilling}
-            disabled={actionLoading === 'billing'}
-            className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
-          >
-            <ExternalLink className="h-4 w-4" />
-            {actionLoading === 'billing' ? 'Opening...' : 'Manage Billing'}
-          </button>
+        {plan === 'ACTIVE' && (
+          <>
+            <button
+              onClick={() => handleTopup(2807)}
+              disabled={actionLoading === 'topup-2807'}
+              className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
+            >
+              <CreditCard className="h-4 w-4" />
+              {actionLoading === 'topup-2807' ? 'Loading...' : 'Top-up 100'}
+            </button>
+            <button
+              onClick={() => handleTopup(2811)}
+              disabled={actionLoading === 'topup-2811'}
+              className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
+            >
+              <CreditCard className="h-4 w-4" />
+              {actionLoading === 'topup-2811' ? 'Loading...' : 'Top-up 200'}
+            </button>
+            <button
+              onClick={() => handleTopup(2814)}
+              disabled={actionLoading === 'topup-2814'}
+              className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
+            >
+              <CreditCard className="h-4 w-4" />
+              {actionLoading === 'topup-2814' ? 'Loading...' : 'Top-up 500'}
+            </button>
+          </>
         )}
 
         <button
@@ -199,7 +237,7 @@ export function BillingCard() {
       </div>
 
       {/* Info text */}
-      {plan === 'NONE' && (
+      {plan === 'INACTIVE' && (
         <p className="mt-4 text-xs text-slate-500">
           Start your 7-day free trial with 25 AI credits. Credit card required.
           Cancel anytime before the trial ends to avoid charges.
