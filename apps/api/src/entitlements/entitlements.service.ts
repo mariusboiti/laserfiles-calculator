@@ -54,30 +54,6 @@ export class EntitlementsService {
       };
     }
 
-    const identityLink = await this.prisma.userIdentityLink.findFirst({
-      where: {
-        userId,
-        provider: 'WORDPRESS',
-      },
-    });
-
-    if (!identityLink?.externalUserId) {
-      return {
-        plan: 'NONE',
-        trialStartedAt: null,
-        trialEndsAt: null,
-        aiCreditsTotal: 0,
-        aiCreditsUsed: 0,
-        aiCreditsRemaining: 0,
-        isActive: false,
-        daysLeftInTrial: null,
-        stripeCustomerId: null,
-      };
-    }
-
-    const wpUserId = String(identityLink.externalUserId);
-    const identityEntitlements = await this.getEntitlementsForWpUser(wpUserId);
-
     const ent = await this.prisma.userEntitlement.findUnique({
       where: { userId },
     });
@@ -97,17 +73,12 @@ export class EntitlementsService {
     const used = Number(ent?.aiCreditsUsed ?? 0);
     const remaining = Math.max(0, total - used);
 
-    const wpPlan = String(identityEntitlements.plan || '').toUpperCase();
-    const hasPaidPlanFromWp = ['STARTER', 'PRO', 'LIFETIME'].includes(wpPlan);
-
     const isTrialValid =
       ent?.plan === 'TRIALING' && Boolean(ent.trialEndsAt) && (ent.trialEndsAt as Date) > now;
 
     type UiEntitlementPlan = 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
     let plan: UiEntitlementPlan = 'NONE';
-    if (hasPaidPlanFromWp) {
-      plan = 'ACTIVE';
-    } else if (isTrialValid) {
+    if (isTrialValid) {
       plan = 'TRIALING';
     } else if (ent?.plan === 'EXPIRED') {
       plan = 'EXPIRED';
