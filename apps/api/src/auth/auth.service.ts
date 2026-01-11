@@ -21,7 +21,25 @@ export class AuthService {
     const existing = await this.prisma.userEntitlement.findUnique({
       where: { userId },
     });
-    if (existing) return existing;
+    if (existing) {
+      const isLegacyEmptyInactive =
+        existing.plan === 'INACTIVE' &&
+        !existing.trialStartedAt &&
+        !existing.trialEndsAt &&
+        !existing.stripeCustomerId &&
+        !existing.stripeSubscriptionId;
+
+      if (isLegacyEmptyInactive) {
+        return this.prisma.userEntitlement.update({
+          where: { userId },
+          data: {
+            plan: 'NONE',
+          },
+        });
+      }
+
+      return existing;
+    }
 
     return this.prisma.userEntitlement.create({
       data: {
