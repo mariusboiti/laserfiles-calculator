@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createBillingPortalSession, stripe } from '@/lib/stripe/server';
 import { getEntitlementForUser } from '@/lib/entitlements/server';
+import * as jwt from 'jsonwebtoken';
 
 export const runtime = 'nodejs';
 
@@ -19,6 +20,24 @@ async function getCurrentUserId(): Promise<string | null> {
     cookieStore.get('user_id')?.value ||
     cookieStore.get('studio_user_id')?.value;
   return userId || null;
+}
+
+function getUserIdFromAuthHeader(req: NextRequest): string | null {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const token = authHeader.slice(7);
+  if (!token) return null;
+
+  try {
+    const secret = process.env.JWT_ACCESS_SECRET;
+    const payload = secret
+      ? ((jwt as any).verify(token, secret) as any)
+      : ((jwt as any).decode(token) as any);
+    const sub = payload?.sub;
+    return sub ? String(sub) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -33,14 +52,14 @@ export async function POST(req: NextRequest) {
     let userId = await getCurrentUserId();
     
     if (!userId) {
-      const authHeader = req.headers.get('authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        userId = authHeader.slice(7);
-      }
+      userId = getUserIdFromAuthHeader(req);
     }
     
     if (!userId) {
-      userId = 'demo-user';
+      return NextResponse.json(
+        { ok: false, error: { message: 'Unauthorized' } },
+        { status: 401 }
+      );
     }
 
     const entitlement = await getEntitlementForUser(userId);

@@ -110,7 +110,7 @@ export function useEntitlement(): UseEntitlementResult {
  */
 export async function startTrial(): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch('/api-backend/billing/start-trial', {
+    const response = await fetch('/api/billing/start-trial', {
       method: 'POST',
       headers: authHeaders(),
       credentials: 'include',
@@ -134,7 +134,7 @@ export async function startTrial(): Promise<{ success: boolean; error?: string }
  */
 export async function openBillingPortal(): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch('/api-backend/billing/portal', {
+    const response = await fetch('/api/billing/portal', {
       method: 'POST',
       headers: authHeaders(),
       credentials: 'include',
