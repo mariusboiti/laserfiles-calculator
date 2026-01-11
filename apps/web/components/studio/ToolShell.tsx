@@ -134,7 +134,7 @@ function ToolShellInner({
   const isLocked = useMemo(() => {
     if (entitlementLoading) return false;
     if (!entitlement) return true;
-    if (entitlement.plan === 'NONE' || entitlement.plan === 'INACTIVE' || entitlement.plan === 'EXPIRED') return true;
+    if (entitlement.plan === 'INACTIVE' || entitlement.plan === 'CANCELED') return true;
     if (!isTrialValid) return true;
     if (entitlement.plan === 'TRIALING' && entitlement.aiCreditsRemaining <= 0) return true;
     return false;
