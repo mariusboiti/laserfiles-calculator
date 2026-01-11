@@ -107,6 +107,12 @@ export class AuthService {
   async loginWithWp(entitlements: IdentityEntitlements) {
     const { wpUserId, email, displayName, plan, entitlementsVersion, features, limits, validUntil } = entitlements;
 
+    const adminAllowlist = (process.env.ADMIN_EMAIL_ALLOWLIST || 'contact@laserfilespro.com')
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean);
+    const isAllowedAdmin = adminAllowlist.includes(String(email).toLowerCase());
+
     // Find or create user
     let user = await this.prisma.user.findFirst({ where: { email } });
     if (!user) {
@@ -117,10 +123,18 @@ export class AuthService {
         data: {
           email,
           name: displayName,
-          role: 'ADMIN',
+          role: isAllowedAdmin ? 'ADMIN' : 'WORKER',
           password: hashed,
         },
       });
+    } else {
+      const desiredRole = isAllowedAdmin ? 'ADMIN' : user.role === 'ADMIN' ? 'WORKER' : user.role;
+      if (desiredRole !== user.role) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { role: desiredRole },
+        });
+      }
     }
 
     await this.ensureUserEntitlement(user.id);

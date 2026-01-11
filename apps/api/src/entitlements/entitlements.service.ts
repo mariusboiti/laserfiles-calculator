@@ -97,7 +97,8 @@ export class EntitlementsService {
     const used = Number(ent?.aiCreditsUsed ?? 0);
     const remaining = Math.max(0, total - used);
 
-    const hasPaidPlanFromWp = identityEntitlements.plan !== 'GUEST';
+    const wpPlan = String(identityEntitlements.plan || '').toUpperCase();
+    const hasPaidPlanFromWp = ['STARTER', 'PRO', 'LIFETIME'].includes(wpPlan);
 
     const isTrialValid =
       ent?.plan === 'TRIALING' && Boolean(ent.trialEndsAt) && (ent.trialEndsAt as Date) > now;
