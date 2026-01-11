@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { WebhooksService } from './webhooks.service';
 
@@ -6,6 +6,13 @@ import { WebhooksService } from './webhooks.service';
 @Controller('webhooks/wp')
 export class WpSubscriptionController {
   constructor(private readonly webhooksService: WebhooksService) {}
+
+  @Get('subscription')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Health check for WooCommerce webhook Delivery URL validation' })
+  async subscriptionWebhookHealth() {
+    return { ok: true };
+  }
 
   @Post('subscription')
   @HttpCode(HttpStatus.OK)
