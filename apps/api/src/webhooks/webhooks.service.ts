@@ -24,6 +24,122 @@ export class WebhooksService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  async handleWcSubscriptionWebhook(params: {
+    signature?: string; // X-WC-Webhook-Signature (base64)
+    rawBody?: Buffer;
+    payload: any;
+  }): Promise<{ processed: boolean; userId?: string; plan?: string }> {
+    const webhookSecret = process.env.WP_WEBHOOK_SECRET;
+    if (!webhookSecret) throw new BadRequestException('WP webhook not configured');
+
+    // ─────────────────────────────────────────────
+    // AUTH (WooCommerce HMAC)
+    // ─────────────────────────────────────────────
+    if (!params.signature) throw new BadRequestException('Missing signature');
+    if (!params.rawBody) throw new BadRequestException('Missing raw body');
+
+    const provided = String(params.signature).trim();
+    const expectedB64 = computeHmacSha256Base64(params.rawBody, webhookSecret);
+    if (!secureCompareString(provided, expectedB64)) {
+      this.logger.warn('WC subscription webhook signature mismatch');
+      throw new BadRequestException('Invalid signature');
+    }
+
+    // ─────────────────────────────────────────────
+    // PARSE WooCommerce subscription payload
+    // ─────────────────────────────────────────────
+    const sub = params.payload;
+    const subId = sub?.id;
+    const status = String(sub?.status ?? '').toLowerCase(); // active, pending-cancel, cancelled, trial, etc.
+    const email = sub?.billing?.email ? String(sub.billing.email) : undefined;
+    const wpUserId = Number(sub?.customer_id ?? 0) || 0;
+    const trialEnd = sub?.trial_end ? new Date(sub.trial_end) : null;
+    const nextPayment = sub?.next_payment_date_gmt ? new Date(sub.next_payment_date_gmt) : null;
+    const interval = String(sub?.billing_period ?? '').toLowerCase() === 'month' ? 'monthly' : 'annual';
+
+    if (!subId || !email) {
+      this.logger.warn('Invalid subscription payload: missing id or email');
+      return { processed: false };
+    }
+
+    // ─────────────────────────────────────────────
+    // DEDUPE (simple eventId = subId)
+    // ─────────────────────────────────────────────
+    const eventId = `wc-sub-${subId}`;
+    try {
+      await (this.prisma as any).wpWebhookEvent.create({
+        data: { eventId, payloadJson: sub },
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2002') return { processed: true }; // already processed
+      this.logger.warn(`wpWebhookEvent persistence failed: ${err?.message ?? err}`);
+    }
+
+    // ─────────────────────────────────────────────
+    // RESOLVE USER
+    // ─────────────────────────────────────────────
+    const user =
+      (email ? await this.prisma.user.findUnique({ where: { email } }) : null) ||
+      (wpUserId
+        ? await (this.prisma as any).user.findFirst({
+            where: { wpUserId: String(wpUserId) },
+          })
+        : null);
+
+    if (!user) {
+      this.logger.warn(`Subscription webhook: user not found (email=${email} wpUserId=${wpUserId})`);
+      return { processed: false };
+    }
+
+    // Store wpUserId if missing
+    if (wpUserId) {
+      try {
+        await (this.prisma as any).user.update({
+          where: { id: user.id },
+          data: { wpUserId: String(wpUserId) },
+        });
+      } catch {}
+    }
+
+    // Ensure entitlement exists
+    await this.prisma.userEntitlement.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id },
+      update: {},
+    });
+
+    // ─────────────────────────────────────────────
+    // MAP STATUS → EntitlementPlan
+    // ─────────────────────────────────────────────
+    let plan: 'INACTIVE' | 'TRIALING' | 'ACTIVE' | 'CANCELED' = 'INACTIVE';
+    let trialStartedAt: Date | null = null;
+    let trialEndsAt: Date | null = null;
+
+    if (status === 'trial' || (status === 'active' && trialEnd && trialEnd > new Date())) {
+      plan = 'TRIALING';
+      trialStartedAt = new Date();
+      trialEndsAt = trialEnd;
+    } else if (status === 'active' || status === 'pending-cancel') {
+      plan = 'ACTIVE';
+    } else if (status === 'cancelled' || status === 'expired') {
+      plan = 'CANCELED';
+    }
+
+    // Update entitlement
+    await (this.prisma as any).userEntitlement.update({
+      where: { userId: user.id },
+      data: {
+        plan,
+        trialStartedAt,
+        trialEndsAt,
+      },
+    });
+
+    this.logger.log(`Subscription webhook processed: userId=${user.id} plan=${plan} status=${status}`);
+
+    return { processed: true, userId: user.id, plan };
+  }
+
   async processWpBillingWebhook(params: {
     signature?: string; // expected: X-WC-Webhook-Signature (base64) OR legacy "sha256=<hex>"
     webhookSecretHeader?: string; // optional shared secret header flow
