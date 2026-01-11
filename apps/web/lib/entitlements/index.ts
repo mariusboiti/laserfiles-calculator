@@ -7,7 +7,6 @@
 export {
   useEntitlement,
   startTrial,
-  openBillingPortal,
   callAiGateway,
   canUseAi,
   getEntitlementMessage,
