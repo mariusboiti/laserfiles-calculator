@@ -26,6 +26,8 @@ import {
   type Artifact,
 } from '@/lib/artifacts/client';
 import { ExportMiniDisclaimer } from '@/components/legal';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 const TOOLS = [
   { slug: '', label: 'All Tools' },
@@ -48,6 +50,9 @@ export default function LibraryPage() {
   const [selectedTool, setSelectedTool] = useState('');
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const { locale } = useLanguage();
+
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const loadArtifacts = useCallback(
     async (append = false) => {
@@ -69,12 +74,12 @@ export default function LibraryPage() {
         }
         setNextCursor(result.nextCursor);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load artifacts');
+        setError(err instanceof Error ? err.message : t('artifacts.failed_to_load'));
       } finally {
         setLoading(false);
       }
     },
-    [search, selectedTool, nextCursor]
+    [search, selectedTool, nextCursor, t]
   );
 
   useEffect(() => {
@@ -82,7 +87,7 @@ export default function LibraryPage() {
   }, [search, selectedTool]);
 
   const handleDelete = async (artifact: Artifact) => {
-    if (!confirm(`Delete "${artifact.name}"? This action cannot be undone.`)) {
+    if (!confirm(t('artifacts.confirm_delete').replace('{name}', artifact.name))) {
       return;
     }
 
@@ -91,7 +96,7 @@ export default function LibraryPage() {
       await deleteArtifact(artifact.id);
       setArtifacts((prev) => prev.filter((a) => a.id !== artifact.id));
     } catch (err) {
-      alert('Failed to delete artifact');
+      alert(t('artifacts.failed_to_delete'));
     } finally {
       setDeleting(null);
     }
@@ -105,9 +110,9 @@ export default function LibraryPage() {
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Artifact Library</h1>
+        <h1 className="text-2xl font-bold text-slate-100">{t('artifacts.title')}</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Browse and manage your saved designs from all Studio tools
+          {t('artifacts.subtitle')}
         </p>
       </div>
 
@@ -120,7 +125,7 @@ export default function LibraryPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search artifacts..."
+            placeholder={t('artifacts.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-slate-700 bg-slate-800 py-2 pl-9 pr-3 text-sm text-slate-200 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
@@ -137,7 +142,7 @@ export default function LibraryPage() {
           >
             {TOOLS.map((tool) => (
               <option key={tool.slug} value={tool.slug}>
-                {tool.label}
+                {tool.slug === '' ? t('artifacts.all_tools') : tool.label}
               </option>
             ))}
           </select>
@@ -158,10 +163,9 @@ export default function LibraryPage() {
       {!loading && !error && artifacts.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-slate-800 bg-slate-900/50 py-16 text-center">
           <Package className="mb-4 h-16 w-16 text-slate-600" />
-          <h3 className="text-lg font-medium text-slate-300">No artifacts yet</h3>
+          <h3 className="text-lg font-medium text-slate-300">{t('artifacts.no_artifacts')}</h3>
           <p className="mt-2 max-w-md text-sm text-slate-500">
-            Save designs from any Studio tool to build your library. Use the "Save to
-            Library" button when exporting from BoxMaker, EngravePrep, and other tools.
+            {t('artifacts.save_first')}
           </p>
         </div>
       )}
@@ -199,7 +203,7 @@ export default function LibraryPage() {
                       href={artifact.fileSvgUrl}
                       download={`${artifact.name}.svg`}
                       className="rounded-lg bg-slate-700 p-2 text-slate-200 hover:bg-slate-600"
-                      title="Download SVG"
+                      title={t('export.svg')}
                     >
                       <Download className="h-4 w-4" />
                     </a>
@@ -209,7 +213,7 @@ export default function LibraryPage() {
                       href={artifact.fileDxfUrl}
                       download={`${artifact.name}.dxf`}
                       className="rounded-lg bg-slate-700 p-2 text-slate-200 hover:bg-slate-600"
-                      title="Download DXF"
+                      title={t('export.dxf')}
                     >
                       <Download className="h-4 w-4" />
                     </a>
@@ -217,7 +221,7 @@ export default function LibraryPage() {
                   <button
                     onClick={() => handleAddToPriceCalculator(artifact)}
                     className="rounded-lg bg-sky-600 p-2 text-white hover:bg-sky-500"
-                    title="Add to Price Calculator"
+                    title={t('artifacts.add_to_calculator')}
                   >
                     <Calculator className="h-4 w-4" />
                   </button>
@@ -225,7 +229,7 @@ export default function LibraryPage() {
                     onClick={() => handleDelete(artifact)}
                     disabled={deleting === artifact.id}
                     className="rounded-lg bg-red-600/80 p-2 text-white hover:bg-red-600 disabled:opacity-50"
-                    title="Delete"
+                    title={t('artifacts.delete')}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -269,7 +273,7 @@ export default function LibraryPage() {
             disabled={loading}
             className="rounded-lg border border-slate-700 px-6 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
           >
-            {loading ? 'Loading...' : 'Load More'}
+            {loading ? t('common.loading') : t('artifacts.load_more')}
           </button>
         </div>
       )}

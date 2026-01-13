@@ -4,11 +4,16 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '../../../lib/api-client';
 import Link from 'next/link';
 import { startTrial, startTopup } from '../../../lib/entitlements/client';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export default function AccountPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const { locale } = useLanguage();
+
+  const t = (key: string) => getStudioTranslation(locale as any, key);
 
   useEffect(() => {
     async function loadUser() {
@@ -27,7 +32,7 @@ export default function AccountPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-400">Loading...</div>
+        <div className="text-sm text-slate-400">{t('common.loading')}</div>
       </div>
     );
   }
@@ -78,82 +83,89 @@ export default function AccountPage() {
   const showTrialExpiredBanner = status === 'EXPIRED';
 
   const planLabel = (() => {
-    if (plan === 'TRIAL') return 'TRIAL';
-    if (plan === 'PRO_MONTHLY') return 'PRO Monthly';
-    if (plan === 'PRO_ANNUAL') return 'PRO Annual';
-    return 'FREE';
+    if (plan === 'TRIAL') return t('account.plan_trial');
+    if (plan === 'PRO_MONTHLY') return t('account.plan_pro_monthly');
+    if (plan === 'PRO_ANNUAL') return t('account.plan_pro_annual');
+    return t('account.plan_free');
   })();
 
   const statusLabel = (() => {
-    if (status === 'ACTIVE') return 'Active';
-    if (status === 'TRIAL') return 'Trial';
-    if (status === 'EXPIRED') return 'Expired';
-    if (status === 'CANCELED') return 'Canceled';
-    return 'Free';
+    if (status === 'ACTIVE') return t('account.status_active');
+    if (status === 'TRIAL') return t('account.status_trial');
+    if (status === 'EXPIRED') return t('account.status_expired');
+    if (status === 'CANCELED') return t('account.status_canceled');
+    return t('account.status_free');
   })();
 
-  const cycleLabel = billingCycle === 'annual' ? 'Annual' : billingCycle === 'monthly' ? 'Monthly' : null;
+  const cycleLabel =
+    billingCycle === 'annual'
+      ? t('account.billing_cycle_annual')
+      : billingCycle === 'monthly'
+        ? t('account.billing_cycle_monthly')
+        : null;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t('nav.account')}</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Manage your account settings and subscription
+          {t('account.subtitle')}
         </p>
       </div>
 
       {showFreeBanner && (
         <div className="rounded-xl border border-amber-800 bg-amber-900/20 p-4 text-sm text-amber-200">
-          Start your 7-day trial to unlock all tools.
+          {t('account.banner_free')}
         </div>
       )}
 
       {showTrialExpiredBanner && (
         <div className="rounded-xl border border-red-800 bg-red-900/20 p-4 text-sm text-red-200">
-          Your trial has ended. Upgrade to continue.
+          {t('account.banner_trial_ended')}
         </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-            <h2 className="mb-4 text-lg font-semibold">Profile Information</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('account.profile_title')}</h2>
             <div className="space-y-3 text-sm">
               <div>
-                <div className="text-slate-400">Email</div>
+                <div className="text-slate-400">{t('account.email')}</div>
                 <div className="mt-1 text-slate-200">{user?.email}</div>
               </div>
               <div>
-                <div className="text-slate-400">Name</div>
-                <div className="mt-1 text-slate-200">{user?.name || 'Not set'}</div>
+                <div className="text-slate-400">{t('account.name')}</div>
+                <div className="mt-1 text-slate-200">{user?.name || t('common.none')}</div>
               </div>
               <div>
-                <div className="text-slate-400">Role</div>
+                <div className="text-slate-400">{t('account.role')}</div>
                 <div className="mt-1 text-slate-200">{user?.role || 'USER'}</div>
               </div>
             </div>
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-            <h2 className="mb-4 text-lg font-semibold">Your Plan</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('account.plan_title')}</h2>
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-200">
                 <span className="font-semibold">{planLabel}</span>
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">
-                Status: <span className="font-medium text-slate-100">{statusLabel}</span>
+                {t('account.status_label')}: <span className="font-medium text-slate-100">{statusLabel}</span>
               </span>
               {cycleLabel && (
                 <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">
-                  Billing: <span className="font-medium text-slate-100">{cycleLabel}</span>
+                  {t('account.billing_label')}: <span className="font-medium text-slate-100">{cycleLabel}</span>
                 </span>
               )}
             </div>
 
             {plan === 'TRIAL' && typeof daysLeftInTrial === 'number' && (
               <div className="mt-3 text-sm text-slate-300">
-                Trial ends in <span className="font-semibold text-slate-100">{daysLeftInTrial}</span> day(s)
+                {t('account.trial_ends_in')}{' '}
+                <span className="font-semibold text-slate-100">{daysLeftInTrial}</span>{' '}
+                {t('account.day_s')}
               </div>
             )}
 
@@ -165,14 +177,14 @@ export default function AccountPage() {
                   onClick={handleStartTrial}
                   className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-500 disabled:opacity-50"
                 >
-                  {actionLoading === 'trial' ? 'Redirecting…' : 'Start Trial'}
+                  {actionLoading === 'trial' ? t('account.redirecting') : t('account.start_trial')}
                 </button>
               ) : (
                 <a
                   href={wpManageSubscriptionUrl}
                   className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500"
                 >
-                  Manage Subscription
+                  {t('account.manage_subscription')}
                 </a>
               )}
             </div>
@@ -181,19 +193,19 @@ export default function AccountPage() {
 
         <div className="space-y-6">
           <div className="rounded-xl border border-sky-800 bg-gradient-to-br from-sky-900/30 to-slate-900/60 p-6">
-            <h2 className="mb-4 text-lg font-semibold">AI Credits</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('dashboard.ai_credits')}</h2>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-lg bg-slate-900/60 p-3">
-                <div className="text-xs text-slate-400">Available</div>
+                <div className="text-xs text-slate-400">{t('account.credits_available')}</div>
                 <div className="mt-1 text-xl font-semibold text-slate-100">{aiCreditsAvailable}</div>
               </div>
               <div className="rounded-lg bg-slate-900/60 p-3">
-                <div className="text-xs text-slate-400">Used</div>
+                <div className="text-xs text-slate-400">{t('account.credits_used')}</div>
                 <div className="mt-1 text-xl font-semibold text-slate-100">{aiCreditsUsed}</div>
               </div>
               <div className="rounded-lg bg-slate-900/60 p-3">
-                <div className="text-xs text-slate-400">Total</div>
+                <div className="text-xs text-slate-400">{t('account.credits_total')}</div>
                 <div className="mt-1 text-xl font-semibold text-slate-100">{aiCreditsTotal}</div>
               </div>
             </div>
@@ -203,7 +215,7 @@ export default function AccountPage() {
             </div>
 
             <p className="mt-4 text-xs text-slate-300">
-              Credits never expire. Monthly plans add 200 credits every billing cycle.
+              {t('account.credits_help')}
             </p>
 
             <div className="mt-5">
@@ -213,19 +225,19 @@ export default function AccountPage() {
                 onClick={handleBuyCredits}
                 className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
               >
-                {actionLoading === 'credits' ? 'Redirecting…' : 'Buy more credits'}
+                {actionLoading === 'credits' ? t('account.redirecting') : t('account.buy_more_credits')}
               </button>
             </div>
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-            <h2 className="mb-4 text-lg font-semibold">Quick Actions</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('account.quick_actions')}</h2>
             <div className="space-y-2 text-sm">
               <Link
                 href="/studio/tools"
                 className="block rounded-lg border border-slate-700 px-4 py-2 text-slate-300 transition-colors hover:border-sky-500/50 hover:bg-slate-800"
               >
-                Open Tools →
+                {t('account.open_tools')} →
               </Link>
 
               <button
@@ -234,21 +246,21 @@ export default function AccountPage() {
                 onClick={handleBuyCredits}
                 className="block w-full rounded-lg border border-slate-700 px-4 py-2 text-left text-slate-300 transition-colors hover:border-sky-500/50 hover:bg-slate-800 disabled:opacity-50"
               >
-                Buy Credits →
+                {t('account.buy_credits')} →
               </button>
 
               <a
                 href={wpManageSubscriptionUrl}
                 className="block rounded-lg border border-slate-700 px-4 py-2 text-slate-300 transition-colors hover:border-sky-500/50 hover:bg-slate-800"
               >
-                Manage Subscription →
+                {t('account.manage_subscription')} →
               </a>
 
               <a
                 href={wpBillingHistoryUrl}
                 className="block rounded-lg border border-slate-700 px-4 py-2 text-slate-300 transition-colors hover:border-sky-500/50 hover:bg-slate-800"
               >
-                Billing History →
+                {t('account.billing_history')} →
               </a>
             </div>
           </div>
