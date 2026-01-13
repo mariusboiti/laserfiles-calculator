@@ -29,7 +29,7 @@ export class EntitlementsService {
    * Reads UserEntitlement by internal UUID userId and returns credits + status.
    */
   async getUiEntitlementsForUserId(userId: string): Promise<{
-    plan: 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+    plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED';
     trialStartedAt: string | null;
     trialEndsAt: string | null;
     aiCreditsTotal: number;
@@ -42,7 +42,7 @@ export class EntitlementsService {
     if (!this.prisma) {
       // Should not happen in prod, but keep safe fallback
       return {
-        plan: 'NONE',
+        plan: 'INACTIVE',
         trialStartedAt: null,
         trialEndsAt: null,
         aiCreditsTotal: 0,
@@ -73,19 +73,20 @@ export class EntitlementsService {
     const used = Number(ent?.aiCreditsUsed ?? 0);
     const remaining = Math.max(0, total - used);
 
+    const entPlan = String((ent as any)?.plan || '').toUpperCase();
     const isTrialValid =
-      ent?.plan === 'TRIALING' && Boolean(ent.trialEndsAt) && (ent.trialEndsAt as Date) > now;
+      entPlan === 'TRIALING' && Boolean(ent?.trialEndsAt) && (ent!.trialEndsAt as Date) > now;
 
-    type UiEntitlementPlan = 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
-    let plan: UiEntitlementPlan = 'NONE';
+    type UiEntitlementPlan = 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED';
+    let plan: UiEntitlementPlan = 'INACTIVE';
     if (isTrialValid) {
       plan = 'TRIALING';
-    } else if (ent?.plan === 'EXPIRED') {
-      plan = 'EXPIRED';
-    } else if (ent?.plan === 'INACTIVE') {
+    } else if (entPlan === 'INACTIVE') {
       plan = 'INACTIVE';
-    } else if (ent?.plan === 'ACTIVE') {
+    } else if (entPlan === 'ACTIVE') {
       plan = 'ACTIVE';
+    } else if (entPlan === 'CANCELED') {
+      plan = 'CANCELED';
     }
 
     const isActive = plan === 'ACTIVE' || plan === 'TRIALING';

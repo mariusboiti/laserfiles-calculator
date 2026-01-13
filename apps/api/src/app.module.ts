@@ -18,6 +18,7 @@ import { ProductionModule } from './production/production.module';
 import { OffcutsModule } from './offcuts/offcuts.module';
 import { UsageModule } from './usage/usage.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     OffcutsModule,
     UsageModule,
     WebhooksModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

@@ -842,24 +842,27 @@ model UsageEvent {
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum EntitlementPlan {
-  NONE
+  INACTIVE
   TRIALING
   ACTIVE
-  INACTIVE
-  EXPIRED
+  CANCELED
 }
 
 model UserEntitlement {
   id                    String          @id @default(cuid())
   userId                String          @unique
   user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan                  EntitlementPlan @default(NONE)
+  plan                  EntitlementPlan @default(INACTIVE)
   trialStartedAt        DateTime?
   trialEndsAt           DateTime?
-  aiCreditsTotal        Int             @default(25)
+  aiCreditsTotal        Int             @default(0)
   aiCreditsUsed         Int             @default(0)
   stripeCustomerId      String?
   stripeSubscriptionId  String?
+  creditsGrantMonthlyAmount Int         @default(200)
+  creditsNextGrantAt    DateTime?
+  creditsLastGrantAt    DateTime?
+  trialCreditsGrantedAt DateTime?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 

@@ -7,6 +7,13 @@ export type Locale = 'en' | 'ro' | 'es' | 'fr' | 'de';
 
 export const studioTranslations: Record<Locale, Record<string, string>> = {
   en: {
+    'nav.dashboard': 'Dashboard',
+    'nav.tools': 'Tools',
+    'nav.pricing': 'Pricing',
+    'nav.help': 'Help',
+    'nav.account': 'Account',
+    'header.logout': 'Logout',
+
     // ToolShell
     'shell.export': 'Export',
     'shell.reset': 'Reset',
@@ -216,6 +223,13 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
   },
 
   ro: {
+    'nav.dashboard': 'Dashboard',
+    'nav.tools': 'Instrumente',
+    'nav.pricing': 'Prețuri',
+    'nav.help': 'Ajutor',
+    'nav.account': 'Cont',
+    'header.logout': 'Logout',
+
     // ToolShell
     'shell.export': 'Exportă',
     'shell.reset': 'Resetează',
@@ -387,6 +401,13 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
   },
 
   es: {
+    'nav.dashboard': 'Panel',
+    'nav.tools': 'Herramientas',
+    'nav.pricing': 'Precios',
+    'nav.help': 'Ayuda',
+    'nav.account': 'Cuenta',
+    'header.logout': 'Cerrar sesión',
+
     // ToolShell
     'shell.export': 'Exportar',
     'shell.reset': 'Restablecer',
@@ -558,6 +579,13 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
   },
 
   fr: {
+    'nav.dashboard': 'Tableau de bord',
+    'nav.tools': 'Outils',
+    'nav.pricing': 'Tarifs',
+    'nav.help': 'Aide',
+    'nav.account': 'Compte',
+    'header.logout': 'Déconnexion',
+
     // ToolShell
     'shell.export': 'Exporter',
     'shell.reset': 'Réinitialiser',
@@ -729,6 +757,13 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
   },
 
   de: {
+    'nav.dashboard': 'Dashboard',
+    'nav.tools': 'Werkzeuge',
+    'nav.pricing': 'Preise',
+    'nav.help': 'Hilfe',
+    'nav.account': 'Konto',
+    'header.logout': 'Abmelden',
+
     // ToolShell
     'shell.export': 'Exportieren',
     'shell.reset': 'Zurücksetzen',
