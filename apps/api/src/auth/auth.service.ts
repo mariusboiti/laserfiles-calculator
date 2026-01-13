@@ -17,6 +17,16 @@ interface JwtPayload {
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private normalizePlanName(input: unknown): 'GUEST' | 'FREE' | 'STARTER' | 'PRO' | 'LIFETIME' {
+    const raw = String(input ?? '').trim().toUpperCase();
+    if (raw === 'GUEST') return 'GUEST';
+    if (raw === 'FREE') return 'FREE';
+    if (raw === 'STARTER') return 'STARTER';
+    if (raw === 'LIFETIME') return 'LIFETIME';
+    // Default to PRO to avoid blocking SSO if upstream sends a different plan label
+    return 'PRO';
+  }
+
   private async ensureUserEntitlement(userId: string) {
     const existing = await this.prisma.userEntitlement.findUnique({
       where: { userId },
@@ -147,24 +157,29 @@ export class AuthService {
     });
 
     // Save a WorkspacePlanSnapshot for audit and offline validation
-    await this.prisma.workspacePlanSnapshot.create({
-      data: {
-        wpUserId,
-        plan: plan as any, // PlanName enum
-        entitlementsVersion,
-        featuresJson: features as any,
-        limitsJson: limits as any,
-        validUntil: validUntil ? new Date(validUntil) : null,
-        fetchedAt: new Date(),
-      },
-    });
+    const normalizedPlan = this.normalizePlanName(plan);
+    try {
+      await this.prisma.workspacePlanSnapshot.create({
+        data: {
+          wpUserId,
+          plan: normalizedPlan,
+          entitlementsVersion,
+          featuresJson: features as any,
+          limitsJson: limits as any,
+          validUntil: validUntil ? new Date(validUntil) : null,
+          fetchedAt: new Date(),
+        },
+      });
+    } catch {
+      // Snapshot is best-effort; do not block SSO login if persistence fails.
+    }
 
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
       wpUserId,
-      plan,
+      plan: normalizedPlan,
       entitlementsVersion,
     };
 
