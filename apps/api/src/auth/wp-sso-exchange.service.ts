@@ -102,6 +102,13 @@ export class WpSsoExchangeService {
 
       return data;
     } catch (e: any) {
+      // If we already produced a Nest exception (Unauthorized/BadRequest/BadGateway/etc.),
+      // do not wrap it again. Some runtime setups can make instanceof checks unreliable,
+      // so prefer duck-typing.
+      if (e && typeof e.getStatus === 'function' && typeof e.getResponse === 'function') {
+        throw e;
+      }
+
       const status = e?.response?.status;
       const responseData = e?.response?.data;
       const message = e?.message;
@@ -122,10 +129,6 @@ export class WpSsoExchangeService {
           message ?? 'n/a'
         } body=${responseText}`,
       );
-
-      if (e instanceof UnauthorizedException || e instanceof BadRequestException) {
-        throw e;
-      }
 
       throw new BadGatewayException(
         `WP SSO exchange upstream failure (status=${status ?? 'n/a'})`,
