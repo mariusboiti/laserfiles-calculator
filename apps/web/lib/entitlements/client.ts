@@ -62,9 +62,30 @@ function getWpBaseUrl(): string {
   ).replace(/\/$/, '');
 }
 
-function getWpCheckoutAddToCartUrl(productId: number): string {
+function getWpCheckoutBaseUrl(): string {
   const base = getWpBaseUrl();
-  return `${base}/checkout/?add-to-cart=${encodeURIComponent(String(productId))}`;
+
+  const explicit =
+    (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_WP_CHECKOUT_URL || '')) || '';
+  if (explicit) {
+    const full = explicit.startsWith('http') ? explicit : `${base}${explicit.startsWith('/') ? '' : '/'}${explicit}`;
+    return full.replace(/\/$/, '');
+  }
+
+  const path =
+    (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_WP_CHECKOUT_PATH || '')) ||
+    '/checkout/';
+
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`.replace(/\/$/, '');
+}
+
+function getWpCheckoutAddToCartUrl(productId: number): string {
+  // Important:
+  // If WordPress redirects /checkout/ -> /checkout-2-2/ (or another canonical slug),
+  // WooCommerce may apply add-to-cart twice (once per request).
+  // Always use the canonical checkout URL to avoid redirect loops.
+  const checkout = getWpCheckoutBaseUrl();
+  return `${checkout}/?add-to-cart=${encodeURIComponent(String(productId))}&quantity=1`;
 }
 
 export function useEntitlement(): UseEntitlementResult {
