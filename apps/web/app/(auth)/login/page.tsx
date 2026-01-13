@@ -12,7 +12,7 @@ export default function LoginPage() {
     const API_BASE =
       process.env.NEXT_PUBLIC_API_URL || 'https://api.laserfilespro.com';
     const returnUrl = encodeURIComponent(
-      'https://studio.laserfilespro.com/auth/wp',
+      'https://studio.laserfilespro.com/auth/wp/callback',
     );
     window.location.href = `${API_BASE.replace(/\/$/, '')}/auth/wp/start?returnUrl=${returnUrl}`;
   }
