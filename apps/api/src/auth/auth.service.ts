@@ -28,15 +28,11 @@ export class AuthService {
   }
 
   private async ensureUserEntitlement(userId: string) {
-    const existing = await this.prisma.userEntitlement.findUnique({
+    // Race-safe: concurrent logins should not fail with unique constraint errors.
+    return this.prisma.userEntitlement.upsert({
       where: { userId },
-    });
-    if (existing) {
-      return existing;
-    }
-
-    return this.prisma.userEntitlement.create({
-      data: {
+      update: {},
+      create: {
         userId,
         plan: 'INACTIVE',
         aiCreditsTotal: 0,
@@ -108,27 +104,33 @@ export class AuthService {
     const isAllowedAdmin = adminAllowlist.includes(String(email).toLowerCase());
 
     // Find or create user
-    let user = await this.prisma.user.findFirst({ where: { email } });
+    let user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
       const randomPassword = Math.random().toString(36).slice(2);
       const hashed = await bcrypt.hash(randomPassword, 10);
 
-      user = await this.prisma.user.create({
-        data: {
-          email,
-          name: displayName,
-          role: isAllowedAdmin ? 'ADMIN' : 'WORKER',
-          password: hashed,
-        },
-      });
-    } else {
-      const desiredRole = isAllowedAdmin ? 'ADMIN' : user.role === 'ADMIN' ? 'WORKER' : user.role;
-      if (desiredRole !== user.role) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { role: desiredRole },
+      try {
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            name: displayName,
+            role: isAllowedAdmin ? 'ADMIN' : 'WORKER',
+            password: hashed,
+          },
         });
+      } catch (e: any) {
+        // If another request created the user concurrently, recover by fetching it.
+        user = await this.prisma.user.findUnique({ where: { email } });
+        if (!user) throw e;
       }
+    }
+
+    const desiredRole = isAllowedAdmin ? 'ADMIN' : user.role === 'ADMIN' ? 'WORKER' : user.role;
+    if (desiredRole !== user.role) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { role: desiredRole },
+      });
     }
 
     await this.ensureUserEntitlement(user.id);
