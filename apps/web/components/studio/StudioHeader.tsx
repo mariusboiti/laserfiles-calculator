@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react';
 import { STUDIO_NAV, isActivePath } from '@/lib/studio/navigation/studioNav';
 import { AICreditsInfoPanel } from '@/components/ai';
 import { useDisclaimer } from '@/components/legal';
-import { LanguageSwitcher } from '@/app/(app)/i18n';
+import { LanguageSwitcher, useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function StudioHeader() {
   const pathname = usePathname();
@@ -14,6 +15,18 @@ export function StudioHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [aiCreditsOpen, setAiCreditsOpen] = useState(false);
   const { openDisclaimer } = useDisclaimer();
+  const { locale } = useLanguage();
+
+  const t = (key: string) => getStudioTranslation(locale as any, key);
+
+  const navLabel = (href: string) => {
+    if (href === '/studio/dashboard') return t('nav.dashboard');
+    if (href.startsWith('/studio/tools')) return t('nav.tools');
+    if (href === '/studio/pricing') return t('nav.pricing');
+    if (href.startsWith('/studio/help')) return t('nav.help');
+    if (href === '/studio/account') return t('nav.account');
+    return href;
+  };
 
   const logout = () => {
     window.localStorage.removeItem('accessToken');
@@ -64,7 +77,7 @@ export function StudioHeader() {
                   }`}
                   aria-current={active ? 'page' : undefined}
                 >
-                  {item.label}
+                  {navLabel(item.href)}
                 </Link>
               );
             })}
@@ -78,20 +91,20 @@ export function StudioHeader() {
               onClick={openDisclaimer}
               className="hidden rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 md:inline-flex"
             >
-              Disclaimer
+              {t('shell.feedback')}
             </button>
             <button
               type="button"
               onClick={() => setAiCreditsOpen(true)}
               className="hidden rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 md:inline-flex"
             >
-              AI Credits
+              {t('dashboard.ai_credits')}
             </button>
             <Link
               href="/studio/tools"
               className="hidden rounded-md bg-sky-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sky-600 md:inline-flex"
             >
-              Open Tools
+              {t('dashboard.tools')}
             </Link>
 
             <button
@@ -99,7 +112,7 @@ export function StudioHeader() {
               onClick={logout}
               className="hidden rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 md:inline-flex"
             >
-              Logout
+              {t('header.logout')}
             </button>
 
             {/* Mobile Menu Button */}
@@ -148,7 +161,7 @@ export function StudioHeader() {
                     }`}
                     aria-current={active ? 'page' : undefined}
                   >
-                    {item.label}
+                    {navLabel(item.href)}
                   </Link>
                 );
               })}
@@ -162,7 +175,7 @@ export function StudioHeader() {
                 }}
                 className="mb-2 block w-full rounded-md border border-slate-700 px-3 py-2 text-left text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
               >
-                Disclaimer & Responsibility
+                {t('shell.feedback')}
               </button>
               <button
                 type="button"
@@ -172,13 +185,13 @@ export function StudioHeader() {
                 }}
                 className="mb-2 block w-full rounded-md border border-slate-700 px-3 py-2 text-center text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
               >
-                AI Credits
+                {t('dashboard.ai_credits')}
               </button>
               <Link
                 href="/studio/tools"
                 className="block w-full rounded-md bg-sky-500 px-3 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-sky-600"
               >
-                Open Tools
+                {t('dashboard.tools')}
               </Link>
 
               <button
@@ -189,7 +202,7 @@ export function StudioHeader() {
                 }}
                 className="mt-2 block w-full rounded-md border border-slate-700 px-3 py-2 text-center text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
               >
-                Logout
+                {t('header.logout')}
               </button>
             </div>
           </nav>

@@ -79,6 +79,15 @@ function getWpCheckoutBaseUrl(): string {
   return `${base}${path.startsWith('/') ? '' : '/'}${path}`.replace(/\/$/, '');
 }
 
+ function getWpCartBaseUrl(): string {
+   const base = getWpBaseUrl();
+
+   const path =
+     (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_WP_CART_PATH || '')) || '/cart/';
+
+   return `${base}${path.startsWith('/') ? '' : '/'}${path}`.replace(/\/$/, '');
+ }
+
 function getWpCheckoutAddToCartUrl(productId: number): string {
   // Important:
   // If WordPress redirects /checkout/ -> /checkout-2-2/ (or another canonical slug),
@@ -87,6 +96,13 @@ function getWpCheckoutAddToCartUrl(productId: number): string {
   const checkout = getWpCheckoutBaseUrl();
   return `${checkout}/?add-to-cart=${encodeURIComponent(String(productId))}&quantity=1`;
 }
+
+ function getWpCartAddToCartUrl(productId: number): string {
+   // Cart add-to-cart is generally safer than checkout add-to-cart.
+   // Some setups/plugins re-trigger add-to-cart on checkout due to internal redirects.
+   const cart = getWpCartBaseUrl();
+   return `${cart}/?add-to-cart=${encodeURIComponent(String(productId))}&quantity=1`;
+ }
 
 export function useEntitlement(): UseEntitlementResult {
   const [entitlement, setEntitlement] = useState<EntitlementStatus | null>(null);
@@ -180,8 +196,9 @@ export async function startTopup(
   wpProductId: number,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Top-ups should appear in WordPress “My Account”, so Studio redirects to WooCommerce checkout.
-    window.location.href = getWpCheckoutAddToCartUrl(wpProductId);
+    // Top-ups should appear in WordPress “My Account”.
+    // Use cart add-to-cart (not checkout add-to-cart) to avoid double-add issues on checkout.
+    window.location.href = getWpCartAddToCartUrl(wpProductId);
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to purchase top-up' };

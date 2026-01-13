@@ -22,29 +22,13 @@ export class AuthService {
       where: { userId },
     });
     if (existing) {
-      const isLegacyEmptyInactive =
-        existing.plan === 'INACTIVE' &&
-        !existing.trialStartedAt &&
-        !existing.trialEndsAt &&
-        !existing.stripeCustomerId &&
-        !existing.stripeSubscriptionId;
-
-      if (isLegacyEmptyInactive) {
-        return this.prisma.userEntitlement.update({
-          where: { userId },
-          data: {
-            plan: 'NONE',
-          },
-        });
-      }
-
       return existing;
     }
 
     return this.prisma.userEntitlement.create({
       data: {
         userId,
-        plan: 'NONE',
+        plan: 'INACTIVE',
         aiCreditsTotal: 0,
         aiCreditsUsed: 0,
         trialStartedAt: null,

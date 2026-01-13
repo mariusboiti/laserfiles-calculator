@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LanguageProvider } from '../(app)/i18n';
-import { GuidedTour } from '../(app)/guided-tour';
+import { LanguageProvider } from '@/app/(app)/i18n';
+import { GuidedTour } from '@/app/(app)/guided-tour';
 import { StudioHeader } from '@/components/studio/StudioHeader';
 import { DisclaimerProvider, useDisclaimer } from '@/components/legal';
 import { AppErrorBoundary, ToastProvider, NetworkProvider } from '@/components/system';
