@@ -316,9 +316,60 @@ export class AuthController {
         name: true,
         role: true,
         plan: true,
+        subscriptionType: true,
+        subscriptionStatus: true,
+        entitlement: {
+          select: {
+            plan: true,
+            trialEndsAt: true,
+            aiCreditsTotal: true,
+            aiCreditsUsed: true,
+          },
+        },
       },
     });
-    return { user: fullUser };
+
+    const entPlan = String((fullUser as any)?.entitlement?.plan ?? 'INACTIVE');
+    const trialEndsAt = (fullUser as any)?.entitlement?.trialEndsAt ?? null;
+    const now = new Date();
+    const isTrialExpired =
+      entPlan === 'TRIALING' && trialEndsAt && new Date(trialEndsAt).getTime() <= now.getTime();
+
+    const plan = (() => {
+      if (entPlan === 'TRIALING') return 'TRIAL';
+      if (entPlan === 'ACTIVE') {
+        const cycle = String((fullUser as any)?.subscriptionType ?? '').toUpperCase();
+        if (cycle === 'ANNUAL') return 'PRO_ANNUAL';
+        return 'PRO_MONTHLY';
+      }
+      return 'FREE';
+    })();
+
+    const status = (() => {
+      if (entPlan === 'CANCELED') return 'CANCELED';
+      if (isTrialExpired) return 'EXPIRED';
+      if (entPlan === 'TRIALING') return 'TRIAL';
+      if (entPlan === 'ACTIVE') return 'ACTIVE';
+      return 'FREE';
+    })();
+
+    const billingCycle =
+      plan === 'PRO_ANNUAL' ? 'annual' : plan === 'PRO_MONTHLY' ? 'monthly' : null;
+
+    const aiCreditsTotal = Number((fullUser as any)?.entitlement?.aiCreditsTotal ?? 0) || 0;
+    const aiCreditsUsed = Number((fullUser as any)?.entitlement?.aiCreditsUsed ?? 0) || 0;
+
+    return {
+      user: {
+        ...(fullUser as any),
+        plan,
+        status,
+        billingCycle,
+        trialEndsAt: trialEndsAt ? new Date(trialEndsAt).toISOString() : null,
+        aiCreditsTotal,
+        aiCreditsUsed,
+      },
+    };
   }
 
   private signTokens(user: { id: string; email: string; role: string }) {
