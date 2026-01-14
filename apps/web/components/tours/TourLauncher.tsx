@@ -7,6 +7,9 @@
 
 import { HelpCircle, Play, RotateCcw } from 'lucide-react';
 import type { TourStatus } from '@/lib/tours/types';
+import { useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface TourLauncherProps {
   status: TourStatus;
@@ -21,6 +24,9 @@ export function TourLauncher({
   hasTour,
   onStartTour,
 }: TourLauncherProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   if (!hasTour) {
     return null;
   }
@@ -32,7 +38,7 @@ export function TourLauncher({
         className="flex items-center gap-1.5 rounded-md border border-slate-700 px-2.5 py-1.5 text-xs text-slate-500"
       >
         <HelpCircle className="h-3.5 w-3.5 animate-pulse" />
-        <span>Tour</span>
+        <span>{t('shell.tour')}</span>
       </button>
     );
   }
@@ -53,12 +59,12 @@ export function TourLauncher({
       {showReplay ? (
         <>
           <RotateCcw className="h-3.5 w-3.5" />
-          <span>Replay Tour</span>
+          <span>{t('shell.replay_tour')}</span>
         </>
       ) : (
         <>
           <Play className="h-3.5 w-3.5" />
-          <span>Start Tour</span>
+          <span>{t('shell.start_tour')}</span>
         </>
       )}
     </button>

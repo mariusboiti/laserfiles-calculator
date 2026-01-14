@@ -1,3 +1,6 @@
+import { useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { Settings as SettingsType, ExportMode, NumberingFormat, ValidationError, RegistrationMarkType, MarkPlacement } from '../types';
 import { Tooltip } from './Tooltip';
 import { BED_PRESETS } from '../../config/defaults';
@@ -52,6 +55,9 @@ function NumberInput({
 }
 
 export function Settings({ settings, onChange, errors }: SettingsProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const getError = (field: string) => errors.find(e => e.field === field)?.message;
 
   const updateSetting = <K extends keyof SettingsType>(key: K, value: SettingsType[K]) => {
@@ -68,42 +74,42 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
 
   return (
     <div className="card space-y-6">
-      <h2 className="text-lg font-semibold text-slate-100">Settings</h2>
+      <h2 className="text-lg font-semibold text-slate-100">{t('common.settings')}</h2>
 
       {/* Preset Buttons */}
       <div className="space-y-2">
-        <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wide">Quick Presets</h3>
+        <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wide">{t('panel_splitter.settings.quick_presets')}</h3>
         <div className="flex flex-wrap gap-2">
           {BED_PRESETS.map((preset) => (
             <button
-              key={preset.name}
+              key={preset.id}
               onClick={() => applyPreset(preset)}
               className="px-3 py-1.5 text-xs font-medium text-slate-200 bg-slate-800 border border-slate-700 rounded-md hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-              title={preset.description}
+              title={t(preset.descriptionKey)}
             >
-              {preset.name}
+              {t(preset.nameKey)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Bed Size</h3>
+        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">{t('panel_splitter.settings.bed_size')}</h3>
         <div className="grid grid-cols-2 gap-3">
           <NumberInput
-            label="Width (mm)" 
+            label={t('panel_splitter.settings.bed_width_label')}
             field="bedWidth" 
             value={settings.bedWidth}
-            tooltip="Width of your laser bed in millimeters"
+            tooltip={t('panel_splitter.settings.bed_width_tooltip')}
             min={10}
             error={getError('bedWidth')}
             onValueChange={(field, value) => updateSetting(field, value as any)}
           />
           <NumberInput
-            label="Height (mm)" 
+            label={t('panel_splitter.settings.bed_height_label')}
             field="bedHeight" 
             value={settings.bedHeight}
-            tooltip="Height of your laser bed in millimeters"
+            tooltip={t('panel_splitter.settings.bed_height_tooltip')}
             min={10}
             error={getError('bedHeight')}
             onValueChange={(field, value) => updateSetting(field, value as any)}
@@ -111,19 +117,19 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <NumberInput
-            label="Margin (mm)" 
+            label={t('panel_splitter.settings.margin_label')}
             field="margin" 
             value={settings.margin}
-            tooltip="Safe margin around each tile edge"
+            tooltip={t('panel_splitter.settings.margin_tooltip')}
             min={0}
             error={getError('margin')}
             onValueChange={(field, value) => updateSetting(field, value as any)}
           />
           <NumberInput
-            label="Overlap (mm)" 
+            label={t('panel_splitter.settings.overlap_label')}
             field="overlap" 
             value={settings.overlap}
-            tooltip="How much adjacent tiles overlap. Useful for alignment or seamless patterns."
+            tooltip={t('panel_splitter.settings.overlap_tooltip')}
             min={0}
             error={getError('overlap')}
             onValueChange={(field, value) => updateSetting(field, value as any)}
@@ -133,7 +139,7 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
 
       {/* Unit System Toggle */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Unit System</h3>
+        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">{t('panel_splitter.settings.unit_system')}</h3>
         <div className="flex gap-2">
           <button
             onClick={() => updateSetting('unitSystem', 'mm')}
@@ -143,7 +149,7 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
             }`}
           >
-            Millimeters (mm)
+            {t('panel_splitter.units.millimeters')}
           </button>
           <button
             onClick={() => updateSetting('unitSystem', 'in')}
@@ -153,31 +159,31 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
             }`}
           >
-            Inches (in)
+            {t('panel_splitter.units.inches')}
           </button>
         </div>
       </div>
 
       {/* Tile Offset Controls */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Tile Offset (Advanced)</h3>
-        <p className="text-xs text-slate-400">Shift the tile grid to avoid seams in critical areas</p>
+        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">{t('panel_splitter.settings.tile_offset_title')}</h3>
+        <p className="text-xs text-slate-400">{t('panel_splitter.settings.tile_offset_desc')}</p>
         <div className="grid grid-cols-2 gap-3">
           <NumberInput
-            label="Offset X (mm)"
+            label={t('panel_splitter.settings.offset_x_label')}
             field="tileOffsetX"
             value={settings.tileOffsetX}
-            tooltip="Horizontal offset for tile grid positioning"
+            tooltip={t('panel_splitter.settings.offset_x_tooltip')}
             min={-100}
             max={100}
             step={0.5}
             onValueChange={(field, value) => updateSetting(field, value as any)}
           />
           <NumberInput
-            label="Offset Y (mm)"
+            label={t('panel_splitter.settings.offset_y_label')}
             field="tileOffsetY"
             value={settings.tileOffsetY}
-            tooltip="Vertical offset for tile grid positioning"
+            tooltip={t('panel_splitter.settings.offset_y_tooltip')}
             min={-100}
             max={100}
             step={0.5}
@@ -187,7 +193,7 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">Export Mode</h3>
+        <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">{t('panel_splitter.settings.export_mode')}</h3>
         
         <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/60 transition-colors">
           <input
@@ -198,9 +204,9 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             className="mt-1"
           />
           <div>
-            <span className="font-medium text-slate-200">Laser-Safe Trim</span>
+            <span className="font-medium text-slate-200">{t('panel_splitter.settings.export_mode_laser_safe_title')}</span>
             <p className="text-sm text-slate-400">
-              Real geometry trimming using boolean operations. Recommended for all laser software.
+              {t('panel_splitter.settings.export_mode_laser_safe_desc')}
             </p>
           </div>
         </label>
@@ -214,22 +220,22 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             className="mt-1"
           />
           <div>
-            <span className="font-medium text-slate-200">Fast Clip</span>
+            <span className="font-medium text-slate-200">{t('panel_splitter.settings.export_mode_fast_clip_title')}</span>
             <p className="text-sm text-slate-400">
-              Uses clipPath (faster but may not work in all laser software).
+              {t('panel_splitter.settings.export_mode_fast_clip_desc')}
             </p>
           </div>
         </label>
 
         {settings.exportMode === 'fast-clip' && (
           <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-sm">
-            ⚠️ <strong>Warning:</strong> Some laser software ignores clip paths. Use Laser-Safe Trim for reliable cutting.
+            ⚠️ <strong>{t('panel_splitter.settings.export_mode_warning_label')}</strong> {t('panel_splitter.settings.export_mode_warning_body')}
           </div>
         )}
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-slate-300 uppercase tracking-wide">Numbering</h3>
+        <h3 className="text-sm font-medium text-slate-300 uppercase tracking-wide">{t('panel_splitter.settings.numbering_title')}</h3>
         
         <label className="flex items-center gap-2">
           <input
@@ -238,22 +244,22 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             onChange={(e) => updateSetting('numberingEnabled', e.target.checked)}
             className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
           />
-          <span className="text-sm text-slate-200">Enable tile numbering</span>
+          <span className="text-sm text-slate-200">{t('panel_splitter.settings.numbering_enable')}</span>
         </label>
 
         {settings.numberingEnabled && (
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-slate-200 mb-1">Format</label>
+              <label className="block text-sm font-medium text-slate-200 mb-1">{t('panel_splitter.settings.numbering_format_label')}</label>
               <select
                 value={settings.numberingFormat}
                 onChange={(e) => updateSetting('numberingFormat', e.target.value as NumberingFormat)}
                 className="input-field"
               >
-                <option value="panel_{row}{col}">panel_A1 (Recommended)</option>
-                <option value="R01C01">R01C01 (Row-Column)</option>
-                <option value="01-01">01-01 (Row-Column)</option>
-                <option value="Tile_001">Tile_001 (Sequential)</option>
+                <option value="panel_{row}{col}">{t('panel_splitter.settings.numbering_format_panel_recommended')}</option>
+                <option value="R01C01">{t('panel_splitter.settings.numbering_format_r01c01')}</option>
+                <option value="01-01">{t('panel_splitter.settings.numbering_format_01_01')}</option>
+                <option value="Tile_001">{t('panel_splitter.settings.numbering_format_tile_001')}</option>
               </select>
             </div>
             
@@ -264,14 +270,14 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
                 onChange={(e) => updateSetting('startIndexAtOne', e.target.checked)}
                 className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
               />
-              <span className="text-sm text-slate-200">Start index at 1 (R01C01 vs R00C00)</span>
+              <span className="text-sm text-slate-200">{t('panel_splitter.settings.start_index_at_one')}</span>
             </label>
           </div>
         )}
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-slate-300 uppercase tracking-wide">Options</h3>
+        <h3 className="text-sm font-medium text-slate-300 uppercase tracking-wide">{t('common.options')}</h3>
         
         <label className="flex items-center gap-2">
           <input
@@ -280,8 +286,8 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             onChange={(e) => updateSetting('guidesEnabled', e.target.checked)}
             className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
           />
-          <span className="text-sm text-slate-200">Add alignment guides</span>
-          <Tooltip content="Adds tile border rectangle and corner crosshair marks for alignment" />
+          <span className="text-sm text-slate-200">{t('panel_splitter.settings.guides_enabled')}</span>
+          <Tooltip content={t('panel_splitter.settings.guides_enabled_tooltip')} />
         </label>
 
         <label className="flex items-center gap-2">
@@ -291,8 +297,8 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             onChange={(e) => updateSetting('boundaryRectEnabled', e.target.checked)}
             className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
           />
-          <span className="text-sm text-slate-200">Add tile boundary rectangle</span>
-          <Tooltip content="Adds a rectangle layer showing exact tile boundaries for alignment in laser software" />
+          <span className="text-sm text-slate-200">{t('panel_splitter.settings.boundary_rect_enabled')}</span>
+          <Tooltip content={t('panel_splitter.settings.boundary_rect_enabled_tooltip')} />
         </label>
 
         <label className="flex items-center gap-2">
@@ -302,8 +308,8 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             onChange={(e) => updateSetting('expandStrokes', e.target.checked)}
             className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
           />
-          <span className="text-sm text-slate-200">Expand strokes</span>
-          <Tooltip content="Convert strokes to outlines before trimming. Enable if thick strokes are getting cut off." />
+          <span className="text-sm text-slate-200">{t('panel_splitter.settings.expand_strokes')}</span>
+          <Tooltip content={t('panel_splitter.settings.expand_strokes_tooltip')} />
         </label>
 
         <label className="flex items-center gap-2">
@@ -313,13 +319,13 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             onChange={(e) => updateSetting('exportEmptyTiles', e.target.checked)}
             className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
           />
-          <span className="text-sm text-slate-200">Export empty tiles</span>
+          <span className="text-sm text-slate-200">{t('panel_splitter.settings.export_empty_tiles')}</span>
         </label>
 
         <div>
           <label className="flex items-center text-sm font-medium text-slate-200 mb-1">
-            Simplify tolerance (mm)
-            <Tooltip content="Reduce path complexity after trimming. Higher values = simpler paths but less accuracy. Use 0 for no simplification." />
+            {t('panel_splitter.settings.simplify_tolerance_label')}
+            <Tooltip content={t('panel_splitter.settings.simplify_tolerance_tooltip')} />
           </label>
           <input
             type="range"
@@ -331,9 +337,9 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             className="w-full"
           />
           <div className="flex justify-between text-xs text-slate-400">
-            <span>0 (off)</span>
-            <span>{settings.simplifyTolerance.toFixed(1)} mm</span>
-            <span>2 mm</span>
+            <span>{t('panel_splitter.settings.simplify_tolerance_off')}</span>
+            <span>{settings.simplifyTolerance.toFixed(1)} {t('panel_splitter.units.mm')}</span>
+            <span>{t('panel_splitter.settings.simplify_tolerance_max')}</span>
           </div>
         </div>
       </div>
@@ -341,8 +347,8 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
       {/* Registration Marks Section */}
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-slate-300 uppercase tracking-wide">
-          Registration Marks
-          <Tooltip content="Add alignment marks to each tile for precise assembly of adjacent pieces" />
+          {t('panel_splitter.settings.registration_marks_title')}
+          <Tooltip content={t('panel_splitter.settings.registration_marks_tooltip')} />
         </h3>
         
         <label className="flex items-center gap-2">
@@ -355,13 +361,13 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             })}
             className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
           />
-          <span className="text-sm text-slate-200">Enable registration marks</span>
+          <span className="text-sm text-slate-200">{t('panel_splitter.settings.registration_marks_enable')}</span>
         </label>
 
         {settings.registrationMarks.enabled && (
           <div className="space-y-3 pl-6 border-l-2 border-slate-700">
             <div>
-              <label className="block text-sm font-medium text-slate-200 mb-1">Mark Type</label>
+              <label className="block text-sm font-medium text-slate-200 mb-1">{t('panel_splitter.settings.registration_marks_mark_type')}</label>
               <select
                 value={settings.registrationMarks.type}
                 onChange={(e) => updateSetting('registrationMarks', {
@@ -370,14 +376,14 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
                 })}
                 className="input-field"
               >
-                <option value="crosshair">Corner Crosshair (thin lines)</option>
-                <option value="pinhole">Pin Holes (small circles)</option>
-                <option value="lmark">L-Marks (90° marks)</option>
+                <option value="crosshair">{t('panel_splitter.settings.registration_marks_mark_type_crosshair')}</option>
+                <option value="pinhole">{t('panel_splitter.settings.registration_marks_mark_type_pinhole')}</option>
+                <option value="lmark">{t('panel_splitter.settings.registration_marks_mark_type_lmark')}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-200 mb-1">Placement</label>
+              <label className="block text-sm font-medium text-slate-200 mb-1">{t('panel_splitter.settings.registration_marks_placement')}</label>
               <select
                 value={settings.registrationMarks.placement}
                 onChange={(e) => updateSetting('registrationMarks', {
@@ -386,15 +392,15 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
                 })}
                 className="input-field"
               >
-                <option value="inside">Inside tile (within margin)</option>
-                <option value="overlap">On overlap area</option>
+                <option value="inside">{t('panel_splitter.settings.registration_marks_placement_inside')}</option>
+                <option value="overlap">{t('panel_splitter.settings.registration_marks_placement_overlap')}</option>
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Mark Size (mm)
+                  {t('panel_splitter.settings.registration_marks_mark_size')}
                 </label>
                 <input
                   type="number"
@@ -411,7 +417,7 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Stroke Width (mm)
+                  {t('panel_splitter.settings.registration_marks_stroke_width')}
                 </label>
                 <input
                   type="number"
@@ -431,7 +437,7 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             {settings.registrationMarks.type === 'pinhole' && (
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Hole Diameter (mm)
+                  {t('panel_splitter.settings.registration_marks_hole_diameter')}
                 </label>
                 <input
                   type="number"
@@ -454,8 +460,8 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
       {/* Assembly Map Section */}
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-slate-300 uppercase tracking-wide">
-          Assembly Map
-          <Tooltip content="Generate an overview map showing all tiles and their positions for easy assembly" />
+          {t('panel_splitter.settings.assembly_map_title')}
+          <Tooltip content={t('panel_splitter.settings.assembly_map_tooltip')} />
         </h3>
         
         <label className="flex items-center gap-2">
@@ -468,7 +474,7 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             })}
             className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
           />
-          <span className="text-sm text-slate-200">Include assembly map in export</span>
+          <span className="text-sm text-slate-200">{t('panel_splitter.settings.assembly_map_include_in_export')}</span>
         </label>
 
         {settings.assemblyMap.enabled && (
@@ -483,7 +489,7 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
                 })}
                 className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
               />
-              <span className="text-sm text-slate-200">Include tile labels on map</span>
+              <span className="text-sm text-slate-200">{t('panel_splitter.settings.assembly_map_include_labels')}</span>
             </label>
 
             <label className="flex items-center gap-2">
@@ -496,7 +502,7 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
                 })}
                 className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
               />
-              <span className="text-sm text-slate-200">Include tile thumbnails (larger file)</span>
+              <span className="text-sm text-slate-200">{t('panel_splitter.settings.assembly_map_include_thumbnails')}</span>
             </label>
           </div>
         )}

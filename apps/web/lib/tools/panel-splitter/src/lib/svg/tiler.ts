@@ -236,8 +236,6 @@ function copyStyles(source: paper.Item, target: paper.Item) {
     target.dashArray = source.dashArray;
     target.dashOffset = source.dashOffset;
     target.opacity = source.opacity;
-    
-    console.log('Copied styles - fill:', target.fillColor?.toCSS(true), 'stroke:', target.strokeColor?.toCSS(true));
   }
 }
 
@@ -346,31 +344,10 @@ function exportTileSVG(gridInfo: GridInfo, settings: Settings, tileRow: number, 
   const designScaleX = 1;
   const designScaleY = 1;
 
-  // Debug: Check what's in the project before export
-  console.log('Exporting tile', tileRow, tileCol);
-  console.log('Project children count:', paper.project.activeLayer.children.length);
-  paper.project.activeLayer.children.forEach((child, i) => {
-    console.log(`  Child ${i}:`, child.className, child.bounds);
-    if (child.className === 'Group') {
-      console.log(`    Group has ${child.children.length} children`);
-      child.children.forEach((grandchild: any, j: number) => {
-        const fillCSS = grandchild.fillColor ? grandchild.fillColor.toCSS(true) : 'none';
-        const strokeCSS = grandchild.strokeColor ? grandchild.strokeColor.toCSS(true) : 'none';
-        console.log(`      Grandchild ${j}:`, grandchild.className, 'fill:', fillCSS, 'stroke:', strokeCSS, 'visible:', grandchild.visible);
-      });
-    }
-  });
-
-  console.log('Export bounds:', `0, 0, ${tileWidth}, ${tileHeight}`);
-  console.log('Group bounds:', paper.project.activeLayer.children[0]?.bounds);
-
   // Export without bounds - let paper.js set viewBox automatically
   const svg = paper.project.exportSVG({
     asString: true,
   }) as string;
-  
-  console.log('Exported SVG length:', svg.length);
-  console.log('SVG preview:', svg.substring(0, 500));
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(svg, 'image/svg+xml');
@@ -386,11 +363,9 @@ function exportTileSVG(gridInfo: GridInfo, settings: Settings, tileRow: number, 
     svgEl.setAttribute('width', `${tileWidth}mm`);
     svgEl.setAttribute('height', `${tileHeight}mm`);
     
-    console.log('Final viewBox:', `0 0 ${viewBoxWidth} ${viewBoxHeight}`);
-    
     if (settings.registrationMarks.enabled) {
       const marksSVG = generateRegistrationMarksSVG(gridInfo, settings, tileRow, tileCol);
-      svgEl.innerHTML += marksSVG;
+      // Insert marks before closing svg
     }
   }
 
