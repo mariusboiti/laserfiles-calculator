@@ -1,3 +1,6 @@
+import { useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { GridInfo, TileInfo } from '../types';
 
 interface TileListProps {
@@ -7,11 +10,14 @@ interface TileListProps {
 }
 
 export function TileList({ gridInfo, selectedTile, onTileSelect }: TileListProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   if (!gridInfo) {
     return (
       <div className="card">
-        <h2 className="text-lg font-semibold text-slate-100 mb-3">Tiles</h2>
-        <p className="text-sm text-slate-500">Upload an SVG to see tile list</p>
+        <h2 className="text-lg font-semibold text-slate-100 mb-3">{t('panel_splitter.tiles.title')}</h2>
+        <p className="text-sm text-slate-500">{t('panel_splitter.tiles.upload_svg_to_see_tiles')}</p>
       </div>
     );
   }
@@ -23,15 +29,17 @@ export function TileList({ gridInfo, selectedTile, onTileSelect }: TileListProps
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-slate-100">Tiles</h2>
+        <h2 className="text-lg font-semibold text-slate-100">{t('panel_splitter.tiles.title')}</h2>
         <div className="text-sm text-slate-400">
-          {nonEmptyCount} / {tiles.length} with content
+          {t('panel_splitter.tiles.with_content')
+            .replace('{nonEmpty}', String(nonEmptyCount))
+            .replace('{total}', String(tiles.length))}
         </div>
       </div>
 
       {unsafeCount > 0 && (
         <div className="mb-3 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs">
-          ⚠️ {unsafeCount} tile(s) have unsafe fallback geometry
+          ⚠️ {t('panel_splitter.tiles.unsafe_tiles').replace('{count}', String(unsafeCount))}
         </div>
       )}
 
@@ -54,21 +62,23 @@ export function TileList({ gridInfo, selectedTile, onTileSelect }: TileListProps
               <div className="flex items-center gap-2">
                 {tile.isEmpty && (
                   <span className="text-xs px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
-                    Empty
+                    {t('panel_splitter.tiles.empty_badge')}
                   </span>
                 )}
                 {tile.hasUnsafeFallback && (
                   <span className="text-xs px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded">
-                    Unsafe
+                    {t('panel_splitter.tiles.unsafe_badge')}
                   </span>
                 )}
                 <span className="text-xs text-slate-500">
-                  R{tile.row + 1} C{tile.col + 1}
+                  {t('panel_splitter.tiles.position')
+                    .replace('{row}', String(tile.row + 1))
+                    .replace('{col}', String(tile.col + 1))}
                 </span>
               </div>
             </div>
             <div className="text-xs text-slate-500 mt-0.5">
-              {tile.width.toFixed(1)} × {tile.height.toFixed(1)} mm
+              {tile.width.toFixed(1)} × {tile.height.toFixed(1)} {t('panel_splitter.units.mm')}
             </div>
           </button>
         ))}

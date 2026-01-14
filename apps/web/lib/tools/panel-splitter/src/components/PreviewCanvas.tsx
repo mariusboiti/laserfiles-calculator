@@ -1,4 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useLayoutEffect } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { SVGInfo, GridInfo, TileInfo } from '../types';
 
 interface PreviewCanvasProps {
@@ -9,6 +11,9 @@ interface PreviewCanvasProps {
 }
 
 export function PreviewCanvas({ svgInfo, gridInfo, selectedTile, onTileSelect }: PreviewCanvasProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const svgImageRef = useRef<HTMLImageElement | null>(null);
@@ -141,7 +146,7 @@ export function PreviewCanvas({ svgInfo, gridInfo, selectedTile, onTileSelect }:
       ctx.fillStyle = '#94a3b8';
       ctx.font = '16px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('Upload an SVG to preview', canvas.width / 2, canvas.height / 2);
+      ctx.fillText(t('panel_splitter.preview.upload_svg_to_preview'), canvas.width / 2, canvas.height / 2);
       return;
     }
 
@@ -195,7 +200,7 @@ export function PreviewCanvas({ svgInfo, gridInfo, selectedTile, onTileSelect }:
     }
 
     ctx.restore();
-  }, [svgInfo, gridInfo, selectedTile, zoom, pan, svgRasterNonce]);
+  }, [gridInfo, pan, selectedTile, svgInfo, svgRasterNonce, t, zoom]);
 
   useEffect(() => {
     draw();
@@ -303,9 +308,9 @@ export function PreviewCanvas({ svgInfo, gridInfo, selectedTile, onTileSelect }:
   return (
     <div ref={containerRef} className="card h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-slate-100">Preview</h2>
+        <h2 className="text-lg font-semibold text-slate-100">{t('preview.title')}</h2>
         <div className="flex items-center gap-3">
-          <label className="text-sm text-slate-300">Zoom:</label>
+          <label className="text-sm text-slate-300">{t('panel_splitter.preview.zoom_label')}</label>
           <input
             type="range"
             min={0.1}
@@ -332,7 +337,7 @@ export function PreviewCanvas({ svgInfo, gridInfo, selectedTile, onTileSelect }:
             }}
             className="text-sm text-sky-400 hover:text-sky-300"
           >
-            Fit
+            {t('preview.fit_to_view')}
           </button>
         </div>
       </div>
@@ -349,9 +354,11 @@ export function PreviewCanvas({ svgInfo, gridInfo, selectedTile, onTileSelect }:
 
       {svgInfo && gridInfo && (
         <div className="mt-3 text-sm text-slate-400">
-          Design: {svgInfo.detectedWidthMm.toFixed(1)} × {svgInfo.detectedHeightMm.toFixed(1)} mm | 
-          Grid: {gridInfo.cols} × {gridInfo.rows} tiles | 
-          Click tile to select
+          {t('panel_splitter.preview.summary')
+            .replace('{designW}', svgInfo.detectedWidthMm.toFixed(1))
+            .replace('{designH}', svgInfo.detectedHeightMm.toFixed(1))
+            .replace('{cols}', String(gridInfo.cols))
+            .replace('{rows}', String(gridInfo.rows))}
         </div>
       )}
     </div>

@@ -5,9 +5,11 @@
  * Displays tour popover anchored to target element with highlighting
  */
 
-import { useEffect, useState, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { TourStep, TourPlacement } from '@/lib/tours/types';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface TourOverlayProps {
   step: TourStep;
@@ -104,6 +106,9 @@ export function TourOverlay({
   onFinish,
   onClose,
 }: TourOverlayProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<PopoverPosition>({
     top: 0,
@@ -116,8 +121,10 @@ export function TourOverlay({
   const isLastStep = stepIndex === totalSteps - 1;
 
   // Get text content (i18n fallback)
-  const title = step.titleFallback;
-  const body = step.bodyFallback;
+  const translatedTitle = t(step.titleKey);
+  const translatedBody = t(step.bodyKey);
+  const title = translatedTitle === step.titleKey ? step.titleFallback : translatedTitle;
+  const body = translatedBody === step.bodyKey ? step.bodyFallback : translatedBody;
 
   // Update position when target changes
   useEffect(() => {
@@ -207,7 +214,7 @@ export function TourOverlay({
               {stepIndex + 1}
             </span>
             <span className="text-xs text-slate-400">
-              of {totalSteps}
+              {t('tour.step_of')} {totalSteps}
             </span>
           </div>
           <button
@@ -226,7 +233,7 @@ export function TourOverlay({
           {/* Target not found warning */}
           {!targetElement && (
             <p className="mt-2 text-xs text-amber-400">
-              ⚠️ Target element not found. Click Next to continue.
+              ⚠️ {t('tour.target_not_found')}
             </p>
           )}
         </div>
@@ -237,7 +244,7 @@ export function TourOverlay({
             onClick={onSkip}
             className="text-xs text-slate-500 hover:text-slate-300"
           >
-            Skip tour
+            {t('tour.skip')}
           </button>
 
           <div className="flex items-center gap-2">
@@ -247,7 +254,7 @@ export function TourOverlay({
                 className="flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
               >
                 <ChevronLeft className="h-3 w-3" />
-                Back
+                {t('tour.back')}
               </button>
             )}
 
@@ -256,14 +263,14 @@ export function TourOverlay({
                 onClick={onFinish}
                 className="flex items-center gap-1 rounded-lg bg-sky-500 px-4 py-1.5 text-xs font-medium text-white hover:bg-sky-600"
               >
-                Finish
+                {t('tour.finish')}
               </button>
             ) : (
               <button
                 onClick={onNext}
                 className="flex items-center gap-1 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-600"
               >
-                Next
+                {t('tour.next')}
                 <ChevronRight className="h-3 w-3" />
               </button>
             )}

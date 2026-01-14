@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { Uploader } from './components/Uploader';
 import { Settings } from './components/Settings';
 import { PreviewCanvas } from './components/PreviewCanvas';
@@ -56,42 +58,61 @@ const DEFAULT_SETTINGS: SettingsType = {
   },
 };
 
-function validateSettings(settings: SettingsType): ValidationError[] {
+function validateSettings(settings: SettingsType, t: (key: string) => string): ValidationError[] {
   const errors: ValidationError[] = [];
 
   if (settings.bedWidth < 10) {
-    errors.push({ field: 'bedWidth', message: 'Bed width must be at least 10mm' });
+    errors.push({ field: 'bedWidth', message: t('panel_splitter.app.validation.bed_width_min') });
   }
   if (settings.bedHeight < 10) {
-    errors.push({ field: 'bedHeight', message: 'Bed height must be at least 10mm' });
+    errors.push({ field: 'bedHeight', message: t('panel_splitter.app.validation.bed_height_min') });
   }
   if (settings.margin < 0) {
-    errors.push({ field: 'margin', message: 'Margin cannot be negative' });
+    errors.push({ field: 'margin', message: t('panel_splitter.app.validation.margin_negative') });
   }
   if (settings.overlap < 0) {
-    errors.push({ field: 'overlap', message: 'Overlap cannot be negative' });
+    errors.push({ field: 'overlap', message: t('panel_splitter.app.validation.overlap_negative') });
   }
 
   const effectiveWidth = settings.bedWidth - 2 * settings.margin;
   const effectiveHeight = settings.bedHeight - 2 * settings.margin;
 
   if (effectiveWidth <= 0) {
-    errors.push({ field: 'margin', message: 'Margin too large for bed width' });
+    errors.push({ field: 'margin', message: t('panel_splitter.app.validation.margin_too_large_width') });
   }
   if (effectiveHeight <= 0) {
-    errors.push({ field: 'margin', message: 'Margin too large for bed height' });
+    errors.push({ field: 'margin', message: t('panel_splitter.app.validation.margin_too_large_height') });
   }
   if (settings.overlap >= effectiveWidth) {
-    errors.push({ field: 'overlap', message: 'Overlap must be less than effective tile width' });
+    errors.push({ field: 'overlap', message: t('panel_splitter.app.validation.overlap_lt_effective_width') });
   }
   if (settings.overlap >= effectiveHeight) {
-    errors.push({ field: 'overlap', message: 'Overlap must be less than effective tile height' });
+    errors.push({ field: 'overlap', message: t('panel_splitter.app.validation.overlap_lt_effective_height') });
   }
 
   return errors;
 }
 
 export default function App({ onResetCallback }: AppProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
+  const localizeRuntimeError = useCallback((err: unknown) => {
+    if (err instanceof Error) {
+      if (err.message.startsWith('panel_splitter.')) {
+        const idx = err.message.indexOf(':');
+        if (idx !== -1) {
+          const key = err.message.slice(0, idx);
+          const details = err.message.slice(idx + 1);
+          return t(key).replace('{details}', details);
+        }
+        return t(err.message);
+      }
+      return err.message;
+    }
+    return t('panel_splitter.app.error.compute_grid_failed');
+  }, [t]);
+
   const [svgInfo, setSvgInfo] = useState<SVGInfo | null>(null);
   const [settings, setSettings] = useState<SettingsType>(DEFAULT_SETTINGS);
   const [gridInfo, setGridInfo] = useState<GridInfo | null>(null);
@@ -147,7 +168,7 @@ export default function App({ onResetCallback }: AppProps) {
   }, [svgInfo, outputSize?.widthMm, outputSize?.heightMm]);
 
   useEffect(() => {
-    const errors = validateSettings(settings);
+    const errors = validateSettings(settings, t);
     setValidationErrors(errors);
 
     if (effectiveSvgInfo && errors.length === 0) {
@@ -160,13 +181,13 @@ export default function App({ onResetCallback }: AppProps) {
         setGridInfo(null);
         setValidationErrors([{
           field: 'general',
-          message: err instanceof Error ? err.message : 'Failed to compute grid',
+          message: localizeRuntimeError(err),
         }]);
       }
     } else if (!effectiveSvgInfo) {
       setGridInfo(null);
     }
-  }, [effectiveSvgInfo, settings]);
+  }, [effectiveSvgInfo, settings, t, localizeRuntimeError]);
 
   const handleSVGLoaded = useCallback((info: SVGInfo) => {
     setSvgInfo(info);
@@ -183,10 +204,10 @@ export default function App({ onResetCallback }: AppProps) {
         const reparsed = parseSVG(svgInfo.originalContent, svgInfo.fileName, mode);
         setSvgInfo(reparsed);
       } catch (err) {
-        console.error('Failed to reparse SVG with new unit mode:', err);
+        console.error(t('panel_splitter.app.error.reparse_failed'), err);
       }
     }
-  }, [svgInfo]);
+  }, [svgInfo, t]);
 
   const handleGenerate = useCallback(async () => {
     if (!effectiveSvgInfo || !gridInfo || validationErrors.length > 0) return;
@@ -232,7 +253,7 @@ export default function App({ onResetCallback }: AppProps) {
         error: null,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Processing failed';
+      const message = localizeRuntimeError(err);
       setProcessingState({
         isProcessing: false,
         currentTile: 0,
@@ -241,7 +262,7 @@ export default function App({ onResetCallback }: AppProps) {
         error: message === 'Processing cancelled' ? null : message,
       });
     }
-  }, [effectiveSvgInfo, gridInfo, settings, validationErrors]);
+  }, [effectiveSvgInfo, gridInfo, settings, t, validationErrors, localizeRuntimeError]);
 
   const handleCancel = useCallback(() => {
     cancelRef.current = true;
@@ -259,6 +280,7 @@ export default function App({ onResetCallback }: AppProps) {
         settings,
         gridInfo,
         tiles: processedTiles,
+        t,
       });
 
       setProcessingState(prev => ({ ...prev, isProcessing: false, phase: 'done' }));
@@ -267,10 +289,10 @@ export default function App({ onResetCallback }: AppProps) {
         ...prev,
         isProcessing: false,
         phase: 'idle',
-        error: err instanceof Error ? err.message : 'Export failed',
+        error: localizeRuntimeError(err),
       }));
     }
-  }, [effectiveSvgInfo, gridInfo, settings, processedTiles]);
+  }, [effectiveSvgInfo, gridInfo, settings, processedTiles, t, localizeRuntimeError]);
 
   const canGenerate = effectiveSvgInfo !== null && gridInfo !== null && validationErrors.length === 0 && !processingState.isProcessing;
 
@@ -278,14 +300,14 @@ export default function App({ onResetCallback }: AppProps) {
   const warnings: string[] = [];
   if (gridInfo) {
     if (gridInfo.tiles.length > 100) {
-      warnings.push('More than 100 tiles generated – heavy job');
+      warnings.push(t('panel_splitter.app.warning.too_many_tiles'));
     }
     if (settings.overlap > settings.margin) {
-      warnings.push('Overlap larger than margin may duplicate cuts');
+      warnings.push(t('panel_splitter.app.warning.overlap_gt_margin'));
     }
   }
   if (effectiveSvgInfo && settings.bedWidth < effectiveSvgInfo.detectedWidthMm && settings.bedHeight < effectiveSvgInfo.detectedHeightMm) {
-    warnings.push('Source SVG exceeds laser bed size');
+    warnings.push(t('panel_splitter.app.warning.svg_exceeds_bed'));
   }
 
   const outputAspect = outputSize && outputSize.heightMm > 0 ? outputSize.widthMm / outputSize.heightMm : 1;
@@ -322,8 +344,8 @@ export default function App({ onResetCallback }: AppProps) {
               <rect x="55" y="55" width="40" height="40" fill="#0ea5e9" rx="4"/>
             </svg>
             <div>
-              <h1 className="text-xl font-bold text-slate-100">Panel Splitter</h1>
-              <p className="text-sm text-slate-400">LaserFilesPro</p>
+              <h1 className="text-xl font-bold text-slate-100">{t('panel_splitter.app.header_title')}</h1>
+              <p className="text-sm text-slate-400">{t('panel_splitter.app.header_subtitle')}</p>
             </div>
           </div>
         </div>
@@ -338,7 +360,7 @@ export default function App({ onResetCallback }: AppProps) {
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <div className="flex-1">
-                <h3 className="text-sm font-medium text-amber-400">Warnings</h3>
+                <h3 className="text-sm font-medium text-amber-400">{t('panel_splitter.app.warnings_title')}</h3>
                 <ul className="mt-1 text-sm text-amber-300 space-y-1">
                   {warnings.map((warning, i) => (
                     <li key={i}>• {warning}</li>
@@ -383,11 +405,11 @@ export default function App({ onResetCallback }: AppProps) {
           />
           {svgInfo && outputSize && (
             <div className="card">
-              <h2 className="text-lg font-semibold text-slate-100 mb-3">Output Size</h2>
-              <p className="text-xs text-slate-400 mb-3">Scales the design in mm before tiling/export.</p>
+              <h2 className="text-lg font-semibold text-slate-100 mb-3">{t('panel_splitter.app.output_size_title')}</h2>
+              <p className="text-xs text-slate-400 mb-3">{t('panel_splitter.app.output_size_desc')}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-slate-200">Width (mm)</label>
+                  <label className="text-sm font-medium text-slate-200">{t('panel_splitter.app.output_size_width_label')}</label>
                   <input
                     type="number"
                     value={Number(outputSize.widthMm.toFixed(3))}
@@ -398,7 +420,7 @@ export default function App({ onResetCallback }: AppProps) {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-200">Height (mm)</label>
+                  <label className="text-sm font-medium text-slate-200">{t('panel_splitter.app.output_size_height_label')}</label>
                   <input
                     type="number"
                     value={Number(outputSize.heightMm.toFixed(3))}
@@ -416,7 +438,7 @@ export default function App({ onResetCallback }: AppProps) {
                   onChange={(e) => updateOutputSize({ lockAspect: e.target.checked })}
                   className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
                 />
-                Lock aspect
+                {t('panel_splitter.app.output_size_lock_aspect')}
               </label>
             </div>
           )}
@@ -465,11 +487,11 @@ export default function App({ onResetCallback }: AppProps) {
             />
             {svgInfo && outputSize && (
               <div className="card">
-                <h2 className="text-lg font-semibold text-slate-100 mb-3">Output Size</h2>
-                <p className="text-xs text-slate-400 mb-3">Scales the design in mm before tiling/export.</p>
+                <h2 className="text-lg font-semibold text-slate-100 mb-3">{t('panel_splitter.app.output_size_title')}</h2>
+                <p className="text-xs text-slate-400 mb-3">{t('panel_splitter.app.output_size_desc')}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-slate-200">Width (mm)</label>
+                    <label className="text-sm font-medium text-slate-200">{t('panel_splitter.app.output_size_width_label')}</label>
                     <input
                       type="number"
                       value={Number(outputSize.widthMm.toFixed(3))}
@@ -480,7 +502,7 @@ export default function App({ onResetCallback }: AppProps) {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-200">Height (mm)</label>
+                    <label className="text-sm font-medium text-slate-200">{t('panel_splitter.app.output_size_height_label')}</label>
                     <input
                       type="number"
                       value={Number(outputSize.heightMm.toFixed(3))}
@@ -498,7 +520,7 @@ export default function App({ onResetCallback }: AppProps) {
                     onChange={(e) => updateOutputSize({ lockAspect: e.target.checked })}
                     className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
                   />
-                  Lock aspect
+                  {t('panel_splitter.app.output_size_lock_aspect')}
                 </label>
               </div>
             )}
@@ -513,7 +535,7 @@ export default function App({ onResetCallback }: AppProps) {
 
       <footer className="mt-8 py-4 border-t border-gray-200 bg-white">
         <div className="max-w-screen-2xl mx-auto px-4 text-center text-sm text-gray-500">
-          Panel Splitter by LaserFilesPro • Client-side SVG tiling for laser cutters
+          {t('panel_splitter.app.footer')}
         </div>
       </footer>
     </div>

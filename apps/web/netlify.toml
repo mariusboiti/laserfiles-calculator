@@ -1,0 +1,5 @@
+[build]
+  command = "pnpm -w turbo run build --filter=web"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

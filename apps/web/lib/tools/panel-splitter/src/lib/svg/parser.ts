@@ -37,12 +37,12 @@ export function parseSVG(content: string, fileName: string, unitMode: UnitMode):
   const svg = doc.querySelector('svg');
 
   if (!svg) {
-    throw new Error('Invalid SVG: No <svg> element found');
+    throw new Error('panel_splitter.error.invalid_svg_no_svg_element');
   }
 
   const parserError = doc.querySelector('parsererror');
   if (parserError) {
-    throw new Error(`SVG parsing error: ${parserError.textContent}`);
+    throw new Error(`panel_splitter.error.svg_parsing_error:${parserError.textContent ?? ''}`);
   }
 
   let viewBox: { x: number; y: number; width: number; height: number } | null = null;
@@ -84,7 +84,7 @@ export function parseSVG(content: string, fileName: string, unitMode: UnitMode):
     detectedWidthMm = convertToMm(viewBox.width, 'px', unitMode);
     detectedHeightMm = convertToMm(viewBox.height, 'px', unitMode);
   } else {
-    throw new Error('SVG has no width/height or viewBox. Cannot determine dimensions.');
+    throw new Error('panel_splitter.error.svg_no_dimensions');
   }
 
   return {

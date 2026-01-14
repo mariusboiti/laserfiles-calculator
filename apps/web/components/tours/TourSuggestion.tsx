@@ -6,8 +6,10 @@
  * Includes Tutorial button and "Don't show again" checkbox
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { X, Sparkles, BookOpen } from 'lucide-react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface TourSuggestionProps {
   onStart: () => void;
@@ -19,6 +21,8 @@ interface TourSuggestionProps {
 
 export function TourSuggestion({ onStart, onDismiss, onTutorial, toolSlug, hasTutorial }: TourSuggestionProps) {
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const handleDismiss = () => {
     if (dontShowAgain && toolSlug) {
@@ -62,10 +66,10 @@ export function TourSuggestion({ onStart, onDismiss, onTutorial, toolSlug, hasTu
           </div>
           <div className="flex-1">
             <h4 className="text-sm font-medium text-slate-100">
-              New to this tool?
+              {t('tour.suggestion_title')}
             </h4>
             <p className="mt-1 text-xs text-slate-400">
-              Take a quick tour to learn how it works.
+              {t('tour.suggestion_body')}
             </p>
           </div>
           <button
@@ -81,7 +85,7 @@ export function TourSuggestion({ onStart, onDismiss, onTutorial, toolSlug, hasTu
             onClick={handleDismiss}
             className="flex-1 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800"
           >
-            Maybe later
+            {t('tour.suggestion_later')}
           </button>
           {hasTutorial && onTutorial && (
             <button
@@ -89,14 +93,14 @@ export function TourSuggestion({ onStart, onDismiss, onTutorial, toolSlug, hasTu
               className="flex items-center justify-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
             >
               <BookOpen className="h-3 w-3" />
-              Tutorial
+              {t('tools.tutorial')}
             </button>
           )}
           <button
             onClick={handleStart}
             className="flex-1 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-600"
           >
-            Start Tour
+            {t('tour.suggestion_start')}
           </button>
         </div>
 
@@ -107,7 +111,7 @@ export function TourSuggestion({ onStart, onDismiss, onTutorial, toolSlug, hasTu
             onChange={(e) => setDontShowAgain(e.target.checked)}
             className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-500/30"
           />
-          Don't show again
+          {t('tour.suggestion_dont_show_again')}
         </label>
       </div>
     </div>

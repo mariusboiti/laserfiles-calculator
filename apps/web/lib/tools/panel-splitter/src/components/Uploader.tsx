@@ -1,4 +1,6 @@
 import { useCallback, useState } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { SVGInfo, UnitMode } from '../types';
 import { parseSVG } from '../lib/svg/parser';
 
@@ -10,6 +12,23 @@ interface UploaderProps {
 }
 
 export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: UploaderProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
+  const localizeRuntimeError = useCallback((err: unknown) => {
+    if (err instanceof Error) {
+      if (err.message.startsWith('panel_splitter.')) {
+        const [key, details] = err.message.split(':');
+        if (details) {
+          return t(key).replace('{details}', details);
+        }
+        return t(err.message);
+      }
+      return err.message;
+    }
+    return t('panel_splitter.uploader.error_failed_to_parse');
+  }, [t]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTestPath, setSelectedTestPath] = useState<string>('/tools/panel-splitter/test-templates/01_simple_rect_mm.svg');
@@ -17,15 +36,15 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
 
   const testFiles = [
     {
-      label: '01 - Simple (mm) - grid/trim sanity',
+      label: t('panel_splitter.uploader.test_file_1_label'),
       path: '/tools/panel-splitter/test-templates/01_simple_rect_mm.svg',
     },
     {
-      label: '02 - viewBox-only + groups/transforms (strokes)',
+      label: t('panel_splitter.uploader.test_file_2_label'),
       path: '/tools/panel-splitter/test-templates/02_groups_transforms_viewbox_only.svg',
     },
     {
-      label: '03 - Heavy stress (many paths)',
+      label: t('panel_splitter.uploader.test_file_3_label'),
       path: '/tools/panel-splitter/test-templates/03_heavy_stress.svg',
     },
   ];
@@ -34,7 +53,7 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
     setError(null);
 
     if (!file.name.toLowerCase().endsWith('.svg')) {
-      setError('Please upload an SVG file');
+      setError(t('panel_splitter.uploader.error_invalid_file_type'));
       return;
     }
 
@@ -43,9 +62,9 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
       const info = parseSVG(content, file.name, unitMode);
       onSVGLoaded(info);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to parse SVG');
+      setError(localizeRuntimeError(err));
     }
-  }, [onSVGLoaded, unitMode]);
+  }, [localizeRuntimeError, onSVGLoaded, unitMode]);
 
   const handleLoadTestFile = useCallback(async () => {
     setError(null);
@@ -54,18 +73,18 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
     try {
       const response = await fetch(selectedTestPath, { cache: 'no-store' });
       if (!response.ok) {
-        throw new Error(`Failed to load test file (${response.status})`);
+        throw new Error(`${t('panel_splitter.uploader.error_failed_to_load_test_file')} (${response.status})`);
       }
       const content = await response.text();
       const fileName = selectedTestPath.split('/').pop() || 'test.svg';
       const info = parseSVG(content, fileName, unitMode);
       onSVGLoaded(info);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load test file');
+      setError(localizeRuntimeError(err));
     } finally {
       setIsLoadingTest(false);
     }
-  }, [onSVGLoaded, selectedTestPath, unitMode]);
+  }, [localizeRuntimeError, onSVGLoaded, selectedTestPath, unitMode]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -96,7 +115,7 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
 
   return (
     <div className="card">
-      <h2 className="text-lg font-semibold text-slate-100 mb-4">Upload SVG</h2>
+      <h2 className="text-lg font-semibold text-slate-100 mb-4">{t('panel_splitter.uploader.title')}</h2>
       
       <div
         className={`
@@ -124,9 +143,10 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
           <p className="text-gray-600">
-            <span className="font-medium text-sky-600">Click to upload</span> or drag and drop
+            <span className="font-medium text-sky-600">{t('panel_splitter.uploader.click_to_upload')}</span>{' '}
+            {t('panel_splitter.uploader.or_drag_and_drop')}
           </p>
-          <p className="text-sm text-gray-500">SVG files only</p>
+          <p className="text-sm text-gray-500">{t('panel_splitter.uploader.svg_files_only')}</p>
         </div>
       </div>
 
@@ -137,7 +157,7 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
       )}
 
       <div className="mt-4">
-        <label className="block text-sm font-medium text-slate-300 mb-2">Load test files</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">{t('panel_splitter.uploader.load_test_files')}</label>
         <div className="flex gap-2">
           <select
             value={selectedTestPath}
@@ -156,10 +176,13 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
             onClick={handleLoadTestFile}
             disabled={isLoadingTest}
           >
-            {isLoadingTest ? 'Loading…' : 'Load'}
+            {isLoadingTest ? t('panel_splitter.uploader.loading') : t('panel_splitter.uploader.load')}
           </button>
         </div>
-        <p className="mt-1 text-xs text-slate-500">Loads bundled SVG templates from <code>/public/tools/panel-splitter/test-templates</code>.</p>
+        <p className="mt-1 text-xs text-slate-500">
+          {t('panel_splitter.uploader.test_files_note')}{' '}
+          <code>/public/tools/panel-splitter/test-templates</code>.
+        </p>
       </div>
 
       {svgInfo && (
@@ -172,18 +195,18 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
           </div>
           <div className="text-sm text-slate-300 space-y-1">
             <p>
-              <span className="font-medium">Size:</span>{' '}
+              <span className="font-medium">{t('panel_splitter.uploader.size_label')}</span>{' '}
               {svgInfo.detectedWidthMm.toFixed(2)} × {svgInfo.detectedHeightMm.toFixed(2)} mm
             </p>
             {svgInfo.viewBox && (
               <p>
-                <span className="font-medium">ViewBox:</span>{' '}
+                <span className="font-medium">{t('panel_splitter.uploader.viewbox_label')}</span>{' '}
                 {svgInfo.viewBox.x} {svgInfo.viewBox.y} {svgInfo.viewBox.width} {svgInfo.viewBox.height}
               </p>
             )}
             {svgInfo.width && svgInfo.height && (
               <p>
-                <span className="font-medium">Original:</span>{' '}
+                <span className="font-medium">{t('panel_splitter.uploader.original_label')}</span>{' '}
                 {svgInfo.width}{svgInfo.widthUnit} × {svgInfo.height}{svgInfo.heightUnit}
               </p>
             )}
@@ -192,18 +215,18 @@ export function Uploader({ onSVGLoaded, unitMode, onUnitModeChange, svgInfo }: U
       )}
 
       <div className="mt-4">
-        <label className="block text-sm font-medium text-slate-300 mb-2">Unit Mode</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">{t('panel_splitter.uploader.unit_mode')}</label>
         <select
           value={unitMode}
           onChange={(e) => onUnitModeChange(e.target.value as UnitMode)}
           className="input-field"
         >
-          <option value="auto">Auto (detect from SVG)</option>
-          <option value="px96">Force PX → MM @ 96 DPI</option>
-          <option value="px72">Force PX → MM @ 72 DPI</option>
+          <option value="auto">{t('panel_splitter.uploader.unit_mode_auto')}</option>
+          <option value="px96">{t('panel_splitter.uploader.unit_mode_px96')}</option>
+          <option value="px72">{t('panel_splitter.uploader.unit_mode_px72')}</option>
         </select>
         <p className="mt-1 text-xs text-slate-500">
-          Use &quot;Auto&quot; unless your SVG has incorrect units
+          {t('panel_splitter.uploader.unit_mode_help')}
         </p>
       </div>
     </div>

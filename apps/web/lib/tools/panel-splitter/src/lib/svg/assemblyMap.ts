@@ -4,7 +4,8 @@ export function generateAssemblyMapSVG(
   svgInfo: SVGInfo,
   settings: Settings,
   gridInfo: GridInfo,
-  tiles: TileInfo[]
+  tiles: TileInfo[],
+  t?: (key: string) => string
 ): string {
   const { bedWidth, bedHeight, margin, overlap } = settings;
   const { rows, cols, effectiveTileWidth, effectiveTileHeight } = gridInfo;
@@ -27,6 +28,41 @@ export function generateAssemblyMapSVG(
   
   const svgWidth = scaledWidth + mapPadding * 2;
   const svgHeight = scaledHeight + mapPadding * 2 + legendHeight;
+
+  const tr = (key: string, fallback: string) => {
+    try {
+      return t ? t(key) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const assemblyTitle = tr('panel_splitter.assembly_map.title', 'Assembly Map - {fileName}').replace('{fileName}', svgInfo.fileName);
+  const legendDesignSize = tr('panel_splitter.assembly_map.legend.design_size', 'Design Size: {w} × {h} mm')
+    .replace('{w}', totalDesignWidth.toFixed(1))
+    .replace('{h}', totalDesignHeight.toFixed(1));
+  const legendBedSize = tr('panel_splitter.assembly_map.legend.bed_size', 'Bed Size: {w} × {h} mm')
+    .replace('{w}', String(bedWidth))
+    .replace('{h}', String(bedHeight));
+  const legendMarginOverlap = tr('panel_splitter.assembly_map.legend.margin_overlap', 'Margin: {m} mm | Overlap: {o} mm')
+    .replace('{m}', String(margin))
+    .replace('{o}', String(overlap));
+  const legendGrid = tr(
+    'panel_splitter.assembly_map.legend.grid',
+    'Grid: {cols} × {rows} ({tiles} tiles, {withContent} with content)'
+  )
+    .replace('{cols}', String(cols))
+    .replace('{rows}', String(rows))
+    .replace('{tiles}', String(tiles.length))
+    .replace('{withContent}', String(tiles.filter(tile => !tile.isEmpty).length));
+  const legendNumbering = tr('panel_splitter.assembly_map.legend.numbering', 'Numbering: {format}').replace('{format}', settings.numberingFormat);
+  const legendGenerated = tr('panel_splitter.assembly_map.legend.generated', 'Generated: {date}')
+    .replace('{date}', new Date().toISOString().split('T')[0]);
+  const legendAssemblyOrder = tr('panel_splitter.assembly_map.legend.assembly_order', 'Assembly Order:');
+  const legendLeftToRight = tr('panel_splitter.assembly_map.legend.left_to_right', '→ Left to Right');
+  const legendTopToBottom = tr('panel_splitter.assembly_map.legend.top_to_bottom', '↓ Top to Bottom');
+  const legendStart = tr('panel_splitter.assembly_map.legend.start', 'Start: {start}')
+    .replace('{start}', tiles[0]?.label || 'R01C01');
   
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" 
@@ -45,7 +81,7 @@ export function generateAssemblyMapSVG(
   <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="white"/>
   
   <!-- Title -->
-  <text x="${svgWidth / 2}" y="12" class="title-text" text-anchor="middle">Assembly Map - ${svgInfo.fileName}</text>
+  <text x="${svgWidth / 2}" y="12" class="title-text" text-anchor="middle">${assemblyTitle}</text>
   
   <!-- Design area -->
   <g transform="translate(${mapPadding}, ${mapPadding + 5})">
@@ -81,20 +117,20 @@ export function generateAssemblyMapSVG(
   
   <!-- Legend -->
   <g transform="translate(${mapPadding}, ${scaledHeight + mapPadding * 2 + 10})">
-    <text x="0" y="0" class="legend-text">Design Size: ${totalDesignWidth.toFixed(1)} × ${totalDesignHeight.toFixed(1)} mm</text>
-    <text x="0" y="12" class="legend-text">Bed Size: ${bedWidth} × ${bedHeight} mm</text>
-    <text x="0" y="24" class="legend-text">Margin: ${margin} mm | Overlap: ${overlap} mm</text>
-    <text x="0" y="36" class="legend-text">Grid: ${cols} × ${rows} (${tiles.length} tiles, ${tiles.filter(t => !t.isEmpty).length} with content)</text>
-    <text x="0" y="48" class="legend-text">Numbering: ${settings.numberingFormat}</text>
-    <text x="0" y="60" class="legend-text">Generated: ${new Date().toISOString().split('T')[0]}</text>
+    <text x="0" y="0" class="legend-text">${legendDesignSize}</text>
+    <text x="0" y="12" class="legend-text">${legendBedSize}</text>
+    <text x="0" y="24" class="legend-text">${legendMarginOverlap}</text>
+    <text x="0" y="36" class="legend-text">${legendGrid}</text>
+    <text x="0" y="48" class="legend-text">${legendNumbering}</text>
+    <text x="0" y="60" class="legend-text">${legendGenerated}</text>
   </g>
   
   <!-- Assembly direction arrows -->
   <g transform="translate(${svgWidth - 60}, ${scaledHeight + mapPadding * 2 + 10})">
-    <text x="0" y="0" class="legend-text" font-weight="bold">Assembly Order:</text>
-    <text x="0" y="12" class="legend-text">→ Left to Right</text>
-    <text x="0" y="24" class="legend-text">↓ Top to Bottom</text>
-    <text x="0" y="36" class="legend-text">Start: ${tiles[0]?.label || 'R01C01'}</text>
+    <text x="0" y="0" class="legend-text" font-weight="bold">${legendAssemblyOrder}</text>
+    <text x="0" y="12" class="legend-text">${legendLeftToRight}</text>
+    <text x="0" y="24" class="legend-text">${legendTopToBottom}</text>
+    <text x="0" y="36" class="legend-text">${legendStart}</text>
   </g>
 </svg>`;
 

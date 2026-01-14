@@ -29,14 +29,14 @@ export function computeGrid(
   const effectiveTileHeight = bedHeight - 2 * margin;
 
   if (effectiveTileWidth <= 0 || effectiveTileHeight <= 0) {
-    throw new Error('Effective tile size is zero or negative. Reduce margin or increase bed size.');
+    throw new Error('panel_splitter.error.effective_tile_non_positive');
   }
 
   const stepX = effectiveTileWidth - overlap;
   const stepY = effectiveTileHeight - overlap;
 
   if (stepX <= 0 || stepY <= 0) {
-    throw new Error('Overlap is too large for the effective tile size.');
+    throw new Error('panel_splitter.error.overlap_too_large_for_effective_tile');
   }
 
   const cols = Math.max(1, Math.ceil((designWidthMm - overlap) / stepX));
