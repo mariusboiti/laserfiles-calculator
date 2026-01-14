@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getToolTitle } from '@/lib/studio/navigation/studioNav';
+ import { useLanguage } from '@/app/(app)/i18n';
+ import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export type StudioBreadcrumbsProps = {
   toolSlug?: string;
@@ -10,30 +12,32 @@ export type StudioBreadcrumbsProps = {
 
 export function StudioBreadcrumbs({ toolSlug }: StudioBreadcrumbsProps) {
   const pathname = usePathname();
+  const { locale } = useLanguage();
+  const t = (key: string) => getStudioTranslation(locale as any, key);
 
   const breadcrumbs: { label: string; href?: string }[] = [
-    { label: 'Studio', href: '/studio/dashboard' },
+    { label: t('breadcrumbs.studio'), href: '/studio/dashboard' },
   ];
 
   if (pathname.startsWith('/studio/tools')) {
-    breadcrumbs.push({ label: 'Tools', href: '/studio/tools' });
+    breadcrumbs.push({ label: t('nav.tools'), href: '/studio/tools' });
     
     if (toolSlug) {
       const toolTitle = getToolTitle(toolSlug);
       breadcrumbs.push({ label: toolTitle });
     }
   } else if (pathname.startsWith('/studio/help')) {
-    breadcrumbs.push({ label: 'Help' });
+    breadcrumbs.push({ label: t('nav.help') });
   } else if (pathname.startsWith('/studio/account')) {
-    breadcrumbs.push({ label: 'Account' });
+    breadcrumbs.push({ label: t('nav.account') });
   } else if (pathname === '/studio/dashboard') {
-    breadcrumbs.push({ label: 'Dashboard' });
+    breadcrumbs.push({ label: t('nav.dashboard') });
   }
 
   if (breadcrumbs.length <= 1) return null;
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
+    <nav aria-label={t('a11y.breadcrumb')} className="flex items-center gap-2 text-sm">
       {breadcrumbs.map((crumb, index) => {
         const isLast = index === breadcrumbs.length - 1;
         

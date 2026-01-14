@@ -59,11 +59,11 @@ export function StudioHeader() {
             href="/studio/dashboard"
             className="text-lg font-semibold tracking-tight text-slate-100 transition-colors hover:text-sky-400"
           >
-            LaserFilesPro Studio
+            {t('dashboard.studio_title')}
           </Link>
 
           {/* Center: Desktop Nav */}
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
+          <nav className="hidden items-center gap-1 md:flex" aria-label={t('a11y.main_navigation')}>
             {STUDIO_NAV.map((item) => {
               const active = isActivePath(pathname, item);
               return (
@@ -120,7 +120,7 @@ export function StudioHeader() {
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="inline-flex items-center justify-center rounded-md p-2 text-slate-300 hover:bg-slate-800 hover:text-slate-100 md:hidden"
-              aria-label="Toggle menu"
+              aria-label={t('a11y.toggle_menu')}
               aria-expanded={mobileMenuOpen}
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -145,7 +145,7 @@ export function StudioHeader() {
           />
           <nav
             className="fixed right-0 top-14 bottom-0 w-64 border-l border-slate-800 bg-slate-900 p-4"
-            aria-label="Mobile navigation"
+            aria-label={t('a11y.mobile_navigation')}
           >
             <div className="space-y-1">
               {STUDIO_NAV.map((item) => {

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+ import { useLanguage } from '@/app/(app)/i18n';
+ import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface ScaledPreviewProps {
   children: React.ReactNode;
@@ -14,6 +16,8 @@ interface ScaledPreviewProps {
  */
 export function ScaledPreview({ children, title }: ScaledPreviewProps) {
   const [scale, setScale] = useState(1);
+  const { locale } = useLanguage();
+  const t = (key: string) => getStudioTranslation(locale as any, key);
 
   const handleZoomIn = () => {
     setScale((prev) => Math.min(prev + 0.25, 5));
@@ -31,13 +35,13 @@ export function ScaledPreview({ children, title }: ScaledPreviewProps) {
     <div className="flex h-full flex-col">
       {/* Controls */}
       <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/40 px-3 py-2">
-        <div className="text-xs text-slate-400">{title || 'Preview'}</div>
+        <div className="text-xs text-slate-400">{title || t('preview.title')}</div>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={handleZoomOut}
             className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-            title="Zoom out"
+            title={t('preview.zoom_out')}
           >
             <ZoomOut size={16} />
           </button>
@@ -45,7 +49,7 @@ export function ScaledPreview({ children, title }: ScaledPreviewProps) {
             type="button"
             onClick={handleFit}
             className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-            title="Fit to view"
+            title={t('preview.fit_to_view')}
           >
             <Maximize2 size={16} />
           </button>
@@ -53,7 +57,7 @@ export function ScaledPreview({ children, title }: ScaledPreviewProps) {
             type="button"
             onClick={handleZoomIn}
             className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-            title="Zoom in"
+            title={t('preview.zoom_in')}
           >
             <ZoomIn size={16} />
           </button>
