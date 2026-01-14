@@ -11,6 +11,7 @@ import { cookies } from 'next/headers';
 import { PrismaClient } from '@prisma/client';
 import { storeFile, generateArtifactKey } from '@/lib/storage/server';
 import { sanitizeSvg } from '@/lib/artifacts/svg';
+import { sendFeedbackNotification } from '@/lib/email/sendEmail';
 
 export const runtime = 'nodejs';
 
@@ -185,6 +186,20 @@ export async function POST(req: NextRequest) {
           });
         }
       }
+
+      // Send email notification (don't block on failure)
+      sendFeedbackNotification({
+        type: feedbackType === 'BUG' ? 'bug' : 'feature',
+        toolSlug: toolSlug || undefined,
+        title,
+        message,
+        pageUrl: pageUrl || undefined,
+        userEmail: user.email || undefined,
+        ticketId: ticket.id,
+        metadata: metadata || undefined,
+      }).catch((err) => {
+        console.error('Failed to send feedback notification email:', err);
+      });
 
       return NextResponse.json({
         ok: true,

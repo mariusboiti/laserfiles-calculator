@@ -8,7 +8,7 @@ export default function AIDepthPhotoPage() {
   if (!meta) return null;
 
   return (
-    <ToolShell slug={meta.slug} title={meta.title} description={meta.description}>
+    <ToolShell slug={meta.slug} titleKey={meta.titleKey} descriptionKey={meta.descriptionKey}>
       <AIDepthEngravingTool />
     </ToolShell>
   );

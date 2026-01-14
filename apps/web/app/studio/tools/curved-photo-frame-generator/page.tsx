@@ -25,8 +25,8 @@ export default function CurvedPhotoFrameGeneratorPage() {
   return (
     <ToolShell
       slug={tool.slug}
-      title={tool.title}
-      description={tool.description}
+      titleKey={tool.titleKey}
+      descriptionKey={tool.descriptionKey}
       proFeatures={tool.proFeatures}
       toolSlug="curved-photo-frame-generator"
       onReset={handleReset}

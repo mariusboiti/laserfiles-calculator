@@ -10,7 +10,7 @@ export default function HingedBoxCreatorPage() {
   const Tool = tool.Component;
 
   return (
-    <ToolShell slug={tool.slug} title={tool.title} description={tool.description} proFeatures={tool.proFeatures}>
+    <ToolShell slug={tool.slug} titleKey={tool.titleKey} descriptionKey={tool.descriptionKey} proFeatures={tool.proFeatures}>
       <Tool />
     </ToolShell>
   );
