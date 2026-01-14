@@ -5,21 +5,25 @@
  * Shows subscription status, AI credits, and billing actions on the dashboard
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Sparkles, CreditCard, Clock, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
 import { useEntitlement, startTrial, startSubscription, startTopup, canUseAi } from '@/lib/entitlements/client';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function BillingCard() {
   const { entitlement, loading, refetch } = useEntitlement();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const handleStartTrial = async () => {
     setActionLoading('trial');
     setError(null);
     const result = await startTrial();
     if (!result.success) {
-      setError(result.error || 'Failed to start trial');
+      setError(result.error || t('billing.failed_to_start_trial'));
     }
     setActionLoading(null);
   };
@@ -29,7 +33,7 @@ export function BillingCard() {
     setError(null);
     const result = await startSubscription(interval);
     if (!result.success) {
-      setError(result.error || 'Failed to subscribe');
+      setError(result.error || t('pricing.failed_to_subscribe'));
     }
     setActionLoading(null);
   };
@@ -39,7 +43,7 @@ export function BillingCard() {
     setError(null);
     const result = await startTopup(wpProductId);
     if (!result.success) {
-      setError(result.error || 'Failed to purchase top-up');
+      setError(result.error || t('pricing.failed_to_purchase_topup'));
     }
     setActionLoading(null);
   };
@@ -72,34 +76,34 @@ export function BillingCard() {
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-sky-900/50 border border-sky-700 px-2 py-0.5 text-xs text-sky-300">
             <Clock className="h-3 w-3" />
-            Trial
+            {t('billing.badge.trial')}
           </span>
         );
       case 'ACTIVE':
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-900/50 border border-emerald-700 px-2 py-0.5 text-xs text-emerald-300">
             <CheckCircle className="h-3 w-3" />
-            Active
+            {t('billing.badge.active')}
           </span>
         );
       case 'INACTIVE':
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-900/50 border border-amber-700 px-2 py-0.5 text-xs text-amber-300">
             <AlertTriangle className="h-3 w-3" />
-            Inactive
+            {t('billing.badge.inactive')}
           </span>
         );
       case 'CANCELED':
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-red-900/50 border border-red-700 px-2 py-0.5 text-xs text-red-300">
             <AlertTriangle className="h-3 w-3" />
-            Canceled
+            {t('billing.badge.canceled')}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 border border-slate-700 px-2 py-0.5 text-xs text-slate-400">
-            No Plan
+            {t('billing.badge.no_plan')}
           </span>
         );
     }
@@ -111,10 +115,10 @@ export function BillingCard() {
         <div>
           <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-400" />
-            AI Credits & Billing
+            {t('billing.title')}
           </h3>
           <p className="text-sm text-slate-400 mt-1">
-            Manage your AI usage and subscription
+            {t('billing.subtitle')}
           </p>
         </div>
         {getPlanBadge()}
@@ -123,9 +127,9 @@ export function BillingCard() {
       {/* Credits Progress */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-slate-300">AI Credits</span>
+          <span className="text-sm text-slate-300">{t('billing.ai_credits_label')}</span>
           <span className="text-sm font-medium text-slate-200">
-            {aiCreditsRemaining} / {aiCreditsTotal} remaining
+            {aiCreditsRemaining} / {aiCreditsTotal} {t('billing.remaining')}
           </span>
         </div>
         <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -141,7 +145,7 @@ export function BillingCard() {
           />
         </div>
         <p className="text-xs text-slate-500 mt-1">
-          {aiCreditsUsed} credits used
+          {aiCreditsUsed} {t('billing.credits_used')}
         </p>
       </div>
 
@@ -151,11 +155,11 @@ export function BillingCard() {
           <div className="flex items-center gap-2 text-sky-300">
             <Clock className="h-4 w-4" />
             <span className="text-sm font-medium">
-              {daysLeftInTrial} days left in trial
+              {daysLeftInTrial} {t('billing.days_left_in_trial')}
             </span>
           </div>
           <p className="text-xs text-sky-400/70 mt-1">
-            Your card will be charged when the trial ends unless you cancel.
+            {t('billing.trial_charge_notice')}
           </p>
         </div>
       )}
@@ -176,7 +180,7 @@ export function BillingCard() {
             className="flex items-center gap-2 rounded-lg bg-amber-600 hover:bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" />
-            {actionLoading === 'trial' ? 'Starting...' : 'Start Free Trial'}
+            {actionLoading === 'trial' ? t('billing.starting') : t('billing.start_free_trial')}
           </button>
         )}
 
@@ -188,7 +192,7 @@ export function BillingCard() {
               className="flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
             >
               <CreditCard className="h-4 w-4" />
-              {actionLoading === 'subscribe' ? 'Loading...' : 'Subscribe Monthly'}
+              {actionLoading === 'subscribe' ? t('billing.loading') : t('pricing.subscribe_monthly')}
             </button>
             <button
               onClick={() => handleSubscribe('annual')}
@@ -196,7 +200,7 @@ export function BillingCard() {
               className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
             >
               <ExternalLink className="h-4 w-4" />
-              Subscribe Annual
+              {t('pricing.subscribe_annual')}
             </button>
           </>
         )}
@@ -209,7 +213,7 @@ export function BillingCard() {
               className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
             >
               <CreditCard className="h-4 w-4" />
-              {actionLoading === 'topup-2807' ? 'Loading...' : 'Top-up 100'}
+              {actionLoading === 'topup-2807' ? t('billing.loading') : t('billing.topup_100')}
             </button>
             <button
               onClick={() => handleTopup(2811)}
@@ -217,7 +221,7 @@ export function BillingCard() {
               className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
             >
               <CreditCard className="h-4 w-4" />
-              {actionLoading === 'topup-2811' ? 'Loading...' : 'Top-up 200'}
+              {actionLoading === 'topup-2811' ? t('billing.loading') : t('billing.topup_200')}
             </button>
             <button
               onClick={() => handleTopup(2814)}
@@ -225,7 +229,7 @@ export function BillingCard() {
               className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors disabled:opacity-50"
             >
               <CreditCard className="h-4 w-4" />
-              {actionLoading === 'topup-2814' ? 'Loading...' : 'Top-up 500'}
+              {actionLoading === 'topup-2814' ? t('billing.loading') : t('billing.topup_500')}
             </button>
           </>
         )}
@@ -234,15 +238,14 @@ export function BillingCard() {
           onClick={() => refetch()}
           className="flex items-center gap-2 rounded-lg border border-slate-700 hover:bg-slate-800 px-3 py-2 text-sm text-slate-400 transition-colors"
         >
-          Refresh
+          {t('pricing.refresh')}
         </button>
       </div>
 
       {/* Info text */}
       {effectivePlan === 'INACTIVE' && (
         <p className="mt-4 text-xs text-slate-500">
-          Start your 7-day free trial with 25 AI credits. Credit card required.
-          Cancel anytime before the trial ends to avoid charges.
+          {t('billing.trial_info_text')}
         </p>
       )}
     </div>

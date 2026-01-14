@@ -5,19 +5,23 @@
  * Shows AI credits remaining and trial status in the header
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Sparkles, AlertTriangle, Clock } from 'lucide-react';
 import { useEntitlement, startTrial, canUseAi } from '@/lib/entitlements/client';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function AiCreditsBadge() {
   const { entitlement, loading } = useEntitlement();
   const [starting, setStarting] = useState(false);
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   if (loading) {
     return (
       <div className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-xs text-slate-400">
         <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-        <span>Loading...</span>
+        <span>{t('billing.loading')}</span>
       </div>
     );
   }
@@ -47,7 +51,7 @@ export function AiCreditsBadge() {
         className="flex items-center gap-1.5 rounded-full border border-amber-600/50 bg-amber-900/30 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-900/50 transition-colors disabled:opacity-50"
       >
         <Sparkles className="h-3.5 w-3.5" />
-        <span>{starting ? 'Starting...' : 'Start Free Trial'}</span>
+        <span>{starting ? t('billing.starting') : t('billing.start_free_trial')}</span>
       </button>
     );
   }
@@ -57,7 +61,7 @@ export function AiCreditsBadge() {
     return (
       <div className="flex items-center gap-1.5 rounded-full border border-red-600/50 bg-red-900/30 px-2.5 py-1 text-xs text-red-300">
         <AlertTriangle className="h-3.5 w-3.5" />
-        <span>Subscription Canceled</span>
+        <span>{t('billing.subscription_canceled')}</span>
       </div>
     );
   }
@@ -72,7 +76,10 @@ export function AiCreditsBadge() {
       {plan === 'TRIALING' && daysLeftInTrial !== null && (
         <div className="flex items-center gap-1 rounded-full border border-sky-600/50 bg-sky-900/30 px-2 py-1 text-xs text-sky-300">
           <Clock className="h-3 w-3" />
-          <span>{daysLeftInTrial}d left</span>
+          <span>
+            {daysLeftInTrial}
+            {t('billing.days_left_short')}
+          </span>
         </div>
       )}
       

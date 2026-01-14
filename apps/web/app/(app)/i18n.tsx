@@ -19,6 +19,7 @@ const translations: Record<Locale, Record<string, string>> = {
   en: {
     
     'common.loading': 'Loading…',
+    'common.redirecting': 'Redirecting…',
     'common.admin': 'Admin',
     'common.plan': 'Plan',
     'common.signed_in_as': 'Signed in as',
@@ -56,6 +57,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'nav.pricing': 'Pricing',
     'nav.quotes': 'Quotes',
     'nav.tutorial': 'Tutorial',
+
+    'price_calculator.title': 'Price Calculator',
 
     'header.app_name': 'Laser Workshop',
     'header.guided_tour': 'Guided tour',
@@ -744,6 +747,7 @@ const translations: Record<Locale, Record<string, string>> = {
   },
   ro: {
     'common.loading': 'Se încarcă…',
+    'common.redirecting': 'Redirecționare…',
     'common.admin': 'Admin',
     'common.plan': 'Plan',
     'common.signed_in_as': 'Autentificat ca',
@@ -781,6 +785,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'nav.pricing': 'Prețuri',
     'nav.quotes': 'Oferte',
     'nav.tutorial': 'Tutorial',
+
+    'price_calculator.title': 'Calculator Preț',
 
     'header.app_name': 'Atelier Laser',
     'header.guided_tour': 'Tur ghidat',
@@ -1472,6 +1478,7 @@ const translations: Record<Locale, Record<string, string>> = {
   },
   es: {
     'common.loading': 'Cargando…',
+    'common.redirecting': 'Redirigiendo…',
     'common.admin': 'Admin',
     'common.plan': 'Plan',
     'common.signed_in_as': 'Conectado como',
@@ -1509,6 +1516,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'nav.pricing': 'Precios',
     'nav.quotes': 'Cotizaciones',
     'nav.tutorial': 'Tutorial',
+
+    'price_calculator.title': 'Calculadora de Precios',
 
     'header.app_name': 'Taller Láser',
     'header.guided_tour': 'Recorrido guiado',
@@ -2102,6 +2111,7 @@ const translations: Record<Locale, Record<string, string>> = {
   },
   fr: {
     'common.loading': 'Chargement…',
+    'common.redirecting': 'Redirection…',
     'common.admin': 'Admin',
     'common.plan': 'Forfait',
     'common.signed_in_as': 'Connecté en tant que',
@@ -2139,6 +2149,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'nav.pricing': 'Tarification',
     'nav.quotes': 'Devis',
     'nav.tutorial': 'Tutoriel',
+
+    'price_calculator.title': 'Calculateur de Prix',
 
     'header.app_name': 'Atelier Laser',
     'header.guided_tour': 'Visite guidée',
@@ -2733,6 +2745,7 @@ const translations: Record<Locale, Record<string, string>> = {
   },
   de: {
     'common.loading': 'Lädt…',
+    'common.redirecting': 'Weiterleitung…',
     'common.admin': 'Admin',
     'common.plan': 'Plan',
     'common.signed_in_as': 'Angemeldet als',
@@ -2770,6 +2783,8 @@ const translations: Record<Locale, Record<string, string>> = {
     'nav.pricing': 'Preisgestaltung',
     'nav.quotes': 'Angebote',
     'nav.tutorial': 'Tutorial',
+
+    'price_calculator.title': 'Preisrechner',
 
     'header.app_name': 'Laser-Werkstatt',
     'header.guided_tour': 'Geführte Tour',
