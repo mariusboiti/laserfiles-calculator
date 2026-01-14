@@ -27,7 +27,7 @@ export default function PriceCalculatorToolLayout({ children }: { children: Reac
   return (
     <div className="flex min-h-[calc(100vh-64px)]">
       <aside className="hidden w-56 flex-col border-r border-slate-800 bg-slate-900/80 p-4 md:flex">
-        <div className="mb-6 text-lg font-semibold tracking-tight">Price Calculator</div>
+        <div className="mb-6 text-lg font-semibold tracking-tight">{t('price_calculator.title')}</div>
         <nav className="space-y-1 text-sm">
           {navItems.map((item) => (
             <Link
