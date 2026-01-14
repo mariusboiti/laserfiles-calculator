@@ -5,8 +5,8 @@ export type Plan = 'free' | 'pro';
 
 export type StudioTool = {
   slug: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   proFeatures?: string[];
   status: StudioToolStatus;
   usesAI?: boolean;

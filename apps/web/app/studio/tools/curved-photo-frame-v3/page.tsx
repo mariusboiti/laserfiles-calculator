@@ -27,8 +27,8 @@ export default function CurvedPhotoFrameV3Page() {
   return (
     <ToolShell
       slug={tool.slug}
-      title={tool.title}
-      description={tool.description}
+      titleKey={tool.titleKey}
+      descriptionKey={tool.descriptionKey}
       proFeatures={tool.proFeatures}
       toolSlug="curved-photo-frame-v3"
       onReset={handleReset}

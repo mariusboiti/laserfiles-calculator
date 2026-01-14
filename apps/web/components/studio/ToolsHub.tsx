@@ -60,11 +60,13 @@ export function ToolsHub() {
     const q = query.trim().toLowerCase();
     if (!q) return studioTools;
 
-    return studioTools.filter((t) => {
-      const hay = `${t.slug} ${t.title} ${t.description}`.toLowerCase();
+    return studioTools.filter((tool) => {
+      const title = getStudioTranslation(locale as any, tool.titleKey);
+      const desc = getStudioTranslation(locale as any, tool.descriptionKey);
+      const hay = `${tool.slug} ${title} ${desc}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [query]);
+  }, [query, locale]);
 
   const categorizedTools = useMemo(() => {
     const categories: Record<string, typeof studioTools> = {};
@@ -191,7 +193,7 @@ function ToolCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-slate-100">{tool.title}</h3>
+            <h3 className="text-lg font-semibold text-slate-100">{t(tool.titleKey)}</h3>
             {tool.usesAI && (
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-900/40 px-2 py-0.5 text-[10px] font-medium text-violet-300">
                 <Sparkles className="h-3 w-3" />
@@ -199,7 +201,7 @@ function ToolCard({
               </span>
             )}
           </div>
-          <p className="mt-1.5 text-sm text-slate-400 leading-relaxed">{tool.description}</p>
+          <p className="mt-1.5 text-sm text-slate-400 leading-relaxed">{t(tool.descriptionKey)}</p>
           {tool.usesAI && (
             <p className="mt-2 text-xs text-slate-500">{t('tools.credit_per_generation')}</p>
           )}

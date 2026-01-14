@@ -19,16 +19,16 @@ export function isActivePath(pathname: string, item: StudioNavItem): boolean {
   return pathname.startsWith(item.href);
 }
 
-export function getToolMeta(slug: string): { title: string; description: string } | null {
+export function getToolMeta(slug: string): { titleKey: string; descriptionKey: string } | null {
   const tool = studioTools.find((t) => t.slug === slug);
   if (!tool) return null;
   return {
-    title: tool.title,
-    description: tool.description,
+    titleKey: tool.titleKey,
+    descriptionKey: tool.descriptionKey,
   };
 }
 
-export function getToolTitle(slug: string): string {
+export function getToolTitleKey(slug: string): string {
   const meta = getToolMeta(slug);
-  return meta?.title || slug;
+  return meta?.titleKey || slug;
 }

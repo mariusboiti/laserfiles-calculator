@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { getToolTitle } from '@/lib/studio/navigation/studioNav';
+import { getToolTitleKey } from '@/lib/studio/navigation/studioNav';
  import { useLanguage } from '@/app/(app)/i18n';
  import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
@@ -23,8 +23,8 @@ export function StudioBreadcrumbs({ toolSlug }: StudioBreadcrumbsProps) {
     breadcrumbs.push({ label: t('nav.tools'), href: '/studio/tools' });
     
     if (toolSlug) {
-      const toolTitle = getToolTitle(toolSlug);
-      breadcrumbs.push({ label: toolTitle });
+      const toolTitleKey = getToolTitleKey(toolSlug);
+      breadcrumbs.push({ label: t(toolTitleKey) });
     }
   } else if (pathname.startsWith('/studio/help')) {
     breadcrumbs.push({ label: t('nav.help') });

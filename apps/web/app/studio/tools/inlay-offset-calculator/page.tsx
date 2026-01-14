@@ -12,8 +12,8 @@ export default function InlayOffsetCalculatorPage() {
   return (
     <ToolShell
       slug={tool.slug}
-      title={tool.title}
-      description={tool.description}
+      titleKey={tool.titleKey}
+      descriptionKey={tool.descriptionKey}
       proFeatures={tool.proFeatures}
     >
       <Tool />

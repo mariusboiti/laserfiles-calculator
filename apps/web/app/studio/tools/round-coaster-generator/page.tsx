@@ -17,8 +17,8 @@ export default function RoundCoasterGeneratorPage() {
   return (
     <ToolShell
       slug={tool.slug}
-      title={tool.title}
-      description={tool.description}
+      titleKey={tool.titleKey}
+      descriptionKey={tool.descriptionKey}
       proFeatures={tool.proFeatures}
       toolSlug="round-coaster-generator"
       getExportPayload={getExportPayload ?? undefined}

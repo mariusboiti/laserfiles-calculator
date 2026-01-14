@@ -34,8 +34,8 @@ const TutorialPanel = lazy(() => import('@/components/tutorial/TutorialPanel').t
 
 export type ToolShellProps = {
   slug: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   proFeatures?: string[];
   children: React.ReactNode;
   toolSlug?: string;
@@ -51,8 +51,8 @@ export type ToolShellProps = {
 
 export function ToolShell({ 
   slug, 
-  title, 
-  description, 
+  titleKey, 
+  descriptionKey, 
   proFeatures, 
   children,
   toolSlug,
@@ -67,8 +67,8 @@ export function ToolShell({
     <ToolUxProvider>
       <ToolShellInner
         slug={slug}
-        title={title}
-        description={description}
+        titleKey={titleKey}
+        descriptionKey={descriptionKey}
         proFeatures={proFeatures}
         toolSlug={toolSlug}
         showBack={showBack}
@@ -86,8 +86,8 @@ export function ToolShell({
 
 function ToolShellInner({
   slug,
-  title,
-  description,
+  titleKey,
+  descriptionKey,
   proFeatures,
   children,
   toolSlug,
@@ -101,6 +101,8 @@ function ToolShellInner({
   const { plan, canUse, entitlement, entitlementLoading, aiAllowed } = usePlan();
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+  const title = t(titleKey);
+  const description = t(descriptionKey);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>(undefined);
   const [helpOpen, setHelpOpen] = useState(false);

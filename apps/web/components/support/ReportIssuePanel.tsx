@@ -10,6 +10,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Bug, Lightbulb, Loader2, Check, AlertTriangle, Camera, Database } from 'lucide-react';
 import { collectContext, submitReport, type ReportContext, type SubmitResult } from '@/lib/support/submitReport';
 import { capturePreviewScreenshot } from '@/lib/support/capturePreview';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export type ReportMode = 'problem' | 'feedback';
 
@@ -32,6 +34,8 @@ export function ReportIssuePanel({
   toolName,
   getToolState,
 }: ReportIssuePanelProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
   const [mode, setMode] = useState<ReportMode>(initialMode);
   const [description, setDescription] = useState('');
   const [includeToolState, setIncludeToolState] = useState(true);
@@ -131,7 +135,7 @@ export function ReportIssuePanel({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-100">
-            {isProblem ? 'Report a Problem' : 'Feedback & Suggestions'}
+            {isProblem ? t('report.title_problem') : t('report.title_feedback')}
           </h2>
           <button
             onClick={onClose}
@@ -148,16 +152,16 @@ export function ReportIssuePanel({
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20">
               <Check className="h-8 w-8 text-emerald-400" />
             </div>
-            <h3 className="text-lg font-medium text-slate-100">Thanks!</h3>
+            <h3 className="text-lg font-medium text-slate-100">{t('report.success_title')}</h3>
             <p className="mt-1 text-center text-sm text-slate-400">
-              Your {isProblem ? 'report' : 'feedback'} was sent successfully.
+              {isProblem ? t('report.success_problem') : t('report.success_feedback')}
             </p>
             <button
               type="button"
               onClick={onClose}
               className="mt-6 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800"
             >
-              Continue working
+              {t('report.continue_working')}
             </button>
           </div>
         ) : (
@@ -174,7 +178,7 @@ export function ReportIssuePanel({
                 }`}
               >
                 <Bug className="h-4 w-4" />
-                Problem
+                {t('report.tab_problem')}
               </button>
               <button
                 type="button"
@@ -186,14 +190,14 @@ export function ReportIssuePanel({
                 }`}
               >
                 <Lightbulb className="h-4 w-4" />
-                Suggestion
+                {t('report.tab_suggestion')}
               </button>
             </div>
 
             {/* Tool Info (read-only when in tool context) */}
             {toolSlug && (
               <div className="mb-4 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wider text-slate-500">Tool</div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">{t('report.tool_label')}</div>
                 <div className="text-sm text-slate-300">{toolName || toolSlug}</div>
               </div>
             )}
@@ -201,15 +205,15 @@ export function ReportIssuePanel({
             {/* Description */}
             <div className="mb-4">
               <label className="mb-1.5 block text-xs font-medium text-slate-400">
-                {isProblem ? 'What happened?' : 'What would you like to see?'}
+                {isProblem ? t('report.label_what_happened') : t('report.label_what_to_see')}
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={
                   isProblem
-                    ? 'What were you trying to do, and what went wrong?'
-                    : 'What could we improve or add next?'
+                    ? t('report.placeholder_problem')
+                    : t('report.placeholder_feedback')
                 }
                 rows={4}
                 className="w-full resize-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600"
@@ -230,8 +234,8 @@ export function ReportIssuePanel({
                   />
                   <Database className="h-4 w-4 text-slate-400" />
                   <div className="flex-1">
-                    <div className="text-sm text-slate-300">Include current tool state</div>
-                    <div className="text-xs text-slate-500">Recommended for debugging</div>
+                    <div className="text-sm text-slate-300">{t('report.include_tool_state')}</div>
+                    <div className="text-xs text-slate-500">{t('report.include_tool_state_hint')}</div>
                   </div>
                 </label>
               )}
@@ -248,9 +252,9 @@ export function ReportIssuePanel({
                 <Camera className="h-4 w-4 text-slate-400" />
                 <div className="flex-1">
                   <div className="text-sm text-slate-300">
-                    {isCapturing ? 'Capturing...' : 'Include screenshot of preview'}
+                    {isCapturing ? t('report.capturing') : t('report.include_screenshot')}
                   </div>
-                  <div className="text-xs text-slate-500">Captures only the preview area</div>
+                  <div className="text-xs text-slate-500">{t('report.include_screenshot_hint')}</div>
                 </div>
               </label>
 
@@ -269,17 +273,17 @@ export function ReportIssuePanel({
             {/* Context Info (collapsed) */}
             <details className="mb-4 rounded-lg border border-slate-800 bg-slate-900/30">
               <summary className="cursor-pointer px-3 py-2 text-xs text-slate-500 hover:text-slate-400">
-                Auto-collected info (click to view)
+                {t('report.auto_collected_info')}
               </summary>
               <div className="border-t border-slate-800 px-3 py-2 text-xs text-slate-500">
                 <div className="grid grid-cols-2 gap-1">
-                  <span>Browser:</span>
+                  <span>{t('report.browser')}:</span>
                   <span className="text-slate-400">{context?.browser}</span>
-                  <span>OS:</span>
+                  <span>{t('report.os')}:</span>
                   <span className="text-slate-400">{context?.os}</span>
-                  <span>Viewport:</span>
+                  <span>{t('report.viewport')}:</span>
                   <span className="text-slate-400">{context?.viewportWidth}×{context?.viewportHeight}</span>
-                  <span>Page:</span>
+                  <span>{t('report.page')}:</span>
                   <span className="truncate text-slate-400" title={context?.pageUrl}>{context?.pageUrl?.replace(/^https?:\/\/[^/]+/, '')}</span>
                 </div>
               </div>
@@ -300,7 +304,7 @@ export function ReportIssuePanel({
                 onClick={onClose}
                 className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800"
               >
-                Cancel
+                {t('report.cancel')}
               </button>
               <button
                 type="submit"
@@ -310,10 +314,10 @@ export function ReportIssuePanel({
                 {status === 'submitting' ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending...
+                    {t('report.sending')}
                   </>
                 ) : (
-                  'Send'
+                  t('report.send')
                 )}
               </button>
             </div>
