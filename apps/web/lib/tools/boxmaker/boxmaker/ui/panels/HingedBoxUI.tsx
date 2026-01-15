@@ -452,7 +452,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                       className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                       title={preset.description}
                     >
-                      {preset.name}
+                      {t(`boxmaker.preset_${preset.name.toLowerCase()}`)}
                     </button>
                   ))}
                 </div>

@@ -70,6 +70,13 @@ const steps: GuidedTourStep[] = [
     description: 'guided_tour.orders.desc',
   },
   {
+    id: 'boxmaker',
+    path: '/studio/tools/boxmaker',
+    selector: '[data-tour="presets"]',
+    title: 'guided_tour.boxmaker.title',
+    description: 'guided_tour.boxmaker.desc',
+  },
+  {
     id: 'finish',
     path: '/',
     selector: '[data-tour="nav-tutorial"]',

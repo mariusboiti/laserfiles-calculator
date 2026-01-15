@@ -632,6 +632,9 @@ const translations: Record<Locale, Record<string, string>> = {
     'guided_tour.orders.title': 'Orders',
     'guided_tour.orders.desc':
       'Orders contain one or more items. Create a new order, track status, and manage production.',
+    'guided_tour.boxmaker.title': 'BoxMaker Tool',
+    'guided_tour.boxmaker.desc':
+      'Design custom boxes with finger joints, hinges, or sliding drawers. Use presets for quick configurations.',
     'guided_tour.finish.title': 'Done',
     'guided_tour.finish.desc':
       'You can reopen the Tutorial any time from the sidebar. You can also re-run this Guided tour from the header button.',
@@ -1363,6 +1366,9 @@ const translations: Record<Locale, Record<string, string>> = {
     'guided_tour.orders.title': 'Comenzi',
     'guided_tour.orders.desc':
       'Comenzile conțin unul sau mai multe produse. Creează o comandă nouă, urmărește statusul și gestionează producția.',
+    'guided_tour.boxmaker.title': 'Unealta BoxMaker',
+    'guided_tour.boxmaker.desc':
+      'Proiectează cutii personalizate cu îmbinări tip degete, balamale sau sertare glisante. Folosește presetări pentru configurări rapide.',
     'guided_tour.finish.title': 'Gata',
     'guided_tour.finish.desc':
       'Poți redeschide Tutorialul oricând din meniu. Poți reporni turul ghidat din butonul din header.',
@@ -2035,6 +2041,9 @@ const translations: Record<Locale, Record<string, string>> = {
     'guided_tour.orders.title': 'Pedidos',
     'guided_tour.orders.desc':
       'Los pedidos contienen uno o más artículos. Crea un pedido nuevo, sigue el estado y gestiona la producción.',
+    'guided_tour.boxmaker.title': 'Herramienta BoxMaker',
+    'guided_tour.boxmaker.desc':
+      'Diseña cajas personalizadas con uniones de dedo, bisagras o cajones deslizantes. Usa preajustes para configuraciones rápidas.',
     'guided_tour.finish.title': 'Listo',
     'guided_tour.finish.desc':
       'Puedes abrir el Tutorial en cualquier momento desde el menú. También puedes reiniciar el recorrido desde el botón del encabezado.',
@@ -2669,6 +2678,9 @@ const translations: Record<Locale, Record<string, string>> = {
     'guided_tour.orders.title': 'Commandes',
     'guided_tour.orders.desc':
       'Les commandes contiennent un ou plusieurs articles. Créez une commande, suivez le statut et gérez la production.',
+    'guided_tour.boxmaker.title': 'Outil BoxMaker',
+    'guided_tour.boxmaker.desc':
+      'Concevez des boîtes personnalisées avec des joints à doigts, des charnières ou des tiroirs coulissants. Utilisez les préréglages pour des configurations rapides.',
     'guided_tour.finish.title': 'Terminé',
     'guided_tour.finish.desc':
       "Vous pouvez rouvrir le Tutoriel à tout moment depuis le menu. Vous pouvez aussi relancer la visite guidée depuis le bouton de l'en-tête.",
@@ -3305,6 +3317,9 @@ const translations: Record<Locale, Record<string, string>> = {
     'guided_tour.orders.title': 'Bestellungen',
     'guided_tour.orders.desc':
       'Bestellungen enthalten ein oder mehrere Positionen. Lege eine neue Bestellung an, verfolge den Status und verwalte die Produktion.',
+    'guided_tour.boxmaker.title': 'BoxMaker Tool',
+    'guided_tour.boxmaker.desc':
+      'Entwerfe benutzerdefinierte Boxen mit Fingerzinken, Scharnieren oder Schubladen. Verwende Voreinstellungen für schnelle Konfigurationen.',
     'guided_tour.finish.title': 'Fertig',
     'guided_tour.finish.desc':
       'Du kannst das Tutorial jederzeit über die Seitenleiste öffnen. Du kannst diese Tour auch über den Button im Header erneut starten.',
