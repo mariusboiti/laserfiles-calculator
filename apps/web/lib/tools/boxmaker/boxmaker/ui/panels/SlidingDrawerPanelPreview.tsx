@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { SlidingDrawerDrawerPanels, SlidingDrawerOuterPanels, SlidingDrawerPanel2D } from '../../core/types';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export type SlidingDrawerPanelView = 'layout' | 'faces';
 
@@ -126,6 +128,9 @@ export function SlidingDrawerPanelPreview({
       >
     | undefined;
 }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [view, setView] = useState<SlidingDrawerPanelView>(initialView);
   const [zoom, setZoom] = useState(1);
 
@@ -138,7 +143,7 @@ export function SlidingDrawerPanelPreview({
     const push = (face: string, p: SlidingDrawerPanel2D | undefined) => {
       if (!p) return;
       const { w, h } = panelWH(p);
-      rows.push({ group: 'Outer', face, w, h });
+      rows.push({ group: t('boxmaker.outer'), face, w, h });
     };
 
     push('back', panels.outer.back);
@@ -148,14 +153,14 @@ export function SlidingDrawerPanelPreview({
     push('top', panels.outer.top);
 
     return rows;
-  }, [panels]);
+  }, [panels, t]);
 
   const drawerRows = useMemo(() => {
     const rows: { group: string; face: string; w: number; h: number }[] = [];
     const push = (face: string, p: SlidingDrawerPanel2D | undefined) => {
       if (!p) return;
       const { w, h } = panelWH(p);
-      rows.push({ group: 'Drawer', face, w, h });
+      rows.push({ group: t('boxmaker.drawer'), face, w, h });
     };
 
     push('front', panels.drawer.front);
@@ -165,17 +170,17 @@ export function SlidingDrawerPanelPreview({
     push('bottom', panels.drawer.bottom);
 
     return rows;
-  }, [panels]);
+  }, [panels, t]);
 
   const allRows = useMemo(() => [...outerRows, ...drawerRows], [outerRows, drawerRows]);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium text-slate-100">Preview</div>
+        <div className="text-sm font-medium text-slate-100">{t('boxmaker.preview')}</div>
         {view === 'layout' ? (
           <div className="flex items-center gap-2">
-            <div className="text-xs text-slate-300">Zoom</div>
+            <div className="text-xs text-slate-300">{t('boxmaker.zoom')}</div>
             <input type="range" min="0.5" max="2" step="0.1" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} />
           </div>
         ) : null}
@@ -191,7 +196,7 @@ export function SlidingDrawerPanelPreview({
               : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900'
           }`}
         >
-          layout
+          {t('boxmaker.layout')}
         </button>
         <button
           type="button"
@@ -202,7 +207,7 @@ export function SlidingDrawerPanelPreview({
               : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900'
           }`}
         >
-          faces
+          {t('boxmaker.faces')}
         </button>
       </div>
 
@@ -212,10 +217,10 @@ export function SlidingDrawerPanelPreview({
             <table className="w-full border-collapse">
               <thead className="sticky top-0 bg-slate-50">
                 <tr className="text-left text-slate-600">
-                  <th className="border-b border-slate-200 px-2 py-1 font-medium">Group</th>
-                  <th className="border-b border-slate-200 px-2 py-1 font-medium">Face</th>
-                  <th className="border-b border-slate-200 px-2 py-1 font-medium">Width (mm)</th>
-                  <th className="border-b border-slate-200 px-2 py-1 font-medium">Height (mm)</th>
+                  <th className="border-b border-slate-200 px-2 py-1 font-medium">{t('boxmaker.group')}</th>
+                  <th className="border-b border-slate-200 px-2 py-1 font-medium">{t('boxmaker.face')}</th>
+                  <th className="border-b border-slate-200 px-2 py-1 font-medium">{t('boxmaker.width_mm')}</th>
+                  <th className="border-b border-slate-200 px-2 py-1 font-medium">{t('boxmaker.height_mm')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -268,7 +273,7 @@ export function SlidingDrawerPanelPreview({
         )}
       </div>
 
-      <div className="text-xs text-slate-400">Current view: {view}</div>
+      <div className="text-xs text-slate-400">{t('boxmaker.current_view')}: {view}</div>
     </div>
   );
 }

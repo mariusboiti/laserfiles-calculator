@@ -707,7 +707,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
       <header className="border-b border-slate-900 bg-slate-950/80">
         <div className="mx-auto flex w-full items-center justify-between gap-4 px-4 py-3">
           <div>
-            <h1 className="text-sm font-semibold text-slate-100 md:text-base">LaserFilesPro Box Maker</h1>
+            <h1 className="text-sm font-semibold text-slate-100 md:text-base">{t('boxmaker.header_title')}</h1>
             <p className="text-[11px] text-slate-400">{t('boxmaker.sliding_subtitle')}</p>
           </div>
         </div>
@@ -722,7 +722,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               ) : null}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">{t('boxmaker.box_presets')}</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.presets')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {DRAWER_PRESETS.map((preset) => (
                     <button
@@ -740,7 +740,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
                 <div className="text-sm font-medium text-slate-100">{t('boxmaker.face_artwork')}</div>
-                <div className="mt-1 text-[11px] text-slate-400">{t('boxmaker.preview_only')}</div>
+                <div className="mt-1 text-[11px] text-slate-400">{t('boxmaker.artwork_hint')}</div>
 
                 <div className="mt-3">
                   <AIWarningBanner />
@@ -818,7 +818,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         ))}
                       </select>
                     </label>
-                    <div className="text-[11px] text-slate-500 self-end">{t('boxmaker.center_based_xy')}</div>
+                    <div className="text-[11px] text-slate-500 self-end">{t('boxmaker.center_hint')}</div>
                   </div>
 
                   {selectedArtwork ? (
@@ -1279,7 +1279,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         onClick={handleAddEngraveText}
                         className="w-full rounded-md bg-slate-800 px-3 py-2 text-[11px] text-slate-100 hover:bg-slate-700"
                       >
-                        {t('boxmaker.add_text_button')}
+                        {t('boxmaker.add_text_btn')}
                       </button>
                     </div>
                   </div>
@@ -1420,7 +1420,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                   }
                 >
-                  {t('boxmaker.3d')}
+                  {t('boxmaker.preview_3d')}
                 </button>
               </div>
               {previewMode === '3d' ? <div className="text-[11px] text-slate-400">{t('boxmaker.sliding_3d_preview')}</div> : null}

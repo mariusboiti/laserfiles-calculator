@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { HingedBoxPanels, HingedBoxSvgs } from '../../core/types';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export type HingedPanelKey = keyof HingedBoxSvgs;
 export type HingedPanelView = HingedPanelKey | 'all' | 'faces';
@@ -94,6 +96,9 @@ export function HingedPanelPreview({
   initialView?: HingedPanelView;
   artworkOverlays?: Record<string, FaceArtworkConfig | undefined>;
 }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [panel, setPanel] = useState<HingedPanelView>(initialView);
   const [zoom, setZoom] = useState(1);
 
@@ -112,9 +117,9 @@ export function HingedPanelPreview({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium text-slate-100">Preview</div>
+        <div className="text-sm font-medium text-slate-100">{t('boxmaker.preview')}</div>
         <div className="flex items-center gap-2">
-          <div className="text-xs text-slate-300">Zoom</div>
+          <div className="text-xs text-slate-300">{t('boxmaker.zoom')}</div>
           <input type="range" min="0.5" max="2" step="0.1" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} />
         </div>
       </div>
@@ -129,7 +134,7 @@ export function HingedPanelPreview({
               panel === k ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900'
             }`}
           >
-            {k}
+            {k === 'faces' ? t('boxmaker.faces') : k === 'all' ? t('boxmaker.all') : k}
           </button>
         ))}
       </div>
@@ -140,9 +145,9 @@ export function HingedPanelPreview({
             <table className="w-full border-collapse">
               <thead className="sticky top-0 bg-slate-50">
                 <tr className="text-left text-slate-600">
-                  <th className="border-b border-slate-200 px-2 py-1 font-medium">Face</th>
-                  <th className="border-b border-slate-200 px-2 py-1 font-medium">Width (mm)</th>
-                  <th className="border-b border-slate-200 px-2 py-1 font-medium">Height (mm)</th>
+                  <th className="border-b border-slate-200 px-2 py-1 font-medium">{t('boxmaker.face')}</th>
+                  <th className="border-b border-slate-200 px-2 py-1 font-medium">{t('boxmaker.width_mm')}</th>
+                  <th className="border-b border-slate-200 px-2 py-1 font-medium">{t('boxmaker.height_mm')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,7 +244,7 @@ export function HingedPanelPreview({
         )}
       </div>
 
-      <div className="text-xs text-slate-400">Current panel: {panel}</div>
+      <div className="text-xs text-slate-400">{t('boxmaker.current_panel')}: {panel}</div>
     </div>
   );
 }
