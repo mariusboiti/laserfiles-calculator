@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { SlidingDrawerSvgs } from '../../core/types';
 import type { DrawerDimensions } from '../../core/sliding/drawerMath';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 type PanelGroup = 'outer' | 'drawer';
 type OuterPanelKey = 'back' | 'left' | 'right' | 'bottom' | 'top';
@@ -59,6 +61,9 @@ function prepareSvgForPreview(svg: string): string {
 }
 
 export function SlidingDrawerPreview({ svgs, dims }: { svgs: SlidingDrawerSvgs; dims: DrawerDimensions }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [panelGroup, setPanelGroup] = useState<PanelGroup>('outer');
   const [zoom, setZoom] = useState(1);
 
@@ -86,9 +91,9 @@ export function SlidingDrawerPreview({ svgs, dims }: { svgs: SlidingDrawerSvgs; 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium text-slate-100">Preview</div>
+        <div className="text-sm font-medium text-slate-100">{t('boxmaker.preview')}</div>
         <div className="flex items-center gap-2">
-          <div className="text-xs text-slate-300">Zoom</div>
+          <div className="text-xs text-slate-300">{t('boxmaker.zoom')}</div>
           <input
             type="range"
             min="0.5"
@@ -110,7 +115,7 @@ export function SlidingDrawerPreview({ svgs, dims }: { svgs: SlidingDrawerSvgs; 
               : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900'
           }`}
         >
-          Outer Box
+          {t('boxmaker.outer_box')}
         </button>
         <button
           type="button"
@@ -121,7 +126,7 @@ export function SlidingDrawerPreview({ svgs, dims }: { svgs: SlidingDrawerSvgs; 
               : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900'
           }`}
         >
-          Drawer
+          {t('boxmaker.drawer')}
         </button>
       </div>
 
@@ -154,26 +159,26 @@ export function SlidingDrawerPreview({ svgs, dims }: { svgs: SlidingDrawerSvgs; 
       </div>
 
       <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-        <div className="text-xs font-medium text-slate-100">Dimensions</div>
+        <div className="text-xs font-medium text-slate-100">{t('boxmaker.dimensions')}</div>
         <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-300">
           <div>
-            <span className="text-slate-400">Outer:</span> {dims.outerWidth.toFixed(1)} × {dims.outerDepth.toFixed(1)} ×{' '}
+            <span className="text-slate-400">{t('boxmaker.outer')}:</span> {dims.outerWidth.toFixed(1)} × {dims.outerDepth.toFixed(1)} ×{' '}
             {dims.outerHeight.toFixed(1)} mm
           </div>
           <div>
-            <span className="text-slate-400">Drawer:</span> {dims.drawerWidth.toFixed(1)} × {dims.drawerDepth.toFixed(1)} ×{' '}
+            <span className="text-slate-400">{t('boxmaker.drawer')}:</span> {dims.drawerWidth.toFixed(1)} × {dims.drawerDepth.toFixed(1)} ×{' '}
             {dims.drawerHeight.toFixed(1)} mm
           </div>
           <div>
-            <span className="text-slate-400">Opening:</span> {dims.openingWidth.toFixed(1)} × {dims.openingHeight.toFixed(1)} mm
+            <span className="text-slate-400">{t('boxmaker.opening')}:</span> {dims.openingWidth.toFixed(1)} × {dims.openingHeight.toFixed(1)} mm
           </div>
           <div>
-            <span className="text-slate-400">Thickness:</span> {dims.thickness.toFixed(1)} mm
+            <span className="text-slate-400">{t('boxmaker.thickness')}:</span> {dims.thickness.toFixed(1)} mm
           </div>
         </div>
       </div>
 
-      <div className="text-xs text-slate-400">Current view: {panelGroup}</div>
+      <div className="text-xs text-slate-400">{t('boxmaker.current_view')}: {panelGroup}</div>
     </div>
   );
 }
