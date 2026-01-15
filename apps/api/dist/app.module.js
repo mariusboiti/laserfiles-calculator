@@ -27,6 +27,7 @@ const production_module_1 = require("./production/production.module");
 const offcuts_module_1 = require("./offcuts/offcuts.module");
 const usage_module_1 = require("./usage/usage.module");
 const webhooks_module_1 = require("./webhooks/webhooks.module");
+const billing_module_1 = require("./billing/billing.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -52,6 +53,7 @@ exports.AppModule = AppModule = __decorate([
             offcuts_module_1.OffcutsModule,
             usage_module_1.UsageModule,
             webhooks_module_1.WebhooksModule,
+            billing_module_1.BillingModule,
         ],
     })
 ], AppModule);

@@ -51,6 +51,34 @@ let AuthService = class AuthService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    normalizePlanName(input) {
+        const raw = String(input ?? '').trim().toUpperCase();
+        if (raw === 'GUEST')
+            return 'GUEST';
+        if (raw === 'FREE')
+            return 'FREE';
+        if (raw === 'STARTER')
+            return 'STARTER';
+        if (raw === 'LIFETIME')
+            return 'LIFETIME';
+        // Default to PRO to avoid blocking SSO if upstream sends a different plan label
+        return 'PRO';
+    }
+    async ensureUserEntitlement(userId) {
+        // Race-safe: concurrent logins should not fail with unique constraint errors.
+        return this.prisma.userEntitlement.upsert({
+            where: { userId },
+            update: {},
+            create: {
+                userId,
+                plan: 'INACTIVE',
+                aiCreditsTotal: 0,
+                aiCreditsUsed: 0,
+                trialStartedAt: null,
+                trialEndsAt: null,
+            },
+        });
+    }
     async validateUser(email, password) {
         const user = await this.prisma.user.findUnique({ where: { email } });
         if (!user) {
@@ -87,20 +115,41 @@ let AuthService = class AuthService {
     }
     async loginWithWp(entitlements) {
         const { wpUserId, email, displayName, plan, entitlementsVersion, features, limits, validUntil } = entitlements;
+        const adminAllowlist = (process.env.ADMIN_EMAIL_ALLOWLIST || 'contact@laserfilespro.com')
+            .split(',')
+            .map((v) => v.trim().toLowerCase())
+            .filter(Boolean);
+        const isAllowedAdmin = adminAllowlist.includes(String(email).toLowerCase());
         // Find or create user
-        let user = await this.prisma.user.findFirst({ where: { email } });
+        let user = await this.prisma.user.findUnique({ where: { email } });
         if (!user) {
             const randomPassword = Math.random().toString(36).slice(2);
             const hashed = await bcrypt.hash(randomPassword, 10);
-            user = await this.prisma.user.create({
-                data: {
-                    email,
-                    name: displayName,
-                    role: 'ADMIN',
-                    password: hashed,
-                },
+            try {
+                user = await this.prisma.user.create({
+                    data: {
+                        email,
+                        name: displayName,
+                        role: isAllowedAdmin ? 'ADMIN' : 'WORKER',
+                        password: hashed,
+                    },
+                });
+            }
+            catch (e) {
+                // If another request created the user concurrently, recover by fetching it.
+                user = await this.prisma.user.findUnique({ where: { email } });
+                if (!user)
+                    throw e;
+            }
+        }
+        const desiredRole = isAllowedAdmin ? 'ADMIN' : user.role === 'ADMIN' ? 'WORKER' : user.role;
+        if (desiredRole !== user.role) {
+            user = await this.prisma.user.update({
+                where: { id: user.id },
+                data: { role: desiredRole },
             });
         }
+        await this.ensureUserEntitlement(user.id);
         // Upsert UserIdentityLink to link this user to the WordPress identity
         await this.prisma.userIdentityLink.upsert({
             where: {
@@ -124,23 +173,29 @@ let AuthService = class AuthService {
             },
         });
         // Save a WorkspacePlanSnapshot for audit and offline validation
-        await this.prisma.workspacePlanSnapshot.create({
-            data: {
-                wpUserId,
-                plan: plan, // PlanName enum
-                entitlementsVersion,
-                featuresJson: features,
-                limitsJson: limits,
-                validUntil: validUntil ? new Date(validUntil) : null,
-                fetchedAt: new Date(),
-            },
-        });
+        const normalizedPlan = this.normalizePlanName(plan);
+        try {
+            await this.prisma.workspacePlanSnapshot.create({
+                data: {
+                    wpUserId,
+                    plan: normalizedPlan,
+                    entitlementsVersion,
+                    featuresJson: features,
+                    limitsJson: limits,
+                    validUntil: validUntil ? new Date(validUntil) : null,
+                    fetchedAt: new Date(),
+                },
+            });
+        }
+        catch {
+            // Snapshot is best-effort; do not block SSO login if persistence fails.
+        }
         const payload = {
             sub: user.id,
             email: user.email,
             role: user.role,
             wpUserId,
-            plan,
+            plan: normalizedPlan,
             entitlementsVersion,
         };
         const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET || 'dev-access-secret', { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' });

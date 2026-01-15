@@ -44,6 +44,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
@@ -53,10 +56,14 @@ const user_decorator_1 = require("../common/decorators/user.decorator");
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
 const client_1 = require("@prisma/client");
+const axios_1 = __importDefault(require("axios"));
 const bcrypt = __importStar(require("bcryptjs"));
 const jwt = __importStar(require("jsonwebtoken"));
 const entitlements_service_1 = require("../entitlements/entitlements.service");
 const wp_hmac_1 = require("../common/wp-hmac");
+const wp_exchange_dto_1 = require("./dto/wp-exchange.dto");
+const wp_sso_exchange_service_1 = require("./wp-sso-exchange.service");
+const public_decorator_1 = require("../common/decorators/public.decorator");
 class LoginDto {
 }
 __decorate([
@@ -98,9 +105,59 @@ __decorate([
 ], WpHmacSsoDto.prototype, "signature", void 0);
 const prisma = new client_1.PrismaClient();
 let AuthController = class AuthController {
-    constructor(authService, entitlementsService) {
+    constructor(authService, entitlementsService, wpSsoExchangeService) {
         this.authService = authService;
         this.entitlementsService = entitlementsService;
+        this.wpSsoExchangeService = wpSsoExchangeService;
+    }
+    async wpStart(returnUrl, res) {
+        if (!returnUrl) {
+            throw new common_1.BadRequestException('Missing returnUrl');
+        }
+        const baseUrl = process.env.WP_PLUGIN_BASE_URL;
+        const apiKey = process.env.WP_PLUGIN_API_KEY;
+        if (!baseUrl || !apiKey) {
+            throw new common_1.BadRequestException('WP integration not configured');
+        }
+        const url = `${baseUrl.replace(/\/$/, '')}/wp-json/laserfiles/v1/sso/start?returnUrl=${encodeURIComponent(returnUrl)}`;
+        const response = await axios_1.default.get(url, {
+            headers: {
+                'x-api-key': apiKey,
+            },
+            maxRedirects: 0,
+            validateStatus: () => true,
+        });
+        const location = response.headers?.location;
+        if (location) {
+            return res.redirect(location);
+        }
+        const data = response.data;
+        const redirectUrl = (typeof data === 'string' ? undefined : data?.redirectUrl) ??
+            (typeof data === 'string' ? undefined : data?.url);
+        if (redirectUrl && typeof redirectUrl === 'string') {
+            return res.redirect(redirectUrl);
+        }
+        throw new common_1.BadGatewayException('WP start did not return a redirect');
+    }
+    async wpDebugConfig() {
+        const baseUrl = process.env.WP_PLUGIN_BASE_URL || '';
+        const apiKey = process.env.WP_PLUGIN_API_KEY || '';
+        const maxSkewSeconds = process.env.WP_SSO_MAX_SKEW_SECONDS
+            ? Number(process.env.WP_SSO_MAX_SKEW_SECONDS)
+            : 120;
+        const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+        const exchangeEndpoint = normalizedBaseUrl
+            ? `${normalizedBaseUrl}/wp-json/laserfiles/v1/sso/exchange`
+            : '/wp-json/laserfiles/v1/sso/exchange';
+        const redactedBaseUrl = normalizedBaseUrl
+            ? normalizedBaseUrl.replace(/^https?:\/\//, 'https://')
+            : '';
+        return {
+            baseUrl: redactedBaseUrl,
+            hasApiKey: Boolean(apiKey),
+            exchangeEndpoint,
+            maxSkewSeconds,
+        };
     }
     async wpHmacSso(body) {
         const secret = process.env.WP_SSO_SECRET;
@@ -207,6 +264,37 @@ let AuthController = class AuthController {
         const entitlements = await this.entitlementsService.getEntitlementsForWpUser(wpUserId);
         return this.authService.loginWithWp(entitlements);
     }
+    async wpExchange(dto, res) {
+        // curl -i -X POST http://127.0.0.1:4000/auth/wp/exchange -H "Content-Type: application/json" -d '{"code":"..."}'
+        const { wpUserId, email, displayName, name, entitlements } = await this.wpSsoExchangeService.exchangeCode(dto.code);
+        const loginResult = await this.authService.loginWithWp({
+            wpUserId: String(wpUserId),
+            email,
+            displayName: displayName ?? name ?? email,
+            plan: entitlements?.plan ?? 'PRO',
+            entitlementsVersion: entitlements?.entitlementsVersion ?? 'unknown',
+            features: entitlements?.features ?? {},
+            limits: entitlements?.limits ?? {},
+            validUntil: entitlements?.validUntil ?? null,
+        });
+        const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'lax',
+            path: '/',
+            ...(cookieDomain ? { domain: cookieDomain } : {}),
+        };
+        res.cookie('lf_access_token', loginResult.accessToken, cookieOptions);
+        res.cookie('lf_refresh_token', loginResult.refreshToken, cookieOptions);
+        return {
+            ok: true,
+            user: loginResult.user,
+            entitlements: loginResult.entitlements ?? null,
+            accessToken: loginResult.accessToken,
+            refreshToken: loginResult.refreshToken,
+        };
+    }
     async me(user) {
         const userId = user?.id || user?.sub;
         if (!userId) {
@@ -220,9 +308,58 @@ let AuthController = class AuthController {
                 name: true,
                 role: true,
                 plan: true,
+                subscriptionType: true,
+                subscriptionStatus: true,
+                entitlement: {
+                    select: {
+                        plan: true,
+                        trialEndsAt: true,
+                        aiCreditsTotal: true,
+                        aiCreditsUsed: true,
+                    },
+                },
             },
         });
-        return { user: fullUser };
+        const entPlan = String(fullUser?.entitlement?.plan ?? 'INACTIVE');
+        const trialEndsAt = fullUser?.entitlement?.trialEndsAt ?? null;
+        const now = new Date();
+        const isTrialExpired = entPlan === 'TRIALING' && trialEndsAt && new Date(trialEndsAt).getTime() <= now.getTime();
+        const plan = (() => {
+            if (entPlan === 'TRIALING')
+                return 'TRIAL';
+            if (entPlan === 'ACTIVE') {
+                const cycle = String(fullUser?.subscriptionType ?? '').toUpperCase();
+                if (cycle === 'ANNUAL')
+                    return 'PRO_ANNUAL';
+                return 'PRO_MONTHLY';
+            }
+            return 'FREE';
+        })();
+        const status = (() => {
+            if (entPlan === 'CANCELED')
+                return 'CANCELED';
+            if (isTrialExpired)
+                return 'EXPIRED';
+            if (entPlan === 'TRIALING')
+                return 'TRIAL';
+            if (entPlan === 'ACTIVE')
+                return 'ACTIVE';
+            return 'FREE';
+        })();
+        const billingCycle = plan === 'PRO_ANNUAL' ? 'annual' : plan === 'PRO_MONTHLY' ? 'monthly' : null;
+        const aiCreditsTotal = Number(fullUser?.entitlement?.aiCreditsTotal ?? 0) || 0;
+        const aiCreditsUsed = Number(fullUser?.entitlement?.aiCreditsUsed ?? 0) || 0;
+        return {
+            user: {
+                ...fullUser,
+                plan,
+                status,
+                billingCycle,
+                trialEndsAt: trialEndsAt ? new Date(trialEndsAt).toISOString() : null,
+                aiCreditsTotal,
+                aiCreditsUsed,
+            },
+        };
     }
     signTokens(user) {
         const payload = {
@@ -236,6 +373,22 @@ let AuthController = class AuthController {
     }
 };
 exports.AuthController = AuthController;
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('wp/start'),
+    __param(0, (0, common_1.Query)('returnUrl')),
+    __param(1, (0, common_1.Res)({ passthrough: false })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "wpStart", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('wp/debug-config'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "wpDebugConfig", null);
 __decorate([
     (0, common_1.Post)('wp/sso'),
     __param(0, (0, common_1.Body)()),
@@ -265,6 +418,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "wpSso", null);
 __decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Post)('wp/exchange'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [wp_exchange_dto_1.WpExchangeDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "wpExchange", null);
+__decorate([
     (0, swagger_1.ApiBearerAuth)('access-token'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)('me'),
@@ -277,5 +439,6 @@ exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService,
-        entitlements_service_1.EntitlementsService])
+        entitlements_service_1.EntitlementsService,
+        wp_sso_exchange_service_1.WpSsoExchangeService])
 ], AuthController);

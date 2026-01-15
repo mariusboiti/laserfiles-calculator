@@ -133,11 +133,26 @@ export function FeedbackModal({ isOpen, onClose, defaultToolSlug, defaultType = 
           },
         }),
       });
-      
-      const data = await response.json();
-      
-      if (!data.ok) {
-        throw new Error(data.error?.message || 'Failed to submit feedback');
+
+      const contentType = response.headers.get('content-type') || '';
+      let data: any = null;
+      let rawText: string | null = null;
+
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        rawText = await response.text();
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error?.message ||
+            `Failed to submit feedback (HTTP ${response.status})${rawText ? `: ${rawText.slice(0, 200)}` : ''}`
+        );
+      }
+
+      if (!data?.ok) {
+        throw new Error(data?.error?.message || 'Failed to submit feedback');
       }
       
       setSubmitted(true);

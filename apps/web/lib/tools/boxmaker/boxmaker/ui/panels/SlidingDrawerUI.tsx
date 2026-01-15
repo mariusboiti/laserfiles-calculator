@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SlidingDrawerInputs, BoxType } from '../../core/types';
 import {
   generateSlidingDrawerLayoutSvg,
@@ -26,6 +26,8 @@ import { SlidingDrawerPreview } from './SlidingDrawerPreview';
 import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
 import { AIWarningBanner } from '@/components/ai';
 import { Trash2 } from 'lucide-react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 type FaceArtworkPlacement = {
   x: number;
@@ -106,6 +108,9 @@ interface SlidingDrawerUIProps {
 }
 
 export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }: SlidingDrawerUIProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale, key), [locale]);
+
   const MM_PER_INCH = 25.4;
   const unitLabel = unitSystem;
   const toUser = (mm: number) => (unitSystem === 'in' ? mm / MM_PER_INCH : mm);
@@ -703,7 +708,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
         <div className="mx-auto flex w-full items-center justify-between gap-4 px-4 py-3">
           <div>
             <h1 className="text-sm font-semibold text-slate-100 md:text-base">LaserFilesPro Box Maker</h1>
-            <p className="text-[11px] text-slate-400">Sliding Drawer Box (v1) · panel-by-panel SVG export</p>
+            <p className="text-[11px] text-slate-400">{t('boxmaker.sliding_subtitle')}</p>
           </div>
         </div>
       </header>
@@ -717,7 +722,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               ) : null}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Box Presets</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.box_presets')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {DRAWER_PRESETS.map((preset) => (
                     <button
@@ -734,8 +739,8 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Face Artwork</div>
-                <div className="mt-1 text-[11px] text-slate-400">Preview-only overlay (not included in exports)</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.face_artwork')}</div>
+                <div className="mt-1 text-[11px] text-slate-400">{t('boxmaker.preview_only')}</div>
 
                 <div className="mt-3">
                   <AIWarningBanner />
@@ -743,18 +748,18 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
 
                 <div className="mt-3 grid gap-2">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Prompt</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.prompt')}</div>
                     <input
                       type="text"
                       value={faceArtworkPrompt}
                       onChange={(e) => setFaceArtworkPrompt(e.target.value)}
-                      placeholder="e.g. floral silhouette"
+                      placeholder={t('boxmaker.prompt_placeholder')}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                     />
                   </label>
 
                   <div className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Panels</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.panels')}</div>
                     <div className="flex flex-wrap gap-2">
                       {artworkPanelIds.map((k) => (
                         <label key={k} className="flex items-center gap-1 text-[11px] text-slate-200">
@@ -772,7 +777,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       disabled={isArtworkGenerating}
                       className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-60"
                     >
-                      {isArtworkGenerating ? 'Generating…' : 'Generate'}
+                      {isArtworkGenerating ? t('boxmaker.generating') : t('boxmaker.generate')}
                     </button>
                     <button
                       type="button"
@@ -780,7 +785,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       disabled={isArtworkGenerating}
                       className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
                     >
-                      Trace → SVG
+                      {t('boxmaker.trace_svg')}
                     </button>
                     <button
                       type="button"
@@ -790,7 +795,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       }}
                       className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                     >
-                      Clear
+                      {t('boxmaker.clear')}
                     </button>
                   </div>
 
@@ -800,7 +805,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
 
                   <div className="grid grid-cols-2 gap-2">
                     <label className="grid gap-1">
-                      <div className="text-[11px] text-slate-400">Edit panel</div>
+                      <div className="text-[11px] text-slate-400">{t('boxmaker.edit_panel')}</div>
                       <select
                         value={selectedArtworkPanelId}
                         onChange={(e) => setSelectedArtworkPanelId(e.target.value)}
@@ -813,13 +818,13 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         ))}
                       </select>
                     </label>
-                    <div className="text-[11px] text-slate-500 self-end">Center-based X/Y in mm</div>
+                    <div className="text-[11px] text-slate-500 self-end">{t('boxmaker.center_based_xy')}</div>
                   </div>
 
                   {selectedArtwork ? (
                     <div className="grid grid-cols-2 gap-2">
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">X (mm)</div>
+                        <div className="text-[11px] text-slate-400">{t('boxmaker.x_mm')}</div>
                         <input
                           type="number"
                           value={Number(selectedArtwork.placement.x.toFixed(2))}
@@ -828,7 +833,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         />
                       </label>
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Y (mm)</div>
+                        <div className="text-[11px] text-slate-400">{t('boxmaker.y_mm')}</div>
                         <input
                           type="number"
                           value={Number(selectedArtwork.placement.y.toFixed(2))}
@@ -837,7 +842,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         />
                       </label>
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Scale</div>
+                        <div className="text-[11px] text-slate-400">{t('boxmaker.scale')}</div>
                         <input
                           type="number"
                           min={0.05}
@@ -848,7 +853,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         />
                       </label>
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Rotate (deg)</div>
+                        <div className="text-[11px] text-slate-400">{t('boxmaker.rotate_deg')}</div>
                         <input
                           type="number"
                           step={1}
@@ -859,7 +864,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       </label>
                     </div>
                   ) : (
-                    <div className="text-[11px] text-slate-500">No artwork on this panel yet.</div>
+                    <div className="text-[11px] text-slate-500">{t('boxmaker.no_artwork_panel')}</div>
                   )}
                 </div>
               </div>
@@ -867,7 +872,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               {selectedEngraveItem ? (
                 <div className="mt-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] text-slate-400">Placement</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.placement')}</div>
                     <button
                       type="button"
                       onClick={() => {
@@ -875,7 +880,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         setSelectedEngraveId(null);
                       }}
                       className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
-                      title="Delete layer"
+                      title={t('boxmaker.delete_layer')}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -883,7 +888,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
 
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>X ({unitLabel})</span>
+                      <span>{t('boxmaker.x')} ({unitLabel})</span>
                       <input
                         type="number"
                         step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -893,7 +898,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>Y ({unitLabel})</span>
+                      <span>{t('boxmaker.y')} ({unitLabel})</span>
                       <input
                         type="number"
                         step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -903,7 +908,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>Rotation (deg)</span>
+                      <span>{t('boxmaker.rotation_deg')}</span>
                       <input
                         type="number"
                         step={1}
@@ -917,7 +922,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>Scale</span>
+                      <span>{t('boxmaker.scale')}</span>
                       <input
                         type="number"
                         step={0.01}
@@ -932,10 +937,10 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               ) : null}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Outer Box Dimensions</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.outer_box_dimensions')}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Width ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.width')} ({unitLabel})</div>
                     <input
                       type="number"
                       step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -945,7 +950,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Depth ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.depth')} ({unitLabel})</div>
                     <input
                       type="number"
                       step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -955,7 +960,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Height ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.height')} ({unitLabel})</div>
                     <input
                       type="number"
                       step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -968,10 +973,10 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Material</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.material')}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Thickness ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.thickness')} ({unitLabel})</div>
                     <input
                       type="number"
                       step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -981,7 +986,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Kerf ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.kerf')} ({unitLabel})</div>
                     <input
                       type="number"
                       step={unitSystem === 'in' ? 0.001 : 0.01}
@@ -994,10 +999,10 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Drawer Settings</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.drawer_settings')}</div>
                 <div className="mt-3 grid gap-3">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Clearance ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.clearance')} ({unitLabel})</div>
                     <input
                       type="number"
                       step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -1007,7 +1012,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Bottom Offset ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.bottom_offset')} ({unitLabel})</div>
                     <input
                       type="number"
                       step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -1017,24 +1022,24 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Front Face Style</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.front_face_style')}</div>
                     <select
                       value={frontFaceStyle}
                       onChange={(e) => setFrontFaceStyle(e.target.value as 'flush' | 'lip')}
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     >
-                      <option value="flush">Flush</option>
-                      <option value="lip">Lip</option>
+                      <option value="flush">{t('boxmaker.flush')}</option>
+                      <option value="lip">{t('boxmaker.lip')}</option>
                     </select>
                   </label>
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Finger Joints</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.finger_joints')}</div>
                 <div className="mt-3 grid gap-3">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Finger width ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.finger_width')} ({unitLabel})</div>
                     <input
                       type="number"
                       step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -1050,13 +1055,13 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       onChange={(e) => setAutoFitFingers(e.target.checked)}
                       className="rounded border-slate-800"
                     />
-                    <span className="text-xs text-slate-300">Auto-fit fingers</span>
+                    <span className="text-xs text-slate-300">{t('boxmaker.auto_fit_fingers')}</span>
                   </label>
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Drawer Dividers</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.drawer_dividers')}</div>
                 <div className="mt-3 grid gap-3">
                   <label className="flex items-center gap-2">
                     <input
@@ -1065,13 +1070,13 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       onChange={(e) => setDividersEnabled(e.target.checked)}
                       className="rounded border-slate-800"
                     />
-                    <span className="text-xs text-slate-300">Enable dividers</span>
+                    <span className="text-xs text-slate-300">{t('boxmaker.enable_dividers')}</span>
                   </label>
                   {dividersEnabled && (
                     <>
                       <div className="grid grid-cols-2 gap-3">
                         <label className="grid gap-1">
-                          <div className="text-[11px] text-slate-400">Compartments X</div>
+                          <div className="text-[11px] text-slate-400">{t('boxmaker.compartments_x')}</div>
                           <input
                             type="number"
                             min={1}
@@ -1083,7 +1088,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                           />
                         </label>
                         <label className="grid gap-1">
-                          <div className="text-[11px] text-slate-400">Compartments Z</div>
+                          <div className="text-[11px] text-slate-400">{t('boxmaker.compartments_z')}</div>
                           <input
                             type="number"
                             min={1}
@@ -1096,7 +1101,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         </label>
                       </div>
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Slot clearance ({unitLabel})</div>
+                        <div className="text-[11px] text-slate-400">{t('boxmaker.slot_clearance')} ({unitLabel})</div>
                         <input
                           type="number"
                           step={unitSystem === 'in' ? 0.001 : 0.01}
@@ -1114,7 +1119,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Engrave SVG</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.engrave_svg')}</div>
                 <div className="mt-3 grid gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <input
@@ -1182,29 +1187,29 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       value={engraveOp}
                       onChange={(e) => setEngraveOp(e.target.value as PathOperation)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                      title="Operation"
+                      title={t('boxmaker.operation')}
                     >
-                      <option value="engrave">ENGRAVE</option>
-                      <option value="score">SCORE</option>
+                      <option value="engrave">{t('boxmaker.op_engrave')}</option>
+                      <option value="score">{t('boxmaker.op_score')}</option>
                     </select>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="grid gap-1">
-                      <div className="text-[11px] text-slate-400">Target panel</div>
+                      <div className="text-[11px] text-slate-400">{t('boxmaker.target_panel')}</div>
                       <select
                         value={engraveTarget}
                         onChange={(e) => setEngraveTarget(e.target.value as SlidingDrawerEngraveTarget)}
                         className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                       >
-                        <optgroup label="Outer">
+                        <optgroup label={t('boxmaker.outer')}>
                           <option value="outer-back">outer-back</option>
                           <option value="outer-left">outer-left</option>
                           <option value="outer-right">outer-right</option>
                           <option value="outer-bottom">outer-bottom</option>
                           <option value="outer-top">outer-top</option>
                         </optgroup>
-                        <optgroup label="Drawer">
+                        <optgroup label={t('boxmaker.drawer')}>
                           <option value="drawer-front">drawer-front</option>
                           <option value="drawer-back">drawer-back</option>
                           <option value="drawer-left">drawer-left</option>
@@ -1216,13 +1221,13 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                   </div>
 
                   <div className="grid gap-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
-                    <div className="text-[11px] text-slate-400">Add text</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.add_text')}</div>
                     <div className="grid gap-2">
                       <input
                         type="text"
                         value={engraveText}
                         onChange={(e) => setEngraveText(e.target.value)}
-                        placeholder="Text"
+                        placeholder={t('boxmaker.text_placeholder')}
                         className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                       />
                       {/* Font preview */}
@@ -1234,7 +1239,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       )}
                       <div className="grid grid-cols-3 gap-2">
                         <label className="grid gap-1">
-                          <div className="text-[11px] text-slate-400">Font</div>
+                          <div className="text-[11px] text-slate-400">{t('boxmaker.font')}</div>
                           <select
                             value={engraveTextFontId}
                             onChange={(e) => setEngraveTextFontId(e.target.value as FontId)}
@@ -1248,7 +1253,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                           </select>
                         </label>
                         <label className="grid gap-1">
-                          <div className="text-[11px] text-slate-400">Size</div>
+                          <div className="text-[11px] text-slate-400">{t('boxmaker.size')}</div>
                           <input
                             type="number"
                             min={0.1}
@@ -1259,7 +1264,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                           />
                         </label>
                         <label className="grid gap-1">
-                          <div className="text-[11px] text-slate-400">Spacing</div>
+                          <div className="text-[11px] text-slate-400">{t('boxmaker.spacing')}</div>
                           <input
                             type="number"
                             step={0.1}
@@ -1274,7 +1279,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                         onClick={handleAddEngraveText}
                         className="w-full rounded-md bg-slate-800 px-3 py-2 text-[11px] text-slate-100 hover:bg-slate-700"
                       >
-                        Add Text
+                        {t('boxmaker.add_text_button')}
                       </button>
                     </div>
                   </div>
@@ -1300,7 +1305,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                               setSelectedEngraveId((prev) => (prev === item.id ? null : prev));
                             }}
                             className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
-                            title="Delete layer"
+                            title={t('boxmaker.delete_layer')}
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -1313,7 +1318,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
 
               {validation.errors.length > 0 && (
                 <div className="rounded-lg border border-red-800 bg-red-950/40 p-3">
-                  <div className="text-sm font-medium text-red-300">Errors</div>
+                  <div className="text-sm font-medium text-red-300">{t('boxmaker.errors')}</div>
                   <ul className="mt-2 space-y-1 text-xs text-red-200">
                     {validation.errors.map((e, i) => (
                       <li key={i}>• {e}</li>
@@ -1324,7 +1329,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
 
               {validation.warnings.length > 0 && (
                 <div className="rounded-lg border border-amber-800 bg-amber-950/40 p-3">
-                  <div className="text-sm font-medium text-amber-300">Warnings</div>
+                  <div className="text-sm font-medium text-amber-300">{t('boxmaker.warnings')}</div>
                   <ul className="mt-2 space-y-1 text-xs text-amber-200">
                     {validation.warnings.map((w, i) => (
                       <li key={i}>• {w}</li>
@@ -1335,7 +1340,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
 
               {boxWarnings.length > 0 && (
                 <div className="rounded-lg border border-amber-800 bg-amber-950/40 p-3">
-                  <div className="text-sm font-medium text-amber-300">Warnings</div>
+                  <div className="text-sm font-medium text-amber-300">{t('boxmaker.warnings')}</div>
                   <ul className="mt-2 space-y-1 text-xs text-amber-200">
                     {boxWarnings.map((w, i) => (
                       <li key={i}>• {w}</li>
@@ -1346,7 +1351,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
 
               {!regressionCheck.passed && (
                 <div className="rounded-lg border border-orange-800 bg-orange-950/40 p-3">
-                  <div className="text-sm font-medium text-orange-300">Regression Checks</div>
+                  <div className="text-sm font-medium text-orange-300">{t('boxmaker.regression_checks')}</div>
                   <ul className="mt-2 space-y-1 text-xs text-orange-200">
                     {regressionCheck.checks.filter(c => !c.passed).map((c, i) => (
                       <li key={i}>• {c.name}: {c.message}</li>
@@ -1356,7 +1361,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
               )}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Export</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.export')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -1364,7 +1369,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                     disabled={!validation.isValid}
                     className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Export ZIP (All)
+                    {t('boxmaker.export_zip_all')}
                   </button>
                   <button
                     type="button"
@@ -1372,7 +1377,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                     disabled={!validation.isValid}
                     className="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Export All (Individual)
+                    {t('boxmaker.export_all_individual')}
                   </button>
                 </div>
               </div>
@@ -1393,7 +1398,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                   }
                 >
-                  2D Panels
+                  {t('boxmaker.2d_panels')}
                 </button>
                 <button
                   type="button"
@@ -1404,7 +1409,7 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                   }
                 >
-                  Layout
+                  {t('boxmaker.layout')}
                 </button>
                 <button
                   type="button"
@@ -1415,10 +1420,10 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                   }
                 >
-                  3D
+                  {t('boxmaker.3d')}
                 </button>
               </div>
-              {previewMode === '3d' ? <div className="text-[11px] text-slate-400">Sliding Drawer 3D preview</div> : null}
+              {previewMode === '3d' ? <div className="text-[11px] text-slate-400">{t('boxmaker.sliding_3d_preview')}</div> : null}
             </div>
 
             {previewMode === '3d' ? (
