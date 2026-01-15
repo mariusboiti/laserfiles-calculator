@@ -12,6 +12,8 @@ import { SheetSettings } from './components/SheetSettings';
 import { Preview } from './components/Preview';
 import { DownloadSection } from './components/DownloadSection';
 import { DEFAULTS, DEMO_NAMES } from '../config/defaults';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 const STORAGE_KEY = 'bulk-name-tag-generator.state.v1';
 
@@ -20,6 +22,9 @@ interface AppProps {
 }
 
 function App({ onResetCallback }: AppProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [templateSvg, setTemplateSvg] = useState<string | null>(null);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('mm');
   const [templateSize, setTemplateSize] = useState<TemplateSizeConfig | null>(null);
@@ -237,7 +242,7 @@ function App({ onResetCallback }: AppProps) {
       setGeneratedContent(result);
     } catch (error) {
       console.error('Generation error:', error);
-      alert(`Error generating tags: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(`${t('bulk_name_tags.errors.generate_failed')} ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -281,10 +286,10 @@ function App({ onResetCallback }: AppProps) {
       <header className="border-b border-slate-800 bg-slate-900/60">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <h1 className="text-3xl font-bold text-slate-100">
-            LaserFilesPro - Bulk Name Tag Generator
+            {t('bulk_name_tags.header_title')}
           </h1>
           <p className="text-slate-400 mt-1">
-            Generate laser-ready name tags in bulk from CSV or manual input
+            {t('bulk_name_tags.header_subtitle')}
           </p>
         </div>
       </header>
@@ -293,9 +298,9 @@ function App({ onResetCallback }: AppProps) {
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
           <div className="space-y-6">
             <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
-              <h2 className="text-lg font-semibold text-slate-100 mb-2">Units</h2>
+              <h2 className="text-lg font-semibold text-slate-100 mb-2">{t('bulk_name_tags.units.title')}</h2>
               <p className="text-sm text-slate-400 mb-4">
-                Choose whether to enter dimensions in millimeters or inches.
+                {t('bulk_name_tags.units.desc')}
               </p>
 
               <select
@@ -303,8 +308,8 @@ function App({ onResetCallback }: AppProps) {
                 onChange={(e) => setUnitSystem(e.target.value as UnitSystem)}
                 className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
               >
-                <option value="mm">Millimeters (mm)</option>
-                <option value="in">Inches (in)</option>
+                <option value="mm">{t('bulk_name_tags.units.mm')}</option>
+                <option value="in">{t('bulk_name_tags.units.in')}</option>
               </select>
             </div>
 
@@ -319,9 +324,9 @@ function App({ onResetCallback }: AppProps) {
             />
 
             <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
-              <h2 className="text-lg font-semibold text-slate-100 mb-2">Names Input Mode</h2>
+              <h2 className="text-lg font-semibold text-slate-100 mb-2">{t('bulk_name_tags.names_input_mode.title')}</h2>
               <p className="text-sm text-slate-400 mb-4">
-                Choose how you want to provide names.
+                {t('bulk_name_tags.names_input_mode.desc')}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3">
@@ -340,7 +345,7 @@ function App({ onResetCallback }: AppProps) {
                     }}
                     className="h-4 w-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950"
                   />
-                  CSV Upload
+                  {t('bulk_name_tags.names_input_mode.csv')}
                 </label>
 
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300">
@@ -354,7 +359,7 @@ function App({ onResetCallback }: AppProps) {
                     }}
                     className="h-4 w-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950"
                   />
-                  Manual Entry
+                  {t('bulk_name_tags.names_input_mode.manual')}
                 </label>
               </div>
             </div>
@@ -413,7 +418,7 @@ function App({ onResetCallback }: AppProps) {
 
       <footer className="border-t border-slate-800 bg-slate-900/60 mt-12">
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-slate-400 text-sm">
-          <p>LaserFilesPro © 2024 - Bulk Name Tag Generator</p>
+          <p>{t('bulk_name_tags.footer')}</p>
         </div>
       </footer>
     </div>

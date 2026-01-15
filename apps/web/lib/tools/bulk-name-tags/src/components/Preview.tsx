@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface PreviewProps {
   svgContent: string | null;
@@ -9,6 +11,9 @@ interface PreviewProps {
 }
 
 export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sheetHeight }: PreviewProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [singleZoom, setSingleZoom] = useState(100);
   const [sheetZoom, setSheetZoom] = useState(50);
   const [viewMode, setViewMode] = useState<'single' | 'sheet'>('single');
@@ -28,7 +33,7 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <h2 className="text-lg font-semibold text-slate-100">Preview</h2>
+        <h2 className="text-lg font-semibold text-slate-100">{t('bulk_name_tags.preview.title')}</h2>
         
         <div className="flex items-center gap-3">
           {/* View mode toggle - always visible */}
@@ -42,7 +47,7 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              Single Tag
+              {t('bulk_name_tags.preview.single_tag')}
             </button>
             <button
               type="button"
@@ -53,14 +58,14 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              Sheet View
+              {t('bulk_name_tags.preview.sheet_view')}
             </button>
           </div>
 
           {/* Zoom control - always visible when content exists */}
           {displayContent && (
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-slate-300">Zoom:</label>
+              <label className="text-xs font-medium text-slate-300">{t('bulk_name_tags.preview.zoom')}</label>
               <input
                 type="range"
                 min={viewMode === 'sheet' ? 10 : 25}
@@ -78,7 +83,7 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
       {/* Sheet dimensions info - always visible when in sheet mode */}
       {viewMode === 'sheet' && sheetWidth && sheetHeight && (
         <div className="text-xs text-slate-400 mb-2">
-          Sheet: {sheetWidth} × {sheetHeight} mm
+          {t('bulk_name_tags.preview.sheet_label')} {sheetWidth} × {sheetHeight} mm
         </div>
       )}
       
@@ -101,7 +106,7 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
               <svg className="mx-auto h-10 w-10 text-slate-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p className="text-sm">Load a template and provide names to see preview</p>
+              <p className="text-sm">{t('bulk_name_tags.preview.empty')}</p>
             </div>
           </div>
         )}
