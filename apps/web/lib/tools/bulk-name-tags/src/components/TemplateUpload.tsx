@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { templateLibrary } from '../templateLibrary';
 import { parseTemplateBounds } from '../utils/svgUtils';
 import { validateLaserSafeSvg } from '../utils/aiTemplateUtils';
@@ -21,6 +23,27 @@ interface TemplateUploadProps {
 }
 
 export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templateSize, onTemplateSizeChange, holeConfig, onHoleConfigChange }: TemplateUploadProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
+  const templateLibraryName = useCallback(
+    (id: string, fallback: string) => {
+      const key = `bulk_name_tags.template_library.${id}.name`;
+      const translated = getStudioTranslation(locale as any, key);
+      return translated === key ? fallback : translated;
+    },
+    [locale]
+  );
+
+  const templateLibraryDescription = useCallback(
+    (id: string, fallback: string) => {
+      const key = `bulk_name_tags.template_library.${id}.description`;
+      const translated = getStudioTranslation(locale as any, key);
+      return translated === key ? fallback : translated;
+    },
+    [locale]
+  );
+
   const [error, setError] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [aiPrompt, setAiPrompt] = useState<string>('');
@@ -74,21 +97,21 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
     if (!file) return;
 
     if (!file.name.endsWith('.svg')) {
-      setError('Please upload an SVG file');
+      setError(t('bulk_name_tags.template.error_upload_svg'));
       return;
     }
 
     try {
       const text = await file.text();
       if (!text.includes('<svg')) {
-        setError('Invalid SVG file');
+        setError(t('bulk_name_tags.template.error_invalid_svg'));
         return;
       }
       setError('');
       setSelectedTemplateId('');
       onTemplateLoad(text);
     } catch {
-      setError('Failed to read file');
+      setError(t('bulk_name_tags.template.error_read_file'));
     }
   };
 
@@ -111,9 +134,9 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
       setSilhouetteConfigMessage(status.message || '');
     }).catch(() => {
       setSilhouetteConfigured(false);
-      setSilhouetteConfigMessage('Failed to check AI configuration');
+      setSilhouetteConfigMessage(t('bulk_name_tags.template.error_check_ai_config'));
     });
-  }, []);
+  }, [t]);
 
   const resetAiState = () => {
     setError('');
@@ -167,7 +190,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
   const handleAIGenerateSmart = async (opts?: { simpler?: boolean }) => {
     const prompt = aiPrompt.trim();
     if (!prompt) {
-      setError('Please enter a prompt for the AI template');
+      setError(t('bulk_name_tags.template.error_prompt_required_template'));
       return;
     }
 
@@ -191,10 +214,10 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const errJson: any = await res.json().catch(() => ({}));
-          throw new Error(errJson?.error || 'AI generation failed');
+          throw new Error(errJson?.error || t('bulk_name_tags.template.error_ai_generation_failed'));
         }
         const errText = await res.text().catch(() => '');
-        throw new Error(errText || 'AI generation failed');
+        throw new Error(errText || t('bulk_name_tags.template.error_ai_generation_failed'));
       }
 
       const data: any = await res.json();
@@ -203,8 +226,10 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
       const parsed = parseShapeSpec(responseText);
       if (!parsed.spec) {
-        setSmartErrors(parsed.errors.length ? parsed.errors : ['Could not parse shape specification']);
-        throw new Error('AI did not return valid JSON. See errors below.');
+        setSmartErrors(
+          parsed.errors.length ? parsed.errors : [t('bulk_name_tags.template.error_shape_spec_parse_failed')]
+        );
+        throw new Error(t('bulk_name_tags.template.error_ai_invalid_json'));
       }
 
       setSmartWarnings(parsed.errors);
@@ -213,15 +238,15 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
       const svg = shapeSpecToSvg(parsed.spec);
       const parsedSvg = parseSvg(svg);
       if (!parsedSvg.ok) {
-        setSmartErrors(['Generated SVG could not be parsed']);
-        throw new Error('Generated SVG could not be parsed');
+        setSmartErrors([t('bulk_name_tags.template.error_generated_svg_parse_failed')]);
+        throw new Error(t('bulk_name_tags.template.error_generated_svg_parse_failed'));
       }
 
       const validation = validateLaserSafeSvg(svg);
       setSmartGeneratedPreview(validation.sanitizedSvg || svg);
       if (!validation.ok) {
         setSmartErrors(validation.issues);
-        throw new Error('Generated SVG failed validation');
+        throw new Error(t('bulk_name_tags.template.error_generated_svg_validation_failed'));
       }
 
       const summary = formatShapeSpecSummary(parsed.spec);
@@ -230,7 +255,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
       setSelectedTemplateId('');
       onTemplateLoad(validation.sanitizedSvg || svg);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'AI generation failed');
+      setError(e instanceof Error ? e.message : t('bulk_name_tags.template.error_ai_generation_failed'));
     } finally {
       setIsAiGenerating(false);
     }
@@ -239,7 +264,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
   const handleSilhouetteGenerate = async () => {
     const prompt = aiPrompt.trim();
     if (!prompt) {
-      setError('Please enter a prompt for the AI silhouette');
+      setError(t('bulk_name_tags.template.error_prompt_required_silhouette'));
       return;
     }
 
@@ -260,7 +285,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
         void handleSilhouetteTrace();
       }, 0);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Silhouette generation failed');
+      setError(e instanceof Error ? e.message : t('bulk_name_tags.template.error_silhouette_generation_failed'));
     } finally {
       setIsAiGenerating(false);
     }
@@ -268,7 +293,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
   const handleSilhouetteTrace = async () => {
     if (!silhouetteImageDataUrl) {
-      setError('No image to trace');
+      setError(t('bulk_name_tags.template.error_no_image_to_trace'));
       return;
     }
 
@@ -292,7 +317,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
       allDebug.push(...normalizeResult.debug);
       if (normalizeResult.rotated) {
-        allIssues.push('Image auto-rotated to landscape orientation');
+        allIssues.push(t('bulk_name_tags.template.info_image_auto_rotated'));
       }
 
       const targetW = templateSize?.width || 80;
@@ -334,19 +359,19 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
       }
 
       if (!finalSvg) {
-        throw new Error('Tracing produced empty SVG');
+        throw new Error(t('bulk_name_tags.template.error_empty_svg'));
       }
 
       const parsed = parseSvg(finalSvg);
       if (!parsed.ok) {
-        throw new Error('Traced SVG could not be parsed');
+        throw new Error(t('bulk_name_tags.template.error_traced_svg_parse_failed'));
       }
 
       setSilhouetteTraceDebug(allDebug);
       setSilhouetteNormalizeIssues(allIssues);
       setSilhouetteTracedSvg(finalSvg);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Tracing failed');
+      setError(e instanceof Error ? e.message : t('bulk_name_tags.template.error_tracing_failed'));
     } finally {
       setIsAiGenerating(false);
     }
@@ -354,7 +379,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
   const handleSilhouetteUseAsTemplate = () => {
     if (!silhouetteTracedSvg) {
-      setError('No traced SVG to use');
+      setError(t('bulk_name_tags.template.error_no_traced_svg'));
       return;
     }
     setSelectedTemplateId('');
@@ -376,7 +401,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
   const handleAIGenerateRaw = async () => {
     const prompt = aiPrompt.trim();
     if (!prompt) {
-      setError('Please enter a prompt for the AI template');
+      setError(t('bulk_name_tags.template.error_prompt_required_template'));
       return;
     }
 
@@ -400,10 +425,10 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const errJson: any = await res.json().catch(() => ({}));
-          throw new Error(errJson?.error || 'AI generation failed');
+          throw new Error(errJson?.error || t('bulk_name_tags.template.error_ai_generation_failed'));
         }
         const errText = await res.text().catch(() => '');
-        throw new Error(errText || 'AI generation failed');
+        throw new Error(errText || t('bulk_name_tags.template.error_ai_generation_failed'));
       }
 
       const data: any = await res.json();
@@ -423,14 +448,14 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
       if (!extracted.svg) {
         setAiExtractedSnippet('');
-        throw new Error('No SVG found in AI response');
+        throw new Error(t('bulk_name_tags.template.error_no_svg_in_ai_response'));
       }
 
       setAiExtractedSnippet(extracted.svg.slice(0, 200));
 
       const parsed = parseSvg(extracted.svg);
       if (!parsed.ok) {
-        throw new Error('SVG could not be parsed');
+        throw new Error(t('bulk_name_tags.template.error_ai_svg_parse_failed'));
       }
 
       const validation = validateLaserSafeSvg(extracted.svg);
@@ -438,13 +463,13 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
       if (!validation.ok) {
         setAiIssues(validation.issues);
-        throw new Error('AI generated SVG, but it failed validation. See issues below.');
+        throw new Error(t('bulk_name_tags.template.error_ai_svg_validation_failed'));
       }
 
       setSelectedTemplateId('');
       onTemplateLoad(validation.sanitizedSvg || extracted.svg);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'AI generation failed');
+      setError(e instanceof Error ? e.message : t('bulk_name_tags.template.error_ai_generation_failed'));
     } finally {
       setIsAiGenerating(false);
     }
@@ -452,31 +477,35 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="text-xl font-semibold text-slate-100 mb-2">Step 1: Upload Template</h2>
+      <h2 className="text-xl font-semibold text-slate-100 mb-2">{t('bulk_name_tags.template.step_title')}</h2>
       <p className="text-sm text-slate-400 mb-4">
-        Upload your base SVG template (tag/badge/ornament shape). The template should use millimeters as units.
+        {t('bulk_name_tags.template.desc')}
       </p>
 
       <div className="mb-4">
         <label className="block text-sm font-medium text-slate-300 mb-1">
-          Or choose an example template
+          {t('bulk_name_tags.template.choose_example_label')}
         </label>
         <select
           value={selectedTemplateId}
           onChange={handleExampleChange}
           className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
         >
-          <option value="">-- Select an example --</option>
+          <option value="">{t('bulk_name_tags.template.select_example_placeholder')}</option>
           {templateLibrary.map(t => (
             <option key={t.id} value={t.id}>
-              {t.name}
+              {templateLibraryName(t.id, t.name)}
             </option>
           ))}
         </select>
 
         {selectedTemplateId && (
           <p className="text-xs text-slate-500 mt-1">
-            {templateLibrary.find(t => t.id === selectedTemplateId)?.description}
+            {(() => {
+              const item = templateLibrary.find((x) => x.id === selectedTemplateId);
+              if (!item) return null;
+              return templateLibraryDescription(item.id, item.description);
+            })()}
           </p>
         )}
       </div>
@@ -485,7 +514,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
       {templateSvg && (
         <>
           <div className="mb-4 rounded-md border border-slate-700 bg-slate-100 p-3">
-            <p className="text-sm font-medium text-green-700 mb-2">✓ Template loaded</p>
+            <p className="text-sm font-medium text-green-700 mb-2">{t('bulk_name_tags.template.template_loaded')}</p>
             <div className="max-h-32 overflow-auto">
               <div
                 dangerouslySetInnerHTML={{ __html: templateSvg }}
@@ -508,17 +537,17 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
             return (
               <div className="mb-4 rounded-md border border-slate-700 bg-slate-900/60 p-3">
-                <h3 className="text-sm font-semibold text-slate-200 mb-2">Template size</h3>
+                <h3 className="text-sm font-semibold text-slate-200 mb-2">{t('bulk_name_tags.template.size_title')}</h3>
 
                 {bounds && (
                   <div className="text-xs text-slate-400 mb-3">
-                    Current: {Number(toDisplay(bounds.width).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem} × {Number(toDisplay(bounds.height).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem}
+                    {t('bulk_name_tags.template.size_current_prefix')} {Number(toDisplay(bounds.width).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem} × {Number(toDisplay(bounds.height).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem}
                   </div>
                 )}
 
                 {templateSize && bounds && (
                   <div className="text-xs text-slate-400 mb-3">
-                    Scaled to: {Number(toDisplay(templateSize.width).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem} × {Number(toDisplay(templateSize.height).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem}
+                    {t('bulk_name_tags.template.size_scaled_prefix')} {Number(toDisplay(templateSize.width).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem} × {Number(toDisplay(templateSize.height).toFixed(unitSystem === 'in' ? 3 : 1))}{unitSystem}
                   </div>
                 )}
 
@@ -534,7 +563,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                     }}
                     className="mb-3 px-3 py-1.5 text-xs rounded-md border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
                   >
-                    Enable custom size
+                    {t('bulk_name_tags.template.size_enable_custom')}
                   </button>
                 )}
 
@@ -543,7 +572,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                     <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Width ({unitSystem})
+                      {t('bulk_name_tags.template.size_width').replace('{unit}', unitSystem)}
                     </label>
                     <input
                       type="number"
@@ -564,7 +593,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Height ({unitSystem})
+                      {t('bulk_name_tags.template.size_height').replace('{unit}', unitSystem)}
                     </label>
                     <input
                       type="number"
@@ -592,7 +621,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                       onChange={(e) => onTemplateSizeChange({ ...templateSize, lockAspect: e.target.checked })}
                       className="h-3 w-3 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
                     />
-                    Lock aspect
+                    {t('bulk_name_tags.template.size_lock_aspect')}
                   </label>
 
                   {bounds && (
@@ -603,7 +632,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                       }}
                       className="px-2 py-1 text-xs rounded-md border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
                     >
-                      Reset
+                      {t('bulk_name_tags.template.size_reset')}
                     </button>
                   )}
                 </div>
@@ -616,7 +645,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
           {/* Manual hole controls */}
           <div className="mb-4 rounded-md border border-slate-700 bg-slate-900/60 p-3">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-200">Add Hole</h3>
+              <h3 className="text-sm font-semibold text-slate-200">{t('bulk_name_tags.template.hole_title')}</h3>
               <label className="flex items-center gap-2 text-xs text-slate-300">
                 <input
                   type="checkbox"
@@ -624,7 +653,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                   onChange={(e) => onHoleConfigChange({ ...holeConfig, enabled: e.target.checked })}
                   className="h-3 w-3 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
                 />
-                Enable
+                {t('bulk_name_tags.template.hole_enable')}
               </label>
             </div>
 
@@ -645,7 +674,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-medium text-slate-300">
-                        X Position ({unitSystem})
+                        {t('bulk_name_tags.template.hole_x_position').replace('{unit}', unitSystem)}
                       </label>
                       <span className="text-xs text-slate-400">
                         {unitSystem === 'in' ? (holeConfig.x / 25.4).toFixed(2) : holeConfig.x.toFixed(1)}
@@ -666,7 +695,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-medium text-slate-300">
-                        Y Position ({unitSystem})
+                        {t('bulk_name_tags.template.hole_y_position').replace('{unit}', unitSystem)}
                       </label>
                       <span className="text-xs text-slate-400">
                         {unitSystem === 'in' ? (holeConfig.y / 25.4).toFixed(2) : holeConfig.y.toFixed(1)}
@@ -687,7 +716,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-medium text-slate-300">
-                        Hole Size ({unitSystem})
+                        {t('bulk_name_tags.template.hole_size').replace('{unit}', unitSystem)}
                       </label>
                       <span className="text-xs text-slate-400">
                         {unitSystem === 'in' ? (holeConfig.radius / 25.4).toFixed(2) : holeConfig.radius.toFixed(1)}
@@ -705,7 +734,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                   </div>
 
                   <p className="text-xs text-slate-400">
-                    Position is relative to template origin (top-left)
+                    {t('bulk_name_tags.template.hole_position_hint')}
                   </p>
                 </div>
               );
@@ -715,8 +744,8 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
       )}
 
       <div className="mb-4 border-t border-slate-800 pt-4">
-        <h3 className="text-sm font-semibold text-slate-200 mb-2">Generate template with AI</h3>
-        <p className="text-xs text-slate-400 mb-3">Describe the tag shape you want.</p>
+        <h3 className="text-sm font-semibold text-slate-200 mb-2">{t('bulk_name_tags.template.ai_title')}</h3>
+        <p className="text-xs text-slate-400 mb-3">{t('bulk_name_tags.template.ai_desc')}</p>
 
 
         <div className="flex flex-col gap-3">
@@ -724,7 +753,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
             type="text"
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder="Describe the shape..."
+            placeholder={t('bulk_name_tags.template.ai_prompt_placeholder')}
             className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
 
@@ -740,23 +769,23 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
               disabled={isAiGenerating || !silhouetteConfigured}
               className="px-4 py-2 rounded-md bg-sky-600 text-white font-medium disabled:opacity-60"
             >
-              {isAiGenerating ? 'Generating…' : 'Generate Silhouette'}
+              {isAiGenerating ? t('bulk_name_tags.template.ai_generating') : t('bulk_name_tags.template.ai_generate_silhouette')}
             </button>
           </div>
         </div>
 
         {silhouetteImageDataUrl && (
           <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-            <p className="text-xs text-slate-400 mb-2">Generated silhouette image</p>
+            <p className="text-xs text-slate-400 mb-2">{t('bulk_name_tags.template.ai_silhouette_image_title')}</p>
             <div className="max-h-40 overflow-auto flex justify-center bg-slate-900 rounded p-2">
-              <img src={silhouetteImageDataUrl} alt="Silhouette" className="max-w-full h-auto" />
+              <img src={silhouetteImageDataUrl} alt={t('bulk_name_tags.template.silhouette_alt')} className="max-w-full h-auto" />
             </div>
           </div>
         )}
 
         {silhouetteImageDataUrl && (
           <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
-            <p className="text-sm font-semibold text-slate-200 mb-3">Trace settings</p>
+            <p className="text-sm font-semibold text-slate-200 mb-3">{t('bulk_name_tags.template.trace_settings_title')}</p>
             <div className="mb-3">
               <label className="flex items-center gap-2 text-xs text-slate-300">
                 <input
@@ -765,7 +794,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                   onChange={(e) => setSilhouetteUsePotrace(e.target.checked)}
                   className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
                 />
-                Use Potrace (Logo Clean)
+                {t('bulk_name_tags.template.trace_use_potrace')}
               </label>
             </div>
 
@@ -773,7 +802,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Threshold: {silhouettePotraceThreshold}
+                    {t('bulk_name_tags.template.trace_threshold').replace('{value}', String(silhouettePotraceThreshold))}
                   </label>
                   <input
                     type="range"
@@ -785,21 +814,21 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Denoise</label>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">{t('bulk_name_tags.template.trace_denoise')}</label>
                   <select
                     value={silhouettePotraceDenoise}
                     onChange={(e) => setSilhouettePotraceDenoise(Number(e.target.value))}
                     className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
-                    <option value={0}>0 (none)</option>
-                    <option value={1}>1 (light)</option>
-                    <option value={2}>2 (medium)</option>
-                    <option value={3}>3 (strong)</option>
+                    <option value={0}>{t('bulk_name_tags.template.trace_denoise_0')}</option>
+                    <option value={1}>{t('bulk_name_tags.template.trace_denoise_1')}</option>
+                    <option value={2}>{t('bulk_name_tags.template.trace_denoise_2')}</option>
+                    <option value={3}>{t('bulk_name_tags.template.trace_denoise_3')}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Simplify: {silhouettePotraceOptTolerance.toFixed(2)}
+                    {t('bulk_name_tags.template.trace_simplify').replace('{value}', silhouettePotraceOptTolerance.toFixed(2))}
                   </label>
                   <input
                     type="range"
@@ -819,7 +848,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                       onChange={(e) => setSilhouettePotraceAutoInvert(e.target.checked)}
                       className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
                     />
-                    Auto-invert
+                    {t('bulk_name_tags.template.trace_auto_invert')}
                   </label>
                   <label className="flex items-center gap-2 text-xs text-slate-300">
                     <input
@@ -828,7 +857,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                       onChange={(e) => setSilhouettePotraceInvert(e.target.checked)}
                       className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
                     />
-                    Force invert
+                    {t('bulk_name_tags.template.trace_force_invert')}
                   </label>
                 </div>
               </div>
@@ -836,20 +865,20 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Detail</label>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">{t('bulk_name_tags.template.trace_detail')}</label>
                     <select
                       value={silhouetteTraceDetail}
                       onChange={(e) => setSilhouetteTraceDetail(e.target.value as TraceDetail)}
                       className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                     >
-                      <option value="low">Low (simple)</option>
-                      <option value="medium">Medium (balanced)</option>
-                      <option value="high">High (detailed)</option>
+                      <option value="low">{t('bulk_name_tags.template.trace_detail_low')}</option>
+                      <option value="medium">{t('bulk_name_tags.template.trace_detail_medium')}</option>
+                      <option value="high">{t('bulk_name_tags.template.trace_detail_high')}</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Threshold: {silhouetteThreshold}
+                      {t('bulk_name_tags.template.trace_threshold').replace('{value}', String(silhouetteThreshold))}
                     </label>
                     <input
                       type="range"
@@ -869,7 +898,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                       onChange={(e) => setSilhouetteRemoveSpecks(e.target.checked)}
                       className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-slate-700 rounded"
                     />
-                    Remove small specks
+                    {t('bulk_name_tags.template.trace_remove_specks')}
                   </label>
                 </div>
               </>
@@ -881,7 +910,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                 disabled={isAiGenerating}
                 className="px-4 py-2 rounded-md bg-sky-600 text-white font-medium disabled:opacity-60"
               >
-                {isAiGenerating ? 'Tracing…' : 'Convert to SVG'}
+                {isAiGenerating ? t('bulk_name_tags.template.trace_tracing') : t('bulk_name_tags.template.trace_convert_to_svg')}
               </button>
               {silhouetteTracedSvg && (
                 <button
@@ -889,7 +918,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
                   onClick={handleSilhouetteUseAsTemplate}
                   className="px-4 py-2 rounded-md border border-slate-700 bg-slate-950 text-slate-200 font-medium"
                 >
-                  Use as Template
+                  {t('bulk_name_tags.template.trace_use_as_template')}
                 </button>
               )}
             </div>
@@ -899,7 +928,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
         {silhouetteNormalizeIssues.length > 0 && (
           <div className="mt-3 rounded-md border border-sky-800 bg-sky-950/30 p-3">
-            <p className="text-sm font-semibold text-sky-200 mb-2">Processing info</p>
+            <p className="text-sm font-semibold text-sky-200 mb-2">{t('bulk_name_tags.template.processing_info_title')}</p>
             <ul className="list-disc pl-5 text-xs text-sky-200">
               {silhouetteNormalizeIssues.map((issue, idx) => (
                 <li key={idx}>{issue}</li>
@@ -910,7 +939,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
         {silhouetteTracedSvg && (
           <div className="mt-3 rounded-md border border-slate-800 bg-slate-100 p-3">
-            <p className="text-xs text-slate-600 mb-2">Traced SVG preview</p>
+            <p className="text-xs text-slate-600 mb-2">{t('bulk_name_tags.template.traced_svg_preview_title')}</p>
             <div
               className="max-h-40 overflow-auto flex justify-center [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block"
               dangerouslySetInnerHTML={{ __html: silhouetteTracedSvg }}

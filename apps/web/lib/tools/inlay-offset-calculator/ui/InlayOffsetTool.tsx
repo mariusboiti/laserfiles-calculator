@@ -3,6 +3,8 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
 import { downloadTextFile } from '@/lib/studio/export/download';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { calculateOffsets } from '../core/math';
 import { generateDemoSvgs } from '../core/generateDemoSvgs';
 import type { FitType, InlayStrategy, PreviewShape } from '../types/inlay';
@@ -20,6 +22,8 @@ interface InlayOffsetToolProps {
 
 export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
   const { api } = useToolUx();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   useEffect(() => {
     api.setIsEmpty(false);
@@ -75,13 +79,13 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
     const demo = generateDemoSvgs(shape, res.inlayOffsetMm, res.pocketOffsetMm);
 
     const warn: string[] = [];
-    if (k <= 0) warn.push('Kerf is 0 — offsets will be 0.');
+    if (k <= 0) warn.push(t('inlay_offset_calculator.warnings.kerf_zero'));
     if (Math.abs(res.inlayOffsetMm) > 2 || Math.abs(res.pocketOffsetMm) > 2) {
-      warn.push('Offsets are unusually large (> 2mm). Double-check kerf and fit type.');
+      warn.push(t('inlay_offset_calculator.warnings.large_offsets'));
     }
 
     return { result: res, svgs: demo, warnings: warn };
-  }, [kerfMm, fit, strategy, shape]);
+  }, [kerfMm, fit, strategy, shape, t]);
 
   const previewSvg = activeTab === 'inlay' ? svgs.inlaySvg : svgs.pocketSvg;
 
@@ -99,7 +103,7 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
         <div className="space-y-4">
           {/* Presets */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-            <div className="text-sm font-medium text-slate-100">Quick Presets</div>
+            <div className="text-sm font-medium text-slate-100">{t('inlay_offset_calculator.presets.title')}</div>
             <div className="mt-3 flex flex-wrap gap-2">
               {INLAY_PRESETS.map((preset) => (
                 <button
@@ -115,11 +119,11 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-            <div className="text-sm font-medium text-slate-100">Inputs</div>
+            <div className="text-sm font-medium text-slate-100">{t('inlay_offset_calculator.inputs.title')}</div>
 
             <div className="mt-3 grid grid-cols-1 gap-3">
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Kerf (mm)</div>
+                <div className="text-xs text-slate-300">{t('inlay_offset_calculator.inputs.kerf')}</div>
                 <input
                   type="number"
                   step="0.01"
@@ -131,7 +135,7 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Material thickness (mm)</div>
+                <div className="text-xs text-slate-300">{t('inlay_offset_calculator.inputs.material_thickness')}</div>
                 <input
                   type="number"
                   step="0.1"
@@ -144,7 +148,7 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Extra clearance (mm)</div>
+                <div className="text-xs text-slate-300">{t('inlay_offset_calculator.inputs.extra_clearance')}</div>
                 <input
                   type="number"
                   step="0.01"
@@ -154,44 +158,44 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
                   max={0.5}
                   onChange={(e) => setExtraClearance(Number(e.target.value))}
                 />
-                <div className="text-xs text-slate-400">Fine-tune fit (usually 0)</div>
+                <div className="text-xs text-slate-400">{t('inlay_offset_calculator.inputs.extra_clearance_hint')}</div>
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Fit type</div>
+                <div className="text-xs text-slate-300">{t('inlay_offset_calculator.inputs.fit_type')}</div>
                 <select
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   value={fit}
                   onChange={(e) => setFit(e.target.value as FitType)}
                 >
-                  <option value="tight">Tight fit</option>
-                  <option value="normal">Normal</option>
-                  <option value="loose">Loose</option>
+                  <option value="tight">{t('inlay_offset_calculator.inputs.fit_tight')}</option>
+                  <option value="normal">{t('inlay_offset_calculator.inputs.fit_normal')}</option>
+                  <option value="loose">{t('inlay_offset_calculator.inputs.fit_loose')}</option>
                 </select>
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Inlay strategy</div>
+                <div className="text-xs text-slate-300">{t('inlay_offset_calculator.inputs.strategy')}</div>
                 <select
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   value={strategy}
                   onChange={(e) => setStrategy(e.target.value as InlayStrategy)}
                 >
-                  <option value="both">Offset both</option>
-                  <option value="pocket-only">Offset only pocket</option>
-                  <option value="inlay-only">Offset only inlay</option>
+                  <option value="both">{t('inlay_offset_calculator.inputs.strategy_both')}</option>
+                  <option value="pocket-only">{t('inlay_offset_calculator.inputs.strategy_pocket_only')}</option>
+                  <option value="inlay-only">{t('inlay_offset_calculator.inputs.strategy_inlay_only')}</option>
                 </select>
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Preview shape</div>
+                <div className="text-xs text-slate-300">{t('inlay_offset_calculator.inputs.preview_shape')}</div>
                 <select
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   value={shape}
                   onChange={(e) => setShape(e.target.value as PreviewShape)}
                 >
-                  <option value="circle">Circle</option>
-                  <option value="rounded-rect">Rounded rectangle</option>
+                  <option value="circle">{t('inlay_offset_calculator.inputs.shape_circle')}</option>
+                  <option value="rounded-rect">{t('inlay_offset_calculator.inputs.shape_rounded_rect')}</option>
                 </select>
               </label>
             </div>
@@ -207,31 +211,31 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
 
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-slate-100">Calculator</div>
+              <div className="text-sm font-medium text-slate-100">{t('inlay_offset_calculator.calc.title')}</div>
               <button
                 onClick={handleCopyOffsets}
                 className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
-                title="Copy offsets to clipboard"
+                title={t('inlay_offset_calculator.calc.copy_title')}
               >
-                Copy Offsets
+                {t('inlay_offset_calculator.calc.copy_btn')}
               </button>
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-200">
               <div className="flex items-center justify-between">
-                <div>Base offset (kerf / 2)</div>
+                <div>{t('inlay_offset_calculator.calc.base_offset')}</div>
                 <div className="font-mono">{offsetResult.baseOffset.toFixed(3)} mm</div>
               </div>
               <div className="flex items-center justify-between">
-                <div>Total offset</div>
+                <div>{t('inlay_offset_calculator.calc.total_offset')}</div>
                 <div className="font-mono">{offsetResult.totalOffset.toFixed(3)} mm</div>
               </div>
               <div className="flex items-center justify-between border-t border-slate-700 pt-2">
-                <div className="font-medium">Positive (Inlay piece)</div>
+                <div className="font-medium">{t('inlay_offset_calculator.calc.positive')}</div>
                 <div className="font-mono text-green-400">{formatOffset(offsetResult.positiveOffset)}</div>
               </div>
               <div className="flex items-center justify-between">
-                <div className="font-medium">Negative (Base cutout)</div>
+                <div className="font-medium">{t('inlay_offset_calculator.calc.negative')}</div>
                 <div className="font-mono text-blue-400">{formatOffset(offsetResult.negativeOffset)}</div>
               </div>
             </div>
@@ -245,14 +249,14 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
             )}
 
             <div className="mt-3 text-xs text-slate-400">
-              Formula: offset = kerf / 2 + extra clearance
+              {t('inlay_offset_calculator.calc.formula')}
             </div>
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-slate-100">Preview</div>
+            <div className="text-sm font-medium text-slate-100">{t('inlay_offset_calculator.preview.title')}</div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -263,7 +267,7 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
                     : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900'
                 }`}
               >
-                Inlay
+                {t('inlay_offset_calculator.preview.tab_inlay')}
               </button>
               <button
                 type="button"
@@ -274,7 +278,7 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
                     : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-900'
                 }`}
               >
-                Pocket
+                {t('inlay_offset_calculator.preview.tab_pocket')}
               </button>
             </div>
           </div>
@@ -289,14 +293,14 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
               onClick={exportInlay}
               className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
             >
-              Export inlay.svg
+              {t('inlay_offset_calculator.preview.export_inlay')}
             </button>
             <button
               type="button"
               onClick={exportPocket}
               className="rounded-md border border-slate-800 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-900"
             >
-              Export pocket.svg
+              {t('inlay_offset_calculator.preview.export_pocket')}
             </button>
           </div>
         </div>

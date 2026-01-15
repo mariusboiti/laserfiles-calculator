@@ -3,6 +3,8 @@ import type { TutorialData } from '@/components/tutorial/types';
 
 type TutorialLoader = () => Promise<{ default: TutorialData }>;
 
+type LocalizedTutorialLoaders = Record<string, Record<string, TutorialLoader>>;
+
 const tutorialLoaders: Record<string, TutorialLoader> = {
   'boxmaker': () => import('./boxmaker'),
   'engraveprep': () => import('./engraveprep'),
@@ -21,12 +23,29 @@ const tutorialLoaders: Record<string, TutorialLoader> = {
   'product-label-generator': () => import('./product-label-generator'),
 };
 
+const localizedTutorialLoaders: LocalizedTutorialLoaders = {
+  'product-label-generator': {
+    ro: () => import('./product-label-generator.ro'),
+    es: () => import('./product-label-generator.es'),
+    fr: () => import('./product-label-generator.fr'),
+    de: () => import('./product-label-generator.de'),
+  },
+};
+
+function normalizeLocale(locale?: string): string | null {
+  const l = String(locale || '').trim().toLowerCase();
+  if (!l) return null;
+  return l.split('-')[0] || null;
+}
+
 export function hasTutorial(toolSlug: string): boolean {
   return toolSlug in tutorialLoaders;
 }
 
-export async function loadTutorial(toolSlug: string): Promise<TutorialData | null> {
-  const loader = tutorialLoaders[toolSlug];
+export async function loadTutorial(toolSlug: string, locale?: string): Promise<TutorialData | null> {
+  const normalizedLocale = normalizeLocale(locale);
+  const localizedLoader = normalizedLocale ? localizedTutorialLoaders[toolSlug]?.[normalizedLocale] : undefined;
+  const loader = localizedLoader || tutorialLoaders[toolSlug];
   if (!loader) return null;
   
   try {

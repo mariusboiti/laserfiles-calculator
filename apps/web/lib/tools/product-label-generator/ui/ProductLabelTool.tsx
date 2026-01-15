@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
 import { downloadTextFile } from '@/lib/studio/export/download';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { generateLabelSvg } from '../core/generateLabelSvg';
 
 function safeFilenamePart(value: string) {
@@ -17,15 +19,31 @@ export function ProductLabelTool({
   onGetExportPayload?: (getExportPayload: () => Promise<{ svg: string; name?: string; meta?: any }> | { svg: string; name?: string; meta?: any }) => void;
 }) {
   const { api } = useToolUx();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   useEffect(() => {
     api.setIsEmpty(false);
   }, [api]);
 
-  const [productName, setProductName] = useState('Product Name');
-  const [sku, setSku] = useState('SKU-001');
+  const defaultProductName = t('product_labels.defaults.product_name');
+  const defaultSku = t('product_labels.defaults.sku');
+
+  const prevDefaultsRef = useRef<{ productName: string; sku: string } | null>(null);
+
+  const [productName, setProductName] = useState(() => defaultProductName);
+  const [sku, setSku] = useState(() => defaultSku);
   const [price, setPrice] = useState('');
   const [qrText, setQrText] = useState('');
+
+  useEffect(() => {
+    const prev = prevDefaultsRef.current;
+    if (prev) {
+      if (productName === prev.productName) setProductName(defaultProductName);
+      if (sku === prev.sku) setSku(defaultSku);
+    }
+    prevDefaultsRef.current = { productName: defaultProductName, sku: defaultSku };
+  }, [defaultProductName, defaultSku, productName, sku]);
 
   const [widthMm, setWidthMm] = useState<number>(60);
   const [heightMm, setHeightMm] = useState<number>(30);
@@ -95,7 +113,7 @@ export function ProductLabelTool({
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="grid grid-cols-1 gap-3">
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Product Name</div>
+                <div className="text-xs text-slate-300">{t('product_labels.inputs.product_name')}</div>
                 <input
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   value={productName}
@@ -104,7 +122,7 @@ export function ProductLabelTool({
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">SKU</div>
+                <div className="text-xs text-slate-300">{t('product_labels.inputs.sku')}</div>
                 <input
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   value={sku}
@@ -113,22 +131,22 @@ export function ProductLabelTool({
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Price (optional)</div>
+                <div className="text-xs text-slate-300">{t('product_labels.inputs.price_optional')}</div>
                 <input
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="e.g. 19.99 RON"
+                  placeholder={t('product_labels.inputs.price_placeholder')}
                 />
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">QR Text / URL (optional)</div>
+                <div className="text-xs text-slate-300">{t('product_labels.inputs.qr_text_optional')}</div>
                 <input
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   value={qrText}
                   onChange={(e) => setQrText(e.target.value)}
-                  placeholder="https://..."
+                  placeholder={t('product_labels.inputs.qr_text_placeholder')}
                 />
               </label>
             </div>
@@ -137,7 +155,7 @@ export function ProductLabelTool({
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="grid grid-cols-2 gap-3">
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Width (mm)</div>
+                <div className="text-xs text-slate-300">{t('product_labels.inputs.width_mm')}</div>
                 <input
                   type="number"
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
@@ -148,7 +166,7 @@ export function ProductLabelTool({
               </label>
 
               <label className="grid gap-1">
-                <div className="text-xs text-slate-300">Height (mm)</div>
+                <div className="text-xs text-slate-300">{t('product_labels.inputs.height_mm')}</div>
                 <input
                   type="number"
                   className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
@@ -190,7 +208,7 @@ export function ProductLabelTool({
                   checked={showBorder}
                   onChange={(e) => setShowBorder(e.target.checked)}
                 />
-                Border
+                {t('product_labels.options.border')}
               </label>
 
               <label className="flex items-center gap-2 text-sm text-slate-200">
@@ -199,7 +217,7 @@ export function ProductLabelTool({
                   checked={rounded}
                   onChange={(e) => setRounded(e.target.checked)}
                 />
-                Rounded corners
+                {t('product_labels.options.rounded_corners')}
               </label>
 
               <label className="flex items-center gap-2 text-sm text-slate-200">
@@ -208,7 +226,7 @@ export function ProductLabelTool({
                   checked={showQr}
                   onChange={(e) => setShowQr(e.target.checked)}
                 />
-                QR code
+                {t('product_labels.options.qr_code')}
               </label>
             </div>
 
@@ -218,19 +236,19 @@ export function ProductLabelTool({
                 onClick={onExport}
                 className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
               >
-                Export SVG
+                {t('product_labels.actions.export_svg')}
               </button>
             </div>
           </div>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-          <div className="mb-2 text-xs text-slate-300">Live Preview</div>
+          <div className="mb-2 text-xs text-slate-300">{t('product_labels.preview.live_title')}</div>
           <div className="overflow-auto rounded-lg border border-slate-800 bg-white p-3 [&_svg]:h-auto [&_svg]:max-w-full">
             {svg ? (
               <div dangerouslySetInnerHTML={{ __html: svg }} />
             ) : (
-              <div className="text-sm text-slate-500">Preview unavailable</div>
+              <div className="text-sm text-slate-500">{t('product_labels.preview.unavailable')}</div>
             )}
           </div>
         </div>

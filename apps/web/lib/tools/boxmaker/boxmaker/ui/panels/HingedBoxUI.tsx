@@ -174,14 +174,14 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
   const handleGenerateArtwork = async () => {
     const prompt = faceArtworkPrompt.trim();
     if (!prompt) {
-      setArtworkError('Please enter a prompt');
+      setArtworkError(t('boxmaker.artwork_error.prompt_required'));
       return;
     }
 
     const faceKeys = ['front', 'back', 'left', 'right', 'bottom', 'lid'];
     const targets = faceArtworkTargets.filter((t) => faceKeys.includes(t));
     if (targets.length === 0) {
-      setArtworkError('Select at least one face');
+      setArtworkError(t('boxmaker.artwork_error.select_face'));
       return;
     }
 
@@ -200,16 +200,16 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const errJson: any = await res.json().catch(() => ({}));
-          throw new Error(errJson?.error || 'AI generation failed');
+          throw new Error(errJson?.error || t('boxmaker.artwork_error.ai_generation_failed'));
         }
         const text = await res.text().catch(() => '');
-        throw new Error(text || 'AI generation failed');
+        throw new Error(text || t('boxmaker.artwork_error.ai_generation_failed'));
       }
 
       const json: any = await res.json().catch(() => ({}));
       const dataUrl = typeof json?.dataUrl === 'string' ? json.dataUrl : '';
       if (!dataUrl) {
-        throw new Error('AI image endpoint returned no dataUrl');
+        throw new Error(t('boxmaker.artwork_error.ai_no_data_url'));
       }
 
       setFaceArtworkByFace((prev) => {
@@ -242,7 +242,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
         setSelectedArtworkFace(targets[0]);
       }
     } catch (e) {
-      setArtworkError(e instanceof Error ? e.message : 'AI generation failed');
+      setArtworkError(e instanceof Error ? e.message : t('boxmaker.artwork_error.ai_generation_failed'));
     } finally {
       setIsArtworkGenerating(false);
     }
@@ -252,7 +252,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
     const faceName = String(selectedArtworkFace || '').trim();
     const art = faceName ? faceArtworkByFace[faceName] : null;
     if (!faceName || !art?.imageDataUrl) {
-      setArtworkError('Select a face with artwork to trace');
+      setArtworkError(t('boxmaker.trace_error.select_face_with_artwork'));
       return;
     }
 
@@ -286,27 +286,28 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
       const json: any = await res.json().catch(() => ({}));
       if (!res.ok || !json?.ok) {
-        throw new Error((typeof json?.error === 'string' && json.error) || 'Trace failed');
+        throw new Error((typeof json?.error === 'string' && json.error) || t('boxmaker.trace_error.trace_failed'));
       }
 
       const paths: string[] = Array.isArray(json?.paths) ? json.paths.filter((p: any) => typeof p === 'string') : [];
       if (!paths.length) {
-        throw new Error('Trace returned no paths');
+        throw new Error(t('boxmaker.trace_error.no_paths'));
       }
 
       const svgText = `<svg xmlns="http://www.w3.org/2000/svg">${paths
         .map((d) => `<path d="${d}" />`)
         .join('')}</svg>`;
 
+      const op: PathOperation = 'cut';
       const face = importSvgAsFace({
         svgText,
         id: `trace-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        op: 'cut',
+        op,
         label: `trace-${faceName}`,
       });
 
       if (!face) {
-        throw new Error('Trace result could not be imported as SVG');
+        throw new Error(t('boxmaker.trace_error.import_failed'));
       }
 
       const id = `${faceName}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -328,7 +329,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
       setSelectedEngraveId(id);
       setEngraveTarget(faceName as keyof HingedBoxSvgs);
     } catch (e) {
-      setArtworkError(e instanceof Error ? e.message : 'Trace failed');
+      setArtworkError(e instanceof Error ? e.message : t('boxmaker.trace_error.trace_failed'));
     } finally {
       setIsArtworkGenerating(false);
     }
@@ -432,8 +433,8 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
       <header className="border-b border-slate-900 bg-slate-950/80">
         <div className="mx-auto flex w-full items-center justify-between gap-4 px-4 py-3">
           <div>
-            <h1 className="text-sm font-semibold text-slate-100 md:text-base">LaserFilesPro Box Maker</h1>
-            <p className="text-[11px] text-slate-400">Hinged Box (v1) · panel-by-panel SVG export</p>
+            <h1 className="text-sm font-semibold text-slate-100 md:text-base">{t('boxmaker.header_title')}</h1>
+            <p className="text-[11px] text-slate-400">{t('boxmaker.hinged_subtitle')}</p>
           </div>
         </div>
       </header>
@@ -447,7 +448,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
               ) : null}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Box Presets</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.presets')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {HINGED_PRESETS.map((preset) => (
                     <button
@@ -455,7 +456,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                       type="button"
                       onClick={() => applyBoxPreset(preset.name)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
-                      title={preset.description}
+                      title={t(`boxmaker.preset_desc.hinged_${preset.name.toLowerCase()}`)}
                     >
                       {t(`boxmaker.preset_${preset.name.toLowerCase()}`)}
                     </button>
@@ -464,7 +465,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Engrave SVG</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.engrave_svg')}</div>
                 <div className="mt-3 grid gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <input
@@ -520,16 +521,16 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                       value={engraveOp}
                       onChange={(e) => setEngraveOp(e.target.value as PathOperation)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
-                      title="Operation"
+                      title={t('boxmaker.operation')}
                     >
-                      <option value="engrave">ENGRAVE</option>
-                      <option value="score">SCORE</option>
+                      <option value="engrave">{t('boxmaker.op_engrave')}</option>
+                      <option value="score">{t('boxmaker.op_score')}</option>
                     </select>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="grid gap-1">
-                      <div className="text-[11px] text-slate-400">Target panel</div>
+                      <div className="text-[11px] text-slate-400">{t('boxmaker.target_panel')}</div>
                       <select
                         value={engraveTarget}
                         onChange={(e) => setEngraveTarget(e.target.value as keyof HingedBoxSvgs)}

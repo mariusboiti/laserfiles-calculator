@@ -50,7 +50,10 @@ export function DownloadSection({
           <div className="text-sm text-slate-300 bg-slate-800/60 p-3 rounded border border-slate-700">
             <div className="font-medium">{t('bulk_name_tags.download.sheet_capacity')}</div>
             <div>
-              {sheetStats.tagsPerRow} per row × {sheetStats.tagsPerColumn} per column = {sheetStats.maxTags} max
+              {t('bulk_name_tags.download.capacity_math')
+                .replace('{perRow}', String(sheetStats.tagsPerRow))
+                .replace('{perColumn}', String(sheetStats.tagsPerColumn))
+                .replace('{max}', String(sheetStats.maxTags))}
             </div>
             <div>{t('bulk_name_tags.download.names')} {sheetStats.namesCount}</div>
 

@@ -242,7 +242,9 @@ function App({ onResetCallback }: AppProps) {
       setGeneratedContent(result);
     } catch (error) {
       console.error('Generation error:', error);
-      alert(`${t('bulk_name_tags.errors.generate_failed')} ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(
+        `${t('bulk_name_tags.errors.generate_failed')} ${error instanceof Error ? error.message : t('bulk_name_tags.errors.unknown_error')}`
+      );
     } finally {
       setIsGenerating(false);
     }

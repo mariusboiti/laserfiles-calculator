@@ -1,4 +1,7 @@
 import type { SheetLayoutConfig, UnitSystem } from '../types';
+import { useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface SheetSettingsProps {
   config: SheetLayoutConfig;
@@ -7,6 +10,9 @@ interface SheetSettingsProps {
 }
 
 export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const updateConfig = (updates: Partial<SheetLayoutConfig>) => {
     onChange({ ...config, ...updates });
   };
@@ -27,20 +33,20 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
-      <h3 className="text-lg font-semibold text-slate-100 mb-4">Layout Settings</h3>
+      <h3 className="text-lg font-semibold text-slate-100 mb-4">{t('bulk_name_tags.sheet.title')}</h3>
 
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">
-            Output Mode
+            {t('bulk_name_tags.sheet.output_mode')}
           </label>
           <select
             value={config.outputMode}
             onChange={(e) => updateConfig({ outputMode: e.target.value as 'sheet' | 'separate' })}
             className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
-            <option value="sheet">Single Sheet SVG (Grid Layout)</option>
-            <option value="separate">Separate SVG per Name (ZIP)</option>
+            <option value="sheet">{t('bulk_name_tags.sheet.output_mode_sheet')}</option>
+            <option value="separate">{t('bulk_name_tags.sheet.output_mode_separate')}</option>
           </select>
         </div>
 
@@ -49,7 +55,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Sheet Width ({unitSystem})
+                  {t('bulk_name_tags.sheet.sheet_width').replace('{unit}', unitSystem)}
                 </label>
                 <input
                   type="number"
@@ -64,7 +70,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Sheet Height ({unitSystem})
+                  {t('bulk_name_tags.sheet.sheet_height').replace('{unit}', unitSystem)}
                 </label>
                 <input
                   type="number"
@@ -81,7 +87,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Horizontal Spacing ({unitSystem})
+                  {t('bulk_name_tags.sheet.horizontal_spacing').replace('{unit}', unitSystem)}
                 </label>
                 <input
                   type="number"
@@ -96,7 +102,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Vertical Spacing ({unitSystem})
+                  {t('bulk_name_tags.sheet.vertical_spacing').replace('{unit}', unitSystem)}
                 </label>
                 <input
                   type="number"
@@ -112,7 +118,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
-                Margin ({unitSystem})
+                {t('bulk_name_tags.sheet.margin').replace('{unit}', unitSystem)}
               </label>
               <input
                 type="number"
@@ -127,15 +133,15 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
-                Rotation
+                {t('bulk_name_tags.sheet.rotation')}
               </label>
               <select
                 value={config.rotation}
                 onChange={(e) => updateConfig({ rotation: Number(e.target.value) as 0 | 90 })}
                 className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
               >
-                <option value="0">0° (No Rotation)</option>
-                <option value="90">90° (Rotated)</option>
+                <option value="0">{t('bulk_name_tags.sheet.rotation_0')}</option>
+                <option value="90">{t('bulk_name_tags.sheet.rotation_90')}</option>
               </select>
             </div>
 
@@ -147,7 +153,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
                 className="h-4 w-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
               />
               <span>
-                Fill sheet to capacity (repeat names)
+                {t('bulk_name_tags.sheet.fill_to_capacity')}
               </span>
             </label>
 
@@ -160,7 +166,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
                   className="h-4 w-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
                 />
                 <span>
-                  Specify grid manually (columns × rows)
+                  {t('bulk_name_tags.sheet.manual_grid')}
                 </span>
               </label>
 
@@ -168,7 +174,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
                 <div className="grid grid-cols-2 gap-4 ml-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-1">
-                      Columns
+                      {t('bulk_name_tags.sheet.columns')}
                     </label>
                     <input
                       type="number"
@@ -182,7 +188,7 @@ export function SheetSettings({ config, onChange, unitSystem }: SheetSettingsPro
 
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-1">
-                      Rows
+                      {t('bulk_name_tags.sheet.rows')}
                     </label>
                     <input
                       type="number"

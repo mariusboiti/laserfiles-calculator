@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { CSVMapping } from '../types';
 import type { ParsedCSVData } from '../utils/csvUtils';
 import { parseCSV } from '../utils/csvUtils';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface CSVUploadProps {
   onCSVLoad: (data: ParsedCSVData, mapping: CSVMapping) => void;
@@ -10,6 +12,9 @@ interface CSVUploadProps {
 }
 
 export function CSVUpload({ onCSVLoad, csvData, mapping }: CSVUploadProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [error, setError] = useState<string>('');
   const [localMapping, setLocalMapping] = useState<CSVMapping>(mapping);
 
@@ -18,14 +23,14 @@ export function CSVUpload({ onCSVLoad, csvData, mapping }: CSVUploadProps) {
     if (!file) return;
 
     if (!file.name.endsWith('.csv')) {
-      setError('Please upload a CSV file');
+      setError(t('bulk_name_tags.csv.error_not_csv'));
       return;
     }
 
     try {
       const data = await parseCSV(file);
       if (data.headers.length === 0) {
-        setError('CSV file has no headers');
+        setError(t('bulk_name_tags.csv.error_no_headers'));
         return;
       }
 
@@ -38,7 +43,7 @@ export function CSVUpload({ onCSVLoad, csvData, mapping }: CSVUploadProps) {
       setError('');
       onCSVLoad(data, defaultMapping);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to parse CSV');
+      setError(err instanceof Error ? err.message : t('bulk_name_tags.csv.error_parse_failed'));
     }
   };
 
@@ -52,9 +57,9 @@ export function CSVUpload({ onCSVLoad, csvData, mapping }: CSVUploadProps) {
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="text-xl font-semibold text-slate-100 mb-2">Step 2: Upload Names (CSV)</h2>
+      <h2 className="text-xl font-semibold text-slate-100 mb-2">{t('bulk_name_tags.csv.step_title')}</h2>
       <p className="text-sm text-slate-400 mb-4">
-        Upload a CSV file with at least a &quot;Name&quot; column. Optionally include a second column for additional text.
+        {t('bulk_name_tags.csv.desc')}
       </p>
 
       <input
@@ -70,12 +75,14 @@ export function CSVUpload({ onCSVLoad, csvData, mapping }: CSVUploadProps) {
 
       {csvData && (
         <div className="mt-4 space-y-4">
-          <p className="text-sm font-medium text-green-600">✓ CSV loaded ({csvData.rows.length} rows)</p>
+          <p className="text-sm font-medium text-green-600">
+            {t('bulk_name_tags.csv.loaded').replace('{count}', String(csvData.rows.length))}
+          </p>
 
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
-                Name Column
+                {t('bulk_name_tags.csv.name_column')}
               </label>
               <select
                 value={localMapping.nameColumn}
@@ -90,14 +97,14 @@ export function CSVUpload({ onCSVLoad, csvData, mapping }: CSVUploadProps) {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
-                Second Line Column (Optional)
+                {t('bulk_name_tags.csv.line2_column')}
               </label>
               <select
                 value={localMapping.line2Column || ''}
                 onChange={(e) => handleMappingChange('line2Column', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">None</option>
+                <option value="">{t('bulk_name_tags.csv.none_option')}</option>
                 {csvData.headers.map(header => (
                   <option key={header} value={header}>{header}</option>
                 ))}
@@ -132,7 +139,9 @@ export function CSVUpload({ onCSVLoad, csvData, mapping }: CSVUploadProps) {
             </div>
             {csvData.rows.length > 10 && (
               <div className="bg-gray-50 px-4 py-2 text-xs text-gray-500">
-                Showing first 10 of {csvData.rows.length} rows
+                {t('bulk_name_tags.csv.showing_first')
+                  .replace('{shown}', '10')
+                  .replace('{total}', String(csvData.rows.length))}
               </div>
             )}
           </div>
