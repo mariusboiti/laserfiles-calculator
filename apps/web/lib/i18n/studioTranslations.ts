@@ -434,6 +434,9 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'bulk_name_tags.download.zip_ready': '{count} SVG files ready. Click to download ZIP.',
     'bulk_name_tags.footer': 'LaserFilesPro © 2024 - Bulk Name Tag Generator',
     'bulk_name_tags.errors.generate_failed': 'Error generating tags:',
+    'bulk_name_tags.errors.unknown_error': 'Unknown error',
+    'bulk_name_tags.download.capacity_math': '{perRow} per row × {perColumn} per column = {max} max',
+    'bulk_name_tags.template.silhouette_alt': 'Silhouette',
     'bulk_name_tags.csv.step_title': 'Step 2: Upload Names (CSV)',
     'bulk_name_tags.csv.desc':
       'Upload a CSV file with at least a "Name" column. Optionally include a second column for additional text.',
@@ -1796,6 +1799,9 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'bulk_name_tags.download.zip_ready': '{count} fișiere SVG pregătite. Apasă pentru a descărca ZIP.',
     'bulk_name_tags.footer': 'LaserFilesPro © 2024 - Generator Etichete Nume (Bulk)',
     'bulk_name_tags.errors.generate_failed': 'Eroare la generarea etichetelor:',
+    'bulk_name_tags.errors.unknown_error': 'Eroare necunoscută',
+    'bulk_name_tags.download.capacity_math': '{perRow} pe rând × {perColumn} pe coloană = {max} max',
+    'bulk_name_tags.template.silhouette_alt': 'Siluetă',
     'bulk_name_tags.csv.step_title': 'Pasul 2: Încarcă nume (CSV)',
     'bulk_name_tags.csv.desc':
       'Încarcă un fișier CSV cu cel puțin o coloană "Nume". Opțional, poți include o a doua coloană pentru text suplimentar.',
@@ -3116,6 +3122,9 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'bulk_name_tags.download.zip_ready': '{count} archivos SVG listos. Haz clic para descargar el ZIP.',
     'bulk_name_tags.footer': 'LaserFilesPro © 2024 - Generador de Etiquetas de Nombre en Lote',
     'bulk_name_tags.errors.generate_failed': 'Error al generar etiquetas:',
+    'bulk_name_tags.errors.unknown_error': 'Error desconocido',
+    'bulk_name_tags.download.capacity_math': '{perRow} por fila × {perColumn} por columna = {max} máx',
+    'bulk_name_tags.template.silhouette_alt': 'Silueta',
     'bulk_name_tags.csv.step_title': 'Paso 2: Subir nombres (CSV)',
     'bulk_name_tags.csv.desc':
       'Sube un archivo CSV con al menos una columna "Name". Opcionalmente incluye una segunda columna para texto adicional.',
@@ -4435,6 +4444,9 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'bulk_name_tags.download.zip_ready': '{count} fichiers SVG prêts. Cliquez pour télécharger le ZIP.',
     'bulk_name_tags.footer': 'LaserFilesPro © 2024 - Générateur d\'étiquettes en lot',
     'bulk_name_tags.errors.generate_failed': 'Erreur lors de la génération des étiquettes :',
+    'bulk_name_tags.errors.unknown_error': 'Erreur inconnue',
+    'bulk_name_tags.download.capacity_math': '{perRow} par ligne × {perColumn} par colonne = {max} max',
+    'bulk_name_tags.template.silhouette_alt': 'Silhouette',
     'bulk_name_tags.csv.step_title': 'Étape 2 : Importer des noms (CSV)',
     'bulk_name_tags.csv.desc':
       'Importez un fichier CSV avec au moins une colonne "Name". Vous pouvez ajouter une seconde colonne pour du texte supplémentaire.',
@@ -5755,6 +5767,9 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'bulk_name_tags.download.zip_ready': '{count} SVG-Dateien bereit. Klicke zum Herunterladen des ZIP.',
     'bulk_name_tags.footer': 'LaserFilesPro © 2024 - Namensschilder-Generator (Batch)',
     'bulk_name_tags.errors.generate_failed': 'Fehler beim Erstellen der Namensschilder:',
+    'bulk_name_tags.errors.unknown_error': 'Unbekannter Fehler',
+    'bulk_name_tags.download.capacity_math': '{perRow} pro Reihe × {perColumn} pro Spalte = {max} max',
+    'bulk_name_tags.template.silhouette_alt': 'Silhouette',
     'bulk_name_tags.csv.step_title': 'Schritt 2: Namen hochladen (CSV)',
     'bulk_name_tags.csv.desc':
       'Lade eine CSV-Datei mit mindestens einer "Name"-Spalte hoch. Optional kannst du eine zweite Spalte für zusätzlichen Text hinzufügen.',

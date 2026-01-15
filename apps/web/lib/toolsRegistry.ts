@@ -48,7 +48,7 @@ export const toolsRegistry: Tool[] = [
     name: 'Bulk Name Tag Generator',
     versionLabel: '',
     status: 'stable',
-    href: '/studio/tools/bulk-name-tag',
+    href: '/studio/tools/bulk-name-tags',
     description: 'Create multiple personalized name tags from a list in batch',
   },
 

@@ -26,6 +26,24 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
+  const templateLibraryName = useCallback(
+    (id: string, fallback: string) => {
+      const key = `bulk_name_tags.template_library.${id}.name`;
+      const translated = getStudioTranslation(locale as any, key);
+      return translated === key ? fallback : translated;
+    },
+    [locale]
+  );
+
+  const templateLibraryDescription = useCallback(
+    (id: string, fallback: string) => {
+      const key = `bulk_name_tags.template_library.${id}.description`;
+      const translated = getStudioTranslation(locale as any, key);
+      return translated === key ? fallback : translated;
+    },
+    [locale]
+  );
+
   const [error, setError] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [aiPrompt, setAiPrompt] = useState<string>('');
@@ -476,14 +494,18 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
           <option value="">{t('bulk_name_tags.template.select_example_placeholder')}</option>
           {templateLibrary.map(t => (
             <option key={t.id} value={t.id}>
-              {t.name}
+              {templateLibraryName(t.id, t.name)}
             </option>
           ))}
         </select>
 
         {selectedTemplateId && (
           <p className="text-xs text-slate-500 mt-1">
-            {templateLibrary.find(t => t.id === selectedTemplateId)?.description}
+            {(() => {
+              const item = templateLibrary.find((x) => x.id === selectedTemplateId);
+              if (!item) return null;
+              return templateLibraryDescription(item.id, item.description);
+            })()}
           </p>
         )}
       </div>
@@ -756,7 +778,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
           <div className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
             <p className="text-xs text-slate-400 mb-2">{t('bulk_name_tags.template.ai_silhouette_image_title')}</p>
             <div className="max-h-40 overflow-auto flex justify-center bg-slate-900 rounded p-2">
-              <img src={silhouetteImageDataUrl} alt="Silhouette" className="max-w-full h-auto" />
+              <img src={silhouetteImageDataUrl} alt={t('bulk_name_tags.template.silhouette_alt')} className="max-w-full h-auto" />
             </div>
           </div>
         )}
