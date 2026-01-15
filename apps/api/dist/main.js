@@ -32,6 +32,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 require("reflect-metadata");
 const dotenv = __importStar(require("dotenv"));
@@ -44,6 +47,7 @@ const app_globals_1 = require("./app.globals");
 const offcuts_service_1 = require("./offcuts/offcuts.service");
 const sales_channels_connections_service_1 = require("./sales-channels/sales-channels.connections.service");
 const bodyParser = __importStar(require("body-parser"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
 async function bootstrap() {
     dotenv.config({ path: (0, path_1.join)(__dirname, '..', '.env') });
     console.log('DATABASE_URL at runtime:', process.env.DATABASE_URL);
@@ -59,6 +63,7 @@ async function bootstrap() {
             req.rawBody = buf;
         },
     }));
+    app.use((0, cookie_parser_1.default)());
     // Initialize global service references for controllers that cannot rely on normal DI
     try {
         app_globals_1.AppGlobals.offcutsService = app.get(offcuts_service_1.OffcutsService, { strict: false });
@@ -78,10 +83,11 @@ async function bootstrap() {
         },
     }));
     app.enableCors({
-        origin: ['http://77.42.38.96:3000', 'http://localhost:3000'],
+        origin: [
+            'https://studio.laserfilespro.com',
+            'https://laserfilespro.com',
+        ],
         credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
     });
     app.useStaticAssets((0, path_1.join)(process.cwd(), 'uploads'), {
         prefix: '/uploads',

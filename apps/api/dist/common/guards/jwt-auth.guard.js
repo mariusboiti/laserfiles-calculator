@@ -38,29 +38,45 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JwtAuthGuard = void 0;
 const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
 const jwt = __importStar(require("jsonwebtoken"));
+const public_decorator_1 = require("../decorators/public.decorator");
 let JwtAuthGuard = class JwtAuthGuard {
-    canActivate(context) {
-        const request = context.switchToHttp().getRequest();
-        const authHeader = request.headers['authorization'];
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            throw new common_1.UnauthorizedException('Missing access token');
+    constructor(reflector) {
+        this.reflector = reflector;
+    }
+    async canActivate(context) {
+        const isPublic = this.reflector.getAllAndOverride(public_decorator_1.IS_PUBLIC_KEY, [
+            context.getHandler(),
+            context.getClass(),
+        ]);
+        if (isPublic) {
+            return true;
         }
-        const token = authHeader.substring(7);
+        const request = context.switchToHttp().getRequest();
+        const token = request.cookies?.lf_access_token ||
+            request.headers.authorization?.replace('Bearer ', '');
+        if (!token) {
+            return false;
+        }
         try {
             const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'dev-access-secret');
             request.user = payload;
             return true;
         }
-        catch (e) {
-            throw new common_1.UnauthorizedException('Invalid or expired token');
+        catch {
+            return false;
         }
     }
 };
 exports.JwtAuthGuard = JwtAuthGuard;
 exports.JwtAuthGuard = JwtAuthGuard = __decorate([
-    (0, common_1.Injectable)()
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [core_1.Reflector])
 ], JwtAuthGuard);

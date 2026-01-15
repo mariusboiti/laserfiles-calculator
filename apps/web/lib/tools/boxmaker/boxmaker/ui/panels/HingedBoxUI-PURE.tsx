@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { BoxSettings, GeneratedFace, PathOperation } from '../../../src/lib/types';
 import { applySimpleDefaults } from '../../../src/lib/defaults';
 import { BoxPreview3D } from '../../../src/components/BoxPreview3D';
@@ -13,6 +13,8 @@ import { mergeSvgWithOverlays, type EngraveOverlayItem } from '../../core/shared
 import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
 import { AIWarningBanner } from '@/components/ai';
 import { Trash2 } from 'lucide-react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 type FaceArtworkPlacement = {
   x: number;
@@ -284,6 +286,9 @@ const HINGED_DEFAULT_HEIGHT_MM = 30;
 const HINGED_DEFAULT_FINGER_WIDTH_MM = 3.54;
 
 export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: HingedBoxUIProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const MM_PER_INCH = 25.4;
   const unitLabel = unitSystem;
   const toUser = (mm: number) => (unitSystem === 'in' ? mm / MM_PER_INCH : mm);
@@ -1141,15 +1146,15 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
         {boxTypeSelector}
 
         <div className="rounded-md border border-emerald-800 bg-emerald-950/30 px-3 py-2">
-          <div className="text-[11px] font-medium text-emerald-300">Hinged Box (Side Pin)</div>
+          <div className="text-[11px] font-medium text-emerald-300">{t('boxmaker.hinged_title')}</div>
           <div className="mt-1 text-[10px] text-slate-400">
-            Uses same generator as Simple Box + adds hinge holes
+            {t('boxmaker.hinged_subtitle')}
           </div>
         </div>
 
         <div className="rounded-md border border-slate-700 bg-slate-950/30 px-3 py-2">
-          <div className="text-xs font-medium text-slate-200">Face Artwork</div>
-          <div className="mt-1 text-[10px] text-slate-400">Preview-only overlay (not included in exports)</div>
+          <div className="text-xs font-medium text-slate-200">{t('boxmaker.face_artwork')}</div>
+          <div className="mt-1 text-[10px] text-slate-400">{t('boxmaker.artwork_hint')}</div>
 
           <div className="mt-2">
             <AIWarningBanner />
@@ -1157,31 +1162,31 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
           <div className="mt-2 grid gap-2">
             <label className="grid gap-1">
-              <span className="text-[11px] text-slate-400">Model</span>
+              <span className="text-[11px] text-slate-400">{t('boxmaker.model')}</span>
               <select
                 value={faceArtworkModel}
                 onChange={(e) => setFaceArtworkModel(e.target.value as 'silhouette' | 'sketch' | 'geometric')}
                 className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
               >
-                <option value="silhouette">Silhouette</option>
-                <option value="sketch">Sketch</option>
-                <option value="geometric">Geometric Pattern</option>
+                <option value="silhouette">{t('boxmaker.model_silhouette')}</option>
+                <option value="sketch">{t('boxmaker.model_sketch')}</option>
+                <option value="geometric">{t('boxmaker.model_geometric')}</option>
               </select>
             </label>
 
             <label className="grid gap-1">
-              <span className="text-[11px] text-slate-400">Prompt</span>
+              <span className="text-[11px] text-slate-400">{t('boxmaker.prompt')}</span>
               <input
                 type="text"
                 value={faceArtworkPrompt}
                 onChange={(e) => setFaceArtworkPrompt(e.target.value)}
-                placeholder="e.g. floral silhouette"
+                placeholder={t('boxmaker.prompt_placeholder')}
                 className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
               />
             </label>
 
             <div className="grid gap-1">
-              <span className="text-[11px] text-slate-400">Faces</span>
+              <span className="text-[11px] text-slate-400">{t('boxmaker.faces')}</span>
               <div className="flex flex-wrap gap-2">
                 {faceKeys.map((k) => (
                   <label key={k} className="flex items-center gap-1 text-[11px] text-slate-200">
@@ -1199,7 +1204,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 disabled={isArtworkGenerating}
                 className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-60"
               >
-                {isArtworkGenerating ? 'Generating…' : 'Generate'}
+                {isArtworkGenerating ? t('boxmaker.generating') : t('boxmaker.generate')}
               </button>
               <button
                 type="button"
@@ -1207,7 +1212,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 disabled={isArtworkGenerating}
                 className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
               >
-                Trace → SVG
+                {t('boxmaker.trace_svg')}
               </button>
               <button
                 type="button"
@@ -1217,7 +1222,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 }}
                 className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
               >
-                Clear
+                {t('boxmaker.clear')}
               </button>
             </div>
 
@@ -1227,7 +1232,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
             <div className="grid grid-cols-2 gap-2">
               <label className="grid gap-1">
-                <span className="text-[11px] text-slate-400">Edit face</span>
+                <span className="text-[11px] text-slate-400">{t('boxmaker.edit_face')}</span>
                 <select
                   value={selectedArtworkFace}
                   onChange={(e) => setSelectedArtworkFace(e.target.value)}
@@ -1240,13 +1245,13 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                   ))}
                 </select>
               </label>
-              <div className="text-[10px] text-slate-500 self-end">Center-based X/Y in mm</div>
+              <div className="text-[10px] text-slate-500 self-end">{t('boxmaker.center_hint')}</div>
             </div>
 
             {selectedArtwork ? (
               <div className="grid grid-cols-2 gap-2">
                 <label className="grid gap-1">
-                  <span className="text-[11px] text-slate-400">X (mm)</span>
+                  <span className="text-[11px] text-slate-400">{t('boxmaker.x_mm')}</span>
                   <input
                     type="number"
                     value={Number(selectedArtwork.placement.x.toFixed(2))}
@@ -1255,7 +1260,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-[11px] text-slate-400">Y (mm)</span>
+                  <span className="text-[11px] text-slate-400">{t('boxmaker.y_mm')}</span>
                   <input
                     type="number"
                     value={Number(selectedArtwork.placement.y.toFixed(2))}
@@ -1264,7 +1269,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-[11px] text-slate-400">Scale</span>
+                  <span className="text-[11px] text-slate-400">{t('boxmaker.scale')}</span>
                   <input
                     type="number"
                     min={0.05}
@@ -1277,7 +1282,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-[11px] text-slate-400">Rotate (deg)</span>
+                  <span className="text-[11px] text-slate-400">{t('boxmaker.rotate_deg')}</span>
                   <input
                     type="number"
                     step={1}
@@ -1288,7 +1293,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 </label>
               </div>
             ) : (
-              <div className="text-[11px] text-slate-500">No artwork on this face yet.</div>
+              <div className="text-[11px] text-slate-500">{t('boxmaker.no_artwork')}</div>
             )}
           </div>
         </div>
@@ -1296,7 +1301,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
         {selectedEngraveItem ? (
           <div className="mt-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-[11px] text-slate-400">Placement</div>
+              <div className="text-[11px] text-slate-400">{t('boxmaker.placement')}</div>
               <button
                 type="button"
                 onClick={() => {
@@ -1304,7 +1309,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                   setSelectedEngraveId(null);
                 }}
                 className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
-                title="Delete layer"
+                title={t('boxmaker.delete_layer')}
               >
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -1312,7 +1317,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
             <div className="mt-2 grid grid-cols-2 gap-2">
               <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                <span>X (mm)</span>
+                <span>{t('boxmaker.x_mm')}</span>
                 <input
                   type="number"
                   step={0.1}
@@ -1322,7 +1327,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 />
               </label>
               <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                <span>Y (mm)</span>
+                <span>{t('boxmaker.y_mm')}</span>
                 <input
                   type="number"
                   step={0.1}
@@ -1332,7 +1337,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 />
               </label>
               <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                <span>Rotation (deg)</span>
+                <span>{t('boxmaker.rotation_deg')}</span>
                 <input
                   type="number"
                   step={1}
@@ -1346,7 +1351,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 />
               </label>
               <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                <span>Scale</span>
+                <span>{t('boxmaker.scale')}</span>
                 <input
                   type="number"
                   step={0.05}
@@ -1362,14 +1367,14 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
         {/* Dimensions */}
         <fieldset className="grid gap-2 border border-slate-700 rounded-md p-3">
-          <legend className="text-xs font-medium text-slate-300 px-1">Dimensions (Exterior)</legend>
+          <legend className="text-xs font-medium text-slate-300 px-1">{t('boxmaker.dimensions_exterior')}</legend>
 
           <div className="text-[10px] text-slate-500">
-            Interior: {toUser(interiorWidthMm).toFixed(unitSystem === 'mm' ? 0 : 2)} × {toUser(interiorDepthMm).toFixed(unitSystem === 'mm' ? 0 : 2)} {unitLabel}
+            {t('boxmaker.interior')}: {toUser(interiorWidthMm).toFixed(unitSystem === 'mm' ? 0 : 2)} × {toUser(interiorDepthMm).toFixed(unitSystem === 'mm' ? 0 : 2)} {unitLabel}
           </div>
           
           <label className="grid gap-1">
-            <span className="text-[11px] text-slate-400">Width ({unitLabel})</span>
+            <span className="text-[11px] text-slate-400">{t('boxmaker.width')} ({unitLabel})</span>
             <input
               type="number"
               step={unitSystem === 'mm' ? 1 : 0.1}
@@ -1380,7 +1385,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
           </label>
           
           <label className="grid gap-1">
-            <span className="text-[11px] text-slate-400">Depth ({unitLabel})</span>
+            <span className="text-[11px] text-slate-400">{t('boxmaker.depth')} ({unitLabel})</span>
             <input
               type="number"
               step={unitSystem === 'mm' ? 1 : 0.1}
@@ -1391,7 +1396,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
           </label>
           
           <label className="grid gap-1">
-            <span className="text-[11px] text-slate-400">Height ({unitLabel})</span>
+            <span className="text-[11px] text-slate-400">{t('boxmaker.height')} ({unitLabel})</span>
             <input
               type="number"
               step={unitSystem === 'mm' ? 1 : 0.1}
@@ -1403,26 +1408,26 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
         </fieldset>
 
         <div className="rounded-md border border-slate-700 bg-slate-950/30 px-3 py-2">
-          <div className="text-xs font-medium text-slate-200">Engrave Overlay</div>
-          <div className="mt-1 text-[10px] text-slate-400">Included in exports</div>
+          <div className="text-xs font-medium text-slate-200">{t('boxmaker.engrave_overlay')}</div>
+          <div className="mt-1 text-[10px] text-slate-400">{t('boxmaker.included_exports')}</div>
 
           <div className="mt-2 grid gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <label className="grid gap-1">
-                <span className="text-[11px] text-slate-400">Operation</span>
+                <span className="text-[11px] text-slate-400">{t('boxmaker.operation')}</span>
                 <select
                   value={engraveOp}
                   onChange={(e) => setEngraveOp(e.target.value as PathOperation)}
                   className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
                 >
-                  <option value="engrave">ENGRAVE</option>
-                  <option value="score">SCORE</option>
-                  <option value="cut">CUT</option>
+                  <option value="engrave">{t('boxmaker.op_engrave')}</option>
+                  <option value="score">{t('boxmaker.op_score')}</option>
+                  <option value="cut">{t('boxmaker.op_cut')}</option>
                 </select>
               </label>
 
               <label className="grid gap-1">
-                <span className="text-[11px] text-slate-400">Target face</span>
+                <span className="text-[11px] text-slate-400">{t('boxmaker.target_face')}</span>
                 <select
                   value={engraveTarget}
                   onChange={(e) => setEngraveTarget(e.target.value)}
@@ -1438,13 +1443,13 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
             </div>
 
             <div className="grid gap-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
-              <div className="text-[11px] text-slate-400">Add text</div>
+              <div className="text-[11px] text-slate-400">{t('boxmaker.add_text')}</div>
               <div className="grid gap-2">
                 <input
                   type="text"
                   value={engraveText}
                   onChange={(e) => setEngraveText(e.target.value)}
-                  placeholder="Text"
+                  placeholder={t('boxmaker.text_placeholder')}
                   className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
                 />
                 {/* Font preview */}
@@ -1456,7 +1461,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 )}
                 <div className="grid grid-cols-3 gap-2">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Font</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.font')}</div>
                     <select
                       value={engraveTextFontId}
                       onChange={(e) => setEngraveTextFontId(e.target.value as FontId)}
@@ -1470,7 +1475,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                     </select>
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Size</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.size')}</div>
                     <input
                       type="number"
                       min={0.1}
@@ -1481,7 +1486,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Spacing</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.spacing')}</div>
                     <input
                       type="number"
                       step={0.1}
@@ -1496,7 +1501,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                   onClick={handleAddEngraveText}
                   className="w-full rounded-md bg-slate-800 px-3 py-2 text-[11px] text-slate-100 hover:bg-slate-700"
                 >
-                  Add Text
+                  {t('boxmaker.add_text_btn')}
                 </button>
               </div>
             </div>
@@ -1522,7 +1527,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                         setSelectedEngraveId((prev) => (prev === item.id ? null : prev));
                       }}
                       className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
-                      title="Delete layer"
+                      title={t('boxmaker.delete_layer')}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -1535,10 +1540,10 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
         {/* Material */}
         <fieldset className="grid gap-2 border border-slate-700 rounded-md p-3">
-          <legend className="text-xs font-medium text-slate-300 px-1">Material</legend>
+          <legend className="text-xs font-medium text-slate-300 px-1">{t('boxmaker.material')}</legend>
           
           <label className="grid gap-1">
-            <span className="text-[11px] text-slate-400">Thickness ({unitLabel})</span>
+            <span className="text-[11px] text-slate-400">{t('boxmaker.thickness')} ({unitLabel})</span>
             <input
               type="number"
               step={unitSystem === 'mm' ? 0.1 : 0.01}
@@ -1549,7 +1554,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
           </label>
 
           <label className="grid gap-1">
-            <span className="text-[11px] text-slate-400">Kerf ({unitLabel})</span>
+            <span className="text-[11px] text-slate-400">{t('boxmaker.kerf')} ({unitLabel})</span>
             <input
               type="number"
               step={unitSystem === 'mm' ? 0.05 : 0.002}
@@ -1562,10 +1567,10 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
         {/* Finger Joints */}
         <fieldset className="grid gap-2 border border-slate-700 rounded-md p-3">
-          <legend className="text-xs font-medium text-slate-300 px-1">Finger Joints</legend>
+          <legend className="text-xs font-medium text-slate-300 px-1">{t('boxmaker.finger_joints')}</legend>
           
           <label className="grid gap-1">
-            <span className="text-[11px] text-slate-400">Finger Width ({unitLabel})</span>
+            <span className="text-[11px] text-slate-400">{t('boxmaker.finger_width')} ({unitLabel})</span>
             <input
               type="number"
               step={unitSystem === 'mm' ? 0.01 : 0.001}
@@ -1610,7 +1615,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
             onClick={handleExportAll}
             className="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium rounded-md"
           >
-            Export All Panels
+            {t('boxmaker.export_all_panels')}
           </button>
         </div>
       </div>
@@ -1655,7 +1660,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   }`}
                 >
-                  All
+                  {t('boxmaker.all')}
                 </button>
                 {faceKeys.map((name) => (
                   <button
@@ -1676,7 +1681,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
           {previewMode === '2d' ? (
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-500">Zoom</span>
+              <span className="text-[10px] text-slate-500">{t('boxmaker.zoom')}</span>
               <input
                 type="range"
                 min="50"
@@ -1689,7 +1694,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
               />
             </div>
           ) : (
-            <div className="text-[10px] text-slate-500">Orbit / pan / zoom with mouse</div>
+            <div className="text-[10px] text-slate-500">{t('boxmaker.3d_controls_hint')}</div>
           )}
         </div>
 
@@ -1757,7 +1762,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                 {selectedFace ? (
                   <div className="text-[11px] text-slate-400 mb-4 text-center">{selectedFaceDimsLabel}</div>
                 ) : (
-                  <div className="text-[11px] text-slate-500 mb-4 text-center">No dimensions</div>
+                  <div className="text-[11px] text-slate-500 mb-4 text-center">{t('boxmaker.no_dimensions')}</div>
                 )}
                 <div className="relative bg-white rounded p-4 flex items-center justify-center" style={{ minWidth: '500px', minHeight: '500px' }}>
                   <div

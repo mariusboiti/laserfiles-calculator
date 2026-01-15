@@ -163,12 +163,29 @@ export async function submitReport(payload: ReportPayload): Promise<SubmitResult
       }),
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    let data: any = null;
+    let rawText: string | null = null;
 
-    if (!data.ok) {
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      rawText = await response.text();
+    }
+
+    if (!response.ok) {
       return {
         success: false,
-        error: data.error?.message || 'Failed to submit report',
+        error:
+          data?.error?.message ||
+          `Failed to submit report (HTTP ${response.status})${rawText ? `: ${rawText.slice(0, 200)}` : ''}`,
+      };
+    }
+
+    if (!data?.ok) {
+      return {
+        success: false,
+        error: data?.error?.message || 'Failed to submit report',
       };
     }
 

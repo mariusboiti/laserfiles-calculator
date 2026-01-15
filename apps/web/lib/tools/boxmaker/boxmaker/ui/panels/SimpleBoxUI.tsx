@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { BoxSettings, GeneratedFace, ImportedItem, PathOperation } from '../../../src/lib/types';
 import { applySimpleDefaults } from '../../../src/lib/defaults';
 import { BoxPreview3D } from '../../../src/components/BoxPreview3D';
@@ -14,6 +14,8 @@ import { mergeSvgWithOverlays, type EngraveOverlayItem } from '../../core/shared
 import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
 import { AIWarningBanner } from '@/components/ai';
 import { Trash2 } from 'lucide-react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 function clampNumber(n: number, min: number, max: number) {
   if (Number.isNaN(n)) return min;
@@ -112,6 +114,9 @@ export function SimpleBoxUI({
   unitSystem: 'mm' | 'in';
   onResetCallback?: (callback: () => void) => void;
 }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const MM_PER_INCH = 25.4;
   const unitLabel = unitSystem;
   const toUser = (mm: number) => (unitSystem === 'in' ? mm / MM_PER_INCH : mm);
@@ -578,8 +583,8 @@ export function SimpleBoxUI({
       <header className="border-b border-slate-900 bg-slate-950/80">
         <div className="mx-auto flex w-full items-center justify-between gap-4 px-4 py-3">
           <div>
-            <h1 className="text-sm font-semibold text-slate-100 md:text-base">LaserFilesPro Box Maker</h1>
-            <p className="text-[11px] text-slate-400">Simple Box (v1) · panel preview + 3D</p>
+            <h1 className="text-sm font-semibold text-slate-100 md:text-base">{t('boxmaker.header_title')}</h1>
+            <p className="text-[11px] text-slate-400">{t('boxmaker.simple_subtitle')}</p>
           </div>
         </div>
       </header>
@@ -593,7 +598,7 @@ export function SimpleBoxUI({
               ) : null}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3" data-tour="presets">
-                <div className="text-sm font-medium text-slate-100">Box Presets</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.presets')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {SIMPLE_PRESETS.map((preset) => (
                     <button
@@ -610,7 +615,7 @@ export function SimpleBoxUI({
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Engrave Overlay</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.engrave_overlay')}</div>
 
                 <div className="mt-3 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -654,7 +659,7 @@ export function SimpleBoxUI({
                           if (inputEl) inputEl.value = '';
                         }}
                       />
-                      <span>Import SVG</span>
+                      <span>{t('boxmaker.import_svg')}</span>
                     </label>
 
                     <select
@@ -663,14 +668,14 @@ export function SimpleBoxUI({
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                       title="Operation"
                     >
-                      <option value="engrave">ENGRAVE</option>
-                      <option value="score">SCORE</option>
+                      <option value="engrave">{t('boxmaker.op_engrave')}</option>
+                      <option value="score">{t('boxmaker.op_score')}</option>
                     </select>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="grid gap-1">
-                      <div className="text-[11px] text-slate-400">Target panel</div>
+                      <div className="text-[11px] text-slate-400">{t('boxmaker.target_panel')}</div>
                       <select
                         value={engraveTarget}
                         onChange={(e) => setEngraveTarget(e.target.value)}
@@ -686,13 +691,13 @@ export function SimpleBoxUI({
                   </div>
 
                   <div className="grid gap-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
-                    <div className="text-[11px] text-slate-400">Add text</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.add_text')}</div>
                     <div className="grid gap-2">
                       <input
                         type="text"
                         value={engraveText}
                         onChange={(e) => setEngraveText(e.target.value)}
-                        placeholder="Text"
+                        placeholder={t('boxmaker.text_placeholder')}
                         className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                       />
                       {/* Font preview */}
@@ -704,7 +709,7 @@ export function SimpleBoxUI({
                       )}
                       <div className="grid grid-cols-3 gap-2">
                         <label className="grid gap-1">
-                          <div className="text-[11px] text-slate-400">Font</div>
+                          <div className="text-[11px] text-slate-400">{t('boxmaker.font')}</div>
                           <select
                             value={engraveTextFontId}
                             onChange={(e) => setEngraveTextFontId(e.target.value as FontId)}
@@ -718,7 +723,7 @@ export function SimpleBoxUI({
                           </select>
                         </label>
                         <label className="grid gap-1">
-                          <div className="text-[11px] text-slate-400">Size</div>
+                          <div className="text-[11px] text-slate-400">{t('boxmaker.size')}</div>
                           <input
                             type="number"
                             min={0.1}
@@ -729,7 +734,7 @@ export function SimpleBoxUI({
                           />
                         </label>
                         <label className="grid gap-1">
-                          <div className="text-[11px] text-slate-400">Spacing</div>
+                          <div className="text-[11px] text-slate-400">{t('boxmaker.spacing')}</div>
                           <input
                             type="number"
                             step={0.1}
@@ -744,7 +749,7 @@ export function SimpleBoxUI({
                         onClick={handleAddEngraveText}
                         className="w-full rounded-md bg-slate-800 px-3 py-2 text-[11px] text-slate-100 hover:bg-slate-700"
                       >
-                        Add Text
+                        {t('boxmaker.add_text_btn')}
                       </button>
                     </div>
                   </div>
@@ -770,7 +775,7 @@ export function SimpleBoxUI({
                               setSelectedEngraveId((prev) => (prev === item.id ? null : prev));
                             }}
                             className="rounded p-1 text-rose-400 hover:bg-slate-800 hover:text-rose-300"
-                            title="Delete layer"
+                            title={t('boxmaker.delete_layer')}
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -782,8 +787,8 @@ export function SimpleBoxUI({
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Face Artwork</div>
-                <div className="mt-1 text-[11px] text-slate-400">Preview-only overlay (not included in exports)</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.face_artwork')}</div>
+                <div className="mt-1 text-[11px] text-slate-400">{t('boxmaker.artwork_hint')}</div>
 
                 <div className="mt-3">
                   <AIWarningBanner />
@@ -791,31 +796,31 @@ export function SimpleBoxUI({
 
                 <div className="mt-3 grid gap-2">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Model</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.model')}</div>
                     <select
                       value={faceArtworkModel}
                       onChange={(e) => setFaceArtworkModel(e.target.value as 'silhouette' | 'sketch' | 'geometric')}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                     >
-                      <option value="silhouette">Silhouette</option>
-                      <option value="sketch">Sketch</option>
-                      <option value="geometric">Geometric Pattern</option>
+                      <option value="silhouette">{t('boxmaker.model_silhouette')}</option>
+                      <option value="sketch">{t('boxmaker.model_sketch')}</option>
+                      <option value="geometric">{t('boxmaker.model_geometric')}</option>
                     </select>
                   </label>
 
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Prompt</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.prompt')}</div>
                     <input
                       type="text"
                       value={faceArtworkPrompt}
                       onChange={(e) => setFaceArtworkPrompt(e.target.value)}
-                      placeholder="e.g. cute paw print silhouette"
+                      placeholder={t('boxmaker.prompt_placeholder')}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                     />
                   </label>
 
                   <div className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Faces</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.faces')}</div>
                     <div className="flex flex-wrap gap-2">
                       {faceKeys.map((k) => (
                         <label key={k} className="flex items-center gap-1 text-[11px] text-slate-200">
@@ -837,7 +842,7 @@ export function SimpleBoxUI({
                       disabled={isArtworkGenerating}
                       className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-60"
                     >
-                      {isArtworkGenerating ? 'Generating…' : 'Generate'}
+                      {isArtworkGenerating ? t('boxmaker.generating') : t('boxmaker.generate')}
                     </button>
                     <button
                       type="button"
@@ -845,7 +850,7 @@ export function SimpleBoxUI({
                       disabled={isArtworkGenerating}
                       className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
                     >
-                      Trace → SVG
+                      {t('boxmaker.trace_svg')}
                     </button>
                     <button
                       type="button"
@@ -855,7 +860,7 @@ export function SimpleBoxUI({
                       }}
                       className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                     >
-                      Clear
+                      {t('boxmaker.clear')}
                     </button>
                   </div>
 
@@ -867,7 +872,7 @@ export function SimpleBoxUI({
 
                   <div className="grid grid-cols-2 gap-2">
                     <label className="grid gap-1">
-                      <div className="text-[11px] text-slate-400">Edit face</div>
+                      <div className="text-[11px] text-slate-400">{t('boxmaker.edit_face')}</div>
                       <select
                         value={selectedArtworkFace}
                         onChange={(e) => setSelectedArtworkFace(e.target.value)}
@@ -880,13 +885,13 @@ export function SimpleBoxUI({
                         ))}
                       </select>
                     </label>
-                    <div className="text-[11px] text-slate-500 self-end">Center-based X/Y in mm</div>
+                    <div className="text-[10px] text-slate-500">{t('boxmaker.center_hint')}</div>
                   </div>
 
                   {selectedArtwork ? (
                     <div className="grid grid-cols-2 gap-2">
-                      <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">X (mm)</div>
+                      <label className="grid gap-0.5">
+                        <div className="text-[10px] text-slate-400">{t('boxmaker.x_mm')}</div>
                         <input
                           type="number"
                           value={Number(selectedArtwork.placement.x.toFixed(2))}
@@ -894,8 +899,8 @@ export function SimpleBoxUI({
                           className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                         />
                       </label>
-                      <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Y (mm)</div>
+                      <label className="grid gap-0.5">
+                        <div className="text-[10px] text-slate-400">{t('boxmaker.y_mm')}</div>
                         <input
                           type="number"
                           value={Number(selectedArtwork.placement.y.toFixed(2))}
@@ -903,8 +908,8 @@ export function SimpleBoxUI({
                           className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                         />
                       </label>
-                      <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Scale</div>
+                      <label className="grid gap-0.5">
+                        <div className="text-[10px] text-slate-400">{t('boxmaker.scale')}</div>
                         <input
                           type="number"
                           min={0.05}
@@ -914,19 +919,18 @@ export function SimpleBoxUI({
                           className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                         />
                       </label>
-                      <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Rotate (deg)</div>
+                      <label className="grid gap-0.5">
+                        <div className="text-[10px] text-slate-400">{t('boxmaker.rotate_deg')}</div>
                         <input
                           type="number"
                           step={1}
                           value={Number(selectedArtwork.placement.rotationDeg.toFixed(0))}
                           onChange={(e) => setSelectedArtworkPlacement({ rotationDeg: Number(e.target.value) || 0 })}
-                          className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                         />
                       </label>
                     </div>
                   ) : (
-                    <div className="text-[11px] text-slate-500">No artwork on this face yet.</div>
+                    <div className="text-[11px] text-slate-500">{t('boxmaker.no_artwork')}</div>
                   )}
                 </div>
               </div>
@@ -934,7 +938,7 @@ export function SimpleBoxUI({
               {selectedEngraveItem ? (
                 <div className="mt-2 rounded-md border border-slate-800 bg-slate-950/40 p-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] text-slate-400">Placement</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.placement')}</div>
                     <button
                       type="button"
                       onClick={() => {
@@ -943,13 +947,13 @@ export function SimpleBoxUI({
                       }}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 hover:border-rose-500 hover:text-rose-200"
                     >
-                      Remove
+                      {t('boxmaker.remove')}
                     </button>
                   </div>
 
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>X ({unitLabel})</span>
+                      <span>{t('boxmaker.width')} ({unitLabel})</span>
                       <input
                         type="number"
                         step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -959,7 +963,7 @@ export function SimpleBoxUI({
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>Y ({unitLabel})</span>
+                      <span>{t('boxmaker.depth')} ({unitLabel})</span>
                       <input
                         type="number"
                         step={unitSystem === 'in' ? 0.01 : 0.1}
@@ -969,7 +973,7 @@ export function SimpleBoxUI({
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>Rotation (deg)</span>
+                      <span>{t('boxmaker.rotation_deg')}</span>
                       <input
                         type="number"
                         step={1}
@@ -983,7 +987,7 @@ export function SimpleBoxUI({
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>Scale</span>
+                      <span>{t('boxmaker.scale')}</span>
                       <input
                         type="number"
                         step={0.01}
@@ -998,10 +1002,10 @@ export function SimpleBoxUI({
               ) : null}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3" data-tour="dimensions">
-                <div className="text-sm font-medium text-slate-100">Dimensions</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.dimensions')}</div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Width ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.width')} ({unitLabel})</div>
                     <input
                       value={toUser(widthMm)}
                       onChange={(e) => setWidthMm(fromUser(Number(e.target.value)))}
@@ -1010,7 +1014,7 @@ export function SimpleBoxUI({
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Depth ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.depth')} ({unitLabel})</div>
                     <input
                       value={toUser(depthMm)}
                       onChange={(e) => setDepthMm(fromUser(Number(e.target.value)))}
@@ -1019,7 +1023,7 @@ export function SimpleBoxUI({
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Height ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.height')} ({unitLabel})</div>
                     <input
                       value={toUser(heightMm)}
                       onChange={(e) => setHeightMm(fromUser(Number(e.target.value)))}
@@ -1028,7 +1032,7 @@ export function SimpleBoxUI({
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Thickness ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.thickness')} ({unitLabel})</div>
                     <input
                       value={toUser(thicknessMm)}
                       onChange={(e) => setThicknessMm(fromUser(Number(e.target.value)))}
@@ -1040,10 +1044,10 @@ export function SimpleBoxUI({
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3" data-tour="material">
-                <div className="text-sm font-medium text-slate-100">Joints & Lid</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.joints_lid')}</div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Finger width ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.finger_width')} ({unitLabel})</div>
                     <input
                       value={toUser(fingerWidthMm)}
                       onChange={(e) => setFingerWidthMm(fromUser(Number(e.target.value)))}
@@ -1052,7 +1056,7 @@ export function SimpleBoxUI({
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Kerf ({unitLabel})</div>
+                    <div className="text-[11px] text-slate-400">{t('boxmaker.kerf')} ({unitLabel})</div>
                     <input
                       value={toUser(kerfMm)}
                       onChange={(e) => setKerfMm(fromUser(Number(e.target.value)))}
@@ -1064,18 +1068,18 @@ export function SimpleBoxUI({
                 <div className="mt-3">
                   <label className="flex items-center gap-2 text-xs text-slate-200">
                     <input type="checkbox" checked={hasLid} onChange={(e) => setHasLid(e.target.checked)} />
-                    Add lid
+                    {t('boxmaker.add_lid')}
                   </label>
                 </div>
                 <div className="mt-3">
                   <label className="flex items-center gap-2 text-xs text-slate-200">
                     <input type="checkbox" checked={dividersEnabled} onChange={(e) => setDividersEnabled(e.target.checked)} />
-                    Add dividers
+                    {t('boxmaker.add_dividers')}
                   </label>
                   {dividersEnabled && (
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Count X</div>
+                        <div className="text-[11px] text-slate-400">{t('boxmaker.count_x')}</div>
                         <input
                           type="number"
                           min={1}
@@ -1086,7 +1090,7 @@ export function SimpleBoxUI({
                         />
                       </label>
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Count Z</div>
+                        <div className="text-[11px] text-slate-400">{t('boxmaker.count_z')}</div>
                         <input
                           type="number"
                           min={1}
@@ -1103,7 +1107,7 @@ export function SimpleBoxUI({
 
               {validation.errors.length > 0 && (
                 <div className="rounded-lg border border-rose-800 bg-rose-950/40 p-3">
-                  <div className="text-sm font-medium text-rose-300">Errors</div>
+                  <div className="text-sm font-medium text-rose-300">{t('boxmaker.errors')}</div>
                   <ul className="mt-2 space-y-1 text-xs text-rose-200">
                     {validation.errors.map((w, i) => (
                       <li key={i}>• {w}</li>
@@ -1114,7 +1118,7 @@ export function SimpleBoxUI({
 
               {validation.warnings.length > 0 && (
                 <div className="rounded-lg border border-amber-800 bg-amber-950/40 p-3">
-                  <div className="text-sm font-medium text-amber-300">Warnings</div>
+                  <div className="text-sm font-medium text-amber-300">{t('boxmaker.warnings')}</div>
                   <ul className="mt-2 space-y-1 text-xs text-amber-200">
                     {validation.warnings.map((w, i) => (
                       <li key={i}>• {w}</li>
@@ -1124,7 +1128,7 @@ export function SimpleBoxUI({
               )}
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Export</div>
+                <div className="text-sm font-medium text-slate-100">{t('boxmaker.export')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -1132,7 +1136,7 @@ export function SimpleBoxUI({
                     disabled={!validation.isValid}
                     className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Export ZIP (All)
+                    {t('boxmaker.export_zip')}
                   </button>
                   <button
                     type="button"
@@ -1140,14 +1144,14 @@ export function SimpleBoxUI({
                     disabled={!validation.isValid}
                     className="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Export All (Individual)
+                    {t('boxmaker.export_individual')}
                   </button>
                   <button
                     type="button"
                     onClick={resetToDefaults}
                     className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 hover:bg-slate-900"
                   >
-                    Reset
+                    {t('boxmaker.reset')}
                   </button>
                 </div>
               </div>
@@ -1168,7 +1172,7 @@ export function SimpleBoxUI({
                       : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                   }
                 >
-                  2D Panels
+                  {t('boxmaker.preview_2d')}
                 </button>
                 <button
                   type="button"
@@ -1179,7 +1183,7 @@ export function SimpleBoxUI({
                       : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                   }
                 >
-                  Faces list
+                  {t('boxmaker.preview_faces')}
                 </button>
                 <button
                   type="button"
@@ -1190,10 +1194,10 @@ export function SimpleBoxUI({
                       : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                   }
                 >
-                  3D
+                  {t('boxmaker.preview_3d')}
                 </button>
               </div>
-              {previewMode === '3d' ? <div className="text-[11px] text-slate-400">Simple Box 3D preview</div> : null}
+              {previewMode === '3d' ? <div className="text-[11px] text-slate-400">{t('boxmaker.3d_preview_label')}</div> : null}
             </div>
 
             {previewMode === '3d' ? (
@@ -1201,14 +1205,14 @@ export function SimpleBoxUI({
             ) : previewMode === 'faces' ? (
               <div className="max-h-[520px] overflow-auto rounded-md border border-slate-800 bg-slate-950 p-2 text-xs text-slate-200">
                 {!facesForUi.length ? (
-                  <p className="text-slate-500">No faces generated yet.</p>
+                  <p className="text-slate-500">{t('boxmaker.no_faces')}</p>
                 ) : (
                   <table className="w-full border-collapse text-[11px]">
                     <thead className="sticky top-0 bg-slate-900">
                       <tr className="text-left text-slate-400">
-                        <th className="border-b border-slate-800 px-2 py-1 font-medium">Face</th>
-                        <th className="border-b border-slate-800 px-2 py-1 font-medium">Width (mm)</th>
-                        <th className="border-b border-slate-800 px-2 py-1 font-medium">Height (mm)</th>
+                        <th className="border-b border-slate-800 px-2 py-1 font-medium">{t('boxmaker.face')}</th>
+                        <th className="border-b border-slate-800 px-2 py-1 font-medium">{t('boxmaker.width_mm')}</th>
+                        <th className="border-b border-slate-800 px-2 py-1 font-medium">{t('boxmaker.height_mm')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1226,9 +1230,9 @@ export function SimpleBoxUI({
             ) : (
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-slate-100">Preview</div>
+                  <div className="text-sm font-medium text-slate-100">{t('boxmaker.preview')}</div>
                   <div className="flex items-center gap-2">
-                    <div className="text-xs text-slate-300">Zoom</div>
+                    <div className="text-xs text-slate-300">{t('boxmaker.zoom')}</div>
                     <input type="range" min="0.5" max="2" step="0.1" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} />
                   </div>
                 </div>
@@ -1267,7 +1271,7 @@ export function SimpleBoxUI({
                     ))}
                   </div>
                 </div>
-                <div className="text-xs text-slate-400">Panels: {faceKeys.join(', ')}</div>
+                <div className="text-xs text-slate-400">{t('boxmaker.panels')}: {faceKeys.join(', ')}</div>
               </div>
             )}
           </div>
