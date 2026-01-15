@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { BoxType, type HingedBoxSvgs, type HingedInputs } from '../../core/types';
 import {
   generateHingedBoxPanels,
@@ -11,6 +11,8 @@ import { importSvgAsFace } from '../../../src/lib/svgImport';
 import { mergeSvgWithOverlays, type EngraveOverlayItem } from '../../core/shared/mergeSvgWithOverlays';
 import { exportSingleSvg } from '../../export/exportSvgs';
 import { AIWarningBanner } from '@/components/ai';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 type FaceArtworkPlacement = {
   x: number;
@@ -47,6 +49,9 @@ interface HingedBoxUIProps {
 }
 
 export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: HingedBoxUIProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const MM_PER_INCH = 25.4;
   const unitLabel = unitSystem;
   const toUser = (mm: number) => (unitSystem === 'in' ? mm / MM_PER_INCH : mm);

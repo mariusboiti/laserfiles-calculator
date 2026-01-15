@@ -1,5 +1,8 @@
 import type { GeneratedSVG } from '../types';
 import { downloadSVG, downloadZip } from '../utils/downloadUtils';
+import { useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface DownloadSectionProps {
   generatedContent: string | GeneratedSVG[] | null;
@@ -25,6 +28,9 @@ export function DownloadSection({
   isGenerating,
   sheetStats
 }: DownloadSectionProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const handleDownload = async () => {
     if (!generatedContent) return;
 
@@ -37,28 +43,28 @@ export function DownloadSection({
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="text-xl font-semibold text-slate-100 mb-4">Step 4: Generate & Download</h2>
+      <h2 className="text-xl font-semibold text-slate-100 mb-4">{t('bulk_name_tags.download.step_title')}</h2>
       
       <div className="space-y-4">
         {outputMode === 'sheet' && sheetStats && (
           <div className="text-sm text-slate-300 bg-slate-800/60 p-3 rounded border border-slate-700">
-            <div className="font-medium">Sheet capacity</div>
+            <div className="font-medium">{t('bulk_name_tags.download.sheet_capacity')}</div>
             <div>
               {sheetStats.tagsPerRow} per row × {sheetStats.tagsPerColumn} per column = {sheetStats.maxTags} max
             </div>
-            <div>Names: {sheetStats.namesCount}</div>
+            <div>{t('bulk_name_tags.download.names')} {sheetStats.namesCount}</div>
 
             {typeof sheetStats.willGenerate === 'number' && (
-              <div>Will generate: {sheetStats.willGenerate}</div>
+              <div>{t('bulk_name_tags.download.will_generate')} {sheetStats.willGenerate}</div>
             )}
 
             {sheetStats.maxTags === 0 ? (
               <div className="mt-2 text-amber-700">
-                No tags fit with the current sheet settings. Increase sheet size or reduce spacing/margins.
+                {t('bulk_name_tags.download.no_tags_fit')}
               </div>
             ) : sheetStats.namesCount > sheetStats.maxTags && !sheetStats.fillToCapacity ? (
               <div className="mt-2 text-amber-700">
-                Only the first {sheetStats.maxTags} names will be generated on this sheet.
+                {t('bulk_name_tags.download.only_first_names').replace('{max}', String(sheetStats.maxTags))}
               </div>
             ) : null}
           </div>
@@ -69,12 +75,12 @@ export function DownloadSection({
           disabled={!canGenerate || isGenerating}
           className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
-          {isGenerating ? 'Generating...' : 'Generate Name Tags'}
+          {isGenerating ? t('bulk_name_tags.download.generating') : t('bulk_name_tags.download.generate_btn')}
         </button>
         
         {!canGenerate && (
           <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded">
-            ⚠️ Please load a template SVG and provide names (CSV upload or manual entry) to generate name tags.
+            ⚠️ {t('bulk_name_tags.download.prereq_warning')}
           </p>
         )}
         
@@ -84,13 +90,16 @@ export function DownloadSection({
               onClick={handleDownload}
               className="w-full bg-green-600 text-white py-3 px-4 rounded-md font-medium hover:bg-green-700 transition-colors"
             >
-              {outputMode === 'sheet' ? '⬇ Download Sheet SVG' : '⬇ Download ZIP'}
+              {outputMode === 'sheet' ? t('bulk_name_tags.download.download_sheet_svg') : t('bulk_name_tags.download.download_zip')}
             </button>
             
             <div className="mt-3 text-sm text-slate-300 bg-emerald-500/10 p-3 rounded border border-emerald-500/30">
               ✓ {outputMode === 'sheet' 
-                ? 'Sheet generated successfully! Click to download.' 
-                : `${Array.isArray(generatedContent) ? generatedContent.length : 0} SVG files ready. Click to download ZIP.`}
+                ? t('bulk_name_tags.download.sheet_generated')
+                : t('bulk_name_tags.download.zip_ready').replace(
+                    '{count}',
+                    String(Array.isArray(generatedContent) ? generatedContent.length : 0)
+                  )}
             </div>
           </div>
         )}
