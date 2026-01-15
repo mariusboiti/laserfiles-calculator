@@ -156,6 +156,7 @@ function ToolShellInner({
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialData, setTutorialData] = useState<TutorialData | null>(null);
   const [tutorialLoading, setTutorialLoading] = useState(false);
+  const [tutorialLocale, setTutorialLocale] = useState<string | null>(null);
   const tutorialAvailable = hasTutorial(effectiveToolSlug);
 
   // Tour integration
@@ -353,16 +354,20 @@ function ToolShellInner({
 
   const handleOpenTutorial = useCallback(async () => {
     setTutorialOpen(true);
-    if (!tutorialData && !tutorialLoading) {
+    const normalizedLocale = String(locale || '').split('-')[0] || null;
+    const needsReload = !tutorialData || tutorialLocale !== normalizedLocale;
+
+    if (needsReload && !tutorialLoading) {
       setTutorialLoading(true);
       try {
-        const data = await loadTutorial(effectiveToolSlug);
+        const data = await loadTutorial(effectiveToolSlug, locale);
         setTutorialData(data);
+        setTutorialLocale(normalizedLocale);
       } finally {
         setTutorialLoading(false);
       }
     }
-  }, [effectiveToolSlug, tutorialData, tutorialLoading]);
+  }, [effectiveToolSlug, locale, tutorialData, tutorialLoading, tutorialLocale]);
 
   const handleCloseTutorial = useCallback(() => {
     setTutorialOpen(false);

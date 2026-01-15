@@ -381,14 +381,14 @@ export function SimpleBoxUI({
   const handleGenerateArtwork = async () => {
     const prompt = faceArtworkPrompt.trim();
     if (!prompt) {
-      setArtworkError('Please enter a prompt');
+      setArtworkError(t('boxmaker.artwork_error.prompt_required'));
       return;
     }
 
     const faceKeysArr = faceKeys;
     const targets = faceArtworkTargets.filter((t) => faceKeysArr.includes(t as any));
     if (targets.length === 0) {
-      setArtworkError('Select at least one face');
+      setArtworkError(t('boxmaker.artwork_error.select_face'));
       return;
     }
 
@@ -416,16 +416,16 @@ export function SimpleBoxUI({
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const errJson: any = await res.json().catch(() => ({}));
-          throw new Error(errJson?.error || 'AI generation failed');
+          throw new Error(errJson?.error || t('boxmaker.artwork_error.ai_generation_failed'));
         }
         const text = await res.text().catch(() => '');
-        throw new Error(text || 'AI generation failed');
+        throw new Error(text || t('boxmaker.artwork_error.ai_generation_failed'));
       }
 
       const json: any = await res.json().catch(() => ({}));
       const dataUrl = typeof json?.dataUrl === 'string' ? json.dataUrl : '';
       if (!dataUrl) {
-        throw new Error('AI image endpoint returned no dataUrl');
+        throw new Error(t('boxmaker.artwork_error.ai_no_data_url'));
       }
 
       setFaceArtworkByFace((prev) => {
@@ -448,7 +448,7 @@ export function SimpleBoxUI({
         setSelectedArtworkFace(targets[0]);
       }
     } catch (e) {
-      setArtworkError(e instanceof Error ? e.message : 'AI generation failed');
+      setArtworkError(e instanceof Error ? e.message : t('boxmaker.artwork_error.ai_generation_failed'));
     } finally {
       setIsArtworkGenerating(false);
     }
@@ -460,7 +460,7 @@ export function SimpleBoxUI({
     const targetFace = faceName ? faceByName.get(faceName) ?? null : null;
 
     if (!faceName || !art?.imageDataUrl || !targetFace) {
-      setArtworkError('Select a face with artwork to trace');
+      setArtworkError(t('boxmaker.trace_error.select_face_with_artwork'));
       return;
     }
 
@@ -483,12 +483,12 @@ export function SimpleBoxUI({
 
       const json: any = await res.json().catch(() => ({}));
       if (!res.ok || !json?.ok) {
-        throw new Error((typeof json?.error === 'string' && json.error) || 'Trace failed');
+        throw new Error((typeof json?.error === 'string' && json.error) || t('boxmaker.trace_error.trace_failed'));
       }
 
       const paths: string[] = Array.isArray(json?.paths) ? json.paths.filter((p: any) => typeof p === 'string') : [];
       if (!paths.length) {
-        throw new Error('Trace returned no paths');
+        throw new Error(t('boxmaker.trace_error.no_paths'));
       }
 
       const svgText = `<svg xmlns="http://www.w3.org/2000/svg">${paths
@@ -504,7 +504,7 @@ export function SimpleBoxUI({
       });
 
       if (!face) {
-        throw new Error('Trace result could not be imported as SVG');
+        throw new Error(t('boxmaker.trace_error.import_failed'));
       }
 
       const id = `${faceName}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -526,7 +526,7 @@ export function SimpleBoxUI({
       setSelectedEngraveId(id);
       setEngraveTarget(faceName);
     } catch (e) {
-      setArtworkError(e instanceof Error ? e.message : 'Trace failed');
+      setArtworkError(e instanceof Error ? e.message : t('boxmaker.trace_error.trace_failed'));
     } finally {
       setIsArtworkGenerating(false);
     }
@@ -606,7 +606,7 @@ export function SimpleBoxUI({
                       type="button"
                       onClick={() => applyBoxPreset(preset.name)}
                       className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
-                      title={preset.description}
+                      title={t(`boxmaker.preset_desc.simple_${preset.name.toLowerCase()}`)}
                     >
                       {t(`boxmaker.preset_${preset.name.toLowerCase()}`)}
                     </button>

@@ -6,6 +6,8 @@ import { HINGED_PIN_DEFAULTS } from '../../core/hinged-pin/types';
 import { generateHingedPinPanels, validatePanels } from '../../core/hinged-pin/generateHingedPinSvg';
 import { layoutPanelsToSvg, generatePanelSvgs } from '../../core/hinged-pin/layout';
 import { AIWarningBanner } from '@/components/ai';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 type FaceArtworkPlacement = {
   x: number;
@@ -30,6 +32,9 @@ const mmToIn = (mm: number) => mm / 25.4;
 const inToMm = (inches: number) => inches * 25.4;
 
 export function HingedLidPinUI({ boxTypeSelector, unitSystem, onResetCallback }: HingedLidPinUIProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [input, setInput] = useState<HingedPinInputs>(HINGED_PIN_DEFAULTS);
   const [activePanel, setActivePanel] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
@@ -152,13 +157,13 @@ export function HingedLidPinUI({ boxTypeSelector, unitSystem, onResetCallback }:
   const handleGenerateArtwork = async () => {
     const prompt = faceArtworkPrompt.trim();
     if (!prompt) {
-      setArtworkError('Please enter a prompt');
+      setArtworkError(t('boxmaker.artwork_error.prompt_required'));
       return;
     }
 
     const targets = faceArtworkTargets.filter((t) => panelKeys.includes(t as any));
     if (targets.length === 0) {
-      setArtworkError('Select at least one face');
+      setArtworkError(t('boxmaker.artwork_error.select_face'));
       return;
     }
 
@@ -177,16 +182,16 @@ export function HingedLidPinUI({ boxTypeSelector, unitSystem, onResetCallback }:
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const errJson: any = await res.json().catch(() => ({}));
-          throw new Error(errJson?.error || 'AI generation failed');
+          throw new Error(errJson?.error || t('boxmaker.artwork_error.ai_generation_failed'));
         }
         const text = await res.text().catch(() => '');
-        throw new Error(text || 'AI generation failed');
+        throw new Error(text || t('boxmaker.artwork_error.ai_generation_failed'));
       }
 
       const json: any = await res.json().catch(() => ({}));
       const dataUrl = typeof json?.dataUrl === 'string' ? json.dataUrl : '';
       if (!dataUrl) {
-        throw new Error('AI image endpoint returned no dataUrl');
+        throw new Error(t('boxmaker.artwork_error.ai_no_data_url'));
       }
 
       setFaceArtworkByPanel((prev) => {
@@ -217,7 +222,7 @@ export function HingedLidPinUI({ boxTypeSelector, unitSystem, onResetCallback }:
         setSelectedArtworkPanel(targets[0]);
       }
     } catch (e) {
-      setArtworkError(e instanceof Error ? e.message : 'AI generation failed');
+      setArtworkError(e instanceof Error ? e.message : t('boxmaker.artwork_error.ai_generation_failed'));
     } finally {
       setIsArtworkGenerating(false);
     }

@@ -805,13 +805,13 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
   const handleGenerateArtwork = async () => {
     const prompt = faceArtworkPrompt.trim();
     if (!prompt) {
-      setArtworkError('Please enter a prompt');
+      setArtworkError(t('boxmaker.artwork_error.prompt_required'));
       return;
     }
 
     const targets = faceArtworkTargets.filter((t) => faceKeys.includes(t as any));
     if (targets.length === 0) {
-      setArtworkError('Select at least one face');
+      setArtworkError(t('boxmaker.artwork_error.select_face'));
       return;
     }
 
@@ -839,16 +839,16 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const errJson: any = await res.json().catch(() => ({}));
-          throw new Error(errJson?.error || 'AI generation failed');
+          throw new Error(errJson?.error || t('boxmaker.artwork_error.ai_generation_failed'));
         }
         const text = await res.text().catch(() => '');
-        throw new Error(text || 'AI generation failed');
+        throw new Error(text || t('boxmaker.artwork_error.ai_generation_failed'));
       }
 
       const json: any = await res.json().catch(() => ({}));
       const dataUrl = typeof json?.dataUrl === 'string' ? json.dataUrl : '';
       if (!dataUrl) {
-        throw new Error('AI image endpoint returned no dataUrl');
+        throw new Error(t('boxmaker.artwork_error.ai_no_data_url'));
       }
 
       setFaceArtworkByFace((prev) => {
@@ -871,7 +871,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
         setSelectedArtworkFace(targets[0]);
       }
     } catch (e) {
-      setArtworkError(e instanceof Error ? e.message : 'AI generation failed');
+      setArtworkError(e instanceof Error ? e.message : t('boxmaker.artwork_error.ai_generation_failed'));
     } finally {
       setIsArtworkGenerating(false);
     }
@@ -883,7 +883,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
     const face = faceName ? faceByName.get(faceName) ?? null : null;
 
     if (!faceName || !art?.imageDataUrl || !face) {
-      setArtworkError('Select a face with artwork to trace');
+      setArtworkError(t('boxmaker.trace_error.select_face_with_artwork'));
       return;
     }
 
@@ -906,12 +906,12 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
       const json: any = await res.json().catch(() => ({}));
       if (!res.ok || !json?.ok) {
-        throw new Error((typeof json?.error === 'string' && json.error) || 'Trace failed');
+        throw new Error((typeof json?.error === 'string' && json.error) || t('boxmaker.trace_error.trace_failed'));
       }
 
       const paths: string[] = Array.isArray(json?.paths) ? json.paths.filter((p: any) => typeof p === 'string') : [];
       if (!paths.length) {
-        throw new Error('Trace returned no paths');
+        throw new Error(t('boxmaker.trace_error.no_paths'));
       }
 
       const svgText = `<svg xmlns="http://www.w3.org/2000/svg">${paths
@@ -927,7 +927,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
       });
 
       if (!importedFace) {
-        throw new Error('Trace result could not be imported as SVG');
+        throw new Error(t('boxmaker.trace_error.import_failed'));
       }
 
       const id = `${faceName}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -949,7 +949,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
       setSelectedEngraveId(id);
       setEngraveTarget(faceName);
     } catch (e) {
-      setArtworkError(e instanceof Error ? e.message : 'Trace failed');
+      setArtworkError(e instanceof Error ? e.message : t('boxmaker.trace_error.trace_failed'));
     } finally {
       setIsArtworkGenerating(false);
     }
@@ -957,7 +957,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
 
   // Real-time text preview - always use fixed 30mm size for preview display
   useEffect(() => {
-    const previewText = engraveText.trim() || 'Preview';
+    const previewText = engraveText.trim() || t('boxmaker.preview');
     const previewSize = 30; // Fixed preview size for better visibility
     let cancelled = false;
 
@@ -1635,7 +1635,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                     : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                 }
               >
-                2D
+                {t('boxmaker.preview_mode_2d')}
               </button>
               <button
                 type="button"
@@ -1646,7 +1646,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                     : 'px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
                 }
               >
-                3D
+                {t('boxmaker.preview_mode_3d')}
               </button>
             </div>
 
@@ -1672,7 +1672,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
-                    {name}
+                    {t(`boxmaker.face_${name}`)}
                   </button>
                 ))}
               </>
@@ -1733,7 +1733,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                       return (
                         <img
                           src={art.imageDataUrl}
-                          alt="Artwork"
+                          alt={t('boxmaker.artwork_alt')}
                           className="absolute pointer-events-none"
                           style={{
                             left: `${leftPct}%`,
@@ -1747,7 +1747,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                       );
                     })()}
                   </div>
-                  <div className="mt-2 text-xs font-medium text-slate-300 text-center uppercase">{name}</div>
+                  <div className="mt-2 text-xs font-medium text-slate-300 text-center uppercase">{t(`boxmaker.face_${name}`)}</div>
                 </div>
               ))}
             </div>
@@ -1758,7 +1758,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
               style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: 'center' }}
             >
               <div className="bg-slate-900 rounded p-6 max-w-2xl">
-                <div className="text-sm text-slate-200 mb-1 uppercase font-medium text-center">{viewMode}</div>
+                <div className="text-sm text-slate-200 mb-1 uppercase font-medium text-center">{t(`boxmaker.face_${viewMode}`)}</div>
                 {selectedFace ? (
                   <div className="text-[11px] text-slate-400 mb-4 text-center">{selectedFaceDimsLabel}</div>
                 ) : (
@@ -1779,7 +1779,7 @@ export function HingedBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Hi
                     return (
                       <img
                         src={art.imageDataUrl}
-                        alt="Artwork"
+                        alt={t('boxmaker.artwork_alt')}
                         className="absolute pointer-events-none"
                         style={{
                           left: `${leftPct}%`,

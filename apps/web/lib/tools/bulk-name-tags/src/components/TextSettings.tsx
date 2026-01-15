@@ -1,4 +1,7 @@
 import type { EmbeddedFontFormat, TextLayoutConfig, UnitSystem } from '../types';
+import { useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface TextSettingsProps {
   config: TextLayoutConfig;
@@ -7,6 +10,9 @@ interface TextSettingsProps {
 }
 
 export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const updateConfig = (updates: Partial<TextLayoutConfig>) => {
     onChange({ ...config, ...updates });
   };
@@ -132,30 +138,33 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="text-xl font-semibold text-slate-100 mb-2">Step 3: Text & Layout Settings</h2>
+      <h2 className="text-xl font-semibold text-slate-100 mb-2">{t('bulk_name_tags.text.step_title')}</h2>
       <p className="text-sm text-slate-400 mb-4">
-        Configure how text appears on your name tags.
+        {t('bulk_name_tags.text.desc')}
       </p>
 
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">
-            Horizontal Alignment
+            {t('bulk_name_tags.text.horizontal_alignment')}
           </label>
           <select
             value={config.horizontalAlignment}
             onChange={(e) => updateConfig({ horizontalAlignment: e.target.value as 'left' | 'center' | 'right' })}
             className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
-            <option value="left">Left</option>
-            <option value="center">Center</option>
-            <option value="right">Right</option>
+            <option value="left">{t('bulk_name_tags.text.align_left')}</option>
+            <option value="center">{t('bulk_name_tags.text.align_center')}</option>
+            <option value="right">{t('bulk_name_tags.text.align_right')}</option>
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">
-            Horizontal Position: {typeof config.horizontalPosition === 'number' ? config.horizontalPosition : 50}%
+            {t('bulk_name_tags.text.horizontal_position').replace(
+              '{value}',
+              String(typeof config.horizontalPosition === 'number' ? config.horizontalPosition : 50)
+            )}
           </label>
           <input
             type="range"
@@ -166,14 +175,14 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
             className="w-full"
           />
           <div className="flex justify-between text-xs text-slate-500">
-            <span>Left</span>
-            <span>Right</span>
+            <span>{t('bulk_name_tags.text.align_left')}</span>
+            <span>{t('bulk_name_tags.text.align_right')}</span>
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">
-            Vertical Position: {config.verticalPosition}%
+            {t('bulk_name_tags.text.vertical_position').replace('{value}', String(config.verticalPosition))}
           </label>
           <input
             type="range"
@@ -184,14 +193,14 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
             className="w-full"
           />
           <div className="flex justify-between text-xs text-slate-500">
-            <span>Top</span>
-            <span>Bottom</span>
+            <span>{t('bulk_name_tags.text.slider_top')}</span>
+            <span>{t('bulk_name_tags.text.slider_bottom')}</span>
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">
-            Max Text Width: {config.maxTextWidth}%
+            {t('bulk_name_tags.text.max_text_width').replace('{value}', String(config.maxTextWidth))}
           </label>
           <input
             type="range"
@@ -205,7 +214,7 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">
-            Font Family
+            {t('bulk_name_tags.text.font_family')}
           </label>
           <select
             value={config.fontFamily}
@@ -221,20 +230,20 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
 
           <div className="mt-2">
             <label className="block text-xs font-medium text-slate-400 mb-1">
-              Or type a custom font-family
+              {t('bulk_name_tags.text.custom_font_label')}
             </label>
             <input
               type="text"
               value={config.fontFamily}
               onChange={(e) => updateFontFamily(e.target.value)}
-              placeholder="e.g. Arial, 'Open Sans', sans-serif"
+              placeholder={t('bulk_name_tags.text.custom_font_placeholder')}
               className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
             />
           </div>
 
           <div className="mt-3">
             <label className="block text-xs font-medium text-slate-400 mb-1">
-              Upload custom font file (embedded in SVG)
+              {t('bulk_name_tags.text.upload_font_label')}
             </label>
 
             <input
@@ -275,24 +284,24 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
               htmlFor="embedded-font-upload"
               className="mt-1 inline-flex w-full items-center justify-center rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 cursor-pointer"
             >
-              Choose font file
+              {t('bulk_name_tags.text.choose_font_file')}
             </label>
 
             <div className="mt-1 text-xs text-slate-500">
-              Accepted: .ttf, .otf, .woff, .woff2
+              {t('bulk_name_tags.text.accepted_formats')}
             </div>
 
             {config.embeddedFont && (
               <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-300 bg-slate-800/60 border border-slate-700 rounded p-2">
                 <div className="truncate">
-                  Embedded: {config.embeddedFont.fontFamily} ({config.embeddedFont.format})
+                  {t('bulk_name_tags.text.embedded_prefix')} {config.embeddedFont.fontFamily} ({config.embeddedFont.format})
                 </div>
                 <button
                   type="button"
                   onClick={() => updateConfig({ embeddedFont: null })}
                   className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-slate-300 hover:bg-slate-800"
                 >
-                  Remove
+                  {t('bulk_name_tags.text.remove')}
                 </button>
               </div>
             )}
@@ -302,7 +311,7 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Font Size ({unitSystem})
+              {t('bulk_name_tags.text.font_size').replace('{unit}', unitSystem)}
             </label>
             <input
               type="number"
@@ -317,7 +326,7 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Letter Spacing ({unitSystem})
+              {t('bulk_name_tags.text.letter_spacing').replace('{unit}', unitSystem)}
             </label>
             <input
               type="number"
@@ -333,16 +342,16 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-1">
-            Text Case
+            {t('bulk_name_tags.text.text_case')}
           </label>
           <select
             value={config.textCase}
             onChange={(e) => updateConfig({ textCase: e.target.value as 'as-is' | 'uppercase' | 'capitalize' })}
             className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
-            <option value="as-is">As-Is</option>
-            <option value="uppercase">UPPERCASE</option>
-            <option value="capitalize">Capitalize</option>
+            <option value="as-is">{t('bulk_name_tags.text.case_as_is')}</option>
+            <option value="uppercase">{t('bulk_name_tags.text.case_uppercase')}</option>
+            <option value="capitalize">{t('bulk_name_tags.text.case_capitalize')}</option>
           </select>
         </div>
 
@@ -356,7 +365,7 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
               className="h-4 w-4 text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 rounded"
             />
             <label htmlFor="secondLine" className="ml-2 block text-sm font-medium text-slate-300">
-              Enable Second Line
+              {t('bulk_name_tags.text.enable_second_line')}
             </label>
           </div>
 
@@ -365,7 +374,7 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Font Size ({unitSystem})
+                    {t('bulk_name_tags.text.second_line_font_size').replace('{unit}', unitSystem)}
                   </label>
                   <input
                     type="number"
@@ -380,7 +389,7 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Vertical Offset ({unitSystem})
+                    {t('bulk_name_tags.text.second_line_vertical_offset').replace('{unit}', unitSystem)}
                   </label>
                   <input
                     type="number"
