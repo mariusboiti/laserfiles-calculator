@@ -1,90 +1,137 @@
-/**
- * Round Coaster & Badge Generator Help Content
- */
+'use client';
+
+import { useCallback } from 'react';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function RoundCoasterHelp() {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   return (
     <div className="space-y-4 text-sm text-slate-300">
       <div>
-        <h3 className="mb-2 font-semibold text-slate-100">What is Round Coaster & Badge Generator?</h3>
+        <h3 className="mb-2 font-semibold text-slate-100">{t('round_coaster.help.what_is_title')}</h3>
         <p className="text-slate-400">
-          Create custom laser-cut coasters, badges, and decorative pieces with circle, hexagon, octagon, or scalloped shapes. Add engraved text and optional borders.
+          {t('round_coaster.help.what_is_body')}
         </p>
       </div>
 
       <div>
-        <h4 className="mb-1 font-medium text-slate-200">Use Cases</h4>
+        <h4 className="mb-1 font-medium text-slate-200">{t('round_coaster.help.use_cases_title')}</h4>
         <ul className="ml-4 list-disc space-y-1 text-slate-400">
-          <li><strong>Coasters</strong>: Drink coasters for home, cafe, events</li>
-          <li><strong>Badges</strong>: Name badges, event tags, identification</li>
-          <li><strong>Wedding Favors</strong>: Personalized gifts for guests</li>
-          <li><strong>Decorative Pieces</strong>: Wall art, ornaments, tokens</li>
+          <li>
+            <strong>{t('round_coaster.help.use_case_coasters_label')}</strong>: {t('round_coaster.help.use_case_coasters_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.use_case_badges_label')}</strong>: {t('round_coaster.help.use_case_badges_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.use_case_wedding_label')}</strong>: {t('round_coaster.help.use_case_wedding_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.use_case_decorative_label')}</strong>: {t('round_coaster.help.use_case_decorative_body')}
+          </li>
         </ul>
       </div>
 
       <div className="rounded-lg border border-blue-900 bg-blue-950/20 p-3">
-        <h4 className="mb-1 font-medium text-blue-300">💡 Recommended Sizes</h4>
+        <h4 className="mb-1 font-medium text-blue-300">{t('round_coaster.help.recommended_sizes_title')}</h4>
         <ul className="ml-4 list-disc space-y-1 text-blue-200/80">
-          <li><strong>Standard coaster</strong>: 90-100mm diameter</li>
-          <li><strong>Small badge</strong>: 60mm diameter</li>
-          <li><strong>Large coaster</strong>: 120mm diameter</li>
-          <li><strong>Hexagon coaster</strong>: 100mm width</li>
+          <li>
+            <strong>{t('round_coaster.help.recommended_size_standard_label')}</strong>: {t('round_coaster.help.recommended_size_standard_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.recommended_size_small_label')}</strong>: {t('round_coaster.help.recommended_size_small_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.recommended_size_large_label')}</strong>: {t('round_coaster.help.recommended_size_large_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.recommended_size_hex_label')}</strong>: {t('round_coaster.help.recommended_size_hex_body')}
+          </li>
         </ul>
       </div>
 
       <div>
-        <h4 className="mb-1 font-medium text-slate-200">Border Options</h4>
+        <h4 className="mb-1 font-medium text-slate-200">{t('round_coaster.help.border_options_title')}</h4>
         <ul className="ml-4 list-disc space-y-1 text-slate-400">
-          <li><strong>Single border</strong>: Clean outline around edge</li>
-          <li><strong>Double border</strong>: Two concentric circles/shapes</li>
-          <li><strong>Border inset</strong>: 3mm standard (distance from edge)</li>
-          <li>Borders are cut, text is engraved</li>
+          <li>
+            <strong>{t('round_coaster.help.border_option_single_label')}</strong>: {t('round_coaster.help.border_option_single_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.border_option_double_label')}</strong>: {t('round_coaster.help.border_option_double_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.border_option_inset_label')}</strong>: {t('round_coaster.help.border_option_inset_body')}
+          </li>
+          <li>{t('round_coaster.help.border_option_cut_engrave')}</li>
         </ul>
       </div>
 
       <div>
-        <h4 className="mb-1 font-medium text-slate-200">Text Layout</h4>
+        <h4 className="mb-1 font-medium text-slate-200">{t('round_coaster.help.text_layout_title')}</h4>
         <ul className="ml-4 list-disc space-y-1 text-slate-400">
-          <li><strong>Top line</strong>: Small text (optional)</li>
-          <li><strong>Center line</strong>: Main text (larger, bold)</li>
-          <li><strong>Bottom line</strong>: Small text (optional)</li>
-          <li><strong>Auto-fit</strong>: Text scales to fit available space</li>
-          <li>Empty lines are skipped automatically</li>
+          <li>
+            <strong>{t('round_coaster.help.text_layout_top_label')}</strong>: {t('round_coaster.help.text_layout_top_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.text_layout_center_label')}</strong>: {t('round_coaster.help.text_layout_center_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.text_layout_bottom_label')}</strong>: {t('round_coaster.help.text_layout_bottom_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.text_layout_auto_fit_label')}</strong>: {t('round_coaster.help.text_layout_auto_fit_body')}
+          </li>
+          <li>{t('round_coaster.help.text_layout_empty_skipped')}</li>
         </ul>
       </div>
 
       <div className="rounded-lg border border-amber-900 bg-amber-950/20 p-3">
-        <h4 className="mb-1 font-medium text-amber-300">⚠️ Important Notes</h4>
+        <h4 className="mb-1 font-medium text-amber-300">{t('round_coaster.help.important_notes_title')}</h4>
         <ul className="ml-4 list-disc space-y-1 text-amber-200/80">
-          <li>Long text will shrink to minimum font size</li>
-          <li>Double border needs sufficient inset (3mm+)</li>
-          <li>Test cut on scrap material first</li>
+          <li>{t('round_coaster.help.important_note_long_text')}</li>
+          <li>{t('round_coaster.help.important_note_double_border')}</li>
+          <li>{t('round_coaster.help.important_note_test_cut')}</li>
         </ul>
       </div>
 
       <div>
-        <h4 className="mb-1 font-medium text-slate-200">Material Tips</h4>
+        <h4 className="mb-1 font-medium text-slate-200">{t('round_coaster.help.material_tips_title')}</h4>
         <ul className="ml-4 list-disc space-y-1 text-slate-400">
-          <li><strong>Wood coasters</strong>: 3-6mm plywood or bamboo</li>
-          <li><strong>Acrylic badges</strong>: 3mm clear or colored</li>
-          <li><strong>Cork coasters</strong>: 3-4mm cork sheet (absorbs moisture)</li>
-          <li><strong>MDF</strong>: 3mm for prototypes</li>
+          <li>
+            <strong>{t('round_coaster.help.material_tip_wood_label')}</strong>: {t('round_coaster.help.material_tip_wood_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.material_tip_acrylic_label')}</strong>: {t('round_coaster.help.material_tip_acrylic_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.material_tip_cork_label')}</strong>: {t('round_coaster.help.material_tip_cork_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.material_tip_mdf_label')}</strong>: {t('round_coaster.help.material_tip_mdf_body')}
+          </li>
         </ul>
       </div>
 
       <div>
-        <h4 className="mb-1 font-medium text-slate-200">Laser Settings</h4>
+        <h4 className="mb-1 font-medium text-slate-200">{t('round_coaster.help.laser_settings_title')}</h4>
         <ul className="ml-4 list-disc space-y-1 text-slate-400">
-          <li><strong>Cutting</strong>: High power, slow speed (outline + borders)</li>
-          <li><strong>Engraving</strong>: Medium power, fast speed (text)</li>
-          <li>Set text as separate layer in LightBurn</li>
-          <li>Test settings on scrap before batch cutting</li>
+          <li>
+            <strong>{t('round_coaster.help.laser_setting_cutting_label')}</strong>: {t('round_coaster.help.laser_setting_cutting_body')}
+          </li>
+          <li>
+            <strong>{t('round_coaster.help.laser_setting_engraving_label')}</strong>: {t('round_coaster.help.laser_setting_engraving_body')}
+          </li>
+          <li>{t('round_coaster.help.laser_setting_layers')}</li>
+          <li>{t('round_coaster.help.laser_setting_test')}</li>
         </ul>
       </div>
 
       <div className="text-xs text-slate-500">
         <p>
-          <strong>Pro tip:</strong> For coasters, seal wood with food-safe finish. For wedding favors, batch cut 50-100 pieces and personalize with names or dates!
+          <strong>{t('round_coaster.help.pro_tip_label')}</strong> {t('round_coaster.help.pro_tip_body')}
         </p>
       </div>
     </div>

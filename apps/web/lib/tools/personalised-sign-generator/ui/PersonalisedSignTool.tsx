@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import type { SignInputs, SignShape, TextLine, HolePosition } from '../types/sign';
 import { generateSignSvg, generateFilename } from '../core/generateSignSvg';
 import { DEFAULTS, SIGN_PRESETS } from '../config/defaults';
@@ -24,6 +26,8 @@ interface PersonalisedSignToolProps {
 
 export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolProps) {
   const { api } = useToolUx();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   useEffect(() => {
     api.setIsEmpty(false);
@@ -137,8 +141,8 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
       <header className="border-b border-slate-900 bg-slate-950/80">
         <div className="mx-auto flex w-full items-center justify-between gap-4 px-4 py-3">
           <div>
-            <h1 className="text-sm font-semibold text-slate-100 md:text-base">Personalised Sign Generator</h1>
-            <p className="text-[11px] text-slate-400">Create laser-ready signs with shapes, holes and engraved text</p>
+            <h1 className="text-sm font-semibold text-slate-100 md:text-base">{t('tools.personalised-sign-generator.title')}</h1>
+            <p className="text-[11px] text-slate-400">{t('personalised_sign.legacy.subtitle')}</p>
           </div>
         </div>
       </header>
@@ -149,7 +153,7 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
             <div className="space-y-4">
               
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Quick Presets</div>
+                <div className="text-sm font-medium text-slate-100">{t('personalised_sign.legacy.sections.quick_presets')}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {SIGN_PRESETS.map((preset) => (
                     <button
@@ -165,27 +169,27 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Shape</div>
+                <div className="text-sm font-medium text-slate-100">{t('personalised_sign.legacy.sections.shape')}</div>
                 <div className="mt-3">
                   <select
                     value={shape}
                     onChange={(e) => setShape(e.target.value as SignShape)}
                     className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                   >
-                    <option value="rectangle">Classic Rectangle</option>
-                    <option value="rounded-rectangle">Rounded Rectangle</option>
-                    <option value="arch">Arch Sign</option>
-                    <option value="circle">Circle</option>
-                    <option value="hexagon">Hexagon</option>
+                    <option value="rectangle">{t('personalised_sign.legacy.shape.rectangle')}</option>
+                    <option value="rounded-rectangle">{t('personalised_sign.legacy.shape.rounded_rectangle')}</option>
+                    <option value="arch">{t('personalised_sign.legacy.shape.arch')}</option>
+                    <option value="circle">{t('personalised_sign.legacy.shape.circle')}</option>
+                    <option value="hexagon">{t('personalised_sign.legacy.shape.hexagon')}</option>
                   </select>
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Dimensions</div>
+                <div className="text-sm font-medium text-slate-100">{t('personalised_sign.legacy.sections.dimensions')}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Width (mm)</div>
+                    <div className="text-[11px] text-slate-400">{t('personalised_sign.common.width_mm')}</div>
                     <input
                       type="number"
                       value={widthMm}
@@ -194,7 +198,7 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">Height (mm)</div>
+                    <div className="text-[11px] text-slate-400">{t('personalised_sign.common.height_mm')}</div>
                     <input
                       type="number"
                       value={heightMm}
@@ -206,7 +210,7 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Holes</div>
+                <div className="text-sm font-medium text-slate-100">{t('personalised_sign.legacy.sections.holes')}</div>
                 <div className="mt-3 space-y-3">
                   <label className="flex items-center gap-2">
                     <input
@@ -215,13 +219,13 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
                       onChange={(e) => setHolesEnabled(e.target.checked)}
                       className="rounded border-slate-800"
                     />
-                    <span className="text-xs text-slate-300">Enable holes</span>
+                    <span className="text-xs text-slate-300">{t('personalised_sign.legacy.holes.enable')}</span>
                   </label>
                   
                   {holesEnabled && (
                     <>
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Hole diameter (mm)</div>
+                        <div className="text-[11px] text-slate-400">{t('personalised_sign.common.hole_diameter_mm')}</div>
                         <input
                           type="number"
                           value={holeDiameterMm}
@@ -231,15 +235,15 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
                       </label>
                       
                       <label className="grid gap-1">
-                        <div className="text-[11px] text-slate-400">Position</div>
+                        <div className="text-[11px] text-slate-400">{t('personalised_sign.common.position')}</div>
                         <select
                           value={holePosition}
                           onChange={(e) => setHolePosition(e.target.value as HolePosition)}
                           className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                         >
-                          <option value="top-left-right">Top Left + Right</option>
-                          <option value="top-center">Top Center</option>
-                          <option value="none">None</option>
+                          <option value="top-left-right">{t('personalised_sign.legacy.holes.position.top_left_right')}</option>
+                          <option value="top-center">{t('personalised_sign.legacy.holes.position.top_center')}</option>
+                          <option value="none">{t('personalised_sign.common.none')}</option>
                         </select>
                       </label>
                     </>
@@ -248,16 +252,16 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Text Lines</div>
+                <div className="text-sm font-medium text-slate-100">{t('personalised_sign.legacy.sections.text_lines')}</div>
                 <div className="mt-3 space-y-4">
                   
                   <div className="space-y-2">
-                    <div className="text-[11px] text-slate-400">Line 1 (small, optional)</div>
+                    <div className="text-[11px] text-slate-400">{t('personalised_sign.legacy.text.line1_label')}</div>
                     <input
                       type="text"
                       value={line1Text}
                       onChange={(e) => setLine1Text(e.target.value)}
-                      placeholder="Welcome"
+                      placeholder={t('personalised_sign.legacy.text.line1_placeholder')}
                       className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                     <select
@@ -265,18 +269,18 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
                       onChange={(e) => setLine1Style(e.target.value as 'normal' | 'bold')}
                       className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     >
-                      <option value="normal">Normal</option>
-                      <option value="bold">Bold</option>
+                      <option value="normal">{t('personalised_sign.common.text_style.normal')}</option>
+                      <option value="bold">{t('personalised_sign.common.text_style.bold')}</option>
                     </select>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-[11px] text-slate-400">Line 2 (main, required)</div>
+                    <div className="text-[11px] text-slate-400">{t('personalised_sign.legacy.text.line2_label')}</div>
                     <input
                       type="text"
                       value={line2Text}
                       onChange={(e) => setLine2Text(e.target.value)}
-                      placeholder="Family Name"
+                      placeholder={t('personalised_sign.legacy.text.line2_placeholder')}
                       className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                     <select
@@ -284,18 +288,18 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
                       onChange={(e) => setLine2Style(e.target.value as 'normal' | 'bold')}
                       className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     >
-                      <option value="normal">Normal</option>
-                      <option value="bold">Bold</option>
+                      <option value="normal">{t('personalised_sign.common.text_style.normal')}</option>
+                      <option value="bold">{t('personalised_sign.common.text_style.bold')}</option>
                     </select>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-[11px] text-slate-400">Line 3 (small, optional)</div>
+                    <div className="text-[11px] text-slate-400">{t('personalised_sign.legacy.text.line3_label')}</div>
                     <input
                       type="text"
                       value={line3Text}
                       onChange={(e) => setLine3Text(e.target.value)}
-                      placeholder="Est. 2025"
+                      placeholder={t('personalised_sign.legacy.text.line3_placeholder')}
                       className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                     <select
@@ -303,22 +307,22 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
                       onChange={(e) => setLine3Style(e.target.value as 'normal' | 'bold')}
                       className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     >
-                      <option value="normal">Normal</option>
-                      <option value="bold">Bold</option>
+                      <option value="normal">{t('personalised_sign.common.text_style.normal')}</option>
+                      <option value="bold">{t('personalised_sign.common.text_style.bold')}</option>
                     </select>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
-                <div className="text-sm font-medium text-slate-100">Export</div>
+                <div className="text-sm font-medium text-slate-100">{t('personalised_sign.common.export')}</div>
                 <div className="mt-3">
                   <button
                     type="button"
                     onClick={handleExport}
                     className="w-full rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
                   >
-                    Export SVG
+                    {t('personalised_sign.common.export_svg')}
                   </button>
                 </div>
               </div>
@@ -328,7 +332,7 @@ export function PersonalisedSignTool({ onResetCallback }: PersonalisedSignToolPr
 
         <section className="mt-2 flex flex-1 flex-col gap-3 md:mt-0">
           <div className="flex flex-1 flex-col rounded-lg border border-slate-800 bg-slate-900/40 p-3 md:p-4">
-            <div className="mb-3 text-sm font-medium text-slate-100">Preview</div>
+            <div className="mb-3 text-sm font-medium text-slate-100">{t('personalised_sign.common.preview')}</div>
             <div className="flex flex-1 items-center justify-center overflow-auto rounded-lg border border-slate-800 bg-white p-8">
               <div dangerouslySetInnerHTML={{ __html: svg }} />
             </div>

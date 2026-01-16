@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from 'lucide-react';
 import type { SignDocument } from '../../types/signPro';
 import { getSelectionBounds, findElementById, getElementBounds } from '../../core/canvas/selection';
@@ -14,6 +16,9 @@ export interface AlignPanelProps {
 type AlignTo = 'selection' | 'artboard';
 
 export function AlignPanel({ doc, selectedIds, onApplyDeltas }: AlignPanelProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [alignTo, setAlignTo] = useState<AlignTo>('selection');
   const [userOverrodeAlignTo, setUserOverrodeAlignTo] = useState(false);
   const [lastSkippedLocked, setLastSkippedLocked] = useState(false);
@@ -105,7 +110,7 @@ export function AlignPanel({ doc, selectedIds, onApplyDeltas }: AlignPanelProps)
   return (
     <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-white">Align</h3>
+        <h3 className="text-sm font-medium text-white">{t('personalised_sign.pro.align.title')}</h3>
         <div className="flex items-center gap-2 text-xs text-slate-300">
           <label className="flex items-center gap-1 cursor-pointer">
             <input
@@ -118,7 +123,7 @@ export function AlignPanel({ doc, selectedIds, onApplyDeltas }: AlignPanelProps)
               }}
               className="accent-blue-500"
             />
-            Selection
+            {t('personalised_sign.pro.align.align_to.selection')}
           </label>
           <label className="flex items-center gap-1 cursor-pointer">
             <input
@@ -131,7 +136,7 @@ export function AlignPanel({ doc, selectedIds, onApplyDeltas }: AlignPanelProps)
               }}
               className="accent-blue-500"
             />
-            Artboard
+            {t('personalised_sign.pro.align.align_to.artboard')}
           </label>
         </div>
       </div>
@@ -183,8 +188,8 @@ export function AlignPanel({ doc, selectedIds, onApplyDeltas }: AlignPanelProps)
       </div>
 
       <div className="text-[11px] text-slate-400">
-        {selectedIds.length === 0 ? 'Select 1+ elements to align.' : ' '}
-        {lastSkippedLocked ? 'Some locked items skipped.' : ''}
+        {selectedIds.length === 0 ? t('personalised_sign.pro.align.hint_select_elements') : ' '}
+        {lastSkippedLocked ? t('personalised_sign.pro.align.hint_locked_skipped') : ''}
       </div>
     </div>
   );

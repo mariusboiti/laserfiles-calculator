@@ -5,6 +5,8 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import {
   Image as ImageIcon,
   Upload,
@@ -55,6 +57,9 @@ export function ImageTracePanel({
   onInsertImage,
   disabled = false,
 }: ImageTracePanelProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [options, setOptions] = useState<TraceOptions>(DEFAULT_OPTIONS);
   const [imageData, setImageData] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string>('');
@@ -74,7 +79,7 @@ export function ImageTracePanel({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file (PNG, JPG, etc.)');
+      setError(t('personalised_sign.pro.image_trace.error_invalid_file_type'));
       return;
     }
 
@@ -86,17 +91,17 @@ export function ImageTracePanel({
       const dataUrl = event.target?.result as string;
       // Reject very large images early
       if (dataUrl.length > MAX_IMAGE_SIZE) {
-        setError('Image too large. Please use a smaller image (max ~1MB).');
+        setError(t('personalised_sign.pro.image_trace.error_image_too_large'));
         return;
       }
       setImageData(dataUrl);
       setPreviewPath(null);
     };
     reader.onerror = () => {
-      setError('Failed to read image file');
+      setError(t('personalised_sign.pro.image_trace.error_failed_to_read'));
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [t]);
 
 
   const traceImage = useCallback(async () => {
@@ -122,12 +127,12 @@ export function ImageTracePanel({
 
       const json: any = await res.json();
       if (!json?.ok) {
-        throw new Error(json?.error || 'Trace failed');
+        throw new Error(json?.error || t('personalised_sign.ai.error_trace_failed'));
       }
 
       const paths: string[] = Array.isArray(json.paths) ? json.paths : [];
       if (paths.length === 0) {
-        throw new Error('No usable vector found');
+        throw new Error(t('personalised_sign.ai.error_no_vector'));
       }
 
       if (TRACE_DEBUG) {
@@ -157,7 +162,7 @@ export function ImageTracePanel({
           ? String((err as any).message)
           : typeof err === 'string'
             ? err
-            : 'Tracing failed';
+            : t('personalised_sign.ai.error_trace_failed');
       setError(msg);
       setPreviewPath(null);
       setPreviewPathDs(null);
@@ -166,7 +171,7 @@ export function ImageTracePanel({
     } finally {
       setLoading(false);
     }
-  }, [imageData, options, targetWidthMm, targetHeightMm]);
+  }, [imageData, options, targetWidthMm, targetHeightMm, t]);
 
   // Apply trace result to document
   const handleApply = useCallback(() => {
@@ -263,13 +268,13 @@ export function ImageTracePanel({
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-white flex items-center gap-2">
           <Wand2 className="w-4 h-4 text-cyan-400" />
-          Image Trace
+          {t('personalised_sign.pro.image_trace.title')}
         </h3>
         {imageData && (
           <button
             onClick={handleReset}
             className="text-slate-400 hover:text-white transition-colors"
-            title="Reset"
+            title={t('personalised_sign.pro.image_trace.reset')}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -280,8 +285,8 @@ export function ImageTracePanel({
       {!imageData ? (
         <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:border-cyan-500 hover:bg-slate-700/50 transition-colors">
           <Upload className="w-8 h-8 text-slate-400" />
-          <span className="text-sm text-slate-300">Upload image to trace</span>
-          <span className="text-xs text-slate-500">PNG, JPG supported</span>
+          <span className="text-sm text-slate-300">{t('personalised_sign.pro.image_trace.upload_prompt')}</span>
+          <span className="text-xs text-slate-500">{t('personalised_sign.pro.image_trace.upload_formats')}</span>
           <input
             ref={fileInputRef}
             type="file"
@@ -301,7 +306,7 @@ export function ImageTracePanel({
 
           {/* Image preview */}
           <div className="bg-slate-900 rounded border border-slate-600 p-2 aspect-video flex items-center justify-center">
-            <img src={imageData} alt="Preview" className="max-w-full max-h-full object-contain" />
+            <img src={imageData} alt={t('personalised_sign.common.preview')} className="max-w-full max-h-full object-contain" />
           </div>
 
           {/* Quick action: Insert as Image (no trace) */}
@@ -312,20 +317,20 @@ export function ImageTracePanel({
               className="w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white disabled:opacity-50"
             >
               <ImageIcon className="w-4 h-4" />
-              Insert as Image (no trace)
+              {t('personalised_sign.ai.insert_as_image')}
             </button>
           )}
 
           {/* Divider */}
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <div className="flex-1 h-px bg-slate-700" />
-            <span>or trace to vectors</span>
+            <span>{t('personalised_sign.ai.or_trace_to_vectors')}</span>
             <div className="flex-1 h-px bg-slate-700" />
           </div>
 
           {/* Mode selection */}
           <div className="space-y-2">
-            <label className="text-xs text-slate-400">Output Mode</label>
+            <label className="text-xs text-slate-400">{t('personalised_sign.pro.image_trace.output_mode')}</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setOptions((o) => ({ ...o, mode: 'CUT_SILHOUETTE', threshold: 175, denoise: 0 }))}
@@ -336,7 +341,7 @@ export function ImageTracePanel({
                 }`}
               >
                 <Scissors className="w-4 h-4" />
-                <span className="text-xs">Cut Silhouette</span>
+                <span className="text-xs">{t('personalised_sign.pro.image_trace.mode.cut_silhouette')}</span>
               </button>
               <button
                 onClick={() => setOptions((o) => ({ ...o, mode: 'ENGRAVE_LINEART', threshold: 145, denoise: 0 }))}
@@ -347,7 +352,7 @@ export function ImageTracePanel({
                 }`}
               >
                 <Pencil className="w-4 h-4" />
-                <span className="text-xs">Engrave Line Art</span>
+                <span className="text-xs">{t('personalised_sign.pro.image_trace.mode.engrave_line_art')}</span>
               </button>
             </div>
           </div>
@@ -355,7 +360,7 @@ export function ImageTracePanel({
           {/* Threshold */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs text-slate-400">Threshold</label>
+              <label className="text-xs text-slate-400">{t('personalised_sign.pro.image_trace.threshold')}</label>
               <span className="text-xs text-slate-500">{options.threshold}</span>
             </div>
             <input
@@ -371,7 +376,7 @@ export function ImageTracePanel({
           {/* Denoise */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs text-slate-400">Denoise</label>
+              <label className="text-xs text-slate-400">{t('personalised_sign.ai.trace.denoise')}</label>
               <span className="text-xs text-slate-500">{options.denoise}</span>
             </div>
             <input
@@ -394,7 +399,7 @@ export function ImageTracePanel({
                 onChange={(e) => setOptions((o) => ({ ...o, autoInvert: e.target.checked }))}
                 className="rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500"
               />
-              Auto-invert
+              {t('personalised_sign.ai.trace.auto_invert')}
             </label>
           </div>
 
@@ -402,7 +407,7 @@ export function ImageTracePanel({
           {previewPath && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs text-slate-400">Preview</label>
+                <label className="text-xs text-slate-400">{t('personalised_sign.common.preview')}</label>
                 <button
                   onClick={() => setShowPreview(!showPreview)}
                   className="text-slate-400 hover:text-white"
@@ -437,7 +442,7 @@ export function ImageTracePanel({
               className="w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50"
             >
               <Wand2 className="w-4 h-4" />
-              Trace
+              {t('personalised_sign.pro.image_trace.trace')}
             </button>
           )}
 
@@ -445,7 +450,7 @@ export function ImageTracePanel({
           {loading && (
             <div className="flex items-center justify-center gap-2 text-xs text-slate-400 py-2">
               <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-              <span>Tracing...</span>
+              <span>{t('personalised_sign.ai.tracing')}</span>
             </div>
           )}
 
@@ -457,7 +462,7 @@ export function ImageTracePanel({
               className="w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50"
             >
               <Wand2 className="w-4 h-4" />
-              Trace & Insert
+              {t('personalised_sign.ai.trace_and_insert')}
             </button>
           )}
         </>

@@ -7,6 +7,9 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import {
   Download,
   RefreshCw,
@@ -106,6 +109,9 @@ interface Props {
 }
 
 export default function PersonalisedSignToolPro({ featureFlags }: Props) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const history = useHistoryReducer<{ doc: SignDocument; selection: SelectionState }>({
     doc: createDefaultDocument(),
     selection: createSelectionState(),
@@ -972,21 +978,21 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-4">
         
         {/* Shape Section */}
-        <Section title="Shape & Size" icon={<Circle className="w-4 h-4" />} expanded={expandedSections.shape} onToggle={() => toggleSection('shape')}>
+        <Section title={t('personalised_sign.pro.ui.section.shape_size')} icon={<Circle className="w-4 h-4" />} expanded={expandedSections.shape} onToggle={() => toggleSection('shape')}>
           <div className="space-y-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Shape Type</label>
+              <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.ui.shape_type')}</label>
               <select
                 value={doc.artboard.baseShape.shapeType}
                 onChange={(e) => updateDoc(d => updateBaseShape(d, e.target.value as BaseShapeType))}
                 className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm"
               >
-                <optgroup label="Basic Shapes">
+                <optgroup label={t('personalised_sign.pro.ui.shape_group.basic')}>
                   {SHAPE_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </optgroup>
-                <optgroup label="Ornate Labels">
+                <optgroup label={t('personalised_sign.pro.ui.shape_group.ornate')}>
                   {ORNATE_LABELS.map((s) => (
                     <option key={s.id} value={s.id}>{s.label}</option>
                   ))}
@@ -996,14 +1002,14 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
 
             <div className="grid grid-cols-2 gap-2">
               <NumberInput
-                label="Width (mm)"
+                label={t('personalised_sign.common.width_mm')}
                 value={doc.artboard.wMm}
                 onChange={(v) => updateDoc(d => updateArtboardSize(d, v, d.artboard.hMm))}
                 min={LIMITS.width.min}
                 max={LIMITS.width.max}
               />
               <NumberInput
-                label="Height (mm)"
+                label={t('personalised_sign.common.height_mm')}
                 value={doc.artboard.hMm}
                 onChange={(v) => updateDoc(d => updateArtboardSize(d, d.artboard.wMm, v))}
                 min={LIMITS.height.min}
@@ -1013,7 +1019,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
 
             {['rounded-rect', 'rounded-arch', 'plaque'].includes(doc.artboard.baseShape.shapeType) && (
               <NumberInput
-                label="Corner Radius"
+                label={t('personalised_sign.v3.corner_radius')}
                 value={doc.artboard.baseShape.cornerRadius}
                 onChange={(v) => updateDoc(d => updateBaseShape(d, d.artboard.baseShape.shapeType, v))}
                 min={0}
@@ -1024,13 +1030,13 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         </Section>
 
         {/* Text Section */}
-        <Section title="Text Elements" icon={<Type className="w-4 h-4" />} expanded={expandedSections.text} onToggle={() => toggleSection('text')}>
+        <Section title={t('personalised_sign.pro.ui.section.text_elements')} icon={<Type className="w-4 h-4" />} expanded={expandedSections.text} onToggle={() => toggleSection('text')}>
           <div className="space-y-4">
             {textElements.map((element, index) => (
               <TextElementEditor
                 key={element.id}
                 element={element}
-                label={`Line ${element.lineIndex}`}
+                label={`${t('personalised_sign.pro.ui.text.line_label_prefix')} ${element.lineIndex}`}
                 onUpdate={(updates) => updateDoc(d => updateElement(d, element.id, updates))}
                 onDelete={() => updateDoc(d => deleteElement(d, element.id))}
               />
@@ -1056,13 +1062,13 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
               className="w-full px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm flex items-center justify-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Add Text Element
+              {t('personalised_sign.pro.ui.text.add_text_element')}
             </button>
           </div>
         </Section>
 
         {/* Layers Section */}
-        <Section title="Layers" icon={<LayersIcon className="w-4 h-4" />} expanded={expandedSections.layers} onToggle={() => toggleSection('layers')}>
+        <Section title={t('personalised_sign.pro.layers.title')} icon={<LayersIcon className="w-4 h-4" />} expanded={expandedSections.layers} onToggle={() => toggleSection('layers')}>
           <LayerPanel
             document={doc}
             selectedIds={selectedIds}
@@ -1076,7 +1082,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
           />
         </Section>
 
-        <Section title="Offset" icon={<Circle className="w-4 h-4" />} expanded={expandedSections.offset} onToggle={() => toggleSection('offset')}>
+        <Section title={t('personalised_sign.pro.ui.section.offset')} icon={<Circle className="w-4 h-4" />} expanded={expandedSections.offset} onToggle={() => toggleSection('offset')}>
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <input
@@ -1085,11 +1091,11 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
                 onChange={(e) => setOffsetPreviewEnabled(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-xs text-slate-300">Preview offset</span>
+              <span className="text-xs text-slate-300">{t('personalised_sign.pro.ui.offset.preview_offset')}</span>
             </div>
 
             <NumberInput
-              label="Offset (mm)"
+              label={t('personalised_sign.pro.ui.offset.offset_mm')}
               value={offsetMm}
               onChange={(v) => setOffsetMm(v)}
               min={0.5}
@@ -1098,14 +1104,14 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
             />
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Target layer</label>
+              <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.ui.offset.target_layer')}</label>
               <select
                 value={offsetTargetLayerType}
                 onChange={(e) => setOffsetTargetLayerType(e.target.value as 'CUT' | 'OUTLINE')}
                 className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm"
               >
-                <option value="OUTLINE">OUTLINE</option>
-                <option value="CUT">CUT</option>
+                <option value="OUTLINE">{t('personalised_sign.pro.ui.offset.target_layer_option.outline')}</option>
+                <option value="CUT">{t('personalised_sign.pro.ui.offset.target_layer_option.cut')}</option>
               </select>
             </div>
 
@@ -1113,13 +1119,13 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
               onClick={handleApplyOffset}
               className="w-full px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
             >
-              Apply Offset
+              {t('personalised_sign.pro.ui.offset.apply_offset')}
             </button>
           </div>
         </Section>
 
         {/* AI Section */}
-        <Section title="AI Generate" icon={<Wand2 className="w-4 h-4 text-purple-400" />} expanded={expandedSections.ai} onToggle={() => toggleSection('ai')}>
+        <Section title={t('personalised_sign.pro.ui.section.ai_generate')} icon={<Wand2 className="w-4 h-4 text-purple-400" />} expanded={expandedSections.ai} onToggle={() => toggleSection('ai')}>
           <AiGeneratePanel
             targetWidthMm={doc.artboard.wMm}
             targetHeightMm={doc.artboard.hMm}
@@ -1130,7 +1136,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         </Section>
 
         {/* Pathfinder Section */}
-        <Section title="Pathfinder" icon={<Combine className="w-4 h-4 text-purple-400" />} expanded={expandedSections.pathfinder} onToggle={() => toggleSection('pathfinder')}>
+        <Section title={t('personalised_sign.pro.ui.section.pathfinder')} icon={<Combine className="w-4 h-4 text-purple-400" />} expanded={expandedSections.pathfinder} onToggle={() => toggleSection('pathfinder')}>
           <PathfinderPanel
             doc={doc}
             selectedIds={selectedIds}
@@ -1139,7 +1145,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         </Section>
 
         {/* Align Section */}
-        <Section title="Align" icon={<span className="text-blue-400">⫶</span>} expanded={expandedSections.align} onToggle={() => toggleSection('align')}>
+        <Section title={t('personalised_sign.pro.align.title')} icon={<span className="text-blue-400">⫶</span>} expanded={expandedSections.align} onToggle={() => toggleSection('align')}>
           <AlignPanel
             doc={doc}
             selectedIds={selectedIds}
@@ -1148,7 +1154,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         </Section>
 
         {/* Image Trace Section */}
-        <Section title="Image Trace" icon={<ImageIcon className="w-4 h-4 text-cyan-400" />} expanded={expandedSections.imageTrace} onToggle={() => toggleSection('imageTrace')}>
+        <Section title={t('personalised_sign.pro.image_trace.title')} icon={<ImageIcon className="w-4 h-4 text-cyan-400" />} expanded={expandedSections.imageTrace} onToggle={() => toggleSection('imageTrace')}>
           <ImageTracePanel
             targetWidthMm={doc.artboard.wMm}
             targetHeightMm={doc.artboard.hMm}
@@ -1158,12 +1164,12 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         </Section>
 
         {/* Ornament Library Section */}
-        <Section title="Ornament Library" icon={<Package className="w-4 h-4 text-amber-400" />} expanded={expandedSections.ornaments} onToggle={() => toggleSection('ornaments')}>
+        <Section title={t('personalised_sign.pro.ornaments.title')} icon={<Package className="w-4 h-4 text-amber-400" />} expanded={expandedSections.ornaments} onToggle={() => toggleSection('ornaments')}>
           <OrnamentLibraryPanel onInsert={handleOrnamentInsert} />
         </Section>
 
         {/* Mounting Holes Section */}
-        <Section title="Mounting Holes" icon={<Circle className="w-4 h-4 text-green-400" />} expanded={expandedSections.mountingHoles} onToggle={() => toggleSection('mountingHoles')}>
+        <Section title={t('personalised_sign.pro.ui.section.mounting_holes')} icon={<Circle className="w-4 h-4 text-green-400" />} expanded={expandedSections.mountingHoles} onToggle={() => toggleSection('mountingHoles')}>
           <MountingHolesPanel
             doc={doc}
             onUpdateHoleConfig={handleUpdateHoleConfig}
@@ -1174,10 +1180,10 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
         </Section>
 
         {/* Output Section */}
-        <Section title="Output Settings" icon={<Settings2 className="w-4 h-4" />} expanded={expandedSections.output} onToggle={() => toggleSection('output')}>
+        <Section title={t('personalised_sign.pro.ui.section.output_settings')} icon={<Settings2 className="w-4 h-4" />} expanded={expandedSections.output} onToggle={() => toggleSection('output')}>
           <div className="space-y-3">
             <NumberInput
-              label="Cut Stroke (mm)"
+              label={t('personalised_sign.pro.ui.output.cut_stroke_mm')}
               value={doc.output.cutStrokeMm}
               onChange={(v) => updateDoc(d => ({ ...d, output: { ...d.output, cutStrokeMm: v } }))}
               min={0.01}
@@ -1185,7 +1191,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
               step={0.01}
             />
             <NumberInput
-              label="Engrave Stroke (mm)"
+              label={t('personalised_sign.pro.ui.output.engrave_stroke_mm')}
               value={doc.output.engraveStrokeMm}
               onChange={(v) => updateDoc(d => ({ ...d, output: { ...d.output, engraveStrokeMm: v } }))}
               min={0.01}
@@ -1193,7 +1199,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
               step={0.01}
             />
             <NumberInput
-              label="Outline Stroke (mm)"
+              label={t('personalised_sign.pro.ui.output.outline_stroke_mm')}
               value={doc.output.outlineStrokeMm}
               onChange={(v) => updateDoc(d => ({ ...d, output: { ...d.output, outlineStrokeMm: v } }))}
               min={0.01}
@@ -1238,7 +1244,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
             {doc.artboard.wMm} × {doc.artboard.hMm} mm
             {selectedIds.length > 0 && (
               <span className="ml-2 text-blue-400">
-                • {selectedIds.length} selected
+                • {selectedIds.length} {t('personalised_sign.pro.ui.selected')}
               </span>
             )}
           </div>
@@ -1247,7 +1253,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
             <button
               onClick={handleReset}
               className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm flex items-center gap-1"
-              title="Reset"
+              title={t('personalised_sign.pro.ui.reset')}
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -1256,7 +1262,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
               className="px-4 py-1.5 bg-green-600 hover:bg-green-500 rounded text-sm font-medium flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
-              Export SVG
+              {t('personalised_sign.common.export_svg')}
             </button>
           </div>
         </div>
@@ -1353,11 +1359,14 @@ function TextElementEditor({ element, label, onUpdate, onDelete }: {
   onUpdate: (updates: Partial<TextElement>) => void;
   onDelete: () => void;
 }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   return (
     <div className="space-y-2 p-3 bg-slate-900 rounded-lg">
       <div className="flex items-center justify-between">
         <span className="text-xs text-slate-400">{label}</span>
-        <button onClick={onDelete} className="p-1 hover:bg-red-600/30 rounded" title="Delete">
+        <button onClick={onDelete} className="p-1 hover:bg-red-600/30 rounded" title={t('personalised_sign.pro.ui.text.delete')}>
           <Trash2 className="w-3.5 h-3.5 text-red-400" />
         </button>
       </div>
@@ -1366,20 +1375,20 @@ function TextElementEditor({ element, label, onUpdate, onDelete }: {
         type="text"
         value={element.text}
         onChange={(e) => onUpdate({ text: e.target.value })}
-        placeholder="Enter text..."
+        placeholder={t('personalised_sign.pro.ui.text.placeholder')}
         className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm"
       />
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-[10px] text-slate-400 mb-1">Font</label>
+          <label className="block text-[10px] text-slate-400 mb-1">{t('personalised_sign.pro.ui.text.font')}</label>
           <FontPicker
             value={element.fontId}
             onChange={(fontId) => onUpdate({ fontId })}
           />
         </div>
         <NumberInput
-          label="Size (mm)"
+          label={t('personalised_sign.pro.ui.text.size_mm')}
           value={element.sizeMm}
           onChange={(v) => onUpdate({ sizeMm: v })}
           min={5}
@@ -1388,15 +1397,15 @@ function TextElementEditor({ element, label, onUpdate, onDelete }: {
       </div>
 
       <div>
-        <label className="block text-[10px] text-slate-400 mb-1">Mode</label>
+        <label className="block text-[10px] text-slate-400 mb-1">{t('personalised_sign.pro.ui.text.mode')}</label>
         <select
           value={element.mode}
           onChange={(e) => onUpdate({ mode: e.target.value as any })}
           className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs"
         >
-          <option value="ENGRAVE_FILLED">Engrave (Filled)</option>
-          <option value="CUT_OUTLINE">Cut (Outline)</option>
-          <option value="BOTH">Both</option>
+          <option value="ENGRAVE_FILLED">{t('personalised_sign.pro.ui.text.mode.engrave_filled')}</option>
+          <option value="CUT_OUTLINE">{t('personalised_sign.pro.ui.text.mode.cut_outline')}</option>
+          <option value="BOTH">{t('personalised_sign.pro.ui.text.mode.both')}</option>
         </select>
       </div>
 
@@ -1410,11 +1419,11 @@ function TextElementEditor({ element, label, onUpdate, onDelete }: {
               onChange={(e) => onUpdate({ outline: { ...element.outline, enabled: e.target.checked } })}
               className="rounded"
             />
-            <span className="text-[10px] text-slate-400">Add outline offset</span>
+            <span className="text-[10px] text-slate-400">{t('personalised_sign.pro.ui.text.add_outline_offset')}</span>
           </div>
           {element.outline.enabled && (
             <NumberInput
-              label="Offset (mm)"
+              label={t('personalised_sign.pro.ui.offset.offset_mm')}
               value={element.outline.offsetMm}
               onChange={(v) => onUpdate({ outline: { ...element.outline, offsetMm: v } })}
               min={0.5}
@@ -1427,21 +1436,21 @@ function TextElementEditor({ element, label, onUpdate, onDelete }: {
 
       <div className="pl-2 border-l-2 border-slate-700 space-y-2">
         <div>
-          <label className="block text-[10px] text-slate-400 mb-1">Curved Text</label>
+          <label className="block text-[10px] text-slate-400 mb-1">{t('personalised_sign.pro.ui.text.curved_text')}</label>
           <select
             value={element.curvedMode || 'straight'}
             onChange={(e) => onUpdate({ curvedMode: e.target.value as any })}
             className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs"
           >
-            <option value="straight">Straight</option>
-            <option value="arcUp">Arc Up</option>
-            <option value="arcDown">Arc Down</option>
+            <option value="straight">{t('personalised_sign.pro.ui.text.curved_mode.straight')}</option>
+            <option value="arcUp">{t('personalised_sign.pro.ui.text.curved_mode.arc_up')}</option>
+            <option value="arcDown">{t('personalised_sign.pro.ui.text.curved_mode.arc_down')}</option>
           </select>
         </div>
 
         {(element.curvedMode || 'straight') !== 'straight' && (
           <NumberInput
-            label="Curve Intensity"
+            label={t('personalised_sign.pro.ui.text.curve_intensity')}
             value={element.curvedIntensity ?? 40}
             onChange={(v) => onUpdate({ curvedIntensity: v })}
             min={0}
@@ -1452,14 +1461,14 @@ function TextElementEditor({ element, label, onUpdate, onDelete }: {
 
       <div className="grid grid-cols-2 gap-2">
         <NumberInput
-          label="X Offset"
+          label={t('personalised_sign.pro.ui.text.x_offset')}
           value={element.transform.xMm}
           onChange={(v) => onUpdate({ transform: { ...element.transform, xMm: v } })}
           min={-500}
           max={500}
         />
         <NumberInput
-          label="Y Offset"
+          label={t('personalised_sign.pro.ui.text.y_offset')}
           value={element.transform.yMm}
           onChange={(v) => onUpdate({ transform: { ...element.transform, yMm: v } })}
           min={-500}
