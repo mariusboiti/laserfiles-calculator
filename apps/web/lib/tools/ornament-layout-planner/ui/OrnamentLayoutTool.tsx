@@ -12,6 +12,8 @@ import { generateSheetSvg, generateSheetFilename, generateZipFilename } from '..
 import { generateZipExport, downloadZip } from '../core/exportZip';
 import type { TemplateItem, LayoutSettings, SheetLayout } from '../types/layout';
 import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface OrnamentLayoutToolProps {
   onResetCallback?: (callback: () => void) => void;
@@ -20,6 +22,8 @@ interface OrnamentLayoutToolProps {
 
 export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: OrnamentLayoutToolProps) {
   const { api } = useToolUx();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   useEffect(() => {
     api.setIsEmpty(false);
@@ -39,7 +43,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
   // Generate layout
   const layoutResult = useMemo(() => {
     if (templates.length === 0) {
-      return { sheets: [], summaryWarnings: [], errors: ['No templates loaded'] };
+      return { sheets: [], summaryWarnings: [], errors: [t('ornament_layout.ui.errors.no_templates_loaded')] };
     }
 
     const result = buildLayoutsV2({ templates, settings });
@@ -78,7 +82,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
     const sheetH = settings.sheetH;
     const name = sheet
       ? generateSheetFilename(sheet.sheetIndex, layoutResult.sheets.length, sheet.items.length, settings)
-      : 'ornament-layout.svg';
+      : t('ornament_layout.ui.ornament_layout_svg_filename');
     return {
       svg: previewSvg,
       name,
@@ -88,7 +92,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
         totalSheets: layoutResult.sheets.length,
       },
     };
-  }, [currentSheet, layoutResult.sheets.length, previewSvg, settings]);
+  }, [currentSheet, layoutResult.sheets.length, previewSvg, settings, t]);
 
   useEffect(() => {
     onGetExportPayload?.(getExportPayload);
@@ -144,7 +148,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
           );
         });
       } catch (error) {
-        console.error('Failed to regenerate template:', error);
+        console.error(t('ornament_layout.ui.errors.failed_to_regenerate_template'), error);
       }
     };
 
@@ -176,9 +180,9 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
       setSettings((s) => ({ ...s, activeTemplateId: newTemplate.id }));
       setActiveBuiltInKey(null);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to load SVG');
+      alert(error instanceof Error ? error.message : t('ornament_layout.ui.errors.failed_to_load_svg'));
     }
-  }, [settings.pxDpi, settings.sanitizeSvg]);
+  }, [settings.pxDpi, settings.sanitizeSvg, t]);
 
   const handleAddBuiltInTemplate = useCallback(async (key: string) => {
     const tpl = BUILT_IN_TEMPLATES.find((t) => t.key === key);
@@ -202,7 +206,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
 
       const newTemplate: TemplateItem = {
         id: `tpl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: `${tpl.name}.svg`,
+        name: `${t(tpl.name)}.svg`,
         svgText,
         innerSvg: parsed.innerSvg,
         width: parsed.width,
@@ -216,9 +220,9 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
       setSettings((s) => ({ ...s, activeTemplateId: newTemplate.id }));
       setActiveBuiltInKey(key);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to load built-in template');
+      alert(error instanceof Error ? error.message : t('ornament_layout.ui.errors.failed_to_load_built_in_template'));
     }
-  }, [settings.pxDpi, settings.sanitizeSvg, settings.holeRadius, settings.holeYOffset]);
+  }, [settings.pxDpi, settings.sanitizeSvg, settings.holeRadius, settings.holeYOffset, t]);
 
   // Remove template
   const handleRemoveTemplate = useCallback((id: string) => {
@@ -263,7 +267,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
     );
 
     downloadTextFile(filename, svg, 'image/svg+xml');
-  }, [currentSheet, templates, settings, layoutResult.sheets.length]);
+  }, [currentSheet, templates, settings, layoutResult.sheets.length, locale, t]);
 
   // Export ZIP
   const handleExportZip = useCallback(async () => {
@@ -282,11 +286,11 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
 
       downloadZip(blob, filename);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to export ZIP');
+      alert(error instanceof Error ? error.message : t('ornament_layout.ui.errors.failed_to_export_zip'));
     } finally {
       setIsExporting(false);
     }
-  }, [layoutResult.sheets, templates, settings]);
+  }, [layoutResult.sheets, templates, settings, t]);
 
   const totalQty = templates.reduce((sum, t) => sum + t.qty, 0);
   const totalItems = layoutResult.sheets.reduce((sum, s) => sum + s.items.length, 0);
@@ -299,33 +303,33 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
           {/* Templates */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-medium text-slate-100">Templates</div>
-              <div className="text-xs text-slate-400">Total qty: {totalQty}</div>
+              <div className="text-sm font-medium text-slate-100">{t('ornament_layout.ui.templates')}</div>
+              <div className="text-xs text-slate-400">{t('ornament_layout.ui.total_qty')}: {totalQty}</div>
             </div>
 
             <div className="mb-3">
-              <div className="mb-2 text-xs text-slate-300">Built-in templates</div>
+              <div className="mb-2 text-xs text-slate-300">{t('ornament_layout.ui.built_in_templates')}</div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {BUILT_IN_TEMPLATES.map((t) => (
+                {BUILT_IN_TEMPLATES.map((tpl) => (
                   <button
-                    key={t.key}
+                    key={tpl.key}
                     type="button"
-                    onClick={() => handleAddBuiltInTemplate(t.key)}
+                    onClick={() => handleAddBuiltInTemplate(tpl.key)}
                     className={
-                      activeBuiltInKey === t.key
+                      activeBuiltInKey === tpl.key
                         ? 'group rounded-lg border border-sky-500 bg-slate-900/60 p-2 text-left'
                         : 'group rounded-lg border border-slate-800 bg-slate-900/30 p-2 text-left hover:border-slate-600'
                     }
-                    title={t.name}
+                    title={t(tpl.name)}
                   >
                     <div className="aspect-[4/3] w-full overflow-hidden rounded-md border border-slate-800 bg-white">
                       <div
                         className="h-full w-full [&_svg]:h-full [&_svg]:w-full [&_svg]:block"
-                        dangerouslySetInnerHTML={{ __html: t.thumbnailSvg }}
+                        dangerouslySetInnerHTML={{ __html: tpl.thumbnailSvg }}
                       />
                     </div>
-                    <div className="mt-2 text-[11px] font-medium text-slate-100 leading-tight">{t.name}</div>
-                    <div className="text-[10px] text-slate-400">Click to add</div>
+                    <div className="mt-2 text-[11px] font-medium text-slate-100 leading-tight">{t(tpl.name)}</div>
+                    <div className="text-[10px] text-slate-400">{t('ornament_layout.ui.click_to_add')}</div>
                   </button>
                 ))}
               </div>
@@ -363,7 +367,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                       min={0}
                       onChange={(e) => handleUpdateTemplate(tpl.id, { qty: Number(e.target.value) })}
                       className="w-16 rounded border border-slate-700 bg-slate-950 px-1 py-0.5 text-[10px]"
-                      placeholder="Qty"
+                      placeholder={t('ornament_layout.ui.qty')}
                     />
                     <select
                       value={tpl.rotateDeg}
@@ -383,23 +387,23 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
 
           {/* Sheet Presets */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-            <div className="text-sm font-medium text-slate-100 mb-3">Sheet Presets</div>
+            <div className="text-sm font-medium text-slate-100 mb-3">{t('ornament_layout.ui.sheet_presets')}</div>
             <div className="flex flex-wrap gap-2">
               {SHEET_PRESETS.map((preset) => (
                 <button
                   key={preset.name}
                   onClick={() => setSettings((s) => ({ ...s, sheetW: preset.widthMm, sheetH: preset.heightMm }))}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
-                  title={preset.description}
+                  title={t(preset.description)}
                 >
-                  {preset.name}
+                  {t(preset.name)}
                 </button>
               ))}
             </div>
             
             <div className="mt-3 grid grid-cols-3 gap-2">
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">Width (mm)</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.width_mm')}</div>
                 <input
                   type="number"
                   value={settings.sheetW}
@@ -408,7 +412,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                 />
               </label>
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">Height (mm)</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.height_mm')}</div>
                 <input
                   type="number"
                   value={settings.sheetH}
@@ -417,7 +421,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                 />
               </label>
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">Margin (mm)</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.margin_mm')}</div>
                 <input
                   type="number"
                   value={settings.margin}
@@ -430,11 +434,11 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
 
           {/* Hole Customization */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-            <div className="text-sm font-medium text-slate-100 mb-3">Hole Settings</div>
+            <div className="text-sm font-medium text-slate-100 mb-3">{t('ornament_layout.ui.hole_settings')}</div>
             <div className="space-y-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-slate-300">Hole Size (mm)</label>
+                  <label className="text-xs text-slate-300">{t('ornament_layout.ui.hole_size_mm')}</label>
                   <span className="text-xs text-slate-400">{settings.holeRadius.toFixed(1)}</span>
                 </div>
                 <input
@@ -449,7 +453,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-slate-300">Hole Position (mm from top)</label>
+                  <label className="text-xs text-slate-300">{t('ornament_layout.ui.hole_position_mm_from_top')}</label>
                   <span className="text-xs text-slate-400">{settings.holeYOffset.toFixed(1)}</span>
                 </div>
                 <input
@@ -462,13 +466,13 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                   className="w-full"
                 />
               </div>
-              <p className="text-xs text-slate-400">Applies to templates with holes (Heart, Star, Circle ornaments)</p>
+              <p className="text-xs text-slate-400">{t('ornament_layout.ui.applies_to_templates_with_holes')}</p>
             </div>
           </div>
 
           {/* Mode & Layout */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-            <div className="text-sm font-medium text-slate-100 mb-3">Layout Mode</div>
+            <div className="text-sm font-medium text-slate-100 mb-3">{t('ornament_layout.ui.layout_mode')}</div>
             
             <div className="flex gap-2 mb-3">
               <button
@@ -479,7 +483,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                     : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
                 }`}
               >
-                Grid
+                {t('ornament_layout.ui.mode.grid')}
               </button>
               <button
                 onClick={() => setSettings((s) => ({ ...s, mode: 'pack' }))}
@@ -489,7 +493,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                     : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
                 }`}
               >
-                Pack
+                {t('ornament_layout.ui.mode.pack')}
               </button>
             </div>
 
@@ -497,21 +501,21 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                   <label className="grid gap-1">
-                    <div className="text-[10px] text-slate-300">Rows</div>
+                    <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.rows')}</div>
                     <input
                       type="number"
                       value={settings.rows}
-                      disabled={settings.autoFit}
+                      min={1}
                       onChange={(e) => setSettings((s) => ({ ...s, rows: Number(e.target.value) }))}
                       className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[10px] text-slate-300">Columns</div>
+                    <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.columns')}</div>
                     <input
                       type="number"
                       value={settings.cols}
-                      disabled={settings.autoFit}
+                      min={1}
                       onChange={(e) => setSettings((s) => ({ ...s, cols: Number(e.target.value) }))}
                       className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
                     />
@@ -523,7 +527,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                     checked={settings.autoFit}
                     onChange={(e) => setSettings((s) => ({ ...s, autoFit: e.target.checked }))}
                   />
-                  Auto-fit
+                  {t('ornament_layout.ui.auto_fit')}
                 </label>
                 <label className="flex items-center gap-2 text-xs text-slate-200">
                   <input
@@ -531,7 +535,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                     checked={settings.center}
                     onChange={(e) => setSettings((s) => ({ ...s, center: e.target.checked }))}
                   />
-                  Center layout
+                  {t('ornament_layout.ui.center_layout')}
                 </label>
               </div>
             ) : (
@@ -542,7 +546,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                     checked={settings.groupByTemplate}
                     onChange={(e) => setSettings((s) => ({ ...s, groupByTemplate: e.target.checked }))}
                   />
-                  Group by template
+                  {t('ornament_layout.ui.group_by_template')}
                 </label>
                 <label className="flex items-center gap-2 text-xs text-slate-200">
                   <input
@@ -550,14 +554,14 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                     checked={settings.allowRotateInPack}
                     onChange={(e) => setSettings((s) => ({ ...s, allowRotateInPack: e.target.checked }))}
                   />
-                  Allow auto-rotate
+                  {t('ornament_layout.ui.allow_auto_rotate')}
                 </label>
               </div>
             )}
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">Gap X (mm)</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.gap_x_mm')}</div>
                 <input
                   type="number"
                   value={settings.gapX}
@@ -566,7 +570,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                 />
               </label>
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">Gap Y (mm)</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.gap_y_mm')}</div>
                 <input
                   type="number"
                   value={settings.gapY}
@@ -580,14 +584,14 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
           
           {/* Export */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-            <div className="text-sm font-medium text-slate-100 mb-3">Export</div>
+            <div className="text-sm font-medium text-slate-100 mb-3">{t('ornament_layout.ui.export')}</div>
             <div className="space-y-2">
               <button
                 onClick={handleExportSheet}
                 disabled={!currentSheet}
                 className="w-full rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
               >
-                Export Current Sheet SVG
+                {t('ornament_layout.ui.export_current_sheet_svg')}
               </button>
               {layoutResult.sheets.length > 1 && (
                 <button
@@ -595,7 +599,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                   disabled={isExporting}
                   className="w-full rounded-md bg-purple-500 px-4 py-2 text-sm font-medium text-white hover:bg-purple-600 disabled:opacity-50"
                 >
-                  {isExporting ? 'Exporting...' : `Export All Sheets (ZIP)`}
+                  {isExporting ? t('ornament_layout.ui.exporting') : t('ornament_layout.ui.export_all_sheets_zip')}
                 </button>
               )}
               <button
@@ -610,18 +614,18 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                       meta: {
                         bboxMm: { width: settings.sheetW, height: settings.sheetH },
                         operations: { hasCuts: true },
-                        notes: `${currentSheet.items.length} items on sheet`,
+                        notes: `${currentSheet.items.length} ${t('ornament_layout.ui.items_on_sheet')}`,
                       },
                     });
                     addToPriceCalculator(artifact);
                   } catch (e) {
-                    console.error('Failed to add to price calculator:', e);
+                    console.error(t('ornament_layout.ui.errors.failed_to_add_to_price_calculator'), e);
                   }
                 }}
                 disabled={!currentSheet}
                 className="w-full rounded-md border-2 border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50"
               >
-                💰 Add to Price Calculator
+                💰 {t('ornament_layout.ui.add_to_price_calculator')}
               </button>
             </div>
           </div>
@@ -633,13 +637,13 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="text-xs space-y-1">
               <div className="text-slate-100">
-                <span className="font-medium">Total items:</span> {totalItems} / {totalQty}
+                <span className="font-medium">{t('ornament_layout.ui.total_items')}:</span> {totalItems} / {totalQty}
               </div>
               <div className="text-slate-100">
-                <span className="font-medium">Sheets:</span> {layoutResult.sheets.length}
+                <span className="font-medium">{t('ornament_layout.ui.sheets')}:</span> {layoutResult.sheets.length}
               </div>
               <div className="text-slate-100">
-                <span className="font-medium">Mode:</span> {settings.mode}
+                <span className="font-medium">{t('ornament_layout.ui.mode')}:</span> {settings.mode}
               </div>
             </div>
 
@@ -674,7 +678,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                         : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
                     }`}
                   >
-                    Sheet {sheet.sheetIndex} ({sheet.items.length})
+                    {t('ornament_layout.ui.sheet')} {sheet.sheetIndex} ({sheet.items.length})
                   </button>
                 ))}
               </div>
@@ -683,12 +687,12 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
 
           {/* Preview */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 sticky top-4">
-            <div className="mb-2 text-xs text-slate-300">Preview</div>
+            <div className="mb-2 text-xs text-slate-300">{t('ornament_layout.ui.preview')}</div>
             <div className="overflow-auto rounded-lg border border-slate-800 bg-white p-3 max-h-[calc(100vh-8rem)]">
               {previewSvg ? (
                 <div dangerouslySetInnerHTML={{ __html: previewSvg }} />
               ) : (
-                <div className="text-sm text-slate-500">No preview available</div>
+                <div className="text-sm text-slate-500">{t('ornament_layout.ui.no_preview_available')}</div>
               )}
             </div>
           </div>

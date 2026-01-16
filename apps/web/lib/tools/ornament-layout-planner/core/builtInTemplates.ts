@@ -77,7 +77,7 @@ export function generateTemplateWithHole(key: string, holeRadius: number, holeYO
 export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   {
     key: 'circle-ornament-hole',
-    name: 'Circle Ornament (hole)',
+    name: 'ornament_layout.built_in.circle_ornament_hole',
     svgText: svgDoc(
       60,
       60,
@@ -92,7 +92,7 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   },
   {
     key: 'rounded-rect-nameplate-hole',
-    name: 'Rounded Nameplate (hole)',
+    name: 'ornament_layout.built_in.rounded_nameplate_hole',
     svgText: svgDoc(
       90,
       25,
@@ -106,7 +106,7 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   },
   {
     key: 'dog-tag',
-    name: 'Dog Tag',
+    name: 'ornament_layout.built_in.dog_tag',
     svgText: svgDoc(
       60,
       32,
@@ -120,7 +120,7 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   },
   {
     key: 'gift-tag',
-    name: 'Gift Tag',
+    name: 'ornament_layout.built_in.gift_tag',
     svgText: svgDoc(
       45,
       70,
@@ -134,7 +134,7 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   },
   {
     key: 'heart-ornament-hole',
-    name: 'Heart Ornament (hole)',
+    name: 'ornament_layout.built_in.heart_ornament_hole',
     svgText: svgDoc(
       62,
       58,
@@ -149,7 +149,7 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   },
   {
     key: 'star-ornament-hole',
-    name: 'Star Ornament (hole)',
+    name: 'ornament_layout.built_in.star_ornament_hole',
     svgText: svgDoc(
       70,
       70,
@@ -164,7 +164,7 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   },
   {
     key: 'rect-label-two-holes',
-    name: 'Rectangle Label (two holes)',
+    name: 'ornament_layout.built_in.rectangle_label_two_holes',
     svgText: svgDoc(
       100,
       30,
@@ -178,7 +178,7 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   },
   {
     key: 'minimal-badge',
-    name: 'Minimal Badge',
+    name: 'ornament_layout.built_in.minimal_badge',
     svgText: svgDoc(
       70,
       32,

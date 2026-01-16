@@ -2,97 +2,104 @@
  * Help component for Ornament Layout Planner V2
  */
 
+import { useCallback } from 'react';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+
 export function OrnamentLayoutHelpV2() {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   return (
     <div className="prose prose-invert prose-sm max-w-none">
-      <h2>Ornament / Nameplate Layout Planner V2</h2>
+      <h2>{t('ornament_layout.help.v2.title')}</h2>
       
-      <h3>Overview</h3>
+      <h3>{t('ornament_layout.help.v2.overview.title')}</h3>
       <p>
-        Plan production layouts for laser-cut ornaments, nameplates, tags, and other repeating items.
-        V2 adds multi-template support, automatic packing, multi-sheet export, and serial numbering.
+        {t('ornament_layout.help.v2.overview.p1')}
+        {t('ornament_layout.help.v2.overview.p2')}
       </p>
 
-      <h3>Templates</h3>
+      <h3>{t('ornament_layout.help.v2.templates.title')}</h3>
       <ul>
-        <li><strong>Upload multiple SVG files</strong> - Each template can have its own quantity</li>
-        <li><strong>Rotate templates</strong> - 0°, 90°, 180°, or 270° rotation per template</li>
-        <li><strong>Set quantities</strong> - Specify how many copies of each template to produce</li>
-        <li><strong>Remove templates</strong> - Click × to remove unwanted templates</li>
+        <li><strong>{t('ornament_layout.help.v2.templates.li1.strong')}</strong> - {t('ornament_layout.help.v2.templates.li1.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.templates.li2.strong')}</strong> - {t('ornament_layout.help.v2.templates.li2.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.templates.li3.strong')}</strong> - {t('ornament_layout.help.v2.templates.li3.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.templates.li4.strong')}</strong> - {t('ornament_layout.help.v2.templates.li4.text')}</li>
       </ul>
 
-      <h3>Layout Modes</h3>
+      <h3>{t('ornament_layout.help.v2.layout_modes.title')}</h3>
       
-      <h4>Grid Mode</h4>
+      <h4>{t('ornament_layout.help.v2.grid_mode.title')}</h4>
       <ul>
-        <li>Places items in a regular rows × columns grid</li>
-        <li>Best for uniform layouts with single template</li>
-        <li><strong>Auto-fit</strong> - Automatically calculates optimal rows/cols for sheet size</li>
-        <li><strong>Center layout</strong> - Centers the grid on the sheet</li>
+        <li>{t('ornament_layout.help.v2.grid_mode.li1')}</li>
+        <li>{t('ornament_layout.help.v2.grid_mode.li2')}</li>
+        <li><strong>{t('ornament_layout.help.v2.grid_mode.li3.strong')}</strong> - {t('ornament_layout.help.v2.grid_mode.li3.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.grid_mode.li4.strong')}</strong> - {t('ornament_layout.help.v2.grid_mode.li4.text')}</li>
       </ul>
 
-      <h4>Pack Mode (NEW)</h4>
+      <h4>{t('ornament_layout.help.v2.pack_mode.title')}</h4>
       <ul>
-        <li>Automatically packs items row-by-row without overlap</li>
-        <li>Best for production orders with multiple templates</li>
-        <li><strong>Group by template</strong> - Places all of template A, then B, then C</li>
-        <li><strong>Allow auto-rotate</strong> - Tries 90° rotation if item doesn't fit on row</li>
-        <li>Handles mixed sizes efficiently</li>
+        <li>{t('ornament_layout.help.v2.pack_mode.li1')}</li>
+        <li>{t('ornament_layout.help.v2.pack_mode.li2')}</li>
+        <li><strong>{t('ornament_layout.help.v2.pack_mode.li3.strong')}</strong> - {t('ornament_layout.help.v2.pack_mode.li3.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.pack_mode.li4.strong')}</strong> - {t('ornament_layout.help.v2.pack_mode.li4.text')}</li>
+        <li>{t('ornament_layout.help.v2.pack_mode.li5')}</li>
       </ul>
 
-      <h3>Multi-Sheet Export</h3>
+      <h3>{t('ornament_layout.help.v2.multi_sheet_export.title')}</h3>
       <ul>
-        <li>Automatically creates multiple sheets if items don't fit on one</li>
-        <li>Sheet tabs show item count per sheet</li>
-        <li><strong>Export current sheet</strong> - Download single SVG</li>
-        <li><strong>Export ZIP</strong> - Download all sheets + manifest.json</li>
+        <li>{t('ornament_layout.help.v2.multi_sheet_export.li1')}</li>
+        <li>{t('ornament_layout.help.v2.multi_sheet_export.li2')}</li>
+        <li><strong>{t('ornament_layout.help.v2.multi_sheet_export.li3.strong')}</strong> - {t('ornament_layout.help.v2.multi_sheet_export.li3.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.multi_sheet_export.li4.strong')}</strong> - {t('ornament_layout.help.v2.multi_sheet_export.li4.text')}</li>
       </ul>
 
-      <h3>Labels & Serial Numbering</h3>
+      <h3>{t('ornament_layout.help.v2.labels_serial.title')}</h3>
       <ul>
-        <li><strong>Show in preview</strong> - See labels without exporting them</li>
-        <li><strong>Export labels</strong> - Include labels in SVG output</li>
-        <li><strong>Label styles:</strong>
+        <li><strong>{t('ornament_layout.help.v2.labels_serial.li1.strong')}</strong> - {t('ornament_layout.help.v2.labels_serial.li1.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.labels_serial.li2.strong')}</strong> - {t('ornament_layout.help.v2.labels_serial.li2.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.labels_serial.li3.strong')}</strong>
           <ul>
-            <li>Index: #1, #2, #3...</li>
-            <li>Template name: STAR, HEART...</li>
-            <li>Name + Index: STAR-1, STAR-2...</li>
+            <li>{t('ornament_layout.help.v2.labels_serial.li3.sub1')}</li>
+            <li>{t('ornament_layout.help.v2.labels_serial.li3.sub2')}</li>
+            <li>{t('ornament_layout.help.v2.labels_serial.li3.sub3')}</li>
           </ul>
         </li>
-        <li>⚠️ <em>Note: Text labels may require font availability in laser software. Consider converting to paths in your design app.</em></li>
+        <li>⚠️ <em>{t('ornament_layout.help.v2.labels_serial.note')}</em></li>
       </ul>
 
-      <h3>Production Tips</h3>
+      <h3>{t('ornament_layout.help.v2.production_tips.title')}</h3>
       <ul>
-        <li><strong>Margin:</strong> Use 3-5mm to avoid edge issues</li>
-        <li><strong>Gaps:</strong> Use 2-4mm between items for clean separation</li>
-        <li><strong>Small gaps warning:</strong> Gaps &lt;0.5mm may cause parts to merge after kerf</li>
-        <li><strong>Pack mode:</strong> Best for large orders (50+ items) with mixed templates</li>
-        <li><strong>Grid mode:</strong> Best for uniform layouts with single template</li>
-        <li><strong>Labels:</strong> Keep labels OFF for pure cutting (preview only)</li>
+        <li><strong>{t('ornament_layout.help.v2.production_tips.li1.strong')}</strong> {t('ornament_layout.help.v2.production_tips.li1.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.production_tips.li2.strong')}</strong> {t('ornament_layout.help.v2.production_tips.li2.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.production_tips.li3.strong')}</strong> {t('ornament_layout.help.v2.production_tips.li3.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.production_tips.li4.strong')}</strong> {t('ornament_layout.help.v2.production_tips.li4.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.production_tips.li5.strong')}</strong> {t('ornament_layout.help.v2.production_tips.li5.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.production_tips.li6.strong')}</strong> {t('ornament_layout.help.v2.production_tips.li6.text')}</li>
       </ul>
 
-      <h3>Export Formats</h3>
+      <h3>{t('ornament_layout.help.v2.export_formats.title')}</h3>
       <ul>
-        <li><strong>Single SVG:</strong> Current sheet only, ready for laser</li>
-        <li><strong>ZIP Archive:</strong> All sheets + manifest.json with settings and item counts</li>
-        <li>SVG files use mm units and include only cut paths (no debug bounds)</li>
-        <li>Manifest includes: settings, templates, per-sheet item counts, warnings</li>
+        <li><strong>{t('ornament_layout.help.v2.export_formats.li1.strong')}</strong> {t('ornament_layout.help.v2.export_formats.li1.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.export_formats.li2.strong')}</strong> {t('ornament_layout.help.v2.export_formats.li2.text')}</li>
+        <li>{t('ornament_layout.help.v2.export_formats.li3')}</li>
+        <li>{t('ornament_layout.help.v2.export_formats.li4')}</li>
       </ul>
 
-      <h3>Keyboard Shortcuts</h3>
+      <h3>{t('ornament_layout.help.v2.keyboard_shortcuts.title')}</h3>
       <ul>
-        <li><strong>Ctrl+R:</strong> Reset to defaults</li>
-        <li><strong>Tab:</strong> Navigate between sheet tabs</li>
+        <li><strong>{t('ornament_layout.help.v2.keyboard_shortcuts.li1.strong')}</strong> {t('ornament_layout.help.v2.keyboard_shortcuts.li1.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.keyboard_shortcuts.li2.strong')}</strong> {t('ornament_layout.help.v2.keyboard_shortcuts.li2.text')}</li>
       </ul>
 
-      <h3>Troubleshooting</h3>
+      <h3>{t('ornament_layout.help.v2.troubleshooting.title')}</h3>
       <ul>
-        <li><strong>"Items do not fit":</strong> Enable multi-sheet or reduce quantity</li>
-        <li><strong>"Grid exceeds sheet":</strong> Enable auto-fit or reduce rows/cols</li>
-        <li><strong>"Small gaps warning":</strong> Increase gap size to avoid kerf issues</li>
-        <li><strong>"Overlap detected":</strong> Should not happen in pack mode - report if seen</li>
-        <li><strong>SVG not loading:</strong> Check file has viewBox or width/height attributes</li>
+        <li><strong>{t('ornament_layout.help.v2.troubleshooting.li1.strong')}</strong> {t('ornament_layout.help.v2.troubleshooting.li1.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.troubleshooting.li2.strong')}</strong> {t('ornament_layout.help.v2.troubleshooting.li2.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.troubleshooting.li3.strong')}</strong> {t('ornament_layout.help.v2.troubleshooting.li3.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.troubleshooting.li4.strong')}</strong> {t('ornament_layout.help.v2.troubleshooting.li4.text')}</li>
+        <li><strong>{t('ornament_layout.help.v2.troubleshooting.li5.strong')}</strong> {t('ornament_layout.help.v2.troubleshooting.li5.text')}</li>
       </ul>
     </div>
   );
