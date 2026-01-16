@@ -33,6 +33,9 @@ import { fitFontSizePath, fitFontSizeDoubleLinePath } from '../core/textFitPath'
 import { measureTextBBoxMm } from '../core/textToPath';
 import { gridOverlay, safeZoneOverlay } from '../core/export';
 
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+
 // Default empty build result
 const EMPTY_BUILD: BuildResult = {
   svgCombined: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"></svg>',
@@ -42,6 +45,9 @@ const EMPTY_BUILD: BuildResult = {
 };
 
 export default function KeychainToolV2() {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   // Mode state
   const [activeMode, setActiveMode] = useState<KeychainModeId>('simple');
 
@@ -138,7 +144,7 @@ export default function KeychainToolV2() {
               <rect x="1" y="1" width="${w - 2}" height="${h - 2}" rx="5"/>
             </g>
             <g id="ENGRAVE">
-              <text x="${w / 2}" y="${h / 2}" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="8" fill="#000">Build Error - Check Console</text>
+              <text x="${w / 2}" y="${h / 2}" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="8" fill="#000">${t('keychain.ui.build_error_check_console')}</text>
             </g>
           </svg>`;
           setBuildResult({
@@ -190,14 +196,14 @@ export default function KeychainToolV2() {
     const svg = type === 'cut' ? buildResult.svgCut : type === 'engrave' ? buildResult.svgEngrave : buildResult.svgCombined;
     const prepared = prepareForExport(svg, { units: 'mm' });
     if (!prepared.validation.ok) {
-      showToast(prepared.validation.errors[0] || 'Export SVG validation failed', 'error');
+      showToast(prepared.validation.errors[0] || t('keychain.ui.export_svg_validation_failed'), 'error');
       return;
     }
     if (prepared.validation.warnings.length > 0) {
       showToast(prepared.validation.warnings[0], 'warning');
     }
     downloadSvg(prepared.svg, `${filename}-${type}.svg`);
-  }, [currentMode, currentState, buildResult]);
+  }, [currentMode, currentState, buildResult, t]);
 
   const handleTraceLogoInsert = useCallback(async (result: TraceModalResult) => {
     const sanitized = sanitizeTracedPaths(result.paths);
@@ -205,7 +211,7 @@ export default function KeychainToolV2() {
       showToast(w, 'warning');
     }
     if (sanitized.commandCount > 2000) {
-      showToast('Logo is complex. Increase simplify for smoother laser cutting.', 'warning');
+      showToast(t('keychain.ui.logo_is_complex_increase_simplify'), 'warning');
     }
     if (sanitized.paths.length === 0) {
       return;
@@ -237,7 +243,7 @@ export default function KeychainToolV2() {
     if (activeMode === 'emoji-name') {
       // For emoji-name mode, just set the logo with default positioning
       setEmojiNameState((prev) => emojiNameModeV2.clamp({ ...prev, logo: logoState }));
-      showToast('Logo added to Emoji+Name keychain', 'info');
+      showToast(t('keychain.ui.logo_added_to_emoji_name'), 'info');
       return;
     }
 
@@ -346,7 +352,7 @@ export default function KeychainToolV2() {
       scale = Math.min(1, 0.95 * Math.min(safeW / bboxW, safeH / bboxH));
       y = viewHeight / 2;
       if (usedAutofitFallback) {
-        showToast('Logo auto-fitted', 'warning');
+        showToast(t('keychain.ui.logo_auto_fitted'), 'warning');
       }
     }
 
@@ -379,7 +385,7 @@ export default function KeychainToolV2() {
         {!fontsLoaded && (
           <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-3 flex items-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-            <span className="text-sm text-blue-300">Loading fonts...</span>
+            <span className="text-sm text-blue-300">{t('keychain.ui.loading_fonts')}</span>
           </div>
 
         )}
@@ -387,12 +393,12 @@ export default function KeychainToolV2() {
         {trace.TraceModal}
 
         {/* Mode Selector */}
-        <Section title="Keychain Type" expanded={expandedSections.mode} onToggle={() => toggleSection('mode')}>
+        <Section title={t('keychain.ui.section.keychain_type')} expanded={expandedSections.mode} onToggle={() => toggleSection('mode')}>
           <ModeSelector activeMode={activeMode} onModeChange={handleModeChange} />
         </Section>
 
         {/* Mode-specific Controls */}
-        <Section title="Settings" expanded={expandedSections.controls} onToggle={() => toggleSection('controls')}>
+        <Section title={t('keychain.ui.section.settings')} expanded={expandedSections.controls} onToggle={() => toggleSection('controls')}>
           {activeMode === 'simple' && (
             <SimpleControlsV2
               state={simpleState}
@@ -410,26 +416,26 @@ export default function KeychainToolV2() {
         </Section>
 
         {/* Preview Settings */}
-        <Section title="Preview Options" expanded={expandedSections.preview} onToggle={() => toggleSection('preview')}>
+        <Section title={t('keychain.ui.section.preview_options')} expanded={expandedSections.preview} onToggle={() => toggleSection('preview')}>
           <div className="space-y-2">
             <Checkbox 
-              label="Show Base (Cut Layer)" 
+              label={t('keychain.ui.preview.show_base_cut_layer')} 
               checked={activeMode === 'emoji-name' ? (currentState as any).showBase ?? true : true} 
               onChange={v => activeMode === 'emoji-name' ? updateState({ showBase: v }) : undefined} 
             />
             <Checkbox 
-              label="Show Top (Engrave Layer)" 
+              label={t('keychain.ui.preview.show_top_engrave_layer')} 
               checked={activeMode === 'emoji-name' ? (currentState as any).showTop ?? true : true} 
               onChange={v => activeMode === 'emoji-name' ? updateState({ showTop: v }) : undefined} 
             />
             <div className="h-px bg-slate-700 my-2" />
             <Checkbox 
-              label="Show Grid" 
+              label={t('keychain.ui.preview.show_grid')} 
               checked={preview.showGrid} 
               onChange={v => setPreview(p => ({ ...p, showGrid: v }))} 
             />
             <Checkbox 
-              label="Show Safe Zones" 
+              label={t('keychain.ui.preview.show_safe_zones')} 
               checked={preview.showSafeZones} 
               onChange={v => setPreview(p => ({ ...p, showSafeZones: v }))} 
             />
@@ -438,7 +444,7 @@ export default function KeychainToolV2() {
 
         {/* Reset */}
         <button onClick={handleReset} className="w-full px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm flex items-center justify-center gap-2">
-          <RefreshCw className="w-4 h-4" /> Reset to Defaults
+          <RefreshCw className="w-4 h-4" /> {t('keychain.ui.reset_to_defaults')}
         </button>
       </div>
 
@@ -453,7 +459,7 @@ export default function KeychainToolV2() {
             </span>
             {buildResult.meta.layers > 1 && (
               <span className="flex items-center gap-1 text-xs text-blue-400">
-                <Layers className="w-3 h-3" /> {buildResult.meta.layers} layers
+                <Layers className="w-3 h-3" /> {buildResult.meta.layers} {t('keychain.ui.layers')}
               </span>
             )}
             
@@ -483,21 +489,21 @@ export default function KeychainToolV2() {
               disabled={exportDisabled || isBuilding}
               className="px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded text-xs flex items-center gap-1"
             >
-              <Download className="w-3 h-3" /> Combined
+              <Download className="w-3 h-3" /> {t('keychain.ui.export.combined')}
             </button>
             <button
               onClick={() => handleExport('cut')}
               disabled={exportDisabled || isBuilding}
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded text-xs flex items-center gap-1"
             >
-              <Download className="w-3 h-3" /> Cut
+              <Download className="w-3 h-3" /> {t('keychain.ui.export.cut')}
             </button>
             <button
               onClick={() => handleExport('engrave')}
               disabled={exportDisabled || isBuilding}
               className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded text-xs flex items-center gap-1"
             >
-              <Download className="w-3 h-3" /> Engrave
+              <Download className="w-3 h-3" /> {t('keychain.ui.export.engrave')}
             </button>
           </div>
         </div>
@@ -506,7 +512,7 @@ export default function KeychainToolV2() {
         {warnings.length > 0 && (
           <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 flex-shrink-0">
             <div className="flex items-center gap-2 text-yellow-400 text-sm font-medium mb-1">
-              <AlertTriangle className="w-4 h-4" /> Warnings
+              <AlertTriangle className="w-4 h-4" /> {t('keychain.ui.warnings')}
             </div>
             <ul className="text-xs text-yellow-300/80 space-y-1">
               {warnings.map(w => (
@@ -574,11 +580,14 @@ function SimpleControlsV2({
   onChange: (u: Partial<SimpleKeychainState>) => void;
   onOpenTraceLogo: () => void;
 }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   return (
     <div className="space-y-4">
       {/* Templates */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Quick Templates</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.quick_templates')}</label>
         <div className="grid grid-cols-2 gap-1">
           {SIMPLE_TEMPLATES.map(t => (
             <button
@@ -595,45 +604,45 @@ function SimpleControlsV2({
 
       {/* Shape */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Shape</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.shape')}</label>
         <select value={state.shape} onChange={e => onChange({ shape: e.target.value as any })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-          <option value="rounded-rectangle">Rounded Rectangle</option>
-          <option value="capsule">Capsule</option>
-          <option value="circle">Circle</option>
-          <option value="hexagon">Hexagon</option>
-          <option value="dog-tag">Dog Tag</option>
+          <option value="rounded-rectangle">{t('keychain.shape.rounded_rectangle')}</option>
+          <option value="capsule">{t('keychain.shape.capsule')}</option>
+          <option value="circle">{t('keychain.shape.circle')}</option>
+          <option value="hexagon">{t('keychain.shape.hexagon')}</option>
+          <option value="dog-tag">{t('keychain.shape.dog_tag')}</option>
         </select>
       </div>
 
       {/* Dimensions */}
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Width (mm)" value={state.width} onChange={v => onChange({ width: v })} min={15} max={300} />
-        <NumberInput label="Height (mm)" value={state.height} onChange={v => onChange({ height: v })} min={15} max={300} />
+        <NumberInput label={t('keychain.ui.width_mm')} value={state.width} onChange={v => onChange({ width: v })} min={15} max={300} />
+        <NumberInput label={t('keychain.ui.height_mm')} value={state.height} onChange={v => onChange({ height: v })} min={15} max={300} />
       </div>
 
       {state.shape === 'rounded-rectangle' && (
-        <NumberInput label="Corner Radius" value={state.cornerRadius} onChange={v => onChange({ cornerRadius: v })} min={0} max={30} />
+        <NumberInput label={t('keychain.ui.corner_radius')} value={state.cornerRadius} onChange={v => onChange({ cornerRadius: v })} min={0} max={30} />
       )}
 
       {/* Text */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Text</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.text')}</label>
         <input type="text" value={state.text} onChange={e => onChange({ text: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Font Size (mm)" value={state.fontSize} onChange={v => onChange({ fontSize: v, autoFit: false })} min={4} max={80} step={0.5} />
-        <NumberInput label="Letter Spacing (mm)" value={state.letterSpacing} onChange={v => onChange({ letterSpacing: v })} min={-2} max={10} step={0.1} />
+        <NumberInput label={t('keychain.ui.font_size_mm')} value={state.fontSize} onChange={v => onChange({ fontSize: v, autoFit: false })} min={4} max={80} step={0.5} />
+        <NumberInput label={t('keychain.ui.letter_spacing_mm')} value={state.letterSpacing} onChange={v => onChange({ letterSpacing: v })} min={-2} max={10} step={0.1} />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Text X (mm)" value={state.textOffsetX} onChange={v => onChange({ textOffsetX: v })} min={-1000} max={1000} step={0.5} />
-        <NumberInput label="Text Y (mm)" value={state.textOffsetY} onChange={v => onChange({ textOffsetY: v })} min={-1000} max={1000} step={0.5} />
+        <NumberInput label={t('keychain.ui.text_x_mm')} value={state.textOffsetX} onChange={v => onChange({ textOffsetX: v })} min={-1000} max={1000} step={0.5} />
+        <NumberInput label={t('keychain.ui.text_y_mm')} value={state.textOffsetY} onChange={v => onChange({ textOffsetY: v })} min={-1000} max={1000} step={0.5} />
       </div>
 
       {/* Font */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Font Style</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.font_style')}</label>
         <select value={state.fontFamily} onChange={e => onChange({ fontFamily: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm max-h-60 overflow-y-auto">
           {getAvailableFonts().map(font => (
             <option key={font.id} value={font.id}>{font.label}</option>
@@ -643,24 +652,24 @@ function SimpleControlsV2({
 
       {/* Text Mode */}
       <div className="flex gap-2">
-        <button onClick={() => onChange({ textMode: 'single' })} className={`px-3 py-1.5 text-xs rounded ${state.textMode === 'single' ? 'bg-blue-600' : 'bg-slate-700'}`}>Single Line</button>
-        <button onClick={() => onChange({ textMode: 'double' })} className={`px-3 py-1.5 text-xs rounded ${state.textMode === 'double' ? 'bg-blue-600' : 'bg-slate-700'}`}>Two Lines</button>
+        <button onClick={() => onChange({ textMode: 'single' })} className={`px-3 py-1.5 text-xs rounded ${state.textMode === 'single' ? 'bg-blue-600' : 'bg-slate-700'}`}>{t('keychain.ui.text_mode.single_line')}</button>
+        <button onClick={() => onChange({ textMode: 'double' })} className={`px-3 py-1.5 text-xs rounded ${state.textMode === 'double' ? 'bg-blue-600' : 'bg-slate-700'}`}>{t('keychain.ui.text_mode.two_lines')}</button>
       </div>
 
       {state.textMode === 'double' && (
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Line 2</label>
+          <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.line_2')}</label>
           <input type="text" value={state.text2} onChange={e => onChange({ text2: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" />
         </div>
       )}
 
       {/* Hole */}
-      <Checkbox label="Enable Hole" checked={state.hole.enabled} onChange={v => onChange({ hole: { ...state.hole, enabled: v } })} />
+      <Checkbox label={t('keychain.ui.enable_hole')} checked={state.hole.enabled} onChange={v => onChange({ hole: { ...state.hole, enabled: v } })} />
 
       {state.hole.enabled && (
         <div className="grid grid-cols-2 gap-2">
-          <NumberInput label="Hole Diameter" value={state.hole.diameter} onChange={v => onChange({ hole: { ...state.hole, diameter: v } })} min={2} max={15} />
-          <NumberInput label="Hole Margin" value={state.hole.margin} onChange={v => onChange({ hole: { ...state.hole, margin: v } })} min={0} max={20} />
+          <NumberInput label={t('keychain.ui.hole_diameter')} value={state.hole.diameter} onChange={v => onChange({ hole: { ...state.hole, diameter: v } })} min={2} max={15} />
+          <NumberInput label={t('keychain.ui.hole_margin')} value={state.hole.margin} onChange={v => onChange({ hole: { ...state.hole, margin: v } })} min={0} max={20} />
         </div>
       )}
 
@@ -671,7 +680,7 @@ function SimpleControlsV2({
           onClick={onOpenTraceLogo}
           className="w-full px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm"
         >
-          Add Logo/Icon (Trace)
+          {t('keychain.ui.add_logo_icon_trace')}
         </button>
 
         {state.logo?.enabled && (
@@ -682,10 +691,10 @@ function SimpleControlsV2({
               onClick={() => onChange({ logo: undefined })}
               className="w-full px-3 py-2 bg-red-900/50 hover:bg-red-800/50 border border-red-700/50 rounded text-xs text-red-300 flex items-center justify-center gap-2"
             >
-              <span>✕</span> Remove Logo
+              <span>✕</span> {t('keychain.ui.remove_logo')}
             </button>
 
-            <div className="text-xs text-slate-300 font-medium">Trace Style <span className="text-slate-500">({state.logo?.traceMode || 'silhouette'})</span></div>
+            <div className="text-xs text-slate-300 font-medium">{t('keychain.ui.trace_style')} <span className="text-slate-500">({state.logo?.traceMode || 'silhouette'})</span></div>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -695,7 +704,7 @@ function SimpleControlsV2({
                 }}
                 className={`flex-1 px-2 py-1.5 rounded text-xs border ${state.logo?.traceMode === 'silhouette' || !state.logo?.traceMode ? 'bg-slate-700 border-slate-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'}`}
               >
-                Silhouette
+                {t('keychain.ui.trace_mode.silhouette')}
               </button>
               <button
                 type="button"
@@ -705,7 +714,7 @@ function SimpleControlsV2({
                 }}
                 className={`flex-1 px-2 py-1.5 rounded text-xs border ${state.logo?.traceMode === 'outline' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'}`}
               >
-                Outline
+                {t('keychain.ui.trace_mode.outline')}
               </button>
               <button
                 type="button"
@@ -715,45 +724,45 @@ function SimpleControlsV2({
                 }}
                 className={`flex-1 px-2 py-1.5 rounded text-xs border ${state.logo?.traceMode === 'engrave' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'}`}
               >
-                Engrave
+                {t('keychain.ui.trace_mode.engrave')}
               </button>
             </div>
 
-            <div className="text-xs text-slate-300 font-medium mt-2">Logo Layer</div>
+            <div className="text-xs text-slate-300 font-medium mt-2">{t('keychain.ui.logo_layer')}</div>
             <div className="flex gap-2" data-tour="trace-logo-op">
               <button
                 type="button"
                 onClick={() => onChange({ logo: { ...state.logo!, opMode: 'engrave' } })}
                 className={`flex-1 px-3 py-2 rounded text-xs border ${state.logo?.opMode !== 'cutout' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'}`}
               >
-                Engrave
+                {t('keychain.ui.export.engrave')}
               </button>
               <button
                 type="button"
                 onClick={() => onChange({ logo: { ...state.logo!, opMode: 'cutout' } })}
                 className={`flex-1 px-3 py-2 rounded text-xs border ${state.logo?.opMode === 'cutout' ? 'bg-slate-700 border-slate-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'}`}
               >
-                Cut out
+                {t('keychain.ui.cut_out')}
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-2 mt-2">
               <NumberInput
-                label="Logo X (mm)"
+                label={t('keychain.ui.logo_x_mm')}
                 value={state.logo.transform.x}
                 onChange={(v) => onChange({ logo: { ...state.logo!, transform: { ...state.logo!.transform, x: v } } })}
                 min={0}
                 max={Math.max(0, state.width)}
               />
               <NumberInput
-                label="Logo Y (mm)"
+                label={t('keychain.ui.logo_y_mm')}
                 value={state.logo.transform.y}
                 onChange={(v) => onChange({ logo: { ...state.logo!, transform: { ...state.logo!.transform, y: v } } })}
                 min={0}
                 max={Math.max(0, state.height)}
               />
               <NumberInput
-                label="Logo Scale"
+                label={t('keychain.ui.logo_scale')}
                 value={state.logo.transform.scale}
                 onChange={(v) => onChange({ logo: { ...state.logo!, transform: { ...state.logo!.transform, scale: v } } })}
                 min={0.05}
@@ -761,7 +770,7 @@ function SimpleControlsV2({
                 step={0.05}
               />
               <NumberInput
-                label="Logo Rotate (deg)"
+                label={t('keychain.ui.logo_rotate_deg')}
                 value={state.logo.transform.rotateDeg}
                 onChange={(v) => onChange({ logo: { ...state.logo!, transform: { ...state.logo!.transform, rotateDeg: v } } })}
                 min={-180}
@@ -777,17 +786,20 @@ function SimpleControlsV2({
 }
 
 function EmojiNameControlsV2({ state, onChange, onOpenTraceLogo }: { state: EmojiNameState; onChange: (u: Partial<EmojiNameState>) => void; onOpenTraceLogo: () => void }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   return (
     <div className="space-y-4">
       {/* Name */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Name</label>
-        <input type="text" value={state.name} onChange={e => onChange({ name: e.target.value })} onKeyDownCapture={e => e.stopPropagation()} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" placeholder="Enter name..." />
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.name')}</label>
+        <input type="text" value={state.name} onChange={e => onChange({ name: e.target.value })} onKeyDownCapture={e => e.stopPropagation()} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" placeholder={t('keychain.ui.placeholder.enter_name')} />
       </div>
 
       {/* Font */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Font Style</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.font_style')}</label>
         <select value={state.fontFamily} onChange={e => onChange({ fontFamily: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm max-h-60 overflow-y-auto">
           {getAvailableFonts().map(font => (
             <option key={font.id} value={font.id}>{font.label}</option>
@@ -797,8 +809,8 @@ function EmojiNameControlsV2({ state, onChange, onOpenTraceLogo }: { state: Emoj
 
       {/* Font Size & Letter Spacing */}
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Font Size (mm)" value={state.fontSize} onChange={v => onChange({ fontSize: v })} min={5} max={50} />
-        <NumberInput label="Letter Spacing" value={state.letterSpacing} onChange={v => onChange({ letterSpacing: v })} min={-2} max={10} step={0.1} />
+        <NumberInput label={t('keychain.ui.font_size_mm')} value={state.fontSize} onChange={v => onChange({ fontSize: v })} min={5} max={50} />
+        <NumberInput label={t('keychain.ui.letter_spacing')} value={state.letterSpacing} onChange={v => onChange({ letterSpacing: v })} min={-2} max={10} step={0.1} />
       </div>
 
       {/* Icon - with AI generation */}
@@ -814,7 +826,7 @@ function EmojiNameControlsV2({ state, onChange, onOpenTraceLogo }: { state: Emoj
           onClick={onOpenTraceLogo}
           className="w-full px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm"
         >
-          Add Logo/Icon (Trace)
+          {t('keychain.ui.add_logo_icon_trace')}
         </button>
 
         {state.logo?.enabled && (
@@ -824,27 +836,27 @@ function EmojiNameControlsV2({ state, onChange, onOpenTraceLogo }: { state: Emoj
               onClick={() => onChange({ logo: undefined })}
               className="w-full px-3 py-2 bg-red-900/50 hover:bg-red-800/50 border border-red-700/50 rounded text-xs text-red-300 flex items-center justify-center gap-2"
             >
-              <span>✕</span> Remove Logo
+              <span>✕</span> {t('keychain.ui.remove_logo')}
             </button>
 
-            <div className="text-xs text-slate-300 font-medium">Trace Style <span className="text-slate-500">({state.logo?.traceMode || 'silhouette'})</span></div>
+            <div className="text-xs text-slate-300 font-medium">{t('keychain.ui.trace_style')} <span className="text-slate-500">({state.logo?.traceMode || 'silhouette'})</span></div>
             <div className="flex gap-2">
               <button
                 onClick={() => onChange({ logo: { ...state.logo!, traceMode: 'silhouette' } })}
                 className={`flex-1 px-2 py-1 text-xs rounded ${state.logo?.traceMode === 'silhouette' ? 'bg-blue-600' : 'bg-slate-700'}`}
               >
-                Silhouette
+                {t('keychain.ui.trace_mode.silhouette')}
               </button>
               <button
                 onClick={() => onChange({ logo: { ...state.logo!, traceMode: 'outline' } })}
                 className={`flex-1 px-2 py-1 text-xs rounded ${state.logo?.traceMode === 'outline' ? 'bg-blue-600' : 'bg-slate-700'}`}
               >
-                Outline
+                {t('keychain.ui.trace_mode.outline')}
               </button>
             </div>
 
             <NumberInput
-              label="Logo Width (mm)"
+              label={t('keychain.ui.logo_width_mm')}
               value={state.logo?.widthMm ?? 15}
               onChange={v => onChange({ logo: { ...state.logo!, widthMm: v } })}
               min={5}
@@ -857,16 +869,16 @@ function EmojiNameControlsV2({ state, onChange, onOpenTraceLogo }: { state: Emoj
 
       {/* Icon size & Gap */}
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Icon Size (%)" value={state.iconSizePct * 100} onChange={v => onChange({ iconSizePct: v / 100 })} min={30} max={150} />
-        <NumberInput label="Gap (mm)" value={state.gap} onChange={v => onChange({ gap: v })} min={0} max={20} />
+        <NumberInput label={t('keychain.ui.icon_size_pct')} value={state.iconSizePct * 100} onChange={v => onChange({ iconSizePct: v / 100 })} min={30} max={150} />
+        <NumberInput label={t('keychain.ui.gap_mm')} value={state.gap} onChange={v => onChange({ gap: v })} min={0} max={20} />
       </div>
 
       {/* Sticker Outline Settings */}
       <div className="border-t border-slate-700 pt-3 mt-3">
-        <label className="block text-xs text-slate-300 font-medium mb-2">Sticker Outline</label>
+        <label className="block text-xs text-slate-300 font-medium mb-2">{t('keychain.ui.sticker_outline')}</label>
         <div className="grid grid-cols-2 gap-2">
-          <NumberInput label="Offset (mm)" value={state.stickerOffsetMm} onChange={v => onChange({ stickerOffsetMm: v })} min={1} max={8} step={0.5} />
-          <NumberInput label="Smooth (mm)" value={state.stickerSmoothMm} onChange={v => onChange({ stickerSmoothMm: v })} min={0.1} max={2} step={0.1} />
+          <NumberInput label={t('keychain.ui.offset_mm')} value={state.stickerOffsetMm} onChange={v => onChange({ stickerOffsetMm: v })} min={1} max={8} step={0.5} />
+          <NumberInput label={t('keychain.ui.smooth_mm')} value={state.stickerSmoothMm} onChange={v => onChange({ stickerSmoothMm: v })} min={0.1} max={2} step={0.1} />
         </div>
       </div>
 
@@ -875,37 +887,37 @@ function EmojiNameControlsV2({ state, onChange, onOpenTraceLogo }: { state: Emoj
         <div className="space-y-2 mt-2">
           {/* Ring Position */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Ring Position</label>
+            <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.ring_position')}</label>
             <select value={state.ring.position} onChange={e => onChange({ ring: { ...state.ring, position: e.target.value as any } })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-              <option value="left">Left</option>
-              <option value="top">Top</option>
-              <option value="right">Right</option>
+              <option value="left">{t('keychain.ui.ring_position.left')}</option>
+              <option value="top">{t('keychain.ui.ring_position.top')}</option>
+              <option value="right">{t('keychain.ui.ring_position.right')}</option>
             </select>
           </div>
           
           {/* Ring Diameters */}
           <div className="grid grid-cols-2 gap-2">
-            <NumberInput label="Outer Ø (mm)" value={state.ring.outerDiameter} onChange={v => onChange({ ring: { ...state.ring, outerDiameter: v } })} min={4} max={20} />
-            <NumberInput label="Inner Ø (mm)" value={state.ring.innerDiameter} onChange={v => onChange({ ring: { ...state.ring, innerDiameter: v } })} min={2} max={12} />
+            <NumberInput label={t('keychain.ui.ring.outer_diameter_mm')} value={state.ring.outerDiameter} onChange={v => onChange({ ring: { ...state.ring, outerDiameter: v } })} min={4} max={20} />
+            <NumberInput label={t('keychain.ui.ring.inner_diameter_mm')} value={state.ring.innerDiameter} onChange={v => onChange({ ring: { ...state.ring, innerDiameter: v } })} min={2} max={12} />
           </div>
         </div>
       </div>
 
       {/* Layer Visibility */}
       <div className="border-t border-slate-700 pt-3 mt-3">
-        <label className="block text-xs text-slate-300 font-medium mb-2">Preview Layers</label>
+        <label className="block text-xs text-slate-300 font-medium mb-2">{t('keychain.ui.preview_layers')}</label>
         <div className="flex gap-4">
-          <Checkbox label="Base" checked={state.showBase} onChange={v => onChange({ showBase: v })} />
-          <Checkbox label="Top" checked={state.showTop} onChange={v => onChange({ showTop: v })} />
+          <Checkbox label={t('keychain.ui.base')} checked={state.showBase} onChange={v => onChange({ showBase: v })} />
+          <Checkbox label={t('keychain.ui.top')} checked={state.showTop} onChange={v => onChange({ showTop: v })} />
         </div>
       </div>
 
       {/* Render mode */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Output Mode</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.output_mode')}</label>
         <select value={state.render} onChange={e => onChange({ render: e.target.value as any })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-          <option value="1-layer">1 Layer (engrave only)</option>
-          <option value="2-layer">2 Layers (stacked acrylic)</option>
+          <option value="1-layer">{t('keychain.ui.output_mode_option.1_layer_engrave_only')}</option>
+          <option value="2-layer">{t('keychain.ui.output_mode_option.2_layer_stacked_acrylic')}</option>
         </select>
       </div>
     </div>

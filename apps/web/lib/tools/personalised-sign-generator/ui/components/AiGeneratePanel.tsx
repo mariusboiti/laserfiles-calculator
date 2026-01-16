@@ -6,6 +6,8 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import {
   Sparkles,
   Wand2,
@@ -48,6 +50,9 @@ export function AiGeneratePanel({
   onInsertImage,
   disabled,
 }: AiGeneratePanelProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [mode, setMode] = useState<PanelMode>('engravingSketchImage');
   const [prompt, setPrompt] = useState('');
   const [detailLevel, setDetailLevel] = useState<AiDetailLevel>('medium');
@@ -155,11 +160,11 @@ export function AiGeneratePanel({
             ? e
             : 'Generation failed';
       console.warn('[AI Generate] generation failed', msg);
-      setError('We couldn’t generate a result this time. Try refining your prompt and generate again.');
+      setError(t('personalised_sign.ai.error_generate_failed'));
     } finally {
       setLoading(false);
     }
-  }, [prompt, mode, targetWidthMm, targetHeightMm, detailLevel, complexity, loading, onGenerated]);
+  }, [prompt, mode, targetWidthMm, targetHeightMm, detailLevel, complexity, loading, onGenerated, t]);
 
   const handleTraceInsert = useCallback(async () => {
     if (!imagePreviewDataUrl || traceLoading || !onTraceResult) return;
@@ -237,7 +242,13 @@ export function AiGeneratePanel({
           : typeof e === 'string'
             ? e
             : 'Trace failed';
-      setTraceError(msg);
+      setTraceError(
+        msg === 'No usable vector found'
+          ? t('personalised_sign.ai.error_no_vector')
+          : msg === 'Trace failed'
+            ? t('personalised_sign.ai.error_trace_failed')
+            : msg,
+      );
     } finally {
       setTraceLoading(false);
     }
@@ -252,6 +263,7 @@ export function AiGeneratePanel({
     traceAutoInvert,
     mode,
     prompt,
+    t,
   ]);
 
   // Insert image directly without tracing
@@ -286,7 +298,7 @@ export function AiGeneratePanel({
       {/* Header */}
       <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
         <Sparkles className="w-4 h-4 text-purple-400" />
-        AI Generate
+        {t('personalised_sign.ai.title')}
       </div>
 
       {/* Mode tabs */}
@@ -300,7 +312,7 @@ export function AiGeneratePanel({
           }`}
         >
           <Pencil className="w-3.5 h-3.5" />
-          Sketch (Image)
+          {t('personalised_sign.ai.mode.sketch_image')}
         </button>
         <button
           onClick={() => setMode('shapeSilhouette')}
@@ -311,7 +323,7 @@ export function AiGeneratePanel({
           }`}
         >
           <Scissors className="w-3.5 h-3.5" />
-          Silhouette (SVG)
+          {t('personalised_sign.ai.mode.silhouette_svg')}
         </button>
         <button
           onClick={() => setMode('shapeSilhouetteImage')}
@@ -322,27 +334,27 @@ export function AiGeneratePanel({
           }`}
         >
           <Scissors className="w-3.5 h-3.5" />
-          Silhouette (Image)
+          {t('personalised_sign.ai.mode.silhouette_image')}
         </button>
       </div>
 
       {/* Mode description */}
       <p className="text-xs text-slate-400">
         {mode === 'engravingSketchImage'
-          ? 'Generate a PNG sketch for engraving, then trace to vectors'
+          ? t('personalised_sign.ai.desc.sketch_image')
           : mode === 'shapeSilhouetteImage'
-            ? 'Generate a PNG silhouette for cutting, then trace to vectors'
-            : 'Generate solid silhouette shape for cutting (fill-based)'}
+            ? t('personalised_sign.ai.desc.silhouette_image')
+            : t('personalised_sign.ai.desc.silhouette_svg')}
       </p>
 
       {/* Prompt input */}
       <div className="space-y-2">
-        <label className="block text-xs text-slate-400">Describe your design</label>
+        <label className="block text-xs text-slate-400">{t('personalised_sign.ai.prompt_label')}</label>
         <input
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder={`e.g., "${suggestions[0]}"`}
+          placeholder={`${t('personalised_sign.ai.prompt_placeholder_prefix')} "${suggestions[0]}"`}
           disabled={disabled || loading}
           className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm disabled:opacity-50"
           onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
@@ -353,7 +365,7 @@ export function AiGeneratePanel({
       <div className="space-y-1">
         <div className="flex items-center gap-1 text-xs text-slate-500">
           <Lightbulb className="w-3 h-3" />
-          Suggestions
+          {t('personalised_sign.ai.suggestions')}
         </div>
         <div className="flex flex-wrap gap-1">
           {suggestions.slice(0, 5).map((suggestion) => (
@@ -375,37 +387,38 @@ export function AiGeneratePanel({
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="text-xs text-slate-400 hover:text-slate-300"
         >
-          {showAdvanced ? '▾ Hide' : '▸ Show'} advanced options
+          {showAdvanced ? t('personalised_sign.ai.advanced.hide') : t('personalised_sign.ai.advanced.show')}{' '}
+          {t('personalised_sign.ai.advanced.options')}
         </button>
 
         {showAdvanced && (
           <div className="mt-2 space-y-2 pl-2 border-l-2 border-slate-700">
             {mode === 'engravingSketchImage' ? (
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Detail Level</label>
+                <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.ai.detail_level')}</label>
                 <select
                   value={detailLevel}
                   onChange={(e) => setDetailLevel(e.target.value as AiDetailLevel)}
                   disabled={disabled || loading}
                   className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
                 >
-                  <option value="low">Low (simple lines)</option>
-                  <option value="medium">Medium (balanced)</option>
-                  <option value="high">High (detailed)</option>
+                  <option value="low">{t('personalised_sign.ai.detail.low')}</option>
+                  <option value="medium">{t('personalised_sign.ai.detail.medium')}</option>
+                  <option value="high">{t('personalised_sign.ai.detail.high')}</option>
                 </select>
               </div>
             ) : (
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Complexity</label>
+                <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.ai.complexity')}</label>
                 <select
                   value={complexity}
                   onChange={(e) => setComplexity(e.target.value as AiComplexity)}
                   disabled={disabled || loading}
                   className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
                 >
-                  <option value="simple">Simple (single shape)</option>
-                  <option value="medium">Medium (few shapes)</option>
-                  <option value="detailed">Detailed (complex)</option>
+                  <option value="simple">{t('personalised_sign.ai.complexity.simple')}</option>
+                  <option value="medium">{t('personalised_sign.ai.complexity.medium')}</option>
+                  <option value="detailed">{t('personalised_sign.ai.complexity.detailed')}</option>
                 </select>
               </div>
             )}
@@ -413,7 +426,7 @@ export function AiGeneratePanel({
             {isImageMode && imagePreviewDataUrl && (
               <>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Trace Threshold</label>
+                  <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.ai.trace.threshold')}</label>
                   <input
                     type="range"
                     min={80}
@@ -425,7 +438,7 @@ export function AiGeneratePanel({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Denoise</label>
+                  <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.ai.trace.denoise')}</label>
                   <input
                     type="range"
                     min={0}
@@ -445,7 +458,7 @@ export function AiGeneratePanel({
                     className="rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500"
                     disabled={disabled || loading || traceLoading}
                   />
-                  Auto-invert
+                  {t('personalised_sign.ai.trace.auto_invert')}
                 </label>
               </>
             )}
@@ -475,12 +488,15 @@ export function AiGeneratePanel({
         {loading ? (
           <>
             <RefreshCw className="w-4 h-4 animate-spin" />
-            Generating… this may take a few seconds.
+            {t('personalised_sign.ai.generating')}
           </>
         ) : (
           <>
             <Wand2 className="w-4 h-4" />
-            Generate {mode === 'engravingSketchImage' ? 'Sketch' : 'Silhouette'}
+            {t('personalised_sign.ai.generate')}{' '}
+            {mode === 'engravingSketchImage'
+              ? t('personalised_sign.ai.result.sketch')
+              : t('personalised_sign.ai.result.silhouette')}
           </>
         )}
       </button>
@@ -492,18 +508,18 @@ export function AiGeneratePanel({
           className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Regenerate
+          {t('personalised_sign.ai.regenerate')}
         </button>
       )}
 
       {isImageMode && imagePreviewDataUrl && (
         <div className="space-y-2">
           <div className="bg-slate-900 border border-slate-700 rounded p-2">
-            <img src={imagePreviewDataUrl} alt="AI preview" className="w-full h-auto rounded" />
+            <img src={imagePreviewDataUrl} alt={t('personalised_sign.ai.preview_alt')} className="w-full h-auto rounded" />
           </div>
 
           <div className="text-[10px] text-slate-400">
-            Not perfect? Try refining your prompt and generate again.
+            {t('personalised_sign.ai.not_perfect_hint')}
           </div>
           
           {/* Insert as Image - no trace needed */}
@@ -514,14 +530,14 @@ export function AiGeneratePanel({
               className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors bg-green-600 hover:bg-green-500 text-white disabled:opacity-50"
             >
               <Pencil className="w-4 h-4" />
-              Insert as Image (no trace)
+              {t('personalised_sign.ai.insert_as_image')}
             </button>
           )}
 
           {/* Divider */}
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <div className="flex-1 h-px bg-slate-700" />
-            <span>or trace to vectors</span>
+            <span>{t('personalised_sign.ai.or_trace_to_vectors')}</span>
             <div className="flex-1 h-px bg-slate-700" />
           </div>
 
@@ -537,12 +553,12 @@ export function AiGeneratePanel({
             {traceLoading ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Tracing...
+                {t('personalised_sign.ai.tracing')}
               </>
             ) : (
               <>
                 <Wand2 className="w-4 h-4" />
-                Trace & Insert
+                {t('personalised_sign.ai.trace_and_insert')}
               </>
             )}
           </button>
@@ -559,7 +575,9 @@ export function AiGeneratePanel({
 
       {/* Info */}
       <p className="text-[10px] text-slate-500 text-center">
-        AI results are added to {mode === 'engravingSketchImage' ? 'ENGRAVE' : 'CUT'} layer
+        {t('personalised_sign.ai.info_prefix')}{' '}
+        {mode === 'engravingSketchImage' ? t('personalised_sign.ai.layer_engrave') : t('personalised_sign.ai.layer_cut')}{' '}
+        {t('personalised_sign.ai.info_suffix')}
       </p>
     </div>
   );

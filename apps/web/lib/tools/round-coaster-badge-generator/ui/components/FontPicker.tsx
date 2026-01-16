@@ -8,6 +8,8 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import { FONTS, type FontId } from '../../../../fonts/sharedFontRegistry';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface FontPickerProps {
   value: FontId;
@@ -17,6 +19,9 @@ interface FontPickerProps {
 }
 
 export function FontPicker({ value, onChange, disabled, label }: FontPickerProps) {
+  const { locale } = useLanguage();
+  const t = React.useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -45,7 +50,7 @@ export function FontPicker({ value, onChange, disabled, label }: FontPickerProps
           disabled={disabled}
           className="w-full flex items-center justify-between gap-2 bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-left disabled:opacity-50 hover:border-slate-600"
         >
-          <span className="truncate">{selectedFont?.label || 'Select font'}</span>
+          <span className="truncate">{selectedFont?.label || t('round_coaster.font.select')}</span>
           <ChevronDown className={`w-3.5 h-3.5 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
 
@@ -64,7 +69,7 @@ export function FontPicker({ value, onChange, disabled, label }: FontPickerProps
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search fonts..."
+                    placeholder={t('round_coaster.font.search')}
                     className="w-full bg-slate-900 border border-slate-700 rounded pl-7 pr-2 py-1 text-xs"
                     autoFocus
                   />
@@ -73,7 +78,7 @@ export function FontPicker({ value, onChange, disabled, label }: FontPickerProps
 
               <div className="overflow-y-auto max-h-48">
                 {filteredFonts.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-slate-400">No fonts found</div>
+                  <div className="px-3 py-2 text-xs text-slate-400">{t('round_coaster.font.no_results')}</div>
                 ) : (
                   filteredFonts.map((font) => (
                     <button

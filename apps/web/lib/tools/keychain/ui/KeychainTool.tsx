@@ -21,7 +21,13 @@ import { ModeSelector } from './ModeSelector';
 import { IconPicker } from './IconPicker';
 import { clamp } from '../core/geometry';
 
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+
 export default function KeychainTool() {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   // Mode state
   const [activeMode, setActiveMode] = useState<KeychainModeId>('simple');
 
@@ -109,12 +115,12 @@ export default function KeychainTool() {
       {/* Controls Panel */}
       <div className="w-full lg:w-[420px] space-y-4 overflow-y-auto max-h-[calc(100vh-120px)]">
         {/* Mode Selector */}
-        <Section title="Keychain Type" expanded={expandedSections.mode} onToggle={() => toggleSection('mode')}>
+        <Section title={t('keychain.ui.section.keychain_type')} expanded={expandedSections.mode} onToggle={() => toggleSection('mode')}>
           <ModeSelector activeMode={activeMode} onModeChange={handleModeChange} />
         </Section>
 
         {/* Mode-specific Controls */}
-        <Section title="Settings" expanded={expandedSections.controls} onToggle={() => toggleSection('controls')}>
+        <Section title={t('keychain.ui.section.settings')} expanded={expandedSections.controls} onToggle={() => toggleSection('controls')}>
           {activeMode === 'simple' && (
             <SimpleControls state={simpleState} onChange={updateState} />
           )}
@@ -129,18 +135,18 @@ export default function KeychainTool() {
         </Section>
 
         {/* Preview Settings */}
-        <Section title="Preview Options" expanded={expandedSections.preview} onToggle={() => toggleSection('preview')}>
+        <Section title={t('keychain.ui.section.preview_options')} expanded={expandedSections.preview} onToggle={() => toggleSection('preview')}>
           <div className="space-y-2">
-            <Checkbox label="Show Grid" checked={preview.showGrid} onChange={v => setPreview(p => ({ ...p, showGrid: v }))} />
-            <Checkbox label="Show Safe Zones" checked={preview.showSafeZones} onChange={v => setPreview(p => ({ ...p, showSafeZones: v }))} />
-            <Checkbox label="Show Hole Guide" checked={preview.showHoleGuide} onChange={v => setPreview(p => ({ ...p, showHoleGuide: v }))} />
-            <Checkbox label="Layer Colors (preview only)" checked={preview.showLayerColors} onChange={v => setPreview(p => ({ ...p, showLayerColors: v }))} />
+            <Checkbox label={t('keychain.ui.preview.show_grid')} checked={preview.showGrid} onChange={v => setPreview(p => ({ ...p, showGrid: v }))} />
+            <Checkbox label={t('keychain.ui.preview.show_safe_zones')} checked={preview.showSafeZones} onChange={v => setPreview(p => ({ ...p, showSafeZones: v }))} />
+            <Checkbox label={t('keychain.ui.preview.show_hole_guide')} checked={preview.showHoleGuide} onChange={v => setPreview(p => ({ ...p, showHoleGuide: v }))} />
+            <Checkbox label={t('keychain.ui.preview.layer_colors_preview_only')} checked={preview.showLayerColors} onChange={v => setPreview(p => ({ ...p, showLayerColors: v }))} />
           </div>
         </Section>
 
         {/* Reset */}
         <button onClick={handleReset} className="w-full px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm flex items-center justify-center gap-2">
-          <RefreshCw className="w-4 h-4" /> Reset to Defaults
+          <RefreshCw className="w-4 h-4" /> {t('keychain.ui.reset_to_defaults')}
         </button>
       </div>
 
@@ -164,21 +170,21 @@ export default function KeychainTool() {
               disabled={exportDisabled}
               className="px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded text-xs flex items-center gap-1"
             >
-              <Download className="w-3 h-3" /> Combined
+              <Download className="w-3 h-3" /> {t('keychain.ui.export.combined')}
             </button>
             <button
               onClick={() => handleExport('cut')}
               disabled={exportDisabled}
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded text-xs flex items-center gap-1"
             >
-              <Download className="w-3 h-3" /> Cut
+              <Download className="w-3 h-3" /> {t('keychain.ui.export.cut')}
             </button>
             <button
               onClick={() => handleExport('engrave')}
               disabled={exportDisabled}
               className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded text-xs flex items-center gap-1"
             >
-              <Download className="w-3 h-3" /> Engrave
+              <Download className="w-3 h-3" /> {t('keychain.ui.export.engrave')}
             </button>
           </div>
         </div>
@@ -187,7 +193,7 @@ export default function KeychainTool() {
         {warnings.length > 0 && (
           <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3">
             <div className="flex items-center gap-2 text-yellow-400 text-sm font-medium mb-1">
-              <AlertTriangle className="w-4 h-4" /> Warnings
+              <AlertTriangle className="w-4 h-4" /> {t('keychain.ui.warnings')}
             </div>
             <ul className="text-xs text-yellow-300/80 space-y-1">
               {warnings.map(w => (
@@ -216,56 +222,59 @@ export default function KeychainTool() {
 // ============ Mode Control Components ============
 
 function SimpleControls({ state, onChange }: { state: SimpleKeychainState; onChange: (u: Partial<SimpleKeychainState>) => void }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   return (
     <div className="space-y-4">
       {/* Shape */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Shape</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.shape')}</label>
         <select value={state.shape} onChange={e => onChange({ shape: e.target.value as any })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-          <option value="rounded-rectangle">Rounded Rectangle</option>
-          <option value="capsule">Capsule</option>
-          <option value="circle">Circle</option>
-          <option value="hexagon">Hexagon</option>
-          <option value="dog-tag">Dog Tag</option>
+          <option value="rounded-rectangle">{t('keychain.shape.rounded_rectangle')}</option>
+          <option value="capsule">{t('keychain.shape.capsule')}</option>
+          <option value="circle">{t('keychain.shape.circle')}</option>
+          <option value="hexagon">{t('keychain.shape.hexagon')}</option>
+          <option value="dog-tag">{t('keychain.shape.dog_tag')}</option>
         </select>
       </div>
 
       {/* Dimensions */}
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Width (mm)" value={state.width} onChange={v => onChange({ width: v })} min={15} max={300} />
-        <NumberInput label="Height (mm)" value={state.height} onChange={v => onChange({ height: v })} min={15} max={300} />
+        <NumberInput label={t('keychain.ui.width_mm')} value={state.width} onChange={v => onChange({ width: v })} min={15} max={300} />
+        <NumberInput label={t('keychain.ui.height_mm')} value={state.height} onChange={v => onChange({ height: v })} min={15} max={300} />
       </div>
 
       {state.shape === 'rounded-rectangle' && (
-        <NumberInput label="Corner Radius" value={state.cornerRadius} onChange={v => onChange({ cornerRadius: v })} min={0} max={30} />
+        <NumberInput label={t('keychain.ui.corner_radius')} value={state.cornerRadius} onChange={v => onChange({ cornerRadius: v })} min={0} max={30} />
       )}
 
       {/* Text */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Text</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.text')}</label>
         <input type="text" value={state.text} onChange={e => onChange({ text: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" />
       </div>
 
       {/* Text Mode */}
       <div className="flex gap-2">
-        <button onClick={() => onChange({ textMode: 'single' })} className={`px-3 py-1.5 text-xs rounded ${state.textMode === 'single' ? 'bg-blue-600' : 'bg-slate-700'}`}>Single Line</button>
-        <button onClick={() => onChange({ textMode: 'double' })} className={`px-3 py-1.5 text-xs rounded ${state.textMode === 'double' ? 'bg-blue-600' : 'bg-slate-700'}`}>Two Lines</button>
+        <button onClick={() => onChange({ textMode: 'single' })} className={`px-3 py-1.5 text-xs rounded ${state.textMode === 'single' ? 'bg-blue-600' : 'bg-slate-700'}`}>{t('keychain.ui.text_mode.single_line')}</button>
+        <button onClick={() => onChange({ textMode: 'double' })} className={`px-3 py-1.5 text-xs rounded ${state.textMode === 'double' ? 'bg-blue-600' : 'bg-slate-700'}`}>{t('keychain.ui.text_mode.two_lines')}</button>
       </div>
 
       {state.textMode === 'double' && (
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Line 2</label>
+          <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.line_2')}</label>
           <input type="text" value={state.text2} onChange={e => onChange({ text2: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" />
         </div>
       )}
 
       {/* Hole */}
-      <Checkbox label="Enable Hole" checked={state.hole.enabled} onChange={v => onChange({ hole: { ...state.hole, enabled: v } })} />
+      <Checkbox label={t('keychain.ui.enable_hole')} checked={state.hole.enabled} onChange={v => onChange({ hole: { ...state.hole, enabled: v } })} />
 
       {state.hole.enabled && (
         <div className="grid grid-cols-2 gap-2">
-          <NumberInput label="Hole Diameter" value={state.hole.diameter} onChange={v => onChange({ hole: { ...state.hole, diameter: v } })} min={2} max={15} />
-          <NumberInput label="Hole Margin" value={state.hole.margin} onChange={v => onChange({ hole: { ...state.hole, margin: v } })} min={0} max={20} />
+          <NumberInput label={t('keychain.ui.hole_diameter')} value={state.hole.diameter} onChange={v => onChange({ hole: { ...state.hole, diameter: v } })} min={2} max={15} />
+          <NumberInput label={t('keychain.ui.hole_margin')} value={state.hole.margin} onChange={v => onChange({ hole: { ...state.hole, margin: v } })} min={0} max={20} />
         </div>
       )}
     </div>
@@ -273,6 +282,9 @@ function SimpleControls({ state, onChange }: { state: SimpleKeychainState; onCha
 }
 
 function EmojiNameControls({ state, onChange, uploadedIcons, onIconUpload }: { state: EmojiNameState; onChange: (u: Partial<EmojiNameState>) => void; uploadedIcons: IconDef[]; onIconUpload: (i: IconDef) => void }) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   // Legacy optional fields with defaults
   const outlineThickness = state.outlineThickness ?? 3;
   const borderThickness = state.borderThickness ?? 2;
@@ -281,11 +293,11 @@ function EmojiNameControls({ state, onChange, uploadedIcons, onIconUpload }: { s
   return (
     <div className="space-y-4">
       {/* Height control */}
-      <NumberInput label="Height (mm)" value={state.height ?? 50} onChange={v => onChange({ height: v })} min={15} max={100} />
+      <NumberInput label={t('keychain.ui.height_mm')} value={state.height ?? 50} onChange={v => onChange({ height: v })} min={15} max={100} />
 
       {/* Name */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Name</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.name')}</label>
         <input type="text" value={state.name} onChange={e => onChange({ name: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm" />
       </div>
 
@@ -298,33 +310,33 @@ function EmojiNameControls({ state, onChange, uploadedIcons, onIconUpload }: { s
       />
 
       {/* Icon size */}
-      <NumberInput label="Icon Size (%)" value={state.iconSizePct * 100} onChange={v => onChange({ iconSizePct: v / 100 })} min={30} max={150} />
+      <NumberInput label={t('keychain.ui.icon_size_pct')} value={state.iconSizePct * 100} onChange={v => onChange({ iconSizePct: v / 100 })} min={30} max={150} />
 
       {/* Gap */}
-      <NumberInput label="Gap (mm)" value={state.gap} onChange={v => onChange({ gap: v })} min={0} max={30} />
+      <NumberInput label={t('keychain.ui.gap_mm')} value={state.gap} onChange={v => onChange({ gap: v })} min={0} max={30} />
 
       {/* Outline */}
       <div className="grid grid-cols-2 gap-2">
-        <NumberInput label="Outline Thickness" value={outlineThickness} onChange={v => onChange({ outlineThickness: v })} min={1} max={10} />
-        <NumberInput label="Border Thickness" value={borderThickness} onChange={v => onChange({ borderThickness: v })} min={0} max={10} />
+        <NumberInput label={t('keychain.ui.outline_thickness')} value={outlineThickness} onChange={v => onChange({ outlineThickness: v })} min={1} max={10} />
+        <NumberInput label={t('keychain.ui.border_thickness')} value={borderThickness} onChange={v => onChange({ borderThickness: v })} min={0} max={10} />
       </div>
 
       {/* Hole */}
-      <Checkbox label="Enable Hole" checked={hole.enabled} onChange={v => onChange({ hole: { ...hole, enabled: v } })} />
+      <Checkbox label={t('keychain.ui.enable_hole')} checked={hole.enabled} onChange={v => onChange({ hole: { ...hole, enabled: v } })} />
 
       {hole.enabled && (
         <div className="grid grid-cols-2 gap-2">
-          <NumberInput label="Hole Diameter" value={hole.diameter} onChange={v => onChange({ hole: { ...hole, diameter: v } })} min={2} max={15} />
-          <NumberInput label="Hole Margin" value={hole.margin} onChange={v => onChange({ hole: { ...hole, margin: v } })} min={0} max={20} />
+          <NumberInput label={t('keychain.ui.hole_diameter')} value={hole.diameter} onChange={v => onChange({ hole: { ...hole, diameter: v } })} min={2} max={15} />
+          <NumberInput label={t('keychain.ui.hole_margin')} value={hole.margin} onChange={v => onChange({ hole: { ...hole, margin: v } })} min={0} max={20} />
         </div>
       )}
 
       {/* Render mode */}
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Layers</label>
+        <label className="block text-xs text-slate-400 mb-1">{t('keychain.ui.layers')}</label>
         <select value={state.render} onChange={e => onChange({ render: e.target.value as any })} className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm">
-          <option value="1-layer">1 Layer</option>
-          <option value="2-layer">2 Layers</option>
+          <option value="1-layer">{t('keychain.ui.layers_option.1_layer')}</option>
+          <option value="2-layer">{t('keychain.ui.layers_option.2_layer')}</option>
         </select>
       </div>
     </div>

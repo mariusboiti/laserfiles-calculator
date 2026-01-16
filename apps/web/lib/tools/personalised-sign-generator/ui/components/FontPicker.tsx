@@ -5,7 +5,9 @@
  * Uses shared font registry from Keychain Hub
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { ChevronDown, Search } from 'lucide-react';
 import { FONTS, type FontConfig, type FontId } from '../../../../fonts/sharedFontRegistry';
 import { getCssFontFamily } from '../../../../fonts/fontLoader';
@@ -17,6 +19,9 @@ interface FontPickerProps {
 }
 
 export function FontPicker({ value, onChange, disabled }: FontPickerProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -41,7 +46,7 @@ export function FontPicker({ value, onChange, disabled }: FontPickerProps) {
         disabled={disabled}
         className="w-full flex items-center justify-between gap-2 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-left disabled:opacity-50"
       >
-        <span className="truncate">{selectedFont?.label || 'Select font'}</span>
+        <span className="truncate">{selectedFont?.label || t('personalised_sign.pro.font_picker.select_font')}</span>
         <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
@@ -63,7 +68,7 @@ export function FontPicker({ value, onChange, disabled }: FontPickerProps) {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search fonts..."
+                  placeholder={t('personalised_sign.pro.font_picker.search_placeholder')}
                   className="w-full bg-slate-900 border border-slate-700 rounded pl-8 pr-3 py-1.5 text-sm"
                   autoFocus
                 />
@@ -73,7 +78,7 @@ export function FontPicker({ value, onChange, disabled }: FontPickerProps) {
             {/* Font list */}
             <div className="overflow-y-auto max-h-48">
               {filteredFonts.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-slate-400">No fonts found</div>
+                <div className="px-3 py-2 text-sm text-slate-400">{t('personalised_sign.pro.font_picker.no_fonts_found')}</div>
               ) : (
                 filteredFonts.map((font) => (
                   <button

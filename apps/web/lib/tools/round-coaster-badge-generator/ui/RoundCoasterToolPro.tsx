@@ -27,6 +27,8 @@ import { ensureFontsLoaded, getCssFontFamily } from '@/lib/fonts/fontLoader';
 import { loadFont } from '@/lib/fonts/sharedFontRegistry';
 import { generateCurvedTextPath } from '../core/canvas/curvedText';
 import { ExportMiniDisclaimer } from '@/components/legal';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 // New panel components
 import { FontPicker } from './components/FontPicker';
@@ -168,15 +170,15 @@ interface QuickPreset {
   diameter: number;
   width?: number;
   height?: number;
-  text: string;
+  textKey: string;
 }
 
 const QUICK_PRESETS: QuickPreset[] = [
-  { id: 'coaster-90', name: 'Coaster 90mm', shape: 'circle', diameter: 90, text: 'COASTER' },
-  { id: 'coaster-100', name: 'Coaster 100mm', shape: 'circle', diameter: 100, text: 'COASTER' },
-  { id: 'badge-60', name: 'Badge 60mm', shape: 'circle', diameter: 60, text: 'NAME' },
-  { id: 'badge-70', name: 'Badge 70mm', shape: 'circle', diameter: 70, text: 'NAME' },
-  { id: 'hex-90', name: 'Hex 90mm', shape: 'hex', diameter: 90, text: 'HEX' },
+  { id: 'coaster-90', name: 'round_coaster.presets.coaster_90', shape: 'circle', diameter: 90, textKey: 'round_coaster.presets.text_coaster' },
+  { id: 'coaster-100', name: 'round_coaster.presets.coaster_100', shape: 'circle', diameter: 100, textKey: 'round_coaster.presets.text_coaster' },
+  { id: 'badge-60', name: 'round_coaster.presets.badge_60', shape: 'circle', diameter: 60, textKey: 'round_coaster.presets.text_badge' },
+  { id: 'badge-70', name: 'round_coaster.presets.badge_70', shape: 'circle', diameter: 70, textKey: 'round_coaster.presets.text_badge' },
+  { id: 'hex-90', name: 'round_coaster.presets.hex_90', shape: 'hex', diameter: 90, textKey: 'round_coaster.presets.text_hex' },
 ];
 
 // ============ Main Component ============
@@ -189,10 +191,16 @@ interface RoundCoasterToolProProps {
 }
 
 export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: RoundCoasterToolProProps) {
+  // i18n
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+  const defaultCenterText = t('round_coaster.defaults.center_text');
+  const prevDefaultCenterText = useRef<string | null>(null);
+
   // Canvas state with history
   const [history, dispatch] = useReducer(
     canvasReducer,
-    createCoasterDocument('circle', 90, undefined, undefined, 'COASTER'),
+    createCoasterDocument('circle', 90, undefined, undefined, defaultCenterText),
     createInitialHistory
   );
 
@@ -218,7 +226,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
   const [diameter, setDiameter] = useState(doc.artboard.widthMm);
 
   // Text state
-  const [centerText, setCenterText] = useState('COASTER');
+  const [centerText, setCenterText] = useState(() => defaultCenterText);
   const [topText, setTopText] = useState('');
   const [bottomText, setBottomText] = useState('');
   const [uppercase, setUppercase] = useState(false);
@@ -250,6 +258,14 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     ...DEFAULT_CURVED_TEXT_CONFIG,
     text: '',
   });
+
+  useEffect(() => {
+    const prevDefault = prevDefaultCenterText.current;
+    if (prevDefault && centerText === prevDefault) {
+      setCenterText(defaultCenterText);
+    }
+    prevDefaultCenterText.current = defaultCenterText;
+  }, [defaultCenterText, centerText]);
 
   useEffect(() => {
     ensureFontsLoaded([fontId, topCurvedText.fontId, centerCurvedText.fontId, bottomCurvedText.fontId]);
@@ -322,11 +338,11 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
 
   // Reset function
   const resetToDefaults = useCallback(() => {
-    const newDoc = createCoasterDocument('circle', 90, undefined, undefined, 'COASTER');
+    const newDoc = createCoasterDocument('circle', 90, undefined, undefined, defaultCenterText);
     dispatch({ type: 'RESET', doc: newDoc });
     setShape('circle');
     setDiameter(90);
-    setCenterText('COASTER');
+    setCenterText(defaultCenterText);
     setTopText('');
     setBottomText('');
     setBorderEnabled(true);
@@ -342,7 +358,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     setCenterCurvedText({ ...DEFAULT_CURVED_TEXT_CONFIG, text: '' });
     setBottomCurvedText({ ...DEFAULT_CURVED_TEXT_CONFIG, text: '' });
     setActiveToolPanel('none');
-  }, []);
+  }, [defaultCenterText]);
 
   // Register reset callback
   useEffect(() => {
@@ -406,7 +422,11 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
         if (!pathD) return null;
         const el = createTracedElement(pathD, boundingRadius * 2, boundingRadius * 2, cx, cy, 'ENGRAVE');
         el.system = true;
-        el.name = position === 'top' ? 'Top Curved Text' : position === 'bottom' ? 'Bottom Curved Text' : 'Center Curved Text';
+        el.name = position === 'top'
+          ? t('round_coaster.curved.top_arc')
+          : position === 'bottom'
+            ? t('round_coaster.curved.bottom_arc')
+            : t('round_coaster.curved.center_arc');
         return el;
       } catch (err) {
         console.warn('Curved text generation failed', position, err);
@@ -443,7 +463,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     });
 
     dispatch({ type: 'RESET', doc: newDoc });
-  }, [bottomCurvedText, borderEnabled, borderInset, borderThickness, centerCurvedText, centerFontSizeMm, centerText, diameter, doubleBorder, doubleBorderGap, fontId, shape, topCurvedText, topFontSizeMm, topText, bottomFontSizeMm, bottomText, uppercase]);
+  }, [bottomCurvedText, borderEnabled, borderInset, borderThickness, centerCurvedText, centerFontSizeMm, centerText, diameter, doubleBorder, doubleBorderGap, fontId, shape, topCurvedText, topFontSizeMm, topText, bottomFontSizeMm, bottomText, uppercase, t]);
 
   const handleUpdateTransforms = useCallback(
     (updates: Array<{ id: string; transform: any }>) => {
@@ -458,6 +478,52 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     if (!selection.activeId) return null;
     return doc.elements.find(el => el.id === selection.activeId) ?? null;
   }, [doc.elements, selection.activeId]);
+
+  const getElementDisplayName = useCallback((element: any) => {
+    if (!element) return '';
+    if (element.name) {
+      switch (element.name) {
+        case 'Base Shape':
+          return t('round_coaster.elements.base_shape');
+        case 'Border':
+          return t('round_coaster.elements.border');
+        case 'Border (Double)':
+          return t('round_coaster.elements.border_double');
+        case 'Text':
+          return t('round_coaster.elements.text');
+        case 'Top Text':
+          return t('round_coaster.elements.top_text');
+        case 'Center Text':
+          return t('round_coaster.elements.center_text');
+        case 'Bottom Text':
+          return t('round_coaster.elements.bottom_text');
+        default:
+          return element.name;
+      }
+    }
+    switch (element.kind) {
+      case 'shape':
+        return t('round_coaster.elements.base_shape');
+      case 'border':
+        return element.isDoubleBorder
+          ? t('round_coaster.elements.border_double')
+          : t('round_coaster.elements.border');
+      case 'text':
+        return t('round_coaster.elements.text');
+      case 'ornament':
+        return t('round_coaster.elements.ornament');
+      case 'logo':
+        return t('round_coaster.elements.logo');
+      case 'traced':
+        return t('round_coaster.elements.traced');
+      case 'icon':
+        return t('round_coaster.elements.icon');
+      case 'basicShape':
+        return t('round_coaster.elements.basic_shape');
+      default:
+        return element.kind;
+    }
+  }, [t]);
 
   const getExportPayload = useCallback(async () => {
     // buildExportSvgAsync now produces an SVG with text converted to paths
@@ -497,8 +563,8 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
   const handleQuickPreset = useCallback((preset: QuickPreset) => {
     setShape(preset.shape);
     setDiameter(preset.diameter);
-    setCenterText(preset.text);
-  }, []);
+    setCenterText(t(preset.textKey));
+  }, [t]);
 
   const handleSelect = useCallback((ids: string[], additive?: boolean) => {
     dispatch({ type: 'SELECT', ids, additive });
@@ -647,7 +713,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
 
     const res = await jobManager.runJob({
       id: 'round-coaster-ai-generate',
-      label: 'Generating with AI',
+      label: t('round_coaster.ai.job_generating'),
       fn: async (signal) => {
         const imageRes = await fetch('/api/ai/silhouette', {
           method: 'POST',
@@ -657,11 +723,11 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
         });
         const imageJson = await imageRes.json().catch(() => null);
         if (!imageRes.ok) {
-          throw new Error(imageJson?.error || 'AI image generation failed');
+          throw new Error(imageJson?.error || t('round_coaster.ai.error_generation_failed'));
         }
         const dataUrl = String(imageJson?.dataUrl || '');
         if (!dataUrl) {
-          throw new Error('AI image generation returned no image');
+          throw new Error(t('round_coaster.ai.error_no_image'));
         }
 
         const traceRes = await fetch('/api/trace/potrace', {
@@ -681,11 +747,11 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
         });
         const traceJson = await traceRes.json().catch(() => null);
         if (!traceRes.ok || !traceJson?.ok) {
-          throw new Error(traceJson?.error || 'Tracing failed');
+          throw new Error(traceJson?.error || t('round_coaster.trace.error_failed'));
         }
         const combinedPath = String(traceJson?.combinedPath || '');
         if (!combinedPath) {
-          throw new Error('Tracing returned no vector path');
+          throw new Error(t('round_coaster.trace.error_no_vector'));
         }
 
         return { dataUrl, combinedPath };
@@ -694,12 +760,12 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     });
 
     if (!res.ok || !res.data) {
-      showToast('AI generation failed. Check AI configuration and try again.', 'error');
+      showToast(t('round_coaster.ai.toast_failed'), 'error');
       return null;
     }
 
     return { imageUrl: String(res.data.dataUrl), pathD: String(res.data.combinedPath) };
-  }, [doc.artboard.heightMm, doc.artboard.widthMm]);
+  }, [doc.artboard.heightMm, doc.artboard.widthMm, t]);
 
   // AI Insert handler
   const handleAIInsert = useCallback((pathD: string, prompt: string) => {
@@ -714,7 +780,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
   const handleImageTrace = useCallback(async (imageDataUrl: string, options: TraceOptions) => {
     const res = await jobManager.runJob({
       id: 'round-coaster-image-trace',
-      label: 'Tracing image',
+      label: t('round_coaster.trace.job_tracing'),
       fn: async (signal) => {
         const r = await fetch('/api/trace/potrace', {
           method: 'POST',
@@ -739,7 +805,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
     if (!res.ok || !res.data) return null;
     if (!res.data.ok) return null;
     return String(res.data.combinedPath || '');
-  }, [doc.artboard.widthMm, doc.artboard.heightMm]);
+  }, [doc.artboard.widthMm, doc.artboard.heightMm, t]);
 
   // Traced Insert handler
   const handleTracedInsert = useCallback((pathD: string) => {
@@ -770,7 +836,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
         <aside className="max-h-[calc(100vh-160px)] overflow-y-auto space-y-3 pr-1">
 
             {/* Quick Presets */}
-            <Section title="Quick Presets">
+            <Section title={t('round_coaster.sections.quick_presets')}>
               <div className="flex flex-wrap gap-2">
                 {QUICK_PRESETS.map((preset) => (
                   <button
@@ -779,19 +845,19 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                     onClick={() => handleQuickPreset(preset)}
                     className="px-2.5 py-1.5 text-[11px] border border-slate-700 bg-slate-900 rounded hover:bg-slate-800 hover:border-slate-600"
                   >
-                    {preset.name}
+                    {t(preset.name)}
                   </button>
                 ))}
               </div>
             </Section>
 
             {/* Selection */}
-            <Section title="Selection" defaultOpen={false}>
+            <Section title={t('round_coaster.sections.selection')} defaultOpen={false}>
               {selectedElement ? (
                 <div className="space-y-3">
-                  <div className="text-xs text-slate-400">{selectedElement.name || selectedElement.kind}</div>
+                  <div className="text-xs text-slate-400">{getElementDisplayName(selectedElement)}</div>
                   <NumberInput
-                    label="Scale X"
+                    label={t('round_coaster.labels.scale_x')}
                     value={selectedElement.transform.scaleX}
                     onChange={(v) => dispatch({ type: 'UPDATE_TRANSFORM', id: selectedElement.id, transform: { scaleX: v } })}
                     min={0.1}
@@ -800,7 +866,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                     unit="×"
                   />
                   <NumberInput
-                    label="Scale Y"
+                    label={t('round_coaster.labels.scale_y')}
                     value={selectedElement.transform.scaleY}
                     onChange={(v) => dispatch({ type: 'UPDATE_TRANSFORM', id: selectedElement.id, transform: { scaleY: v } })}
                     min={0.1}
@@ -810,7 +876,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   />
                   {selectedElement.kind === 'text' && (
                     <NumberInput
-                      label="Font size"
+                      label={t('round_coaster.labels.font_size')}
                       value={(selectedElement as any).fontSizeMm}
                       onChange={(v) => dispatch({ type: 'UPDATE_ELEMENT', id: selectedElement.id, updates: { fontSizeMm: v } })}
                       min={3}
@@ -820,39 +886,39 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   )}
                 </div>
               ) : (
-                <div className="text-xs text-slate-500">Select an element to edit size.</div>
+                <div className="text-xs text-slate-500">{t('round_coaster.selection.select_element')}</div>
               )}
             </Section>
 
             {activeLogo && (
-              <Section title="Logo" defaultOpen={false}>
+              <Section title={t('round_coaster.sections.logo')} defaultOpen={false}>
                 <div className="space-y-2">
-                  <div className="text-[11px] text-slate-400">Logo operation</div>
+                  <div className="text-[11px] text-slate-400">{t('round_coaster.logo.operation')}</div>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => handleSetLogoOp('ENGRAVE')}
                       className={`flex-1 px-2 py-1.5 rounded text-xs border ${activeLogo.op === 'ENGRAVE' ? 'bg-sky-600 border-sky-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}
                     >
-                      Engrave
+                      {t('round_coaster.logo.engrave')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleSetLogoOp('CUT_OUT')}
                       className={`flex-1 px-2 py-1.5 rounded text-xs border ${activeLogo.op === 'CUT_OUT' ? 'bg-sky-600 border-sky-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}
                     >
-                      Cut out
+                      {t('round_coaster.logo.cut_out')}
                     </button>
                   </div>
                   <div className="text-[10px] text-slate-500">
-                    Cut out subtracts the logo from the base shape on export.
+                    {t('round_coaster.logo.cut_out_hint')}
                   </div>
                 </div>
               </Section>
             )}
 
             {/* Shape */}
-            <Section title="Shape">
+            <Section title={t('round_coaster.sections.shape')}>
               <div className="flex flex-wrap gap-2">
                 {(['circle', 'hex', 'octagon', 'scalloped'] as ShapeType[]).map((s) => {
                   const Icon = SHAPE_ICONS[s];
@@ -865,7 +931,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                         ? 'bg-sky-600 border-sky-500 text-white'
                         : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
                         }`}
-                      title={s.charAt(0).toUpperCase() + s.slice(1)}
+                      title={t(`round_coaster.shapes.${s}`)}
                     >
                       <Icon className="w-5 h-5" />
                     </button>
@@ -875,10 +941,10 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
             </Section>
 
             {/* Dimensions */}
-            <Section title="Dimensions">
+            <Section title={t('round_coaster.sections.dimensions')}>
               {/* Step size selector */}
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-[10px] text-slate-500">Step:</span>
+                <span className="text-[10px] text-slate-500">{t('round_coaster.labels.step')}</span>
                 {[0.5, 1, 2].map((s) => (
                   <button
                     key={s}
@@ -906,7 +972,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
               </div>
 
               <NumberInput
-                label="Diameter"
+                label={t('round_coaster.labels.diameter')}
                 value={diameter}
                 onChange={setDiameter}
                 min={30}
@@ -916,9 +982,9 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
             </Section>
 
             {/* Border */}
-            <Section title="Border">
+            <Section title={t('round_coaster.sections.border')}>
               <Checkbox
-                label="Enable border"
+                label={t('round_coaster.checkboxes.enable_border')}
                 checked={borderEnabled}
                 onChange={setBorderEnabled}
               />
@@ -926,7 +992,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
               {borderEnabled && (
                 <div className="space-y-3 mt-2">
                   <NumberInput
-                    label="Border inset"
+                    label={t('round_coaster.labels.border_inset')}
                     value={borderInset}
                     onChange={setBorderInset}
                     min={1}
@@ -935,7 +1001,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   />
 
                   <NumberInput
-                    label="Stroke thickness"
+                    label={t('round_coaster.labels.stroke_thickness')}
                     value={borderThickness}
                     onChange={setBorderThickness}
                     min={0.2}
@@ -944,14 +1010,14 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   />
 
                   <Checkbox
-                    label="Double border"
+                    label={t('round_coaster.checkboxes.double_border')}
                     checked={doubleBorder}
                     onChange={setDoubleBorder}
                   />
 
                   {doubleBorder && (
                     <NumberInput
-                      label="Double border gap"
+                      label={t('round_coaster.labels.double_border_gap')}
                       value={doubleBorderGap}
                       onChange={setDoubleBorderGap}
                       min={0.8}
@@ -964,27 +1030,27 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
             </Section>
 
             {/* Text */}
-            <Section title="Text">
+            <Section title={t('round_coaster.sections.text')}>
               <div className="space-y-3">
                 <FontPicker
                   value={fontId}
                   onChange={setFontId}
-                  label="Font"
+                  label={t('round_coaster.labels.font')}
                 />
 
                 <label className="grid gap-1">
-                  <div className="text-[11px] text-slate-400">Center text</div>
+                  <div className="text-[11px] text-slate-400">{t('round_coaster.labels.center_text')}</div>
                   <input
                     type="text"
                     value={centerText}
                     onChange={(e) => setCenterText(e.target.value)}
-                    placeholder="Main text"
+                    placeholder={t('round_coaster.placeholders.main_text')}
                     className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs"
                   />
                 </label>
 
                 <NumberInput
-                  label="Center size"
+                  label={t('round_coaster.labels.center_size')}
                   value={centerFontSizeMm}
                   onChange={setCenterFontSizeMm}
                   min={3}
@@ -993,18 +1059,18 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                 />
 
                 <label className="grid gap-1">
-                  <div className="text-[11px] text-slate-400">Top text</div>
+                  <div className="text-[11px] text-slate-400">{t('round_coaster.labels.top_text')}</div>
                   <input
                     type="text"
                     value={topText}
                     onChange={(e) => setTopText(e.target.value)}
-                    placeholder="Top text"
+                    placeholder={t('round_coaster.placeholders.top_text')}
                     className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs"
                   />
                 </label>
 
                 <NumberInput
-                  label="Top size"
+                  label={t('round_coaster.labels.top_size')}
                   value={topFontSizeMm}
                   onChange={setTopFontSizeMm}
                   min={3}
@@ -1013,18 +1079,18 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                 />
 
                 <label className="grid gap-1">
-                  <div className="text-[11px] text-slate-400">Bottom text</div>
+                  <div className="text-[11px] text-slate-400">{t('round_coaster.labels.bottom_text')}</div>
                   <input
                     type="text"
                     value={bottomText}
                     onChange={(e) => setBottomText(e.target.value)}
-                    placeholder="Bottom text"
+                    placeholder={t('round_coaster.placeholders.bottom_text')}
                     className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs"
                   />
                 </label>
 
                 <NumberInput
-                  label="Bottom size"
+                  label={t('round_coaster.labels.bottom_size')}
                   value={bottomFontSizeMm}
                   onChange={setBottomFontSizeMm}
                   min={3}
@@ -1033,7 +1099,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                 />
 
                 <Checkbox
-                  label="UPPERCASE"
+                  label={t('round_coaster.checkboxes.uppercase')}
                   checked={uppercase}
                   onChange={setUppercase}
                 />
@@ -1041,7 +1107,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
             </Section>
 
             {/* Curved Text */}
-            <Section title="Curved Text" defaultOpen={false}>
+            <Section title={t('round_coaster.sections.curved_text')} defaultOpen={false}>
               <div className="space-y-4">
                 <CurvedTextControls
                   position="top"
@@ -1070,15 +1136,15 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
             </Section>
 
             {/* Selection */}
-            <Section title="Selection" defaultOpen={false}>
+            <Section title={t('round_coaster.sections.selection')} defaultOpen={false}>
               {selectedElement ? (
                 <div className="space-y-3">
                   <div className="text-xs text-slate-400">
-                    {selectedElement.name || selectedElement.kind}
+                    {getElementDisplayName(selectedElement)}
                   </div>
 
                   <NumberInput
-                    label="Scale X"
+                    label={t('round_coaster.labels.scale_x')}
                     value={selectedElement.transform.scaleX ?? 1}
                     onChange={(v) =>
                       dispatch({
@@ -1094,7 +1160,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   />
 
                   <NumberInput
-                    label="Scale Y"
+                    label={t('round_coaster.labels.scale_y')}
                     value={selectedElement.transform.scaleY ?? 1}
                     onChange={(v) =>
                       dispatch({
@@ -1111,7 +1177,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
 
                   {selectedElement.kind === 'text' && (
                     <NumberInput
-                      label="Font size"
+                      label={t('round_coaster.labels.font_size')}
                       value={(selectedElement as any).fontSizeMm ?? 10}
                       onChange={(v) =>
                         dispatch({
@@ -1127,12 +1193,12 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   )}
                 </div>
               ) : (
-                <div className="text-xs text-slate-500">Select an element to edit size.</div>
+                <div className="text-xs text-slate-500">{t('round_coaster.selection.select_element')}</div>
               )}
             </Section>
 
             {/* Alignment & Pathfinder */}
-            <Section title="Transform" defaultOpen={false}>
+            <Section title={t('round_coaster.sections.transform')} defaultOpen={false}>
               <div className="space-y-4">
                 <AlignmentControls
                   onAlign={handleAlignment}
@@ -1147,7 +1213,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
             </Section>
 
             {/* Insert - No Dropdown */}
-            <Section title="Insert">
+            <Section title={t('round_coaster.sections.insert')}>
               <div className="space-y-3">
                 <button
                   type="button"
@@ -1155,11 +1221,11 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   data-tour="trace-add-logo"
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-md"
                 >
-                  Add Logo/Icon (Trace)
+                  {t('round_coaster.buttons.add_logo_trace')}
                 </button>
 
                 <div className="p-2 bg-slate-900 rounded border border-slate-800">
-                  <div className="text-[10px] font-medium text-purple-400 mb-2">AI Generate</div>
+                  <div className="text-[10px] font-medium text-purple-400 mb-2">{t('round_coaster.ai.title')}</div>
                   <AIGeneratePanel
                     onGenerate={handleAIGenerate}
                     onInsert={handleAIInsert}
@@ -1167,7 +1233,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                 </div>
 
                 <div className="p-2 bg-slate-900 rounded border border-slate-800">
-                  <div className="text-[10px] font-medium text-orange-400 mb-2">Image Trace</div>
+                  <div className="text-[10px] font-medium text-orange-400 mb-2">{t('round_coaster.trace.title')}</div>
                   <ImageTracePanel
                     onTrace={handleImageTrace}
                     onInsert={handleTracedInsert}
@@ -1175,7 +1241,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                 </div>
 
                 <div className="p-2 bg-slate-900 rounded border border-slate-800">
-                  <div className="text-[10px] font-medium text-pink-400 mb-2">Ornaments</div>
+                  <div className="text-[10px] font-medium text-pink-400 mb-2">{t('round_coaster.ornaments.title')}</div>
                   <OrnamentLibrary
                     onInsert={handleOrnamentInsert}
                   />
@@ -1190,7 +1256,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
           <div className="flex h-[calc(100vh-160px)] flex-col rounded-lg border border-slate-800 bg-slate-900/40">
             {/* Canvas toolbar */}
             <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-              <div className="text-sm font-medium text-slate-100">Canvas</div>
+              <div className="text-sm font-medium text-slate-100">{t('round_coaster.sections.canvas')}</div>
 
               <div className="flex items-center gap-2">
                 {/* Layer colors toggle */}
@@ -1198,7 +1264,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   type="button"
                   onClick={() => setShowLayerColors(!showLayerColors)}
                   className={`p-1.5 rounded ${showLayerColors ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-                  title="Toggle layer colors"
+                  title={t('round_coaster.tooltips.toggle_layer_colors')}
                 >
                   <Layers className="w-4 h-4" />
                 </button>
@@ -1208,7 +1274,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   type="button"
                   onClick={() => setShowGuide(!showGuide)}
                   className={`p-1.5 rounded ${showGuide ? 'bg-green-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-                  title="Toggle guide layer"
+                  title={t('round_coaster.tooltips.toggle_guide')}
                 >
                   {showGuide ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </button>
@@ -1220,7 +1286,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   type="button"
                   onClick={handleZoomOut}
                   className="p-1.5 bg-slate-800 rounded hover:bg-slate-700"
-                  title="Zoom out"
+                  title={t('round_coaster.tooltips.zoom_out')}
                 >
                   <ZoomOut className="w-4 h-4" />
                 </button>
@@ -1233,7 +1299,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   type="button"
                   onClick={handleZoomIn}
                   className="p-1.5 bg-slate-800 rounded hover:bg-slate-700"
-                  title="Zoom in"
+                  title={t('round_coaster.tooltips.zoom_in')}
                 >
                   <ZoomIn className="w-4 h-4" />
                 </button>
@@ -1242,7 +1308,7 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   type="button"
                   onClick={handleZoomFit}
                   className="p-1.5 bg-slate-800 rounded hover:bg-slate-700"
-                  title="Fit to view"
+                  title={t('round_coaster.tooltips.fit_to_view')}
                 >
                   <Maximize2 className="w-4 h-4" />
                 </button>
@@ -1269,12 +1335,12 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
             {/* Info bar */}
             <div className="border-t border-slate-800 px-3 py-2 flex items-center justify-between text-[11px] text-slate-500">
               <span>
-                {shape} • {doc.artboard.widthMm}×{doc.artboard.heightMm}mm
+                {t(`round_coaster.shapes.${shape}`)} • {doc.artboard.widthMm}×{doc.artboard.heightMm}mm
               </span>
               <span>
                 {selection.selectedIds.length > 0
-                  ? `${selection.selectedIds.length} selected`
-                  : `${doc.elements.length} elements`
+                  ? t('round_coaster.selection.n_selected').replace('{n}', String(selection.selectedIds.length))
+                  : t('round_coaster.selection.n_elements').replace('{n}', String(doc.elements.length))
                 }
               </span>
             </div>
@@ -1311,12 +1377,12 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                     URL.revokeObjectURL(url);
                   } catch (e) {
                     console.error('Export failed:', e);
-                    alert('Export failed: ' + (e as Error).message);
+                    alert(t('round_coaster.errors.export_failed') + ' ' + (e as Error).message);
                   }
                 }}
                 className="w-full px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium rounded-md"
               >
-                Download SVG
+                {t('round_coaster.buttons.download_svg')}
               </button>
 
               <ExportMiniDisclaimer className="mt-2" />

@@ -7,6 +7,8 @@
 
 import React, { useState } from 'react';
 import { Combine, Minus, Circle, XCircle, Loader2 } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export type PathfinderOperation = 'union' | 'difference' | 'intersect' | 'exclude';
 
@@ -17,6 +19,9 @@ interface PathfinderPanelProps {
 }
 
 export function PathfinderPanel({ onOperation, selectionCount, disabled }: PathfinderPanelProps) {
+  const { locale } = useLanguage();
+  const t = React.useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [loading, setLoading] = useState<PathfinderOperation | null>(null);
 
   const canOperate = selectionCount >= 2 && !disabled;
@@ -39,7 +44,7 @@ export function PathfinderPanel({ onOperation, selectionCount, disabled }: Pathf
 
   return (
     <div className="space-y-2">
-      <div className="text-[11px] text-slate-400 mb-1">Pathfinder</div>
+      <div className="text-[11px] text-slate-400 mb-1">{t('round_coaster.pathfinder.title')}</div>
 
       <div className="grid grid-cols-4 gap-1">
         <button
@@ -47,14 +52,14 @@ export function PathfinderPanel({ onOperation, selectionCount, disabled }: Pathf
           onClick={() => handleOperation('union')}
           disabled={!canOperate}
           className={buttonClass(canOperate)}
-          title="Union - Combine shapes"
+          title={t('round_coaster.pathfinder.union_hint')}
         >
           {loading === 'union' ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Combine className="w-4 h-4" />
           )}
-          <span className="text-[9px]">Union</span>
+          <span className="text-[9px]">{t('round_coaster.pathfinder.union')}</span>
         </button>
 
         <button
@@ -62,14 +67,14 @@ export function PathfinderPanel({ onOperation, selectionCount, disabled }: Pathf
           onClick={() => handleOperation('difference')}
           disabled={!canOperate}
           className={buttonClass(canOperate)}
-          title="Difference - Subtract top from bottom"
+          title={t('round_coaster.pathfinder.minus_hint')}
         >
           {loading === 'difference' ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Minus className="w-4 h-4" />
           )}
-          <span className="text-[9px]">Minus</span>
+          <span className="text-[9px]">{t('round_coaster.pathfinder.minus')}</span>
         </button>
 
         <button
@@ -77,14 +82,14 @@ export function PathfinderPanel({ onOperation, selectionCount, disabled }: Pathf
           onClick={() => handleOperation('intersect')}
           disabled={!canOperate}
           className={buttonClass(canOperate)}
-          title="Intersect - Keep overlapping area"
+          title={t('round_coaster.pathfinder.intersect_hint')}
         >
           {loading === 'intersect' ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Circle className="w-4 h-4" />
           )}
-          <span className="text-[9px]">Intersect</span>
+          <span className="text-[9px]">{t('round_coaster.pathfinder.intersect')}</span>
         </button>
 
         <button
@@ -92,20 +97,20 @@ export function PathfinderPanel({ onOperation, selectionCount, disabled }: Pathf
           onClick={() => handleOperation('exclude')}
           disabled={!canOperate}
           className={buttonClass(canOperate)}
-          title="Exclude - Remove overlapping area"
+          title={t('round_coaster.pathfinder.exclude_hint')}
         >
           {loading === 'exclude' ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <XCircle className="w-4 h-4" />
           )}
-          <span className="text-[9px]">Exclude</span>
+          <span className="text-[9px]">{t('round_coaster.pathfinder.exclude')}</span>
         </button>
       </div>
 
       {selectionCount < 2 && (
         <div className="text-[10px] text-slate-500 mt-1">
-          Select 2+ shapes for pathfinder
+          {t('round_coaster.pathfinder.select_2plus')}
         </div>
       )}
     </div>

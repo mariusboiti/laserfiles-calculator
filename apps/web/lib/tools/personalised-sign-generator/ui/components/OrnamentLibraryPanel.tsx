@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { Search, Package } from 'lucide-react';
 import { ORNAMENT_LIBRARY, ORNAMENT_CATEGORIES, ORNAMENT_THUMBS } from '../../../../assets/ornaments';
 import type { OrnamentAsset, OrnamentLayerType } from '../../../../assets/ornaments';
@@ -11,6 +13,9 @@ interface OrnamentLibraryPanelProps {
 }
 
 export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanelProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedOrnament, setSelectedOrnament] = useState<OrnamentAsset | null>(null);
@@ -73,7 +78,7 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Package className="w-5 h-5 text-slate-400" />
-            <h3 className="text-sm font-semibold text-slate-200">Ornament Library</h3>
+            <h3 className="text-sm font-semibold text-slate-200">{t('personalised_sign.pro.ornaments.title')}</h3>
           </div>
           {onClose && (
             <button
@@ -89,7 +94,7 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
             type="text"
-            placeholder="Search ornaments..."
+            placeholder={t('personalised_sign.pro.ornaments.search_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-800 border border-slate-700 rounded pl-8 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-600"
@@ -105,7 +110,7 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
             }`}
           >
-            All
+            {t('personalised_sign.pro.ornaments.category_all')}
           </button>
           {ORNAMENT_CATEGORIES.map((cat) => (
             <button
@@ -127,8 +132,8 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
         {filteredOrnaments.length === 0 ? (
           <div className="text-center text-slate-500 text-sm py-8">
             {ORNAMENT_LIBRARY.length === 0
-              ? 'No ornaments available. Add SVG files to ornaments/source/ and run pnpm generate:ornaments'
-              : 'No ornaments match your search'}
+              ? t('personalised_sign.pro.ornaments.empty.no_ornaments_available')
+              : t('personalised_sign.pro.ornaments.empty.no_ornaments_match')}
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-2">
@@ -144,7 +149,7 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
                     ? 'border-blue-500'
                     : 'border-slate-700'
                 }`}
-                title={`${ornament.name}\nDouble-click to insert`}
+                title={`${ornament.name}\n${t('personalised_sign.pro.ornaments.tooltip.double_click_to_insert')}`}
               >
                 <div
                   className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:text-slate-300 [&_path]:stroke-current"
@@ -169,21 +174,21 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
 
           <div className="space-y-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Target Layer</label>
+              <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.ornaments.target_layer')}</label>
               <select
                 value={insertLayer}
                 onChange={(e) => setInsertLayer(e.target.value as OrnamentLayerType)}
                 className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-slate-200"
               >
-                <option value="CUT">Cut</option>
-                <option value="ENGRAVE">Engrave</option>
-                <option value="GUIDE">Guide (Preview Only)</option>
+                <option value="CUT">{t('personalised_sign.pro.ornaments.layer.cut')}</option>
+                <option value="ENGRAVE">{t('personalised_sign.pro.ornaments.layer.engrave')}</option>
+                <option value="GUIDE">{t('personalised_sign.pro.ornaments.layer.guide_preview_only')}</option>
               </select>
             </div>
 
             <div>
               <label className="block text-xs text-slate-400 mb-1">
-                Size ({insertWidthPct}% of artboard width)
+                {t('personalised_sign.pro.ornaments.size')} ({insertWidthPct}% {t('personalised_sign.pro.ornaments.of_artboard_width')})
               </label>
               <input
                 type="range"
@@ -200,7 +205,7 @@ export function OrnamentLibraryPanel({ onInsert, onClose }: OrnamentLibraryPanel
               onClick={handleInsert}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 rounded transition-colors"
             >
-              Insert Ornament
+              {t('personalised_sign.pro.ornaments.insert_ornament')}
             </button>
           </div>
         </div>

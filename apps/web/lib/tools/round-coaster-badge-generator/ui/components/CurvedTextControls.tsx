@@ -9,6 +9,8 @@ import React from 'react';
 import { Type, RotateCcw } from 'lucide-react';
 import { FontPicker } from './FontPicker';
 import type { FontId } from '../../../../fonts/sharedFontRegistry';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export interface CurvedTextConfig {
   enabled: boolean;
@@ -38,11 +40,14 @@ export function CurvedTextControls({
   disabled,
   hideTextInput,
 }: CurvedTextControlsProps) {
+  const { locale } = useLanguage();
+  const t = React.useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const label = position === 'top'
-    ? 'Top Arc Text'
+    ? t('round_coaster.curved.top_arc')
     : position === 'bottom'
-      ? 'Bottom Arc Text'
-      : 'Center Arc Text';
+      ? t('round_coaster.curved.bottom_arc')
+      : t('round_coaster.curved.center_arc');
 
   const update = (partial: Partial<CurvedTextConfig>) => {
     onChange({ ...config, ...partial });
@@ -67,7 +72,7 @@ export function CurvedTextControls({
             onClick={() => update({ flip: !config.flip })}
             disabled={disabled}
             className={`p-1 rounded ${config.flip ? 'bg-sky-600' : 'bg-slate-800 hover:bg-slate-700'}`}
-            title="Flip text"
+            title={t('round_coaster.curved.flip_text')}
           >
             <RotateCcw className="w-3 h-3" />
           </button>
@@ -82,7 +87,7 @@ export function CurvedTextControls({
               type="text"
               value={config.text}
               onChange={(e) => update({ text: e.target.value })}
-              placeholder={`${position} text...`}
+              placeholder={`${label}...`}
               disabled={disabled}
               className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs"
             />
@@ -97,7 +102,7 @@ export function CurvedTextControls({
 
           {/* Radius (distance from center) */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-500 w-14">Radius</span>
+            <span className="text-[10px] text-slate-500 w-14">{t('round_coaster.curved.radius')}</span>
             <input
               type="range"
               min="50"
@@ -112,7 +117,7 @@ export function CurvedTextControls({
 
           {/* Font size */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-500 w-14">Size</span>
+            <span className="text-[10px] text-slate-500 w-14">{t('round_coaster.curved.size')}</span>
             <input
               type="number"
               min="1"
@@ -128,7 +133,7 @@ export function CurvedTextControls({
 
           {/* Letter spacing */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-500 w-14">Spacing</span>
+            <span className="text-[10px] text-slate-500 w-14">{t('round_coaster.curved.spacing')}</span>
             <input
               type="number"
               min="-5"
@@ -144,7 +149,7 @@ export function CurvedTextControls({
 
           {/* Angle offset */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-500 w-14">Offset</span>
+            <span className="text-[10px] text-slate-500 w-14">{t('round_coaster.curved.offset')}</span>
             <input
               type="range"
               min="-180"

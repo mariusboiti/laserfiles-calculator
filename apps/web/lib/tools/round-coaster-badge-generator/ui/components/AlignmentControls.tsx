@@ -16,6 +16,8 @@ import {
   AlignHorizontalDistributeCenter,
   AlignVerticalDistributeCenter,
 } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export type AlignmentAction =
   | 'align-left'
@@ -35,6 +37,9 @@ interface AlignmentControlsProps {
 }
 
 export function AlignmentControls({ onAlign, selectionCount, disabled }: AlignmentControlsProps) {
+  const { locale } = useLanguage();
+  const t = React.useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const hasSelection = selectionCount > 0;
   const hasMultiple = selectionCount > 1;
 
@@ -46,7 +51,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
 
   return (
     <div className="space-y-2">
-      <div className="text-[11px] text-slate-400 mb-1">Alignment</div>
+      <div className="text-[11px] text-slate-400 mb-1">{t('round_coaster.alignment.title')}</div>
 
       {/* Horizontal alignment */}
       <div className="flex gap-1">
@@ -55,7 +60,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('align-left')}
           disabled={!hasSelection || disabled}
           className={buttonClass(hasSelection)}
-          title="Align left"
+          title={t('round_coaster.alignment.align_left')}
         >
           <AlignStartVertical className="w-4 h-4" />
         </button>
@@ -64,7 +69,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('align-center-h')}
           disabled={!hasSelection || disabled}
           className={buttonClass(hasSelection)}
-          title="Align center horizontal"
+          title={t('round_coaster.alignment.align_center_h')}
         >
           <AlignHorizontalJustifyCenter className="w-4 h-4" />
         </button>
@@ -73,7 +78,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('align-right')}
           disabled={!hasSelection || disabled}
           className={buttonClass(hasSelection)}
-          title="Align right"
+          title={t('round_coaster.alignment.align_right')}
         >
           <AlignEndVertical className="w-4 h-4" />
         </button>
@@ -85,7 +90,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('align-top')}
           disabled={!hasSelection || disabled}
           className={buttonClass(hasSelection)}
-          title="Align top"
+          title={t('round_coaster.alignment.align_top')}
         >
           <AlignStartHorizontal className="w-4 h-4" />
         </button>
@@ -94,7 +99,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('align-center-v')}
           disabled={!hasSelection || disabled}
           className={buttonClass(hasSelection)}
-          title="Align center vertical"
+          title={t('round_coaster.alignment.align_center_v')}
         >
           <AlignVerticalJustifyCenter className="w-4 h-4" />
         </button>
@@ -103,7 +108,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('align-bottom')}
           disabled={!hasSelection || disabled}
           className={buttonClass(hasSelection)}
-          title="Align bottom"
+          title={t('round_coaster.alignment.align_bottom')}
         >
           <AlignEndHorizontal className="w-4 h-4" />
         </button>
@@ -116,7 +121,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('distribute-h')}
           disabled={!hasMultiple || disabled}
           className={buttonClass(hasMultiple)}
-          title="Distribute horizontally"
+          title={t('round_coaster.alignment.distribute_h')}
         >
           <AlignHorizontalDistributeCenter className="w-4 h-4" />
         </button>
@@ -125,7 +130,7 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('distribute-v')}
           disabled={!hasMultiple || disabled}
           className={buttonClass(hasMultiple)}
-          title="Distribute vertically"
+          title={t('round_coaster.alignment.distribute_v')}
         >
           <AlignVerticalDistributeCenter className="w-4 h-4" />
         </button>
@@ -137,15 +142,15 @@ export function AlignmentControls({ onAlign, selectionCount, disabled }: Alignme
           onClick={() => onAlign('center-artboard')}
           disabled={!hasSelection || disabled}
           className={`${buttonClass(hasSelection)} px-2 text-[10px]`}
-          title="Center on artboard"
+          title={t('round_coaster.alignment.center_artboard')}
         >
-          Snap to center
+          {t('round_coaster.alignment.snap_center')}
         </button>
       </div>
 
       {selectionCount === 0 && (
         <div className="text-[10px] text-slate-500 mt-1">
-          Select elements to align
+          {t('round_coaster.alignment.select_to_align')}
         </div>
       )}
     </div>

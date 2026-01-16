@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import type { SignDocument, HoleMode, MountingHole } from '../../types/signPro';
 import { Trash2, Plus } from 'lucide-react';
 
@@ -19,13 +21,16 @@ export function MountingHolesPanel({
   onAddHole,
   onDeleteHole,
 }: MountingHolesPanelProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const holes = doc.holes;
 
   return (
     <div className="space-y-4">
       {/* Enable toggle */}
       <div className="flex items-center justify-between">
-        <label className="text-sm text-slate-300">Enable Mounting Holes</label>
+        <label className="text-sm text-slate-300">{t('personalised_sign.pro.mounting_holes.enable')}</label>
         <input
           type="checkbox"
           checked={holes.enabled}
@@ -38,7 +43,7 @@ export function MountingHolesPanel({
         <>
           {/* Diameter */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Hole Diameter (mm)</label>
+            <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.mounting_holes.hole_diameter_mm')}</label>
             <input
               type="number"
               value={holes.diameterMm}
@@ -52,24 +57,24 @@ export function MountingHolesPanel({
 
           {/* Mode */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Hole Mode</label>
+            <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.mounting_holes.hole_mode')}</label>
             <select
               value={holes.mode}
               onChange={(e) => onUpdateHoleConfig({ mode: e.target.value as HoleMode })}
               className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm"
             >
-              <option value="none">None</option>
-              <option value="one">One (Top Center)</option>
-              <option value="two">Two (Top)</option>
-              <option value="four">Four (Corners)</option>
-              <option value="custom">Custom</option>
+              <option value="none">{t('personalised_sign.pro.mounting_holes.mode.none')}</option>
+              <option value="one">{t('personalised_sign.pro.mounting_holes.mode.one_top_center')}</option>
+              <option value="two">{t('personalised_sign.pro.mounting_holes.mode.two_top')}</option>
+              <option value="four">{t('personalised_sign.pro.mounting_holes.mode.four_corners')}</option>
+              <option value="custom">{t('personalised_sign.pro.mounting_holes.mode.custom')}</option>
             </select>
           </div>
 
           {/* Margin */}
           <div>
             <label className="block text-xs text-slate-400 mb-1">
-              Margin: {holes.marginMm}mm
+              {t('personalised_sign.pro.mounting_holes.margin')}: {holes.marginMm}mm
             </label>
             <input
               type="range"
@@ -86,7 +91,7 @@ export function MountingHolesPanel({
           {holes.mode === 'two' && (
             <>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Spacing X (mm)</label>
+                <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.mounting_holes.spacing_x_mm')}</label>
                 <input
                   type="number"
                   value={holes.spacingXmm}
@@ -99,7 +104,7 @@ export function MountingHolesPanel({
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Offset X (mm)</label>
+                  <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.mounting_holes.offset_x_mm')}</label>
                   <input
                     type="number"
                     value={holes.offsetXmm}
@@ -109,7 +114,7 @@ export function MountingHolesPanel({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Offset Y (mm)</label>
+                  <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.mounting_holes.offset_y_mm')}</label>
                   <input
                     type="number"
                     value={holes.offsetYmm}
@@ -125,7 +130,7 @@ export function MountingHolesPanel({
           {holes.mode === 'four' && (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Inset X (mm)</label>
+                <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.mounting_holes.inset_x_mm')}</label>
                 <input
                   type="number"
                   value={holes.insetXmm}
@@ -136,7 +141,7 @@ export function MountingHolesPanel({
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Inset Y (mm)</label>
+                <label className="block text-xs text-slate-400 mb-1">{t('personalised_sign.pro.mounting_holes.inset_y_mm')}</label>
                 <input
                   type="number"
                   value={holes.insetYmm}
@@ -152,13 +157,15 @@ export function MountingHolesPanel({
           {holes.mode === 'custom' && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs text-slate-400">Custom Holes ({holes.holes.length})</label>
+                <label className="text-xs text-slate-400">
+                  {t('personalised_sign.pro.mounting_holes.custom_holes')} ({holes.holes.length})
+                </label>
                 <button
                   onClick={onAddHole}
                   className="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs flex items-center gap-1"
                 >
                   <Plus className="w-3 h-3" />
-                  Add Hole
+                  {t('personalised_sign.pro.mounting_holes.add_hole')}
                 </button>
               </div>
 
@@ -167,7 +174,9 @@ export function MountingHolesPanel({
                   {holes.holes.map((hole, idx) => (
                     <div key={hole.id} className="bg-slate-900 rounded p-2 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-400">Hole {idx + 1}</span>
+                        <span className="text-xs text-slate-400">
+                          {t('personalised_sign.pro.mounting_holes.hole')} {idx + 1}
+                        </span>
                         <button
                           onClick={() => onDeleteHole(hole.id)}
                           className="text-red-400 hover:text-red-300"
@@ -177,7 +186,7 @@ export function MountingHolesPanel({
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-xs text-slate-500 mb-0.5">X (mm)</label>
+                          <label className="block text-xs text-slate-500 mb-0.5">{t('personalised_sign.pro.mounting_holes.x_mm')}</label>
                           <input
                             type="number"
                             value={Math.round(hole.xMm * 10) / 10}
@@ -187,7 +196,7 @@ export function MountingHolesPanel({
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-slate-500 mb-0.5">Y (mm)</label>
+                          <label className="block text-xs text-slate-500 mb-0.5">{t('personalised_sign.pro.mounting_holes.y_mm')}</label>
                           <input
                             type="number"
                             value={Math.round(hole.yMm * 10) / 10}
@@ -207,10 +216,10 @@ export function MountingHolesPanel({
           {/* Show hole positions for non-custom modes */}
           {holes.mode !== 'none' && holes.mode !== 'custom' && holes.holes.length > 0 && (
             <div className="text-xs text-slate-500 bg-slate-900/50 rounded p-2">
-              <div className="font-medium mb-1">Generated Positions:</div>
+              <div className="font-medium mb-1">{t('personalised_sign.pro.mounting_holes.generated_positions')}</div>
               {holes.holes.map((hole, idx) => (
                 <div key={hole.id}>
-                  Hole {idx + 1}: ({Math.round(hole.xMm)}, {Math.round(hole.yMm)}) mm
+                  {t('personalised_sign.pro.mounting_holes.hole')} {idx + 1}: ({Math.round(hole.xMm)}, {Math.round(hole.yMm)}) mm
                 </div>
               ))}
             </div>

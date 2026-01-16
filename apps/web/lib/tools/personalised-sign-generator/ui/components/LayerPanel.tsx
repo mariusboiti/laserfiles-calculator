@@ -5,7 +5,9 @@
  * Manage layers with visibility, opacity, lock, and reorder
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import {
   Eye,
   EyeOff,
@@ -60,6 +62,9 @@ export function LayerPanel({
   onSelectElement,
   onMoveElementToLayerType,
 }: LayerPanelProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const sortedLayers = [...document.layers].sort((a, b) => b.order - a.order);
 
   return (
@@ -68,9 +73,9 @@ export function LayerPanel({
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <Layers className="w-4 h-4" />
-          Layers
+          {t('personalised_sign.pro.layers.title')}
         </div>
-        <AddLayerButton onAdd={onAddLayer} />
+        <AddLayerButton onAdd={onAddLayer} t={t} />
       </div>
 
       {/* Layer list */}
@@ -81,6 +86,7 @@ export function LayerPanel({
             layer={layer}
             isActive={layer.id === document.activeLayerId}
             selectedIds={selectedIds}
+            t={t}
             canMoveUp={index > 0}
             canMoveDown={index < sortedLayers.length - 1}
             canDelete={layer.type !== 'BASE'}
@@ -110,6 +116,7 @@ interface LayerItemProps {
   layer: Layer;
   isActive: boolean;
   selectedIds: string[];
+  t: (key: string) => string;
   canMoveUp: boolean;
   canMoveDown: boolean;
   canDelete: boolean;
@@ -126,6 +133,7 @@ function LayerItem({
   layer,
   isActive,
   selectedIds,
+  t,
   canMoveUp,
   canMoveDown,
   canDelete,
@@ -165,7 +173,7 @@ function LayerItem({
           <button
             onClick={() => onUpdate({ visible: !layer.visible })}
             className="p-1 rounded hover:bg-slate-600"
-            title={layer.visible ? 'Hide' : 'Show'}
+            title={layer.visible ? t('personalised_sign.pro.layers.hide') : t('personalised_sign.pro.layers.show')}
           >
             {layer.visible ? (
               <Eye className="w-3.5 h-3.5 text-slate-400" />
@@ -178,7 +186,7 @@ function LayerItem({
           <button
             onClick={() => onUpdate({ locked: !layer.locked })}
             className="p-1 rounded hover:bg-slate-600"
-            title={layer.locked ? 'Unlock' : 'Lock'}
+            title={layer.locked ? t('personalised_sign.pro.layers.unlock') : t('personalised_sign.pro.layers.lock')}
           >
             {layer.locked ? (
               <Lock className="w-3.5 h-3.5 text-amber-400" />
@@ -191,7 +199,7 @@ function LayerItem({
           <button
             onClick={() => onUpdate({ exportEnabled: !layer.exportEnabled })}
             className="p-1 rounded hover:bg-slate-600"
-            title={layer.exportEnabled ? 'Exclude from export' : 'Include in export'}
+            title={layer.exportEnabled ? t('personalised_sign.pro.layers.exclude_from_export') : t('personalised_sign.pro.layers.include_in_export')}
           >
             {layer.exportEnabled ? (
               <Download className="w-3.5 h-3.5 text-green-400" />
@@ -207,7 +215,7 @@ function LayerItem({
         <div className="mt-2 pl-4 space-y-2">
           {/* Opacity slider */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 w-14">Opacity</span>
+            <span className="text-xs text-slate-400 w-14">{t('personalised_sign.pro.layers.opacity')}</span>
             <input
               type="range"
               min="0"
@@ -227,7 +235,7 @@ function LayerItem({
               onClick={onMoveUp}
               disabled={!canMoveUp}
               className="p-1 rounded hover:bg-slate-600 disabled:opacity-30"
-              title="Move up"
+              title={t('personalised_sign.pro.layers.move_up')}
             >
               <ChevronUp className="w-3.5 h-3.5" />
             </button>
@@ -235,7 +243,7 @@ function LayerItem({
               onClick={onMoveDown}
               disabled={!canMoveDown}
               className="p-1 rounded hover:bg-slate-600 disabled:opacity-30"
-              title="Move down"
+              title={t('personalised_sign.pro.layers.move_down')}
             >
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
@@ -244,7 +252,7 @@ function LayerItem({
               <button
                 onClick={onDelete}
                 className="p-1 rounded hover:bg-red-600/50 ml-auto"
-                title="Delete layer"
+                title={t('personalised_sign.pro.layers.delete_layer')}
               >
                 <Trash2 className="w-3.5 h-3.5 text-red-400" />
               </button>
@@ -253,7 +261,10 @@ function LayerItem({
 
           {/* Element count */}
           <div className="text-xs text-slate-500">
-            {layer.elements.length} element{layer.elements.length !== 1 ? 's' : ''}
+            {layer.elements.length}{' '}
+            {layer.elements.length !== 1
+              ? t('personalised_sign.pro.layers.elements_plural')
+              : t('personalised_sign.pro.layers.elements_singular')}
           </div>
 
           {layer.elements.length > 0 && (
@@ -268,6 +279,7 @@ function LayerItem({
                   isSelected={selectedIds.includes(el.id)}
                   disableMoveToCut={layer.locked || !supportsCutEngrave}
                   disableMoveToEngrave={layer.locked || !supportsCutEngrave}
+                  t={t}
                   onSelect={() => onSelectElement(el.id)}
                   onMoveToCut={() => onMoveElementToLayerType(el.id, 'CUT')}
                   onMoveToEngrave={() => onMoveElementToLayerType(el.id, 'ENGRAVE')}
@@ -283,24 +295,26 @@ function LayerItem({
   );
 }
 
-function getElementLabel(el: Element): string {
+function getElementLabel(el: Element, t: (key: string) => string): string {
   switch (el.kind) {
     case 'text':
-      return el.text?.trim() ? `Text: ${el.text.trim()}` : 'Text';
+      return el.text?.trim()
+        ? `${t('personalised_sign.pro.layers.element_label.text_prefix')} ${el.text.trim()}`
+        : t('personalised_sign.pro.layers.element_label.text');
     case 'shape':
-      return 'Shape';
+      return t('personalised_sign.pro.layers.element_label.shape');
     case 'ornament':
-      return `Ornament: ${el.assetId}`;
+      return `${t('personalised_sign.pro.layers.element_label.ornament_prefix')} ${el.assetId}`;
     case 'engraveSketch':
-      return 'Sketch';
+      return t('personalised_sign.pro.layers.element_label.sketch');
     case 'engraveImage':
-      return 'Image';
+      return t('personalised_sign.pro.layers.element_label.image');
     case 'tracedPath':
-      return 'Trace';
+      return t('personalised_sign.pro.layers.element_label.trace');
     case 'tracedPathGroup':
-      return 'Trace Group';
+      return t('personalised_sign.pro.layers.element_label.trace_group');
     default:
-      return 'Element';
+      return t('personalised_sign.pro.layers.element_label.element');
   }
 }
 
@@ -309,6 +323,7 @@ function LayerElementRow({
   isSelected,
   disableMoveToCut,
   disableMoveToEngrave,
+  t,
   onSelect,
   onMoveToCut,
   onMoveToEngrave,
@@ -317,6 +332,7 @@ function LayerElementRow({
   isSelected: boolean;
   disableMoveToCut: boolean;
   disableMoveToEngrave: boolean;
+  t: (key: string) => string;
   onSelect: () => void;
   onMoveToCut: () => void;
   onMoveToEngrave: () => void;
@@ -330,9 +346,9 @@ function LayerElementRow({
       <button
         onClick={onSelect}
         className="flex-1 text-left text-xs truncate text-slate-300 hover:text-white"
-        title={getElementLabel(element)}
+        title={getElementLabel(element, t)}
       >
-        {getElementLabel(element)}
+        {getElementLabel(element, t)}
       </button>
 
       <div className="flex items-center gap-1">
@@ -340,17 +356,17 @@ function LayerElementRow({
           onClick={onMoveToCut}
           disabled={disableMoveToCut}
           className="px-1.5 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 disabled:opacity-30"
-          title="Move to CUT"
+          title={t('personalised_sign.pro.layers.move_to_cut')}
         >
-          CUT
+          {t('personalised_sign.ai.layer_cut')}
         </button>
         <button
           onClick={onMoveToEngrave}
           disabled={disableMoveToEngrave}
           className="px-1.5 py-0.5 rounded text-[10px] bg-slate-700 hover:bg-slate-600 disabled:opacity-30"
-          title="Move to ENGRAVE"
+          title={t('personalised_sign.pro.layers.move_to_engrave')}
         >
-          ENGRAVE
+          {t('personalised_sign.ai.layer_engrave')}
         </button>
       </div>
     </div>
@@ -359,16 +375,17 @@ function LayerElementRow({
 
 interface AddLayerButtonProps {
   onAdd: (type: LayerType, name: string) => void;
+  t: (key: string) => string;
 }
 
-function AddLayerButton({ onAdd }: AddLayerButtonProps) {
+function AddLayerButton({ onAdd, t }: AddLayerButtonProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const layerTypes: { type: LayerType; label: string }[] = [
-    { type: 'ENGRAVE', label: 'Engrave Layer' },
-    { type: 'CUT', label: 'Cut Layer' },
-    { type: 'OUTLINE', label: 'Outline Layer' },
-    { type: 'GUIDE', label: 'Guide Layer' },
+    { type: 'ENGRAVE', label: t('personalised_sign.pro.layers.layer_type.engrave') },
+    { type: 'CUT', label: t('personalised_sign.pro.layers.layer_type.cut') },
+    { type: 'OUTLINE', label: t('personalised_sign.pro.layers.layer_type.outline') },
+    { type: 'GUIDE', label: t('personalised_sign.pro.layers.layer_type.guide') },
   ];
 
   return (
@@ -376,7 +393,7 @@ function AddLayerButton({ onAdd }: AddLayerButtonProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="p-1 rounded hover:bg-slate-700"
-        title="Add layer"
+        title={t('personalised_sign.pro.layers.add_layer')}
       >
         <Plus className="w-4 h-4" />
       </button>

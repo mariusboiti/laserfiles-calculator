@@ -7,6 +7,8 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Upload, Image, Loader2, Check, X, Settings2, Trash2 } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface ImageTracePanelProps {
   onTrace: (imageDataUrl: string, options: TraceOptions) => Promise<string | null>;
@@ -29,6 +31,9 @@ const DEFAULT_OPTIONS: TraceOptions = {
 };
 
 export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanelProps) {
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [options, setOptions] = useState<TraceOptions>(DEFAULT_OPTIONS);
@@ -42,7 +47,7 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
+      setError(t('round_coaster.trace.error_not_image'));
       return;
     }
 
@@ -52,12 +57,12 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
       setTracedPath(null);
       setError(null);
     };
-    reader.onerror = () => setError('Failed to read file');
+    reader.onerror = () => setError(t('round_coaster.trace.error_read_failed'));
     reader.readAsDataURL(file);
 
     // Reset input
     e.target.value = '';
-  }, []);
+  }, [t]);
 
   const handleTrace = useCallback(async () => {
     if (!imageDataUrl || loading || disabled) return;
@@ -70,14 +75,14 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
       if (pathD) {
         setTracedPath(pathD);
       } else {
-        setError('Tracing failed. Try adjusting threshold.');
+        setError(t('round_coaster.trace.error_trace_failed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tracing failed');
+      setError(err instanceof Error ? err.message : t('round_coaster.trace.error_trace_failed'));
     } finally {
       setLoading(false);
     }
-  }, [imageDataUrl, options, loading, disabled, onTrace]);
+  }, [imageDataUrl, options, loading, disabled, onTrace, t]);
 
   const handleInsert = useCallback(() => {
     if (tracedPath) {
@@ -98,7 +103,7 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] text-slate-400">
           <Image className="w-3.5 h-3.5 text-orange-400" />
-          <span>Image Trace</span>
+          <span>{t('round_coaster.trace.title')}</span>
         </div>
         <button
           type="button"
@@ -118,8 +123,8 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
           className="w-full flex flex-col items-center gap-2 p-4 border-2 border-dashed border-slate-700 rounded-lg hover:border-slate-600 hover:bg-slate-800/50 transition-colors disabled:opacity-50"
         >
           <Upload className="w-6 h-6 text-slate-500" />
-          <span className="text-xs text-slate-400">Click to upload image</span>
-          <span className="text-[10px] text-slate-500">PNG, JPG, SVG</span>
+          <span className="text-xs text-slate-400">{t('round_coaster.trace.click_upload')}</span>
+          <span className="text-[10px] text-slate-500">{t('round_coaster.trace.file_types')}</span>
         </button>
       )}
 
@@ -134,10 +139,10 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
       {/* Options panel */}
       {showOptions && (
         <div className="space-y-2 p-2 bg-slate-800 rounded border border-slate-700">
-          <div className="text-[10px] text-slate-400 font-medium">Trace Options</div>
+          <div className="text-[10px] text-slate-400 font-medium">{t('round_coaster.trace.options_title')}</div>
 
           <label className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-400">Threshold</span>
+            <span className="text-[10px] text-slate-400">{t('round_coaster.trace.threshold')}</span>
             <input
               type="range"
               min="0"
@@ -150,7 +155,7 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
           </label>
 
           <label className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-400">Smoothing</span>
+            <span className="text-[10px] text-slate-400">{t('round_coaster.trace.smoothing')}</span>
             <input
               type="range"
               min="0"
@@ -170,7 +175,7 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
               onChange={(e) => setOptions(o => ({ ...o, invert: e.target.checked }))}
               className="w-3 h-3"
             />
-            <span className="text-[10px] text-slate-400">Invert colors</span>
+            <span className="text-[10px] text-slate-400">{t('round_coaster.trace.invert')}</span>
           </label>
         </div>
       )}
@@ -181,7 +186,7 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
           <div className="relative aspect-square bg-white rounded overflow-hidden border border-slate-700">
             <img
               src={imageDataUrl}
-              alt="To trace"
+              alt={t('round_coaster.trace.title')}
               className="w-full h-full object-contain"
             />
             <button
@@ -203,12 +208,12 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
               {loading ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Tracing...
+                  {t('round_coaster.trace.tracing')}
                 </>
               ) : (
                 <>
                   <Image className="w-3.5 h-3.5" />
-                  Trace Image
+                  {t('round_coaster.trace.trace_image')}
                 </>
               )}
             </button>
@@ -227,7 +232,7 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
       {/* Traced result */}
       {tracedPath && (
         <div className="space-y-2 p-2 bg-slate-800 rounded border border-slate-700">
-          <div className="text-[10px] text-slate-400">Traced result:</div>
+          <div className="text-[10px] text-slate-400">{t('round_coaster.trace.traced_result')}</div>
 
           <div className="aspect-square bg-white rounded overflow-hidden p-2">
             <svg viewBox="-50 -50 100 100" className="w-full h-full">
@@ -242,7 +247,7 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
               className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] rounded"
             >
               <Check className="w-3 h-3" />
-              Insert
+              {t('round_coaster.ai.insert')}
             </button>
             <button
               type="button"
@@ -250,7 +255,7 @@ export function ImageTracePanel({ onTrace, onInsert, disabled }: ImageTracePanel
               disabled={loading}
               className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[11px] rounded"
             >
-              Re-trace
+              {t('round_coaster.trace.retrace')}
             </button>
             <button
               type="button"

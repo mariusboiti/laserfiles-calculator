@@ -7,6 +7,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Flower2, Search, Loader2, Plus, LayoutGrid, List } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export interface OrnamentAsset {
   id: string;
@@ -24,18 +26,21 @@ interface OrnamentLibraryProps {
 
 // Ornament categories
 const CATEGORIES = [
-  { id: 'all', label: 'All' },
-  { id: 'animals', label: 'Animals' },
-  { id: 'geometric', label: 'Geometric' },
-  { id: 'flowers', label: 'Flowers' },
-  { id: 'accesories', label: 'Accesories' },
-  { id: 'beverages', label: 'Beverages' },
-  { id: 'landscapes', label: 'Landscapes' },
+  { id: 'all', label: 'round_coaster.ornaments.cat_all' },
+  { id: 'animals', label: 'round_coaster.ornaments.cat_animals' },
+  { id: 'geometric', label: 'round_coaster.ornaments.cat_geometric' },
+  { id: 'flowers', label: 'round_coaster.ornaments.cat_flowers' },
+  { id: 'accesories', label: 'round_coaster.ornaments.cat_accessories' },
+  { id: 'beverages', label: 'round_coaster.ornaments.cat_beverages' },
+  { id: 'landscapes', label: 'round_coaster.ornaments.cat_landscapes' },
 ];
 
 const SAMPLE_ORNAMENTS: OrnamentAsset[] = [];
 
 export function OrnamentLibrary({ onInsert, disabled }: OrnamentLibraryProps) {
+  const { locale } = useLanguage();
+  const t = React.useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [loading, setLoading] = useState(false);
@@ -68,7 +73,7 @@ export function OrnamentLibrary({ onInsert, disabled }: OrnamentLibraryProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] text-slate-400">
           <Flower2 className="w-3.5 h-3.5 text-pink-400" />
-          <span>Ornament Library</span>
+          <span>{t('round_coaster.ornaments.header')}</span>
         </div>
         <div className="flex gap-1">
           <button
@@ -95,7 +100,7 @@ export function OrnamentLibrary({ onInsert, disabled }: OrnamentLibraryProps) {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search ornaments..."
+          placeholder={t('round_coaster.ornaments.search')}
           className="w-full bg-slate-900 border border-slate-700 rounded pl-7 pr-2 py-1.5 text-xs"
         />
       </div>
@@ -113,7 +118,7 @@ export function OrnamentLibrary({ onInsert, disabled }: OrnamentLibraryProps) {
                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
             }`}
           >
-            {cat.label}
+            {t(cat.label)}
           </button>
         ))}
       </div>
@@ -125,7 +130,7 @@ export function OrnamentLibrary({ onInsert, disabled }: OrnamentLibraryProps) {
         </div>
       ) : filteredOrnaments.length === 0 ? (
         <div className="text-center py-6 text-xs text-slate-500">
-          No ornaments found
+          {t('round_coaster.ornaments.no_results')}
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
@@ -176,7 +181,9 @@ export function OrnamentLibrary({ onInsert, disabled }: OrnamentLibraryProps) {
               </div>
               <div className="flex-1 text-left">
                 <div className="text-[11px] text-slate-200">{ornament.name}</div>
-                <div className="text-[9px] text-slate-500">{ornament.category}</div>
+                <div className="text-[9px] text-slate-500">
+                  {t(CATEGORIES.find(cat => cat.id === ornament.category)?.label || ornament.category)}
+                </div>
               </div>
               <Plus className="w-3.5 h-3.5 text-slate-500" />
             </button>
@@ -185,7 +192,7 @@ export function OrnamentLibrary({ onInsert, disabled }: OrnamentLibraryProps) {
       )}
 
       <div className="text-[9px] text-slate-600 text-center">
-        {filteredOrnaments.length} ornaments available
+        {t('round_coaster.ornaments.count').replace('{n}', String(filteredOrnaments.length))}
       </div>
     </div>
   );
