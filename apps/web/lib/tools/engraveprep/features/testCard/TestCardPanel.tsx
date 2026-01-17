@@ -5,13 +5,18 @@
  * of power x speed combinations.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Info } from 'lucide-react';
 import { ExportMiniDisclaimer } from '@/components/legal';
 import { generateTestCardSvg, TestCardCell } from '../../utils/generateTestCardSvg';
 import { generatePhotoSampleTestCardPng, PhotoSampleTestCardConfig } from '../../utils/generatePhotoSampleTestCardPng';
 import { useImageStore } from '../../store/useImageStore';
 import type { TestCardFormValues as FormState, TestCardPatternType } from '../../types';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+
+const formatMessage = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? `{${key}}`));
 
 function slugify(name: string): string {
   return name
@@ -30,6 +35,8 @@ const TITLE_HEIGHT_MM = 16;
 
 export function TestCardPanel() {
   const { testCardForm, setTestCardForm, processedImageInfo, processedImage } = useImageStore();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const [form, setForm] = useState<FormState>(() =>
     testCardForm ?? {
@@ -86,19 +93,19 @@ export function TestCardPanel() {
     const messages: string[] = [];
 
     if (!(form.minPower < form.maxPower)) {
-      messages.push('Min Power must be less than Max Power.');
+      messages.push(t('engraveprep.test_card.validation.min_power')); 
     }
     if (form.stepsPower < 2) {
-      messages.push('Power steps must be at least 2.');
+      messages.push(t('engraveprep.test_card.validation.power_steps'));
     }
     if (!(form.minSpeed < form.maxSpeed)) {
-      messages.push('Min Speed must be less than Max Speed.');
+      messages.push(t('engraveprep.test_card.validation.min_speed'));
     }
     if (form.stepsSpeed < 2) {
-      messages.push('Speed steps must be at least 2.');
+      messages.push(t('engraveprep.test_card.validation.speed_steps'));
     }
     if (form.dpi <= 0) {
-      messages.push('DPI must be greater than 0.');
+      messages.push(t('engraveprep.test_card.validation.dpi'));
     }
 
     return {
@@ -247,27 +254,27 @@ export function TestCardPanel() {
     <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Left: Form */}
       <div className="w-full lg:w-80 xl:w-96 bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-4 flex-shrink-0">
-        <h2 className="text-lg font-semibold text-white mb-1">Test Card Generator</h2>
+        <h2 className="text-lg font-semibold text-white mb-1">{t('engraveprep.test_card.title')}</h2>
         <p className="text-xs text-gray-400 mb-2">
-          Generate a power vs speed calibration grid as an SVG file you can import into LightBurn.
+          {t('engraveprep.test_card.subtitle')}
         </p>
 
         {/* Material */}
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-gray-300">Material Name</label>
+          <label className="block text-xs font-medium text-gray-300">{t('engraveprep.test_card.material_name')}</label>
           <input
             type="text"
             value={form.materialName}
             onChange={handleStringChange('materialName')}
             className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-500"
-            placeholder="e.g. Plywood, Slate"
+            placeholder={t('engraveprep.test_card.material_placeholder')}
           />
         </div>
 
         {/* Pattern type */}
         <div className="space-y-2 border-t border-gray-700 pt-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-gray-300">Pattern</span>
+            <span className="text-xs font-medium text-gray-300">{t('engraveprep.test_card.pattern_label')}</span>
           </div>
           <div className="flex flex-col gap-1 text-[11px] text-gray-300">
             <label className="inline-flex items-center gap-2 cursor-pointer">
@@ -279,7 +286,7 @@ export function TestCardPanel() {
                 onChange={() => handlePatternChange('solid')}
                 className="h-3 w-3 text-blue-500 border-gray-600 bg-gray-900"
               />
-              <span>Solid block</span>
+              <span>{t('engraveprep.test_card.pattern.solid')}</span>
             </label>
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
@@ -290,7 +297,7 @@ export function TestCardPanel() {
                 onChange={() => handlePatternChange('gradientDetail')}
                 className="h-3 w-3 text-blue-500 border-gray-600 bg-gray-900"
               />
-              <span>Gradient + details (recommended)</span>
+              <span>{t('engraveprep.test_card.pattern.gradient_detail')}</span>
             </label>
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
@@ -303,32 +310,32 @@ export function TestCardPanel() {
                 className="h-3 w-3 text-blue-500 border-gray-600 bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
               />
               <span className={!hasPhotoSample ? 'text-gray-500' : ''}>
-                Current photo sample
+                {t('engraveprep.test_card.pattern.photo_sample')}
               </span>
             </label>
           </div>
           {!hasPhotoSample && (
             <div className="text-[11px] text-yellow-300 bg-yellow-900/30 border border-yellow-700 rounded px-2 py-1 mt-1">
-              No processed photo available. Go to the Photo Prep tab, upload and process a photo, then return here.
+              {t('engraveprep.test_card.pattern.photo_missing')}
             </div>
           )}
           {hasPhotoSample && (
             <p className="text-[11px] text-gray-500 mt-1">
-              When using <span className="text-gray-200 font-medium">Current photo sample</span>, the same
-              processed photo snippet is used in each cell, but engraved at different power/speed combinations
-              so you can see which combo works best for this specific image.
+              {t('engraveprep.test_card.pattern.photo_help.prefix')}
+              <span className="text-gray-200 font-medium"> {t('engraveprep.test_card.pattern.photo_sample')}</span>
+              {t('engraveprep.test_card.pattern.photo_help.suffix')}
             </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-gray-300">Thickness (mm, optional)</label>
+          <label className="block text-xs font-medium text-gray-300">{t('engraveprep.test_card.thickness_label')}</label>
           <input
             type="number"
             value={form.thicknessMm}
             onChange={handleStringChange('thicknessMm')}
             className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-500"
-            placeholder="e.g. 3.0"
+            placeholder={t('engraveprep.test_card.thickness_placeholder')}
             min={0}
             step={0.1}
           />
@@ -337,11 +344,11 @@ export function TestCardPanel() {
         {/* Power range */}
         <div className="space-y-2 border-t border-gray-700 pt-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-300">Power (%)</span>
+            <span className="text-xs font-medium text-gray-300">{t('engraveprep.test_card.power_label')}</span>
           </div>
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div>
-              <label className="block text-[11px] text-gray-400">Min</label>
+              <label className="block text-[11px] text-gray-400">{t('engraveprep.test_card.min')}</label>
               <input
                 type="number"
                 value={form.minPower}
@@ -352,7 +359,7 @@ export function TestCardPanel() {
               />
             </div>
             <div>
-              <label className="block text-[11px] text-gray-400">Max</label>
+              <label className="block text-[11px] text-gray-400">{t('engraveprep.test_card.max')}</label>
               <input
                 type="number"
                 value={form.maxPower}
@@ -363,7 +370,7 @@ export function TestCardPanel() {
               />
             </div>
             <div>
-              <label className="block text-[11px] text-gray-400">Steps</label>
+              <label className="block text-[11px] text-gray-400">{t('engraveprep.test_card.steps')}</label>
               <input
                 type="number"
                 value={form.stepsPower}
@@ -379,11 +386,11 @@ export function TestCardPanel() {
         {/* Speed range */}
         <div className="space-y-2 border-t border-gray-700 pt-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-300">Speed (units)</span>
+            <span className="text-xs font-medium text-gray-300">{t('engraveprep.test_card.speed_label')}</span>
           </div>
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div>
-              <label className="block text-[11px] text-gray-400">Min</label>
+              <label className="block text-[11px] text-gray-400">{t('engraveprep.test_card.min')}</label>
               <input
                 type="number"
                 value={form.minSpeed}
@@ -393,7 +400,7 @@ export function TestCardPanel() {
               />
             </div>
             <div>
-              <label className="block text-[11px] text-gray-400">Max</label>
+              <label className="block text-[11px] text-gray-400">{t('engraveprep.test_card.max')}</label>
               <input
                 type="number"
                 value={form.maxSpeed}
@@ -403,7 +410,7 @@ export function TestCardPanel() {
               />
             </div>
             <div>
-              <label className="block text-[11px] text-gray-400">Steps</label>
+              <label className="block text-[11px] text-gray-400">{t('engraveprep.test_card.steps')}</label>
               <input
                 type="number"
                 value={form.stepsSpeed}
@@ -419,7 +426,7 @@ export function TestCardPanel() {
         {/* DPI + LightBurn helper */}
         <div className="space-y-2 border-t border-gray-700 pt-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-gray-300">DPI</span>
+            <span className="text-xs font-medium text-gray-300">{t('engraveprep.test_card.dpi_label')}</span>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -433,8 +440,9 @@ export function TestCardPanel() {
               <div className="flex-1 text-[11px] text-gray-400 flex items-center gap-1">
                 <Info className="w-3 h-3 text-blue-400" />
                 <span>
-                  Line interval: <span className="font-mono text-blue-300">{lineIntervalMm.toFixed(3)} mm</span>
-                  {" "}– use as LightBurn line interval / scan gap.
+                  {formatMessage(t('engraveprep.test_card.line_interval'), {
+                    interval: lineIntervalMm.toFixed(3),
+                  })}
                 </span>
               </div>
             )}
@@ -461,13 +469,13 @@ export function TestCardPanel() {
               }`}
             >
               <Download className="w-4 h-4" />
-              Download SVG
+              {t('engraveprep.test_card.download_svg')}
             </button>
 
             <ExportMiniDisclaimer className="mt-2" />
 
             <p className="text-[11px] text-gray-500 mt-1">
-              SVG is unit-agnostic. You can scale it in LightBurn to match your desired size.
+              {t('engraveprep.test_card.svg_note')}
             </p>
           </>
         ) : (
@@ -482,7 +490,7 @@ export function TestCardPanel() {
               }`}
             >
               <Download className="w-4 h-4" />
-              Download PNG for LightBurn
+              {t('engraveprep.test_card.download_png')}
             </button>
 
             <button
@@ -495,15 +503,15 @@ export function TestCardPanel() {
                   : 'border-gray-700 text-gray-500 cursor-not-allowed'
               }`}
             >
-              Download SVG (vector only)
+              {t('engraveprep.test_card.download_svg_vector')}
             </button>
 
             <ExportMiniDisclaimer className="mt-2" />
 
             <p className="text-[11px] text-gray-500 mt-1">
-              LightBurn does not reliably import embedded images from SVG, so in
-              <span className="text-gray-200 font-medium"> Current photo sample </span>
-              mode the main export is a PNG bitmap. You can still download a vector-only SVG grid if you prefer.
+              {t('engraveprep.test_card.photo_export_note.prefix')}
+              <span className="text-gray-200 font-medium"> {t('engraveprep.test_card.pattern.photo_sample')} </span>
+              {t('engraveprep.test_card.photo_export_note.suffix')}
             </p>
           </>
         )}
@@ -513,13 +521,13 @@ export function TestCardPanel() {
       <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-3 flex flex-col min-h-[260px]">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-sm font-semibold text-white">Preview</h3>
-            <p className="text-[11px] text-gray-400">Live SVG preview of the generated test card.</p>
+            <h3 className="text-sm font-semibold text-white">{t('engraveprep.test_card.preview.title')}</h3>
+            <p className="text-[11px] text-gray-400">{t('engraveprep.test_card.preview.subtitle')}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
             <div className="flex items-center gap-3">
               <div className="text-[11px] text-gray-500">
-                Cells: <span className="font-mono text-gray-300">{cells.length}</span>
+                {t('engraveprep.test_card.cells_label')} <span className="font-mono text-gray-300">{cells.length}</span>
               </div>
               <div className="inline-flex rounded bg-gray-800 text-[11px]">
                 <button
@@ -560,7 +568,9 @@ export function TestCardPanel() {
 
             {/* Continuous zoom slider: 50% - 400% */}
             <div className="flex items-center gap-2 text-[11px] text-gray-400">
-              <span className="whitespace-nowrap">Zoom {Math.round(previewScale * 100)}%</span>
+              <span className="whitespace-nowrap">{formatMessage(t('engraveprep.test_card.zoom_label'), {
+                value: Math.round(previewScale * 100),
+              })}</span>
               <input
                 type="range"
                 min={0.5}
@@ -599,7 +609,7 @@ export function TestCardPanel() {
             />
           ) : (
             <div className="text-xs text-gray-500 text-center px-4">
-              Enter valid ranges for Power and Speed to see the preview.
+              {t('engraveprep.test_card.preview.empty')}
             </div>
           )}
         </div>

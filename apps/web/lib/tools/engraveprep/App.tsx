@@ -14,7 +14,7 @@
  * - Embed mode support
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { TopBar } from './components/TopBar';
 import { PreviewCanvas } from './components/PreviewCanvas';
 import { PreviewModeSelector } from './components/PreviewModeSelector';
@@ -30,12 +30,16 @@ import { UserPresetsPanel } from './features/presets/UserPresetsPanel';
 import { TestCardPanel } from './features/testCard/TestCardPanel';
 import { ENABLE_TEST_CARD } from './config/featureFlags';
 import styles from './engraveprep.module.css';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 function App() {
   useImageProcessor();
   
   const [embedMode, setEmbedMode] = useState(false);
   const { originalImage, imageInfo, loadUserPresetsFromStorage, activeTab, setActiveTab } = useImageStore();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   // When the Test Card feature is disabled, always treat the active tab as
   // "photo" to avoid exposing the hidden tab via state.
@@ -93,7 +97,7 @@ function App() {
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
-            Photo Prep
+            {t('engraveprep.ui.tabs.photo')}
           </button>
           {ENABLE_TEST_CARD && (
             <button
@@ -104,7 +108,7 @@ function App() {
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              Test Card
+              {t('engraveprep.ui.tabs.test_card')}
             </button>
           )}
         </div>

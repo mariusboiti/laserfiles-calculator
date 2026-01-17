@@ -1,14 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { AspectRatio, BackgroundStyle, DepthStyle, PlaqueShape, ReliefMaterial, DepthZones } from '../types';
 import { ASPECT_RATIOS, STYLE_PRESETS, PLAQUE_SHAPES, RELIEF_MATERIALS } from '../types';
 import { useAnalytics } from '@/lib/analytics/useAnalytics';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 type TabView = 'final' | 'depth' | 'layers';
 
+const formatMessage = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? `{${key}}`));
+
 export function AIDepthPhotoTool() {
   const analytics = useAnalytics('ai-depth-photo');
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
   
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState<DepthStyle>('bas-relief-engraving');
@@ -40,7 +47,7 @@ export function AIDepthPhotoTool() {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setError('Please enter a prompt to generate.');
+      setError(t('ai_depth_photo.errors.missing_prompt'));
       return;
     }
 
@@ -103,7 +110,7 @@ export function AIDepthPhotoTool() {
       generateDepthMap(data.imagePngBase64);
     } catch (error) {
       console.warn('[AI Generate] generation failed', error);
-      setError('We couldn’t generate a result this time. Try refining your prompt and generate again.');
+      setError(t('ai_depth_photo.errors.generate_failed'));
     } finally {
       setIsGenerating(false);
     }
@@ -147,19 +154,19 @@ export function AIDepthPhotoTool() {
       {/* Left Panel - Controls */}
       <div className="w-80 shrink-0 space-y-6 overflow-y-auto">
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">AI Depth Photo Generator</h2>
+          <h2 className="text-lg font-semibold text-slate-100">{t('ai_depth_photo.photo_tool.title')}</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Generate depth-styled images with automatic depth maps
+            {t('ai_depth_photo.photo_tool.subtitle')}
           </p>
         </div>
 
         {/* Prompt */}
         <div>
-          <label className="block text-sm font-medium text-slate-200">Prompt</label>
+          <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.photo.prompt.label')}</label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe the scene you want to create..."
+            placeholder={t('ai_depth_photo.photo.prompt.placeholder')}
             rows={4}
             className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
           />
@@ -167,7 +174,7 @@ export function AIDepthPhotoTool() {
 
         {/* Style */}
         <div>
-          <label className="block text-sm font-medium text-slate-200">Style</label>
+          <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.photo.style.label')}</label>
           <select
             value={style}
             onChange={(e) => setStyle(e.target.value as DepthStyle)}
@@ -183,7 +190,7 @@ export function AIDepthPhotoTool() {
 
         {/* Aspect Ratio */}
         <div>
-          <label className="block text-sm font-medium text-slate-200">Aspect Ratio</label>
+          <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.photo.aspect_ratio.label')}</label>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {Object.entries(ASPECT_RATIOS).map(([key, { label }]) => (
               <button
@@ -204,7 +211,7 @@ export function AIDepthPhotoTool() {
         {/* Depth Strength */}
         <div>
           <label className="block text-sm font-medium text-slate-200">
-            Depth Strength: {Math.round(depthStrength * 100)}%
+            {formatMessage(t('ai_depth_photo.photo.depth_strength.label'), { value: Math.round(depthStrength * 100) })}
           </label>
           <input
             type="range"
@@ -222,11 +229,11 @@ export function AIDepthPhotoTool() {
         {style === 'bas-relief-engraving' && (
           <>
             <div className="border-t border-slate-700 pt-4">
-              <h3 className="mb-3 text-sm font-semibold text-slate-200">Professional Engraving Settings</h3>
+              <h3 className="mb-3 text-sm font-semibold text-slate-200">{t('ai_depth_photo.photo.engraving_settings.title')}</h3>
               
               {/* Engraving Material */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-200">Engraving Material</label>
+                <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.photo.engraving_material.label')}</label>
                 <select
                   value={engravingMaterial}
                   onChange={(e) => setEngravingMaterial(e.target.value as ReliefMaterial)}
@@ -238,15 +245,13 @@ export function AIDepthPhotoTool() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-slate-400">
-                  Material affects contrast limits and detail processing
-                </p>
+                <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.photo.engraving_material.helper')}</p>
               </div>
 
               {/* Depth Zones */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-200">
-                  Depth Zones: {depthZones}
+                  {formatMessage(t('ai_depth_photo.photo.depth_zones.label'), { value: depthZones })}
                 </label>
                 <div className="mt-2 flex gap-2">
                   {[2, 3, 4].map((zones) => (
@@ -263,15 +268,13 @@ export function AIDepthPhotoTool() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">
-                  Discrete depth levels (background + relief zones)
-                </p>
+                <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.photo.depth_zones.helper')}</p>
               </div>
 
               {/* Detail Level */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-200">
-                  Detail Level: {Math.round(detailLevel * 100)}%
+                  {formatMessage(t('ai_depth_photo.photo.detail_level.label'), { value: Math.round(detailLevel * 100) })}
                 </label>
                 <input
                   type="range"
@@ -282,9 +285,7 @@ export function AIDepthPhotoTool() {
                   onChange={(e) => setDetailLevel(Number(e.target.value))}
                   className="mt-2 w-full"
                 />
-                <p className="mt-1 text-xs text-slate-400">
-                  Lower = smoother volumes, higher = more fine details
-                </p>
+                <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.photo.detail_level.helper')}</p>
               </div>
 
               {/* Validation Toggle */}
@@ -296,11 +297,9 @@ export function AIDepthPhotoTool() {
                     onChange={(e) => setEnableValidation(e.target.checked)}
                     className="rounded"
                   />
-                  Auto-fix histogram issues
+                  {t('ai_depth_photo.photo.validation.label')}
                 </label>
-                <p className="mt-1 text-xs text-slate-400">
-                  Automatically correct flat histograms and clipped values
-                </p>
+                <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.photo.validation.helper')}</p>
               </div>
             </div>
           </>
@@ -310,11 +309,11 @@ export function AIDepthPhotoTool() {
         {style === 'bas-relief-engraving' && (
           <>
             <div className="border-t border-slate-700 pt-4">
-              <h3 className="mb-3 text-sm font-semibold text-slate-200">Bas-Relief Options</h3>
+              <h3 className="mb-3 text-sm font-semibold text-slate-200">{t('ai_depth_photo.photo.bas_relief.title')}</h3>
               
               {/* Plaque Shape */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-200">Plaque Shape</label>
+                <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.photo.plaque_shape.label')}</label>
                 <select
                   value={plaqueShape}
                   onChange={(e) => setPlaqueShape(e.target.value as PlaqueShape)}
@@ -331,7 +330,7 @@ export function AIDepthPhotoTool() {
               {/* Relief Strength */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-200">
-                  Relief Strength: {Math.round(reliefStrength * 100)}%
+                  {formatMessage(t('ai_depth_photo.photo.relief_strength.label'), { value: Math.round(reliefStrength * 100) })}
                 </label>
                 <input
                   type="range"
@@ -346,7 +345,7 @@ export function AIDepthPhotoTool() {
 
               {/* Material */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-200">Material</label>
+                <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.photo.material.label')}</label>
                 <select
                   value={material}
                   onChange={(e) => setMaterial(e.target.value as ReliefMaterial)}
@@ -369,9 +368,9 @@ export function AIDepthPhotoTool() {
                     onChange={(e) => setBottomNotch(e.target.checked)}
                     className="rounded"
                   />
-                  Bottom Notch
+                  {t('ai_depth_photo.photo.bottom_notch.label')}
                 </label>
-                <p className="mt-1 text-xs text-slate-400">Add semicircle notch at bottom edge</p>
+                <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.photo.bottom_notch.helper')}</p>
               </div>
             </div>
           </>
@@ -387,7 +386,7 @@ export function AIDepthPhotoTool() {
           disabled={isGenerating || !prompt.trim()}
           className="w-full rounded-lg bg-sky-500 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isGenerating ? 'Generating… this may take a few seconds.' : 'Generate Image'}
+          {isGenerating ? t('ai_depth_photo.generate.loading') : t('ai_depth_photo.generate.image')}
         </button>
 
         {(hasGeneratedOnce || !!error) && (
@@ -396,13 +395,13 @@ export function AIDepthPhotoTool() {
             disabled={isGenerating || !prompt.trim()}
             className="w-full rounded-lg bg-slate-700 px-4 py-3 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Regenerate
+            {t('ai_depth_photo.generate.regenerate')}
           </button>
         )}
 
         {seed && (
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-400">
-            Seed: {seed}
+            {formatMessage(t('ai_depth_photo.seed'), { value: seed })}
           </div>
         )}
       </div>
@@ -419,7 +418,7 @@ export function AIDepthPhotoTool() {
                 : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            Final Image
+            {t('ai_depth_photo.tabs.final')}
           </button>
           <button
             onClick={() => setActiveTab('depth')}
@@ -430,14 +429,14 @@ export function AIDepthPhotoTool() {
                 : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            Depth Map
+            {t('ai_depth_photo.tabs.depth')}
           </button>
           <button
             onClick={() => setActiveTab('layers')}
             disabled
             className="cursor-not-allowed px-4 py-2 text-sm font-medium text-slate-600"
           >
-            Layers (Coming Soon)
+            {t('ai_depth_photo.tabs.layers')}
           </button>
         </div>
 
@@ -447,17 +446,17 @@ export function AIDepthPhotoTool() {
             <div className="flex flex-col items-center gap-4">
               <img
                 src={`data:image/png;base64,${finalImage}`}
-                alt="Generated"
+                alt={t('ai_depth_photo.preview.alt_final')}
                 className="max-h-[600px] max-w-full rounded-lg shadow-lg"
               />
               <button
                 onClick={() => downloadImage(finalImage, 'ai-depth-final.png')}
                 className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600"
               >
-                Download Final PNG
+                {t('ai_depth_photo.download.final')}
               </button>
 
-              <div className="text-xs text-slate-400">Not perfect? Try refining your prompt and generate again.</div>
+              <div className="text-xs text-slate-400">{t('ai_depth_photo.preview.refine')}</div>
             </div>
           )}
 
@@ -466,7 +465,7 @@ export function AIDepthPhotoTool() {
               <div className="flex flex-col gap-2">
                 <img
                   src={`data:image/png;base64,${depthMap}`}
-                  alt="Depth Map"
+                  alt={t('ai_depth_photo.preview.alt_depth')}
                   className="max-h-[600px] max-w-full rounded-lg shadow-lg"
                   style={invertDepth ? { filter: 'invert(1)' } : undefined}
                 />
@@ -477,37 +476,37 @@ export function AIDepthPhotoTool() {
                     onChange={(e) => setInvertDepth(e.target.checked)}
                     className="rounded"
                   />
-                  Invert depth
+                  {t('ai_depth_photo.invert_depth.label')}
                 </label>
               </div>
               <button
                 onClick={() => downloadImage(depthMap, 'ai-depth-map.png')}
                 className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600"
               >
-                Download Depth Map PNG
+                {t('ai_depth_photo.download.depth_map')}
               </button>
 
-              <div className="text-xs text-slate-400">Not perfect? Try refining your prompt and generate again.</div>
+              <div className="text-xs text-slate-400">{t('ai_depth_photo.preview.refine')}</div>
             </div>
           )}
 
           {!finalImage && !isGenerating && (
             <div className="text-center text-slate-500">
-              <p>Enter a prompt and click Generate to create your depth image</p>
+              <p>{t('ai_depth_photo.preview.empty_prompt')}</p>
             </div>
           )}
 
           {isGenerating && (
             <div className="text-center text-slate-400">
               <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
-              <p>Generating… this may take a few seconds.</p>
+              <p>{t('ai_depth_photo.generate.loading')}</p>
             </div>
           )}
 
           {isGeneratingDepth && activeTab === 'depth' && (
             <div className="text-center text-slate-400">
               <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
-              <p>Generating… this may take a few seconds.</p>
+              <p>{t('ai_depth_photo.generate.loading')}</p>
             </div>
           )}
         </div>

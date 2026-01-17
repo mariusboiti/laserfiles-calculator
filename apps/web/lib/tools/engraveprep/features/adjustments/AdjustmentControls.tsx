@@ -6,18 +6,23 @@
  * - Easy Mode toggle (hides manual controls when enabled)
  */
 
+import { useCallback } from 'react';
 import { Sun, Contrast as ContrastIcon, Palette, FlipHorizontal } from 'lucide-react';
 import { useImageStore } from '../../store/useImageStore';
 import { EasyModeControls } from './EasyModeControls';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function AdjustmentControls() {
   const { adjustments, setAdjustments, easyMode } = useImageStore();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
         <Sun className="w-4 h-4" />
-        Adjustments
+        {t('engraveprep.adjustments.title')}
       </h3>
 
       {/* Easy Mode Controls */}
@@ -30,7 +35,7 @@ export function AdjustmentControls() {
       <div className="flex items-center justify-between">
         <label className="text-sm text-gray-300 flex items-center gap-2">
           <Palette className="w-4 h-4" />
-          Grayscale
+          {t('engraveprep.adjustments.grayscale')}
         </label>
         <button
           onClick={() => setAdjustments({ grayscale: !adjustments.grayscale })}
@@ -46,7 +51,7 @@ export function AdjustmentControls() {
 
       {/* Brightness */}
       <SliderControl
-        label="Brightness"
+        label={t('engraveprep.adjustments.brightness')}
         icon={<Sun className="w-4 h-4" />}
         value={adjustments.brightness}
         min={-100}
@@ -56,7 +61,7 @@ export function AdjustmentControls() {
 
       {/* Contrast */}
       <SliderControl
-        label="Contrast"
+        label={t('engraveprep.adjustments.contrast')}
         icon={<ContrastIcon className="w-4 h-4" />}
         value={adjustments.contrast}
         min={-100}
@@ -66,7 +71,7 @@ export function AdjustmentControls() {
 
       {/* Gamma */}
       <SliderControl
-        label="Gamma"
+        label={t('engraveprep.adjustments.gamma')}
         icon={<Sun className="w-4 h-4" />}
         value={adjustments.gamma}
         min={0.2}
@@ -77,7 +82,7 @@ export function AdjustmentControls() {
 
       {/* Invert */}
       <div className="flex items-center justify-between">
-        <label className="text-sm text-gray-300">Invert Colors</label>
+        <label className="text-sm text-gray-300">{t('engraveprep.adjustments.invert')}</label>
         <button
           onClick={() => setAdjustments({ invert: !adjustments.invert })}
           className={`w-11 h-6 rounded-full transition-colors ${
@@ -94,7 +99,7 @@ export function AdjustmentControls() {
       <div className="flex items-center justify-between">
         <label className="text-sm text-gray-300 flex items-center gap-2">
           <FlipHorizontal className="w-4 h-4" />
-          Mirror Horizontal
+          {t('engraveprep.adjustments.mirror_horizontal')}
         </label>
         <button
           onClick={() => setAdjustments({ mirrorHorizontal: !adjustments.mirrorHorizontal })}

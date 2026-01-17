@@ -1,10 +1,12 @@
 'use client';
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import EngravePrepApp from '../App';
 import { useImageStore } from '../store/useImageStore';
 import type { ImageInfo, Project } from '../types';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export interface EngravePrepToolRef {
   reset: () => void;
@@ -132,6 +134,8 @@ export const EngravePrepTool = forwardRef<EngravePrepToolRef>((props, ref) => {
   const loadProject = useImageStore((state) => state.loadProject);
 
   const { api } = useToolUx();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
 
@@ -170,12 +174,12 @@ export const EngravePrepTool = forwardRef<EngravePrepToolRef>((props, ref) => {
 
   useEffect(() => {
     api.setPrimaryAction({
-      label: 'Upload image',
+      label: t('engraveprep.ui.upload_image'),
       onClick: () => {
         window.dispatchEvent(new Event('engraveprep:open-file-picker'));
       },
     });
-  }, [api]);
+  }, [api, t]);
 
   useEffect(() => {
     api.setSessionAdapter({

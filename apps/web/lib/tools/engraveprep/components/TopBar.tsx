@@ -9,13 +9,14 @@
  * Shows file info and adapts to embed mode.
  */
 
-import { useRef, useState } from 'react';
-import { RotateCcw, Download, Zap, ChevronDown, Code } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
+import { RotateCcw, Download, Zap, ChevronDown } from 'lucide-react';
 import { useImageStore } from '../store/useImageStore';
 import { exportImage } from '../utils/export';
 import { ExportFormat, Project } from '../types';
 import { MATERIAL_PRESET_CONFIG } from '../features/presets/presetConfig';
-import { generateExportFilename } from '../utils/exportNaming';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 interface TopBarProps {
   embedMode?: boolean;
@@ -27,6 +28,16 @@ export function TopBar({ embedMode = false }: TopBarProps) {
   const [projectWarning, setProjectWarning] = useState<string | null>(null);
   const [projectError, setProjectError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
+  const formatMessage = useCallback((key: string, values: Record<string, string | number>) => {
+    let message = t(key);
+    Object.entries(values).forEach(([token, value]) => {
+      message = message.replace(`{${token}}`, String(value));
+    });
+    return message;
+  }, [t]);
   
   const {
     imageInfo,
@@ -54,11 +65,11 @@ export function TopBar({ embedMode = false }: TopBarProps) {
     try {
       await exportImage(processedImage, format, outputName, () => {
         // Show upgrade modal when limit reached
-        alert('Export limit reached. Please upgrade your plan at /pricing to continue exporting.');
+        alert(t('engraveprep.topbar.export_limit_reached'));
       });
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      alert(t('engraveprep.topbar.export_failed'));
     }
     
     setShowDownloadMenu(false);
@@ -144,7 +155,7 @@ export function TopBar({ embedMode = false }: TopBarProps) {
       setProjectError(null);
     } catch (err) {
       console.error('Failed to save project', err);
-      setProjectError('Failed to save project. Please try again.');
+      setProjectError(t('engraveprep.topbar.save_project_failed'));
     }
   };
 
@@ -163,11 +174,11 @@ export function TopBar({ embedMode = false }: TopBarProps) {
         const data = JSON.parse(text) as Partial<Project>;
 
         if (!data || typeof data !== 'object' || data.version !== 1) {
-          setProjectError('Invalid project file (unsupported or missing version).');
+          setProjectError(t('engraveprep.topbar.project_file_invalid_version'));
           return;
         }
         if (!data.image || !data.processing || !data.ui) {
-          setProjectError('Invalid project file (missing required fields).');
+          setProjectError(t('engraveprep.topbar.project_file_missing_fields'));
           return;
         }
 
@@ -177,15 +188,18 @@ export function TopBar({ embedMode = false }: TopBarProps) {
         if (!imageInfo) {
           setProjectWarning(
             project.image.originalFileName
-              ? `This project was saved for image "${project.image.originalFileName}". Upload the same image for best results before applying these settings.`
-              : 'This project has no image metadata. Upload an image before using these settings for best results.'
+              ? formatMessage('engraveprep.topbar.project_warning_missing_image', { name: project.image.originalFileName })
+              : t('engraveprep.topbar.project_warning_no_metadata')
           );
         } else if (
           project.image.originalFileName &&
           project.image.originalFileName !== imageInfo.fileName
         ) {
           setProjectWarning(
-            `This project was saved for image "${project.image.originalFileName}" but you currently have "${imageInfo.fileName}" loaded. Settings will still be applied.`
+            formatMessage('engraveprep.topbar.project_warning_different_image', {
+              saved: project.image.originalFileName,
+              current: imageInfo.fileName,
+            })
           );
         } else {
           setProjectWarning(null);
@@ -195,14 +209,14 @@ export function TopBar({ embedMode = false }: TopBarProps) {
         loadProject(project);
       } catch (err) {
         console.error('Failed to load project', err);
-        setProjectError('Could not read project file. Make sure it is a valid .engraveprep JSON.');
+        setProjectError(t('engraveprep.topbar.project_file_read_failed'));
       } finally {
         e.target.value = '';
       }
     };
 
     reader.onerror = () => {
-      setProjectError('Could not read project file.');
+      setProjectError(t('engraveprep.topbar.project_file_read_failed_generic'));
     };
 
     reader.readAsText(file);
@@ -239,7 +253,7 @@ export function TopBar({ embedMode = false }: TopBarProps) {
           ) : (
             <div className="text-lg font-semibold text-white flex items-center gap-2">
               <Zap className="w-5 h-5 text-blue-500" />
-              EngravePrep
+              {t('engraveprep.ui.app_title')}
             </div>
           )}
         </div>
@@ -255,7 +269,7 @@ export function TopBar({ embedMode = false }: TopBarProps) {
                        disabled:cursor-not-allowed text-sm"
           >
             <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">Reset</span>
+            <span className="hidden sm:inline">{t('engraveprep.topbar.reset')}</span>
           </button>
 
           {/* Download dropdown */}
@@ -268,7 +282,7 @@ export function TopBar({ embedMode = false }: TopBarProps) {
                          disabled:cursor-not-allowed text-sm font-medium"
             >
               <Download className="w-4 h-4" />
-              <span>Download</span>
+              <span>{t('engraveprep.topbar.download')}</span>
               <ChevronDown className="w-3 h-3" />
             </button>
             
@@ -278,13 +292,13 @@ export function TopBar({ embedMode = false }: TopBarProps) {
                   onClick={() => handleDownload('png')}
                   className="w-full px-4 py-2 text-left text-white hover:bg-[#1e2139] transition-colors text-sm"
                 >
-                  PNG
+                  {t('engraveprep.topbar.download_png')}
                 </button>
                 <button
                   onClick={() => handleDownload('bmp')}
                   className="w-full px-4 py-2 text-left text-white hover:bg-[#1e2139] transition-colors text-sm"
                 >
-                  BMP
+                  {t('engraveprep.topbar.download_bmp')}
                 </button>
               </div>
             )}
@@ -323,19 +337,19 @@ export function TopBar({ embedMode = false }: TopBarProps) {
              onClick={() => setShowEmbedModal(false)}>
           <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full"
                onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-xl font-bold text-white mb-4">Embed EngravePrep</h3>
+            <h3 className="text-xl font-bold text-white mb-4">{t('engraveprep.topbar.embed.title')}</h3>
             <p className="text-gray-300 mb-4 text-sm">
-              Copy this code to embed EngravePrep in your WordPress site or any webpage:
+              {t('engraveprep.topbar.embed.subtitle')}
             </p>
             <div className="space-y-3">
               <div>
-                <div className="text-xs text-gray-400 mb-1">Iframe code:</div>
+                <div className="text-xs text-gray-400 mb-1">{t('engraveprep.topbar.embed.iframe_label')}</div>
                 <div className="bg-gray-900 p-3 rounded font-mono text-xs text-gray-300 overflow-x-auto">
                   {embedCode}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-400 mb-1">Auto-resize script (add to your page):</div>
+                <div className="text-xs text-gray-400 mb-1">{t('engraveprep.topbar.embed.script_label')}</div>
                 <div className="bg-gray-900 p-3 rounded font-mono text-xs text-gray-300 overflow-x-auto whitespace-pre">
                   {embedScript}
                 </div>
@@ -346,17 +360,17 @@ export function TopBar({ embedMode = false }: TopBarProps) {
                 onClick={() => {
                   const fullCode = embedCode + '\n\n' + embedScript;
                   navigator.clipboard.writeText(fullCode);
-                  alert('Embed code and script copied to clipboard!');
+                  alert(t('engraveprep.topbar.embed.copied'));
                 }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
               >
-                Copy All
+                {t('engraveprep.topbar.embed.copy_all')}
               </button>
               <button
                 onClick={() => setShowEmbedModal(false)}
                 className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
               >
-                Close
+                {t('engraveprep.topbar.embed.close')}
               </button>
             </div>
           </div>
