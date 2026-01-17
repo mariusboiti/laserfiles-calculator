@@ -1217,7 +1217,7 @@ export function CurvedPhotoFrameV3Tool({
               {result.warnings.length > 0 && (
                 <div className="mt-3 space-y-1 text-xs text-amber-300">
                   {result.warnings.map((w, i) => (
-                    <div key={i}>{w}</div>
+                    <div key={i}>{w.startsWith('curved_frame.v3.') ? t(w) : w}</div>
                   ))}
                 </div>
               )}

@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/app/(app)/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export type BackButtonProps = {
   fallbackHref?: string;
@@ -9,8 +11,10 @@ export type BackButtonProps = {
   className?: string;
 };
 
-export function BackButton({ fallbackHref = '/studio/tools', label = 'Back', className = '' }: BackButtonProps) {
+export function BackButton({ fallbackHref = '/studio/tools', label, className = '' }: BackButtonProps) {
   const router = useRouter();
+  const { locale } = useLanguage();
+  const t = (key: string) => getStudioTranslation(locale as any, key);
   const [canGoBack, setCanGoBack] = useState(false);
 
   useEffect(() => {
@@ -30,12 +34,12 @@ export function BackButton({ fallbackHref = '/studio/tools', label = 'Back', cla
       type="button"
       onClick={handleBack}
       className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/50 ${className}`}
-      aria-label={label}
+      aria-label={label ?? t('common.back')}
     >
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
       </svg>
-      <span>{label}</span>
+      <span>{label ?? t('common.back')}</span>
     </button>
   );
 }
