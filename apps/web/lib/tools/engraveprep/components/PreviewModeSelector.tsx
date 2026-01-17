@@ -4,16 +4,21 @@
  * Toggle between Before/After/Split view modes
  */
 
+import { useCallback } from 'react';
 import { useImageStore } from '../store/useImageStore';
 import { PreviewMode } from '../types';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function PreviewModeSelector() {
   const { previewMode, setPreviewMode } = useImageStore();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const modes: { value: PreviewMode; label: string }[] = [
-    { value: 'before', label: 'Before' },
-    { value: 'after', label: 'After' },
-    { value: 'split', label: 'Split' },
+    { value: 'before', label: t('engraveprep.preview.before') },
+    { value: 'after', label: t('engraveprep.preview.after') },
+    { value: 'split', label: t('engraveprep.preview.split') },
   ];
 
   return (

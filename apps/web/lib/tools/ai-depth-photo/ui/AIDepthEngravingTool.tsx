@@ -1,12 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useToolUx } from '@/components/ux/ToolUxProvider';
 import type { AspectRatio, DepthStyle, MaterialProfile, DepthZones, PreviewMode, CanvasShape } from '../types';
 import { ASPECT_RATIOS, STYLE_PRESETS, MATERIAL_PROFILES, CANVAS_SHAPES } from '../types';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 type TabView = 'final' | 'depth' | 'layers';
 type HistStatus = 'missingBlacks' | 'tooFlat' | 'ready' | null;
+
+const formatMessage = (template: string, values: Record<string, string | number>) =>
+  template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? `{${key}}`));
 
 // Helper: Decode base64/dataURL to ImageData
 async function decodeToImageData(dataUrl: string): Promise<ImageData> {
@@ -162,6 +167,8 @@ function applyCircularMask(imageData: ImageData): ImageData {
 
 export function AIDepthEngravingTool() {
   const { api } = useToolUx();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   useEffect(() => {
     api.setIsEmpty(false);
@@ -196,7 +203,7 @@ export function AIDepthEngravingTool() {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setError('Please enter a subject description to generate.');
+      setError(t('ai_depth_photo.errors.missing_subject'));
       return;
     }
 
@@ -253,7 +260,7 @@ export function AIDepthEngravingTool() {
       setActiveTab('depth');
     } catch (error) {
       console.warn('[AI Generate] generation failed', error);
-      setError('We couldn’t generate a result this time. Try refining your prompt and generate again.');
+      setError(t('ai_depth_photo.errors.generate_failed'));
     } finally {
       setIsGenerating(false);
     }
@@ -329,17 +336,17 @@ export function AIDepthEngravingTool() {
       {/* LEFT PANEL - Engraving Controls */}
       <div className="w-80 flex-shrink-0 space-y-4 overflow-y-auto rounded-lg border border-slate-700 bg-slate-800/50 p-4">
         <div>
-          <h2 className="mb-4 text-lg font-bold text-slate-100">AI Depth Engraving Tool</h2>
-          <p className="text-xs text-slate-400">Professional laser engraving height map generator</p>
+          <h2 className="mb-4 text-lg font-bold text-slate-100">{t('ai_depth_photo.tool.title')}</h2>
+          <p className="text-xs text-slate-400">{t('ai_depth_photo.tool.subtitle')}</p>
         </div>
 
         {/* Prompt */}
         <div>
-          <label className="block text-sm font-medium text-slate-200">Subject Description</label>
+          <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.prompt.label')}</label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g., Mountain landscape, Portrait of a cat, Geometric pattern..."
+            placeholder={t('ai_depth_photo.prompt.placeholder')}
             className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
             rows={3}
           />
@@ -347,7 +354,7 @@ export function AIDepthEngravingTool() {
 
         {/* Style (locked) */}
         <div>
-          <label className="block text-sm font-medium text-slate-200">Engraving Style</label>
+          <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.style.label')}</label>
           <div className="mt-2 rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">
             {STYLE_PRESETS[style].label}
           </div>
@@ -356,7 +363,7 @@ export function AIDepthEngravingTool() {
 
         {/* Aspect Ratio */}
         <div>
-          <label className="block text-sm font-medium text-slate-200">Canvas Size</label>
+          <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.canvas_size.label')}</label>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {(Object.keys(ASPECT_RATIOS) as AspectRatio[]).map((r) => (
               <button
@@ -376,7 +383,7 @@ export function AIDepthEngravingTool() {
 
         {/* Canvas Shape */}
         <div>
-          <label className="block text-sm font-medium text-slate-200">Canvas Shape</label>
+          <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.canvas_shape.label')}</label>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {(Object.keys(CANVAS_SHAPES) as CanvasShape[]).map((shape) => (
               <button
@@ -392,15 +399,13 @@ export function AIDepthEngravingTool() {
               </button>
             ))}
           </div>
-          <p className="mt-1 text-xs text-slate-400">
-            Circle will mask the image to a circular shape
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.canvas_shape.helper')}</p>
         </div>
 
         {/* Engraving Depth Boost */}
         <div>
           <label className="block text-sm font-medium text-slate-200">
-            Engraving Depth Boost: {engravingDepthBoost}%
+            {formatMessage(t('ai_depth_photo.depth_boost.label'), { value: engravingDepthBoost })}
           </label>
           <input
             type="range"
@@ -411,14 +416,12 @@ export function AIDepthEngravingTool() {
             onChange={(e) => setEngravingDepthBoost(Number(e.target.value))}
             className="mt-2 w-full"
           />
-          <p className="mt-1 text-xs text-slate-400">
-            Increase until background is near black
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.depth_boost.helper')}</p>
         </div>
 
         {/* Material Profile */}
         <div>
-          <label className="block text-sm font-medium text-slate-200">Material Profile</label>
+          <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.material_profile.label')}</label>
           <select
             value={materialProfile}
             onChange={(e) => setMaterialProfile(e.target.value as MaterialProfile)}
@@ -430,15 +433,13 @@ export function AIDepthEngravingTool() {
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-400">
-            Affects contrast, gamma, and detail processing
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.material_profile.helper')}</p>
         </div>
 
         {/* Depth Zones */}
         <div>
           <label className="block text-sm font-medium text-slate-200">
-            Depth Zones: {depthZones}
+            {formatMessage(t('ai_depth_photo.depth_zones.label'), { value: depthZones })}
           </label>
           <div className="mt-2 flex gap-2">
             {[3, 4, 5].map((zones) => (
@@ -456,9 +457,9 @@ export function AIDepthEngravingTool() {
             ))}
           </div>
           <p className="mt-1 text-xs text-slate-400">
-            {depthZones === 3 && 'Safe - fewer depth levels'}
-            {depthZones === 4 && 'Default - balanced depth control'}
-            {depthZones === 5 && 'Advanced - maximum depth detail'}
+            {depthZones === 3 && t('ai_depth_photo.depth_zones.levels.safe')}
+            {depthZones === 4 && t('ai_depth_photo.depth_zones.levels.default')}
+            {depthZones === 5 && t('ai_depth_photo.depth_zones.levels.advanced')}
           </p>
         </div>
 
@@ -471,11 +472,9 @@ export function AIDepthEngravingTool() {
               onChange={(e) => setInvertDepth(e.target.checked)}
               className="rounded"
             />
-            Invert Depth
+            {t('ai_depth_photo.invert_depth.label')}
           </label>
-          <p className="mt-1 text-xs text-slate-400">
-            Enable if your laser engraves inverted depth
-          </p>
+          <p className="mt-1 text-xs text-slate-400">{t('ai_depth_photo.invert_depth.helper')}</p>
         </div>
 
         {/* Generate Button */}
@@ -488,7 +487,7 @@ export function AIDepthEngravingTool() {
           disabled={isGenerating || !prompt.trim()}
           className="w-full rounded-lg bg-sky-500 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isGenerating ? 'Generating… this may take a few seconds.' : 'Generate Engraving'}
+          {isGenerating ? t('ai_depth_photo.generate.loading') : t('ai_depth_photo.generate.primary')}
         </button>
 
         {(hasGeneratedOnce || !!error) && (
@@ -497,19 +496,19 @@ export function AIDepthEngravingTool() {
             disabled={isGenerating || !prompt.trim()}
             className="w-full rounded-lg bg-slate-700 px-4 py-3 text-sm font-medium text-slate-100 transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Regenerate
+            {t('ai_depth_photo.generate.regenerate')}
           </button>
         )}
 
         {seed && (
           <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-400">
-            Seed: {seed}
+            {formatMessage(t('ai_depth_photo.seed'), { value: seed })}
           </div>
         )}
 
         {validationWarnings.length > 0 && (
           <div className="rounded-lg border border-yellow-700 bg-yellow-900/20 p-3">
-            <p className="text-xs font-medium text-yellow-400">Auto-optimized for engraving:</p>
+            <p className="text-xs font-medium text-yellow-400">{t('ai_depth_photo.validation.title')}</p>
             {validationWarnings.map((warning, i) => (
               <p key={i} className="mt-1 text-xs text-yellow-300">• {warning}</p>
             ))}
@@ -529,7 +528,7 @@ export function AIDepthEngravingTool() {
                 : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            Final Image
+            {t('ai_depth_photo.tabs.final')}
           </button>
           <button
             onClick={() => setActiveTab('depth')}
@@ -539,7 +538,7 @@ export function AIDepthEngravingTool() {
                 : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            Depth Map (Main)
+            {t('ai_depth_photo.tabs.depth')}
           </button>
           <button
             onClick={() => setActiveTab('layers')}
@@ -549,7 +548,7 @@ export function AIDepthEngravingTool() {
                 : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            Layers (Coming Soon)
+            {t('ai_depth_photo.tabs.layers')}
           </button>
         </div>
 
@@ -560,21 +559,21 @@ export function AIDepthEngravingTool() {
               {isGenerating ? (
                 <div className="text-center text-slate-400">
                   <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
-                  <p>Generating… this may take a few seconds.</p>
+                  <p>{t('ai_depth_photo.generate.loading')}</p>
                 </div>
               ) : finalImage ? (
                 <div className="max-w-full">
-                  <p className="mb-2 text-xs text-slate-400">Preview only - not for engraving</p>
+                  <p className="mb-2 text-xs text-slate-400">{t('ai_depth_photo.preview.note')}</p>
                   <img
                     src={`data:image/png;base64,${finalImage}`}
-                    alt="Final preview"
+                    alt={t('ai_depth_photo.preview.alt_final')}
                     className="max-h-[600px] rounded-lg border border-slate-700"
                   />
 
-                  <p className="mt-2 text-xs text-slate-400">Not perfect? Try refining your prompt and generate again.</p>
+                  <p className="mt-2 text-xs text-slate-400">{t('ai_depth_photo.preview.refine')}</p>
                 </div>
               ) : (
-                <p className="text-slate-500">Generate an image to see preview</p>
+                <p className="text-slate-500">{t('ai_depth_photo.preview.empty_final')}</p>
               )}
             </div>
           )}
@@ -582,14 +581,14 @@ export function AIDepthEngravingTool() {
           {activeTab === 'depth' && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-100">Engraving Height Map</h3>
-                <p className="text-sm text-slate-400">White = surface | Black = maximum depth</p>
+                <h3 className="text-lg font-bold text-slate-100">{t('ai_depth_photo.height_map.title')}</h3>
+                <p className="text-sm text-slate-400">{t('ai_depth_photo.height_map.subtitle')}</p>
               </div>
 
               {isGenerating ? (
                 <div className="text-center text-slate-400">
                   <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" />
-                  <p>Generating… this may take a few seconds.</p>
+                  <p>{t('ai_depth_photo.generate.loading')}</p>
                 </div>
               ) : previewDataUrl ? (
                 <>
@@ -603,7 +602,7 @@ export function AIDepthEngravingTool() {
                           : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
                       }`}
                     >
-                      Grayscale
+                      {t('ai_depth_photo.preview_modes.grayscale')}
                     </button>
                     <button
                       onClick={() => setViewMode('false-color')}
@@ -613,7 +612,7 @@ export function AIDepthEngravingTool() {
                           : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
                       }`}
                     >
-                      False Color (Depth Zones)
+                      {t('ai_depth_photo.preview_modes.false_color')}
                     </button>
                   </div>
 
@@ -621,17 +620,17 @@ export function AIDepthEngravingTool() {
                   <div className="flex justify-center">
                     <img
                       src={previewDataUrl}
-                      alt="Depth map preview"
+                      alt={t('ai_depth_photo.preview.alt_depth')}
                       className="max-h-[500px] rounded-lg border border-slate-700"
                     />
                   </div>
 
-                  <p className="text-xs text-slate-400">Not perfect? Try refining your prompt and generate again.</p>
+                  <p className="text-xs text-slate-400">{t('ai_depth_photo.preview.refine')}</p>
 
                   {/* Histogram */}
                   {histBins && histBins.length > 0 ? (
                     <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-                      <h4 className="mb-2 text-sm font-medium text-slate-200">Histogram Analysis</h4>
+                      <h4 className="mb-2 text-sm font-medium text-slate-200">{t('ai_depth_photo.histogram.title')}</h4>
                       <div className="flex h-24 items-end gap-px">
                         {histBins.map((value, i) => (
                           <div
@@ -651,15 +650,15 @@ export function AIDepthEngravingTool() {
                               : 'bg-red-900/50 text-red-400'
                           }`}
                         >
-                          {histStatus === 'ready' && '✓ Engraving ready'}
-                          {histStatus === 'missingBlacks' && '⚠ Blacks missing'}
-                          {histStatus === 'tooFlat' && '⚠ Too flat'}
+                          {histStatus === 'ready' && t('ai_depth_photo.histogram.status.ready')}
+                          {histStatus === 'missingBlacks' && t('ai_depth_photo.histogram.status.missing_blacks')}
+                          {histStatus === 'tooFlat' && t('ai_depth_photo.histogram.status.too_flat')}
                         </div>
                       </div>
                     </div>
                   ) : (
                     <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-                      <p className="text-sm text-slate-400">No histogram data yet. Generate engraving first.</p>
+                      <p className="text-sm text-slate-400">{t('ai_depth_photo.histogram.empty')}</p>
                     </div>
                   )}
 
@@ -669,19 +668,19 @@ export function AIDepthEngravingTool() {
                       onClick={downloadHeightMap}
                       className="flex-1 rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-green-700"
                     >
-                      Download Height Map PNG (Laser Ready)
+                      {t('ai_depth_photo.download.height_map')}
                     </button>
                     <button
                       onClick={downloadPreview}
                       className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium text-slate-300 transition-colors hover:border-slate-600"
                     >
-                      Download Preview PNG
+                      {t('ai_depth_photo.download.preview')}
                     </button>
                   </div>
                 </>
               ) : (
                 <div className="flex h-[400px] items-center justify-center">
-                  <p className="text-slate-500">Generate an engraving to see height map</p>
+                  <p className="text-slate-500">{t('ai_depth_photo.height_map.empty')}</p>
                 </div>
               )}
             </div>
@@ -689,7 +688,7 @@ export function AIDepthEngravingTool() {
 
           {activeTab === 'layers' && (
             <div className="flex h-full items-center justify-center">
-              <p className="text-slate-500">Layer decomposition coming soon...</p>
+              <p className="text-slate-500">{t('ai_depth_photo.layers.empty')}</p>
             </div>
           )}
         </div>

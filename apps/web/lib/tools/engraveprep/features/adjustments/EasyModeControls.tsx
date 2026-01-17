@@ -5,12 +5,17 @@
  * Replaces manual brightness/contrast/gamma/dither controls
  */
 
+import { useCallback } from 'react';
 import { Zap } from 'lucide-react';
 import { useImageStore } from '../../store/useImageStore';
-import { EASY_MODE_LABELS, EasyModeLevel } from '../../types';
+import { EasyModeLevel } from '../../types';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function EasyModeControls() {
   const { easyMode, easyModeLevel, toggleEasyMode, setEasyModeLevel } = useImageStore();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   return (
     <div className="space-y-4">
@@ -18,7 +23,7 @@ export function EasyModeControls() {
       <div className="flex items-center justify-between pb-3 border-b border-gray-700">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-yellow-400" />
-          <label className="text-sm font-semibold text-gray-300">Easy Mode</label>
+          <label className="text-sm font-semibold text-gray-300">{t('engraveprep.easy_mode.title')}</label>
         </div>
         <button
           onClick={toggleEasyMode}
@@ -36,9 +41,9 @@ export function EasyModeControls() {
       {easyMode && (
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-sm text-gray-300">Detail vs Clean</label>
+            <label className="text-sm text-gray-300">{t('engraveprep.easy_mode.detail_vs_clean')}</label>
             <span className="text-sm text-blue-400 font-medium">
-              {EASY_MODE_LABELS[easyModeLevel]}
+              {t(`engraveprep.easy_mode.level_${easyModeLevel}`)}
             </span>
           </div>
           
@@ -66,12 +71,12 @@ export function EasyModeControls() {
           
           {/* Labels */}
           <div className="flex justify-between mt-1 text-xs text-gray-500">
-            <span>Very Clean</span>
-            <span>Very Detailed</span>
+            <span>{t('engraveprep.easy_mode.scale.clean')}</span>
+            <span>{t('engraveprep.easy_mode.scale.detailed')}</span>
           </div>
           
           <p className="text-xs text-gray-500 mt-3 italic">
-            Easy Mode automatically adjusts brightness, contrast, gamma, and dithering for optimal results.
+            {t('engraveprep.easy_mode.description')}
           </p>
         </div>
       )}

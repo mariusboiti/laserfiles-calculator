@@ -13,6 +13,8 @@ import Cropper from 'react-easy-crop';
 import { Crop, Check, X } from 'lucide-react';
 import { useImageStore } from '../../store/useImageStore';
 import { ASPECT_RATIOS, AspectRatioOption, CropArea } from '../../types';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function CropTool() {
   const { 
@@ -26,6 +28,8 @@ export function CropTool() {
   } = useImageStore();
 
   const [tempCroppedAreaPixels, setTempCroppedAreaPixels] = useState<CropArea | null>(null);
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const onCropComplete = useCallback((_: unknown, croppedAreaPixels: CropArea) => {
     setTempCroppedAreaPixels(croppedAreaPixels);
@@ -72,7 +76,7 @@ export function CropTool() {
                    text-white rounded-lg transition-colors text-sm"
       >
         <Crop className="w-4 h-4" />
-        Crop Image
+        {t('engraveprep.crop.action')}
       </button>
     );
   }
@@ -82,7 +86,7 @@ export function CropTool() {
       {/* Crop controls */}
       <div className="absolute top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm p-4 z-10 border-b border-gray-700">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          <h3 className="text-white font-semibold">Crop Image</h3>
+          <h3 className="text-white font-semibold">{t('engraveprep.crop.title')}</h3>
           
           {/* Aspect ratio buttons */}
           <div className="flex flex-wrap gap-2">
@@ -96,7 +100,7 @@ export function CropTool() {
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
-                {aspect === 'free' ? 'Free' : aspect}
+                {aspect === 'free' ? t('engraveprep.crop.free') : aspect}
               </button>
             ))}
           </div>
@@ -104,7 +108,7 @@ export function CropTool() {
           {/* Numeric crop inputs */}
           <div className="hidden lg:flex gap-2 text-xs">
             <div>
-              <label className="text-gray-400">X%</label>
+              <label className="text-gray-400">{t('engraveprep.crop.x')}</label>
               <input
                 type="number"
                 value={cropState.cropX.toFixed(1)}
@@ -118,7 +122,7 @@ export function CropTool() {
               />
             </div>
             <div>
-              <label className="text-gray-400">Y%</label>
+              <label className="text-gray-400">{t('engraveprep.crop.y')}</label>
               <input
                 type="number"
                 value={cropState.cropY.toFixed(1)}
@@ -132,7 +136,7 @@ export function CropTool() {
               />
             </div>
             <div>
-              <label className="text-gray-400">W%</label>
+              <label className="text-gray-400">{t('engraveprep.crop.width')}</label>
               <input
                 type="number"
                 value={cropState.cropWidth.toFixed(1)}
@@ -146,7 +150,7 @@ export function CropTool() {
               />
             </div>
             <div>
-              <label className="text-gray-400">H%</label>
+              <label className="text-gray-400">{t('engraveprep.crop.height')}</label>
               <input
                 type="number"
                 value={cropState.cropHeight.toFixed(1)}
@@ -163,7 +167,7 @@ export function CropTool() {
 
           {/* Current aspect ratio */}
           <div className="hidden md:block text-sm text-gray-400">
-            Aspect: <span className="text-white font-mono">{currentAspectRatio}</span>
+            {t('engraveprep.crop.aspect')} <span className="text-white font-mono">{currentAspectRatio}</span>
           </div>
 
           {/* Action buttons */}
@@ -174,7 +178,7 @@ export function CropTool() {
                          text-white rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
-              Cancel
+              {t('engraveprep.crop.cancel')}
             </button>
             <button
               onClick={handleApplyCrop}
@@ -182,7 +186,7 @@ export function CropTool() {
                          text-white rounded-lg transition-colors"
             >
               <Check className="w-4 h-4" />
-              Apply
+              {t('engraveprep.crop.apply')}
             </button>
           </div>
         </div>

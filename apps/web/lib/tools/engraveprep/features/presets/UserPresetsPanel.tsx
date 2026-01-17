@@ -5,13 +5,20 @@
  * Persisted to localStorage
  */
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Save, Trash2, Download } from 'lucide-react';
 import { useImageStore } from '../../store/useImageStore';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+
+const formatMessage = (template: string, values: Record<string, string>) =>
+  template.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? `{${key}}`);
 
 export function UserPresetsPanel() {
   const [presetName, setPresetName] = useState('');
   const { userPresets, saveUserPreset, loadUserPreset, deleteUserPreset, loadUserPresetsFromStorage } = useImageStore();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   // Load presets from localStorage on mount
   useEffect(() => {
@@ -20,7 +27,7 @@ export function UserPresetsPanel() {
 
   const handleSave = () => {
     if (!presetName.trim()) {
-      alert('Please enter a preset name');
+      alert(t('engraveprep.user_presets.alert_missing_name'));
       return;
     }
     saveUserPreset(presetName.trim());
@@ -29,7 +36,7 @@ export function UserPresetsPanel() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-gray-300">My Presets</h3>
+      <h3 className="text-sm font-semibold text-gray-300">{t('engraveprep.user_presets.title')}</h3>
 
       {/* Save new preset */}
       <div className="flex gap-2">
@@ -38,14 +45,14 @@ export function UserPresetsPanel() {
           value={presetName}
           onChange={(e) => setPresetName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          placeholder="Preset name..."
+          placeholder={t('engraveprep.user_presets.placeholder')}
           className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm
                      placeholder:text-gray-500 focus:outline-none focus:border-blue-500"
         />
         <button
           onClick={handleSave}
           className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-          title="Save current settings as preset"
+          title={t('engraveprep.user_presets.save_title')}
         >
           <Save className="w-4 h-4" />
         </button>
@@ -62,19 +69,19 @@ export function UserPresetsPanel() {
               <button
                 onClick={() => loadUserPreset(preset.id)}
                 className="flex-1 text-left text-sm text-white hover:text-blue-400 transition-colors"
-                title="Load this preset"
+                title={t('engraveprep.user_presets.load_title')}
               >
                 <Download className="w-3 h-3 inline mr-1" />
                 {preset.name}
               </button>
               <button
                 onClick={() => {
-                  if (confirm(`Delete preset "${preset.name}"?`)) {
+                  if (confirm(formatMessage(t('engraveprep.user_presets.delete_confirm'), { name: preset.name }))) {
                     deleteUserPreset(preset.id);
                   }
                 }}
                 className="p-1 text-gray-400 hover:text-red-400 transition-colors"
-                title="Delete preset"
+                title={t('engraveprep.user_presets.delete_title')}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -83,7 +90,7 @@ export function UserPresetsPanel() {
         </div>
       ) : (
         <p className="text-xs text-gray-500 italic">
-          No saved presets yet. Save your current settings to create one.
+          {t('engraveprep.user_presets.empty')}
         </p>
       )}
     </div>

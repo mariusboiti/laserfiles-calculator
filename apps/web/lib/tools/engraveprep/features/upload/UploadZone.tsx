@@ -9,10 +9,12 @@
  * - User-friendly error messages
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { Upload, ImageIcon, AlertCircle } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ImageIcon, AlertCircle } from 'lucide-react';
 import { useImageStore } from '../../store/useImageStore';
 import { ImageInfo } from '../../types';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 const ACCEPTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
@@ -21,7 +23,18 @@ const MAX_DIMENSION = 8000; // Max width or height in pixels
 export function UploadZone() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDownscaledWarning, setIsDownscaledWarning] = useState(false);
   const { originalImage, uploadError, setOriginalImage, setUploadError } = useImageStore();
+  const { locale } = useLanguage();
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
+  const formatMessage = useCallback((key: string, values: Record<string, string | number>) => {
+    let message = t(key);
+    Object.entries(values).forEach(([token, value]) => {
+      message = message.replace(`{${token}}`, String(value));
+    });
+    return message;
+  }, [t]);
 
   useEffect(() => {
     const handler = () => {
@@ -37,16 +50,22 @@ export function UploadZone() {
   const handleFile = (file: File) => {
     // Clear previous errors
     setUploadError(null);
+    setIsDownscaledWarning(false);
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      setUploadError(`File too large: ${(file.size / 1024 / 1024).toFixed(1)} MB. Maximum: 25 MB.`);
+      setUploadError(formatMessage('engraveprep.upload.error_file_too_large', {
+        size: (file.size / 1024 / 1024).toFixed(1),
+        max: 25,
+      }));
+      setIsDownscaledWarning(false);
       return;
     }
 
     // Validate file format
     if (!ACCEPTED_FORMATS.includes(file.type)) {
-      setUploadError('Unsupported format. Please upload JPG, PNG, or WebP.');
+      setUploadError(t('engraveprep.upload.error_unsupported_format'));
+      setIsDownscaledWarning(false);
       return;
     }
 
@@ -54,7 +73,8 @@ export function UploadZone() {
     const url = URL.createObjectURL(file);
 
     img.onerror = () => {
-      setUploadError('Failed to load image. File may be corrupted.');
+      setUploadError(t('engraveprep.upload.error_load_failed'));
+      setIsDownscaledWarning(false);
       URL.revokeObjectURL(url);
     };
 
@@ -80,7 +100,8 @@ export function UploadZone() {
         
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          setUploadError('Failed to process image. Browser canvas error.');
+          setUploadError(t('engraveprep.upload.error_canvas_failed'));
+          setIsDownscaledWarning(false);
           URL.revokeObjectURL(url);
           return;
         }
@@ -99,12 +120,19 @@ export function UploadZone() {
         
         // Show warning if image was downscaled
         if (wasDownscaled) {
-          setUploadError(`Image was downscaled from ${img.width}×${img.height} to ${finalWidth}×${finalHeight} for performance.`);
+          setUploadError(formatMessage('engraveprep.upload.warning_downscaled', {
+            originalWidth: img.width,
+            originalHeight: img.height,
+            width: finalWidth,
+            height: finalHeight,
+          }));
+          setIsDownscaledWarning(true);
         }
         
         URL.revokeObjectURL(url);
       } catch (error) {
-        setUploadError('Failed to process image. Unknown error.');
+        setUploadError(t('engraveprep.upload.error_processing_failed'));
+        setIsDownscaledWarning(false);
         URL.revokeObjectURL(url);
         console.error('Image processing error:', error);
       }
@@ -146,12 +174,12 @@ export function UploadZone() {
           <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm text-red-200">{uploadError}</p>
-            {uploadError.includes('downscaled') && (
+            {isDownscaledWarning && (
               <button
                 onClick={() => setUploadError(null)}
                 className="text-xs text-red-400 hover:text-red-300 underline mt-1"
               >
-                Dismiss
+                {t('engraveprep.upload.dismiss')}
               </button>
             )}
           </div>
@@ -188,13 +216,13 @@ export function UploadZone() {
           
           <div>
             <h3 className="text-xl font-semibold text-white mb-2">
-              Upload Image
+              {t('engraveprep.upload.title')}
             </h3>
             <p className="text-sm text-gray-400">
-              Drag & drop or click to browse
+              {t('engraveprep.upload.subtitle')}
             </p>
             <p className="text-xs text-gray-500 mt-2">
-              JPG, PNG, WebP • Max 25 MB
+              {t('engraveprep.upload.formats')}
             </p>
           </div>
         </div>
