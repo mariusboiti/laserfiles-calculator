@@ -2,12 +2,13 @@
  * Curved Photo Frame Generator V2 Help Component
  */
 
+import { useCallback } from 'react';
 import { useLanguage } from '@/lib/i18n/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function CurvedPhotoFrameV3Help() {
   const { locale } = useLanguage();
-  const t = getStudioTranslation(locale);
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   return (
     <div className="prose prose-invert max-w-none">
