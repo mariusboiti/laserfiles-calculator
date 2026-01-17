@@ -3262,6 +3262,15 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.inlay-offset-calculator.title': 'Calculator Incrustări',
     'tools.inlay-offset-calculator.description': 'Calculează offset-uri precise pentru incrustări și buzunare cu potrivire perfectă.',
 
+    'tools.ornament-layout-planner.title': 'Planificator Layout Ornamente',
+    'tools.ornament-layout-planner.description': 'Aranjează ornamente și plăcuțe eficient pe foaia ta de material.',
+    'tools.curved-photo-frame-v3.title': 'Generator Rame Curbate',
+    'tools.curved-photo-frame-v3.description': 'Proiectează rame curbate cu balama flexibilă și calcul automat al kerf-ului.',
+    'tools.ai-depth-photo.title': 'Gravare în profunzime',
+    'tools.ai-depth-photo.description': 'Generează hărți de înălțime din fotografii pentru gravare laser cu efect 3D.',
+    'tools.price-calculator.title': 'Calculator Prețuri',
+    'tools.price-calculator.description': 'Calculează prețuri cu costuri materiale, timp și marje de profit.',
+
     'tour.jigsaw-maker.intro.title': 'Bun venit la Creator Puzzle',
     'tour.jigsaw-maker.intro.body': 'Creează puzzle-uri personalizate din orice imagine. Generează modele profesionale de puzzle cu piese interconectate.',
     'tour.jigsaw-maker.upload.title': 'Încarcă Imaginea',
