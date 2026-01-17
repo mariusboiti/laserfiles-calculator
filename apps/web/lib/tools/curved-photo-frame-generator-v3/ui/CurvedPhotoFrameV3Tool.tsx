@@ -8,6 +8,7 @@ import { downloadTextFile } from '@/lib/studio/export/download';
 import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { downloadZip } from '@/lib/studio/export/zip';
 import { exportCurvedPhotoFrameV3Dxf } from '../core/exportDxf';
+import { useLanguage, getStudioTranslation } from '@/lib/i18n/i18n';
 import {
   processImagePipeline,
   imageDataToDataUrl,
@@ -50,6 +51,8 @@ export function CurvedPhotoFrameV3Tool({
   featureFlags = { isProUser: false },
 }: CurvedPhotoFrameV3ToolProps) {
   const { api } = useToolUx();
+  const { locale } = useLanguage();
+  const t = getStudioTranslation(locale);
 
   useEffect(() => {
     api.setIsEmpty(false);
@@ -215,8 +218,8 @@ export function CurvedPhotoFrameV3Tool({
       const processedDataUrl = await processPhotoDataUrl(photoDataUrl);
       setProcessedPhotoDataUrl(processedDataUrl);
     } catch (error) {
-      console.error('Photo processing failed:', error);
-      alert('Photo processing failed. Check console for details.');
+      console.error(t('curved_frame.v3.ui.errors.photo_processing_failed_console'), error);
+      alert(t('curved_frame.v3.ui.errors.photo_processing_failed_alert'));
     } finally {
       setIsProcessing(false);
     }
@@ -460,7 +463,7 @@ export function CurvedPhotoFrameV3Tool({
 
   const exportSvgZip = useCallback(async () => {
     if (!featureFlags.isProUser) {
-      alert('ZIP export is a PRO feature');
+      alert(t('curved_frame.v3.ui.errors.zip_export_pro_only'));
       return;
     }
     await downloadZip('curved-photo-frame-v3.zip', [
@@ -477,21 +480,21 @@ export function CurvedPhotoFrameV3Tool({
 
   const exportDxf = useCallback(() => {
     if (!featureFlags.isProUser) {
-      alert('DXF export is a PRO feature');
+      alert(t('curved_frame.v3.ui.errors.dxf_export_pro_only'));
       return;
     }
     try {
       const dxfContent = exportCurvedPhotoFrameV3Dxf(result.svgs.combined);
       downloadTextFile('curved-photo-frame-v3.dxf', dxfContent, 'application/dxf');
     } catch (error) {
-      console.error('DXF export failed:', error);
-      alert('DXF export failed. Check console for details.');
+      console.error(t('curved_frame.v3.ui.errors.dxf_export_failed_console'), error);
+      alert(t('curved_frame.v3.ui.errors.dxf_export_failed_alert'));
     }
   }, [result.svgs.combined, featureFlags.isProUser]);
 
   const exportPdf = useCallback(() => {
     if (!featureFlags.isProUser) {
-      alert('PDF export is a PRO feature');
+      alert(t('curved_frame.v3.ui.errors.pdf_export_pro_only'));
       return;
     }
     const w = window.open('', '_blank');
@@ -656,7 +659,7 @@ export function CurvedPhotoFrameV3Tool({
             }`}
           >
             <Settings className="inline w-4 h-4 mr-2" />
-            Frame
+            {t('curved_frame.v3.ui.tabs.frame')}
           </button>
           <button
             onClick={() => setActiveTab('photo')}
@@ -667,14 +670,14 @@ export function CurvedPhotoFrameV3Tool({
             }`}
           >
             <ImageIcon className="inline w-4 h-4 mr-2" />
-            Photo
+            {t('curved_frame.v3.ui.tabs.photo')}
           </button>
         </div>
 
         {activeTab === 'photo' && (
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-              <div className="text-sm font-medium text-slate-100 mb-3">Upload Photo</div>
+              <div className="text-sm font-medium text-slate-100 mb-3">{t('curved_frame.v3.ui.photo.upload_title')}</div>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
@@ -694,11 +697,11 @@ export function CurvedPhotoFrameV3Tool({
             {photoDataUrl && (
               <>
                 <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                  <div className="text-sm font-medium text-slate-100 mb-3">Preview</div>
+                  <div className="text-sm font-medium text-slate-100 mb-3">{t('curved_frame.v3.ui.photo.preview_title')}</div>
                   <div className="aspect-[3/4] bg-slate-900 rounded-lg overflow-hidden">
                     <img
                       src={photoDataUrl}
-                      alt="Photo preview"
+                      alt={t('curved_frame.v3.ui.photo.preview_alt')}
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -707,10 +710,10 @@ export function CurvedPhotoFrameV3Tool({
             )}
 
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-              <div className="text-sm font-medium text-slate-100 mb-3">AI Photo Prep</div>
+              <div className="text-sm font-medium text-slate-100 mb-3">{t('curved_frame.v3.ui.photo.ai_prep_title')}</div>
               
               <div className="mb-4">
-                <div className="text-xs font-medium text-slate-300 mb-2">Wood Style Presets</div>
+                <div className="text-xs font-medium text-slate-300 mb-2">{t('curved_frame.v3.ui.photo.wood_style_presets')}</div>
                 <div className="grid grid-cols-2 gap-2">
                   {WOOD_STYLE_PRESETS.map((preset) => (
                     <button
@@ -724,18 +727,18 @@ export function CurvedPhotoFrameV3Tool({
                       } ${!featureFlags.isProUser ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {!featureFlags.isProUser && <Lock className="w-3 h-3 inline mr-1" />}
-                      <div className="font-medium">{preset.name}</div>
-                      <div className="text-xs opacity-75">{preset.description}</div>
+                      <div className="font-medium">{t(`curved_frame.v3.ui.wood_presets.${preset.id}.name`)}</div>
+                      <div className="text-xs opacity-75">{t(`curved_frame.v3.ui.wood_presets.${preset.id}.description`)}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="pt-3 border-t border-slate-800 mb-3">
-                <div className="text-xs font-medium text-slate-300 mb-2">Engraving Settings</div>
+                <div className="text-xs font-medium text-slate-300 mb-2">{t('curved_frame.v3.ui.photo.engraving_settings')}</div>
                 <div className="space-y-2">
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-300">Contrast: {engraveSettings.contrast}</div>
+                    <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.photo.contrast')}: {engraveSettings.contrast}</div>
                     <input
                       type="range"
                       min="-50"
@@ -749,7 +752,7 @@ export function CurvedPhotoFrameV3Tool({
                   </label>
 
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-300">Dithering</div>
+                    <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.photo.dithering')}</div>
                     <select
                       value={engraveSettings.ditherMode}
                       onChange={(e) =>
@@ -757,21 +760,21 @@ export function CurvedPhotoFrameV3Tool({
                       }
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     >
-                      <option value="stucki">Stucki (recommended)</option>
-                      <option value="floyd-steinberg">Floyd-Steinberg</option>
-                      <option value="jarvis">Jarvis</option>
-                      <option value="atkinson">Atkinson</option>
-                      <option value="none">None</option>
+                      <option value="stucki">{t('curved_frame.v3.ui.dither_modes.stucki')}</option>
+                      <option value="floyd-steinberg">{t('curved_frame.v3.ui.dither_modes.floyd_steinberg')}</option>
+                      <option value="jarvis">{t('curved_frame.v3.ui.dither_modes.jarvis')}</option>
+                      <option value="atkinson">{t('curved_frame.v3.ui.dither_modes.atkinson')}</option>
+                      <option value="none">{t('curved_frame.v3.ui.dither_modes.none')}</option>
                     </select>
                   </label>
                 </div>
               </div>
 
               <div className="pt-3 border-t border-slate-800">
-                <div className="text-xs font-medium text-slate-300 mb-2">Photo Position & Size</div>
+                <div className="text-xs font-medium text-slate-300 mb-2">{t('curved_frame.v3.ui.photo.position_size')}</div>
                 <div className="grid grid-cols-1 gap-2">
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-400">Scale (%)</div>
+                    <div className="text-xs text-slate-400">{t('curved_frame.v3.ui.photo.scale_pct')}</div>
                     <input
                       type="number"
                       step={5}
@@ -790,7 +793,7 @@ export function CurvedPhotoFrameV3Tool({
 
                 <div className="mt-3">
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-400">Top corner radius (mm)</div>
+                    <div className="text-xs text-slate-400">{t('curved_frame.v3.ui.photo.top_corner_radius_mm')}</div>
                     <input
                       type="number"
                       step={1}
@@ -807,7 +810,7 @@ export function CurvedPhotoFrameV3Tool({
 
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-400">Focus X (%)</div>
+                    <div className="text-xs text-slate-400">{t('curved_frame.v3.ui.photo.focus_x_pct')}</div>
                     <input
                       type="range"
                       min={0}
@@ -820,7 +823,7 @@ export function CurvedPhotoFrameV3Tool({
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-400">Focus Y (%)</div>
+                    <div className="text-xs text-slate-400">{t('curved_frame.v3.ui.photo.focus_y_pct')}</div>
                     <input
                       type="range"
                       min={0}
@@ -840,42 +843,42 @@ export function CurvedPhotoFrameV3Tool({
                     onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusY: 0 }))}
                     className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                   >
-                    Top
+                    {t('curved_frame.v3.ui.photo.focus_presets.top')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusX: 0.5, cropFocusY: 0.5 }))}
                     className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                   >
-                    Center
+                    {t('curved_frame.v3.ui.photo.focus_presets.center')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusY: 1 }))}
                     className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                   >
-                    Bottom
+                    {t('curved_frame.v3.ui.photo.focus_presets.bottom')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusX: 0 }))}
                     className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                   >
-                    Left
+                    {t('curved_frame.v3.ui.photo.focus_presets.left')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusX: 0.5 }))}
                     className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                   >
-                    Middle
+                    {t('curved_frame.v3.ui.photo.focus_presets.middle')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAiSettings((prev) => ({ ...prev, cropFocusX: 1 }))}
                     className="rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
                   >
-                    Right
+                    {t('curved_frame.v3.ui.photo.focus_presets.right')}
                   </button>
                 </div>
 
@@ -891,7 +894,7 @@ export function CurvedPhotoFrameV3Tool({
                   }
                   className="mt-2 text-xs text-slate-400 hover:text-slate-200"
                 >
-                  Reset position
+                  {t('curved_frame.v3.ui.photo.reset_position')}
                 </button>
               </div>
 
@@ -900,17 +903,17 @@ export function CurvedPhotoFrameV3Tool({
                 disabled={!photoDataUrl || isProcessing}
                 className="w-full mt-4 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isProcessing ? 'Processing...' : 'Process Photo for Engraving'}
+                {isProcessing ? t('curved_frame.v3.ui.photo.processing') : t('curved_frame.v3.ui.photo.process_for_engraving')}
               </button>
             </div>
 
             {processedPhotoDataUrl && (
               <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                <div className="text-sm font-medium text-slate-100 mb-3">Processed Preview</div>
+                <div className="text-sm font-medium text-slate-100 mb-3">{t('curved_frame.v3.ui.photo.processed_preview_title')}</div>
                 <div className="aspect-[3/4] bg-slate-900 rounded-lg overflow-hidden">
                   <img
                     src={processedPhotoDataUrl}
-                    alt="Processed preview"
+                    alt={t('curved_frame.v3.ui.photo.processed_preview_alt')}
                     className="w-full h-full object-contain"
                   />
                 </div>
@@ -923,10 +926,10 @@ export function CurvedPhotoFrameV3Tool({
         {activeTab === 'frame' && (
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-              <div className="text-sm font-medium text-slate-100 mb-3">Frame Settings</div>
+              <div className="text-sm font-medium text-slate-100 mb-3">{t('curved_frame.v3.ui.frame.settings_title')}</div>
               <div className="grid grid-cols-2 gap-3">
                 <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Photo size</div>
+                  <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.photo_size')}</div>
                   <select
                     value={frameSettings.photoSizePreset}
                     onChange={(e) => handlePhotoSizePresetChange(e.target.value as PhotoSizePreset)}
@@ -936,12 +939,12 @@ export function CurvedPhotoFrameV3Tool({
                     <option value="10x15">10×15 cm</option>
                     <option value="13x18">13×18 cm {!featureFlags.isProUser && '🔒'}</option>
                     <option value="15x20">15×20 cm {!featureFlags.isProUser && '🔒'}</option>
-                    <option value="custom">Custom {!featureFlags.isProUser && '🔒'}</option>
+                    <option value="custom">{t('curved_frame.v3.ui.frame.custom')} {!featureFlags.isProUser && '🔒'}</option>
                   </select>
                 </label>
 
                 <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Thickness (mm)</div>
+                  <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.thickness_mm')}</div>
                   <select
                     value={frameSettings.thicknessMm}
                     onChange={(e) =>
@@ -958,7 +961,7 @@ export function CurvedPhotoFrameV3Tool({
                 {frameSettings.photoSizePreset === 'custom' && featureFlags.isProUser && (
                   <>
                     <label className="grid gap-1">
-                      <div className="text-xs text-slate-300">Width (mm)</div>
+                      <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.width_mm')}</div>
                       <input
                         type="number"
                         value={frameSettings.photoWidthMm}
@@ -969,7 +972,7 @@ export function CurvedPhotoFrameV3Tool({
                       />
                     </label>
                     <label className="grid gap-1">
-                      <div className="text-xs text-slate-300">Height (mm)</div>
+                      <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.height_mm')}</div>
                       <input
                         type="number"
                         value={frameSettings.photoHeightMm}
@@ -983,7 +986,7 @@ export function CurvedPhotoFrameV3Tool({
                 )}
 
                 <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Border (mm)</div>
+                  <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.border_mm')}</div>
                   <input
                     type="number"
                     value={frameSettings.borderMm}
@@ -995,7 +998,7 @@ export function CurvedPhotoFrameV3Tool({
                 </label>
 
                 <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Corner radius (mm)</div>
+                  <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.corner_radius_mm')}</div>
                   <input
                     type="number"
                     value={frameSettings.cornerRadiusMm}
@@ -1007,7 +1010,7 @@ export function CurvedPhotoFrameV3Tool({
                 </label>
 
                 <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Curve strength</div>
+                  <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.curve_strength')}</div>
                   <select
                     value={frameSettings.curveStrength}
                     onChange={(e) =>
@@ -1015,16 +1018,16 @@ export function CurvedPhotoFrameV3Tool({
                     }
                     className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   >
-                    <option value="gentle">Gentle</option>
-                    <option value="medium">Medium</option>
-                    <option value="strong">Strong</option>
-                    <option value="custom">Custom</option>
+                    <option value="gentle">{t('curved_frame.v3.ui.frame.curve_strength_options.gentle')}</option>
+                    <option value="medium">{t('curved_frame.v3.ui.frame.curve_strength_options.medium')}</option>
+                    <option value="strong">{t('curved_frame.v3.ui.frame.curve_strength_options.strong')}</option>
+                    <option value="custom">{t('curved_frame.v3.ui.frame.curve_strength_options.custom')}</option>
                   </select>
                 </label>
 
                 {frameSettings.curveStrength === 'custom' && (
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-300">Bend radius (mm)</div>
+                    <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.bend_radius_mm')}</div>
                     <input
                       type="number"
                       min={20}
@@ -1039,7 +1042,7 @@ export function CurvedPhotoFrameV3Tool({
                 )}
 
                 <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Stand type</div>
+                  <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.stand_type')}</div>
                   <select
                     value={frameSettings.standType}
                     onChange={(e) =>
@@ -1048,14 +1051,14 @@ export function CurvedPhotoFrameV3Tool({
                     disabled={!featureFlags.isProUser && frameSettings.standType !== 'slot'}
                     className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   >
-                    <option value="slot">Slot stand</option>
-                    <option value="finger_joint">Finger-joint {!featureFlags.isProUser && '🔒'}</option>
+                    <option value="slot">{t('curved_frame.v3.ui.frame.stand_type_options.slot')}</option>
+                    <option value="finger_joint">{t('curved_frame.v3.ui.frame.stand_type_options.finger_joint')} {!featureFlags.isProUser && '🔒'}</option>
                   </select>
                 </label>
 
                 <div className="col-span-2">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-slate-300">Viewing angle</div>
+                    <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.viewing_angle')}</div>
                     <div className="text-xs text-slate-400">{Math.round(frameSettings.viewingAngleDeg)}°</div>
                   </div>
                   <input
@@ -1072,7 +1075,7 @@ export function CurvedPhotoFrameV3Tool({
                 </div>
 
                 <label className="grid gap-1">
-                  <div className="text-xs text-slate-300">Kerf (mm)</div>
+                  <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.kerf_mm')}</div>
                   <input
                     type="number"
                     step={0.01}
@@ -1090,7 +1093,7 @@ export function CurvedPhotoFrameV3Tool({
                     checked={frameSettings.autoKerf}
                     onChange={(e) => setFrameSettings((prev) => ({ ...prev, autoKerf: e.target.checked }))}
                   />
-                  <span className="text-xs text-slate-300">Smart kerf pattern (auto)</span>
+                  <span className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.smart_kerf_pattern')}</span>
                 </label>
 
                 <label className="flex items-center gap-2">
@@ -1099,12 +1102,12 @@ export function CurvedPhotoFrameV3Tool({
                     checked={frameSettings.edgeSafety}
                     onChange={(e) => setFrameSettings((prev) => ({ ...prev, edgeSafety: e.target.checked }))}
                   />
-                  <span className="text-xs text-slate-300">Edge safety (kerf falloff)</span>
+                  <span className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.edge_safety')}</span>
                 </label>
 
                 <div className="col-span-2 grid grid-cols-3 gap-2">
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-300">Segment (mm)</div>
+                    <div className="text-xs text-slate-400">{t('curved_frame.v3.ui.frame.segment_mm')}</div>
                     <input
                       type="number"
                       step={0.5}
@@ -1120,7 +1123,7 @@ export function CurvedPhotoFrameV3Tool({
                   </label>
 
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-300">Gap (mm)</div>
+                    <div className="text-xs text-slate-400">{t('curved_frame.v3.ui.frame.gap_mm')}</div>
                     <input
                       type="number"
                       step={0.5}
@@ -1136,7 +1139,7 @@ export function CurvedPhotoFrameV3Tool({
                   </label>
 
                   <label className="grid gap-1">
-                    <div className="text-xs text-slate-300">Row spacing (mm)</div>
+                    <div className="text-xs text-slate-400">{t('curved_frame.v3.ui.frame.row_spacing_mm')}</div>
                     <input
                       type="number"
                       step={0.1}
@@ -1153,10 +1156,10 @@ export function CurvedPhotoFrameV3Tool({
                 </div>
 
                 <div className="col-span-2 border-t border-slate-800 pt-3 mt-2">
-                  <div className="text-xs text-slate-400 mb-2">Bending Zone</div>
+                  <div className="text-xs text-slate-400 mb-2">{t('curved_frame.v3.ui.frame.bending_zone')}</div>
                   <div className="grid grid-cols-3 gap-2">
                     <label className="grid gap-1">
-                      <div className="text-xs text-slate-300">Bend zone (mm)</div>
+                      <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.bend_zone_mm')}</div>
                       <input
                         type="number"
                         step={1}
@@ -1171,7 +1174,7 @@ export function CurvedPhotoFrameV3Tool({
                     </label>
 
                     <label className="grid gap-1">
-                      <div className="text-xs text-slate-300">Support lip (mm)</div>
+                      <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.support_lip_mm')}</div>
                       <input
                         type="number"
                         step={1}
@@ -1186,7 +1189,7 @@ export function CurvedPhotoFrameV3Tool({
                     </label>
 
                     <label className="grid gap-1">
-                      <div className="text-xs text-slate-300">Slot depth (mm)</div>
+                      <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.slot_depth_mm')}</div>
                       <input
                         type="number"
                         step={1}
@@ -1215,14 +1218,14 @@ export function CurvedPhotoFrameV3Tool({
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
               <div className="text-sm font-medium text-slate-100 mb-3">
                 <Download className="inline w-4 h-4 mr-2" />
-                Export
+                {t('curved_frame.v3.ui.export.title')}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={exportSingleSvg}
                   className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
                 >
-                  SVG
+                  {t('curved_frame.v3.ui.export.svg')}
                 </button>
                 <button
                   onClick={exportSvgZip}
@@ -1230,7 +1233,7 @@ export function CurvedPhotoFrameV3Tool({
                   className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {!featureFlags.isProUser && <Lock className="inline w-3 h-3 mr-1" />}
-                  ZIP
+                  {t('curved_frame.v3.ui.export.zip')}
                 </button>
                 <button
                   onClick={exportDxf}
@@ -1238,7 +1241,7 @@ export function CurvedPhotoFrameV3Tool({
                   className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {!featureFlags.isProUser && <Lock className="inline w-3 h-3 mr-1" />}
-                  DXF
+                  {t('curved_frame.v3.ui.export.dxf')}
                 </button>
                 <button
                   onClick={exportPdf}
@@ -1246,7 +1249,7 @@ export function CurvedPhotoFrameV3Tool({
                   className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {!featureFlags.isProUser && <Lock className="inline w-3 h-3 mr-1" />}
-                  PDF
+                  {t('curved_frame.v3.ui.export.pdf')}
                 </button>
                 <button
                   onClick={async () => {
@@ -1267,20 +1270,20 @@ export function CurvedPhotoFrameV3Tool({
                   }}
                   className="col-span-2 rounded-md border-2 border-emerald-500 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/20"
                 >
-                  💰 Add to Price Calculator
+                  {t('curved_frame.v3.ui.export.add_to_price_calculator')}
                 </button>
               </div>
               <div className="mt-3 text-xs text-slate-400">
-                <div className="font-medium mb-1">Layer colors:</div>
+                <div className="font-medium mb-1">{t('curved_frame.v3.ui.export.layer_colors')}</div>
                 <div className="flex gap-3">
                   <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-red-500 rounded"></span> CUT
+                    <span className="w-3 h-3 bg-red-500 rounded"></span> {t('curved_frame.v3.ui.export.cut')}
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-black rounded border border-slate-600"></span> ENGRAVE
+                    <span className="w-3 h-3 bg-black rounded border border-slate-600"></span> {t('curved_frame.v3.ui.export.engrave')}
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-blue-500 rounded"></span> SCORE
+                    <span className="w-3 h-3 bg-blue-500 rounded"></span> {t('curved_frame.v3.ui.export.score')}
                   </span>
                 </div>
               </div>
@@ -1291,7 +1294,7 @@ export function CurvedPhotoFrameV3Tool({
 
       <div className="lg:sticky lg:top-4 lg:self-start rounded-xl border border-slate-800 bg-slate-950/40 p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="text-sm font-medium text-slate-100">Preview</div>
+          <div className="text-sm font-medium text-slate-100">{t('curved_frame.v3.ui.preview.title')}</div>
           <div className="flex items-center gap-2">
             {previewMode === '2d' && (
               <select
@@ -1299,9 +1302,9 @@ export function CurvedPhotoFrameV3Tool({
                 onChange={(e) => setPreviewTarget(e.target.value as 'combined' | 'back' | 'stand')}
                 className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-200"
               >
-                <option value="combined">All Pieces</option>
-                <option value="back">Front Plate</option>
-                <option value="stand">Side Supports</option>
+                <option value="combined">{t('curved_frame.v3.ui.preview.all_pieces')}</option>
+                <option value="back">{t('curved_frame.v3.ui.preview.front_plate')}</option>
+                <option value="stand">{t('curved_frame.v3.ui.preview.side_supports')}</option>
               </select>
             )}
             {/* 3D preview temporarily hidden - will be improved later */}
@@ -1312,7 +1315,7 @@ export function CurvedPhotoFrameV3Tool({
                   onClick={() => setPreviewMode('2d')}
                   className={`px-3 py-1.5 text-xs ${previewMode === '2d' ? 'bg-slate-800 text-slate-100' : 'text-slate-300 hover:bg-slate-900'}`}
                 >
-                  2D
+                  {t('curved_frame.v3.ui.preview.mode_2d')}
                 </button>
                 <button
                   type="button"
@@ -1320,7 +1323,7 @@ export function CurvedPhotoFrameV3Tool({
                   className={`px-3 py-1.5 text-xs ${previewMode === '3d' ? 'bg-slate-800 text-slate-100' : 'text-slate-300 hover:bg-slate-900'}`}
                 >
                   <Box className="inline w-3 h-3 mr-1" />
-                  3D
+                  {t('curved_frame.v3.ui.preview.mode_3d')}
                 </button>
               </div>
             )}
@@ -1329,7 +1332,7 @@ export function CurvedPhotoFrameV3Tool({
               type="button"
               onClick={zoomOut}
               className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
-              aria-label="Zoom out"
+              aria-label={t('curved_frame.v3.ui.preview.zoom_out')}
             >
               <ZoomOut className="w-4 h-4" />
             </button>
@@ -1349,7 +1352,7 @@ export function CurvedPhotoFrameV3Tool({
               type="button"
               onClick={zoomIn}
               className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
-              aria-label="Zoom in"
+              aria-label={t('curved_frame.v3.ui.preview.zoom_in')}
             >
               <ZoomIn className="w-4 h-4" />
             </button>
@@ -1359,7 +1362,7 @@ export function CurvedPhotoFrameV3Tool({
               onClick={fitToView}
               className="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-900"
             >
-              Fit
+              {t('curved_frame.v3.ui.preview.fit')}
             </button>
           </div>
         </div>
