@@ -8,7 +8,8 @@ import { downloadTextFile } from '@/lib/studio/export/download';
 import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { downloadZip } from '@/lib/studio/export/zip';
 import { exportCurvedPhotoFrameV3Dxf } from '../core/exportDxf';
-import { useLanguage, getStudioTranslation } from '@/lib/i18n/i18n';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import {
   processImagePipeline,
   imageDataToDataUrl,
