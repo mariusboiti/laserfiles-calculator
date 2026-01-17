@@ -505,19 +505,19 @@ export function generateCurvedPhotoFrameV3(inputs: CurvedPhotoFrameV3Inputs): Cu
   const approxArcAngleDeg = (approxArcRad * 180) / Math.PI;
   
   if (photoW <= 0 || photoH <= 0) {
-    warnings.push('Photo dimensions are too small.');
+    warnings.push('curved_frame.v3.ui.warnings.photo_dimensions_too_small');
   }
   
   if (!inputs.processedPhotoDataUrl && inputs.photoDataUrl) {
-    warnings.push('Photo uploaded but not processed. Use AI prep or manual adjustments.');
+    warnings.push('curved_frame.v3.ui.warnings.photo_uploaded_not_processed');
   }
 
   if (curveStrength === 'custom') {
     if (!Number.isFinite(effectiveBendRadiusMm)) {
-      warnings.push('Custom bend radius is invalid.');
+      warnings.push('curved_frame.v3.ui.warnings.custom_bend_radius_invalid');
     } else {
-      if (approxArcAngleDeg > 120) warnings.push('Custom bend radius is very small for this width (extreme curve).');
-      if (approxArcAngleDeg < 10) warnings.push('Custom bend radius is very large for this width (almost flat).');
+      if (approxArcAngleDeg > 120) warnings.push('curved_frame.v3.ui.warnings.custom_bend_radius_extreme_curve');
+      if (approxArcAngleDeg < 10) warnings.push('curved_frame.v3.ui.warnings.custom_bend_radius_almost_flat');
     }
   }
   
