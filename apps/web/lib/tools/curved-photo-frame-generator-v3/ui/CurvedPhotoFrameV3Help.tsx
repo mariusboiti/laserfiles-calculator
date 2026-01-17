@@ -2,7 +2,8 @@
  * Curved Photo Frame Generator V2 Help Component
  */
 
-import { useLanguage, getStudioTranslation } from '@/lib/i18n/i18n';
+import { useLanguage } from '@/lib/i18n/i18n';
+import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
 export function CurvedPhotoFrameV3Help() {
   const { locale } = useLanguage();
