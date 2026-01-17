@@ -53,7 +53,7 @@ export function CurvedPhotoFrameV3Tool({
 }: CurvedPhotoFrameV3ToolProps) {
   const { api } = useToolUx();
   const { locale } = useLanguage();
-  const t = getStudioTranslation(locale);
+  const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   useEffect(() => {
     api.setIsEmpty(false);
