@@ -748,9 +748,9 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                     onChange={(e) => setPuzzleTemplate(e.target.value as PuzzleTemplate)}
                     className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                   >
-                    {PUZZLE_TEMPLATES.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t(`jigsaw.template.${t.id}.label`)}
+                    {PUZZLE_TEMPLATES.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {t(`jigsaw.template.${tpl.id}.label`)}
                       </option>
                     ))}
                   </select>
