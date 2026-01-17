@@ -3259,6 +3259,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
 
     'tools.jigsaw-maker.title': 'Creator Puzzle',
     'tools.jigsaw-maker.description': 'Transformă orice imagine într-un puzzle tăiabil cu laser.',
+    'tools.inlay-offset-calculator.title': 'Calculator Incrustări',
+    'tools.inlay-offset-calculator.description': 'Calculează offset-uri precise pentru incrustări și buzunare cu potrivire perfectă.',
 
     'tour.jigsaw-maker.intro.title': 'Bun venit la Creator Puzzle',
     'tour.jigsaw-maker.intro.body': 'Creează puzzle-uri personalizate din orice imagine. Generează modele profesionale de puzzle cu piese interconectate.',
