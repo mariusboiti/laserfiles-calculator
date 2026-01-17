@@ -12,6 +12,19 @@ type TabView = 'final' | 'depth' | 'layers';
 const formatMessage = (template: string, values: Record<string, string | number>) =>
   template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? `{${key}}`));
 
+function aspectRatioKey(ratio: AspectRatio) {
+  switch (ratio) {
+    case '1:1':
+      return '1_1';
+    case '4:5':
+      return '4_5';
+    case '16:9':
+      return '16_9';
+    case '9:16':
+      return '9_16';
+  }
+}
+
 export function AIDepthPhotoTool() {
   const analytics = useAnalytics('ai-depth-photo');
   const { locale } = useLanguage();
@@ -182,7 +195,7 @@ export function AIDepthPhotoTool() {
           >
             {Object.entries(STYLE_PRESETS).map(([key, { label, description }]) => (
               <option key={key} value={key}>
-                {label} - {description}
+                {t(`ai_depth_photo.presets.styles.${key}.label`)} - {t(`ai_depth_photo.presets.styles.${key}.description`)}
               </option>
             ))}
           </select>
@@ -202,7 +215,7 @@ export function AIDepthPhotoTool() {
                     : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
                 }`}
               >
-                {label}
+                {t(`ai_depth_photo.presets.aspect_ratios.${aspectRatioKey(key as AspectRatio)}.label`)}
               </button>
             ))}
           </div>
@@ -241,7 +254,7 @@ export function AIDepthPhotoTool() {
                 >
                   {Object.entries(RELIEF_MATERIALS).map(([key, { label }]) => (
                     <option key={key} value={key}>
-                      {label}
+                      {t(`ai_depth_photo.presets.relief_materials.${key}.label`)}
                     </option>
                   ))}
                 </select>
@@ -321,7 +334,7 @@ export function AIDepthPhotoTool() {
                 >
                   {Object.entries(PLAQUE_SHAPES).map(([key, { label }]) => (
                     <option key={key} value={key}>
-                      {label}
+                      {t(`ai_depth_photo.presets.plaque_shapes.${key}.label`)}
                     </option>
                   ))}
                 </select>
@@ -353,7 +366,7 @@ export function AIDepthPhotoTool() {
                 >
                   {Object.entries(RELIEF_MATERIALS).map(([key, { label }]) => (
                     <option key={key} value={key}>
-                      {label}
+                      {t(`ai_depth_photo.presets.relief_materials.${key}.label`)}
                     </option>
                   ))}
                 </select>
