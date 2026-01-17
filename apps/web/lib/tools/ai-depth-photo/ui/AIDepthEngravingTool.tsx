@@ -13,6 +13,19 @@ type HistStatus = 'missingBlacks' | 'tooFlat' | 'ready' | null;
 const formatMessage = (template: string, values: Record<string, string | number>) =>
   template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? `{${key}}`));
 
+function aspectRatioKey(ratio: AspectRatio) {
+  switch (ratio) {
+    case '1:1':
+      return '1_1';
+    case '4:5':
+      return '4_5';
+    case '16:9':
+      return '16_9';
+    case '9:16':
+      return '9_16';
+  }
+}
+
 // Helper: Decode base64/dataURL to ImageData
 async function decodeToImageData(dataUrl: string): Promise<ImageData> {
   return new Promise((resolve, reject) => {
@@ -356,9 +369,9 @@ export function AIDepthEngravingTool() {
         <div>
           <label className="block text-sm font-medium text-slate-200">{t('ai_depth_photo.style.label')}</label>
           <div className="mt-2 rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300">
-            {STYLE_PRESETS[style].label}
+            {t(`ai_depth_photo.presets.styles.${style}.label`)}
           </div>
-          <p className="mt-1 text-xs text-slate-400">{STYLE_PRESETS[style].description}</p>
+          <p className="mt-1 text-xs text-slate-400">{t(`ai_depth_photo.presets.styles.${style}.description`)}</p>
         </div>
 
         {/* Aspect Ratio */}
@@ -375,7 +388,7 @@ export function AIDepthEngravingTool() {
                     : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
                 }`}
               >
-                {ASPECT_RATIOS[r].label}
+                {t(`ai_depth_photo.presets.aspect_ratios.${aspectRatioKey(r)}.label`)}
               </button>
             ))}
           </div>
@@ -395,7 +408,7 @@ export function AIDepthEngravingTool() {
                     : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-600'
                 }`}
               >
-                {CANVAS_SHAPES[shape].label}
+                {t(`ai_depth_photo.presets.canvas_shapes.${shape}.label`)}
               </button>
             ))}
           </div>
@@ -429,7 +442,7 @@ export function AIDepthEngravingTool() {
           >
             {Object.entries(MATERIAL_PROFILES).map(([key, { label, recommendedDepth }]) => (
               <option key={key} value={key}>
-                {label} ({recommendedDepth})
+                {t(`ai_depth_photo.presets.material_profiles.${key}.label`)} ({recommendedDepth})
               </option>
             ))}
           </select>
