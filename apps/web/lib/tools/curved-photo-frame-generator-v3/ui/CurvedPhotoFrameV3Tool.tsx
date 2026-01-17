@@ -517,16 +517,23 @@ export function CurvedPhotoFrameV3Tool({
 
     const strengthLabel =
       frameSettings.curveStrength === 'custom'
-        ? `Custom (${fmt(frameSettings.bendRadiusMm)}mm)`
+        ? `${t('curved_frame.v3.ui.frame.curve_strength_options.custom')} (${fmt(frameSettings.bendRadiusMm)}mm)`
         : frameSettings.curveStrength;
 
     const dateStr = new Date().toLocaleString();
+
+    const onOffLabel = (v: boolean) => (v ? t('curved_frame.v3.ui.pdf.on') : t('curved_frame.v3.ui.pdf.off'));
+
+    const kerfPatternValue = t('curved_frame.v3.ui.pdf.kerf_pattern_value')
+      .replace('{segment}', fmt(frameSettings.kerfSegmentLengthMm))
+      .replace('{gap}', fmt(frameSettings.kerfGapLengthMm))
+      .replace('{row}', fmt(frameSettings.kerfRowSpacingMm));
 
     const html = `
       <!doctype html>
       <html>
       <head>
-        <title>Curved Photo Frame V3 - Assembly Guide</title>
+        <title>${safe(t('curved_frame.v3.ui.pdf.title'))}</title>
         <style>
           @page { margin: 12mm; }
           body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #111; }
@@ -555,52 +562,52 @@ export function CurvedPhotoFrameV3Tool({
       <body>
         <div class="page">
           <div class="topbar">
-            <div class="title">Curved Photo Frame V3 — Assembly Guide</div>
-            <div class="meta">Generated: ${safe(dateStr)}</div>
+            <div class="title">${safe(t('curved_frame.v3.ui.pdf.header_title'))}</div>
+            <div class="meta">${safe(t('curved_frame.v3.ui.pdf.generated_label'))}: ${safe(dateStr)}</div>
           </div>
 
           <div class="section">
-            <h3>Project settings</h3>
+            <h3>${safe(t('curved_frame.v3.ui.pdf.project_settings_title'))}</h3>
             <div class="card kv">
-              <div class="k">Photo size</div><div class="v">${safe(frameSettings.photoWidthMm)} × ${safe(frameSettings.photoHeightMm)} mm</div>
-              <div class="k">Border</div><div class="v">${safe(frameSettings.borderMm)} mm</div>
-              <div class="k">Thickness</div><div class="v">${safe(frameSettings.thicknessMm)} mm</div>
-              <div class="k">Curve</div><div class="v">${safe(strengthLabel)}</div>
-              <div class="k">Viewing angle</div><div class="v">${safe(frameSettings.viewingAngleDeg)}°</div>
-              <div class="k">Kerf</div><div class="v">${safe(frameSettings.kerfMm)} mm</div>
-              <div class="k">Smart kerf</div><div class="v">${frameSettings.autoKerf ? 'On' : 'Off'}</div>
-              <div class="k">Edge safety</div><div class="v">${frameSettings.edgeSafety ? 'On' : 'Off'}</div>
-              <div class="k">Kerf pattern</div><div class="v">Segment ${fmt(frameSettings.kerfSegmentLengthMm)} / Gap ${fmt(frameSettings.kerfGapLengthMm)} / Row ${fmt(frameSettings.kerfRowSpacingMm)} mm</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.photo_size_label'))}</div><div class="v">${safe(frameSettings.photoWidthMm)} × ${safe(frameSettings.photoHeightMm)} mm</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.border_label'))}</div><div class="v">${safe(frameSettings.borderMm)} mm</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.thickness_label'))}</div><div class="v">${safe(frameSettings.thicknessMm)} mm</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.curve_label'))}</div><div class="v">${safe(strengthLabel)}</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.viewing_angle_label'))}</div><div class="v">${safe(frameSettings.viewingAngleDeg)}°</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.kerf_label'))}</div><div class="v">${safe(frameSettings.kerfMm)} mm</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.smart_kerf_label'))}</div><div class="v">${safe(onOffLabel(frameSettings.autoKerf))}</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.edge_safety_label'))}</div><div class="v">${safe(onOffLabel(frameSettings.edgeSafety))}</div>
+              <div class="k">${safe(t('curved_frame.v3.ui.pdf.kerf_pattern_label'))}</div><div class="v">${safe(kerfPatternValue)}</div>
             </div>
           </div>
 
           <div class="section">
-            <h3>Parts</h3>
+            <h3>${safe(t('curved_frame.v3.ui.pdf.parts_title'))}</h3>
             <div class="grid">
               <div class="thumb">
-                <div class="label">Front plate</div>
+                <div class="label">${safe(t('curved_frame.v3.ui.pdf.front_plate_label'))}</div>
                 ${result.svgs.front}
-                <div class="small">Red: cut • Blue: score • Black: engrave</div>
+                <div class="small">${safe(t('curved_frame.v3.ui.pdf.layer_colors_inline'))}</div>
               </div>
               <div class="thumb">
-                <div class="label">Side support (x2)</div>
+                <div class="label">${safe(t('curved_frame.v3.ui.pdf.side_support_label'))}</div>
                 ${result.svgs.back}
-                <div class="small">Cut 2 identical supports</div>
+                <div class="small">${safe(t('curved_frame.v3.ui.pdf.cut_two_identical_supports'))}</div>
               </div>
             </div>
           </div>
 
           <div class="section steps">
-            <h3>Assembly steps</h3>
+            <h3>${safe(t('curved_frame.v3.ui.pdf.assembly_steps_title'))}</h3>
             <ol>
-              <li><strong>Cut & engrave:</strong> Cut the front plate and 2× side supports. Engrave the photo area (black layer) and score the kerf lines (blue layer).</li>
-              <li><strong>Kerf bend:</strong> Gently flex the kerf zone to form the curve. Go gradually along the width to avoid cracking.</li>
-              <li><strong>Dry fit:</strong> Insert the side support teeth into the plate slots. Confirm alignment before glue.</li>
-              <li><strong>Optional stop notch:</strong> If enabled, the notch acts as a small mechanical stop. Ensure the plate seats fully against it.</li>
-              <li><strong>Glue (optional):</strong> Apply a small amount of wood glue to the teeth/slot interface. Clamp lightly and let cure.</li>
-              <li><strong>Finish:</strong> Light sanding and optional oil/finish. Avoid saturating the kerf zone.</li>
+              <li><strong>${safe(t('curved_frame.v3.ui.pdf.steps.cut_engrave.strong'))}</strong> ${safe(t('curved_frame.v3.ui.pdf.steps.cut_engrave.text'))}</li>
+              <li><strong>${safe(t('curved_frame.v3.ui.pdf.steps.kerf_bend.strong'))}</strong> ${safe(t('curved_frame.v3.ui.pdf.steps.kerf_bend.text'))}</li>
+              <li><strong>${safe(t('curved_frame.v3.ui.pdf.steps.dry_fit.strong'))}</strong> ${safe(t('curved_frame.v3.ui.pdf.steps.dry_fit.text'))}</li>
+              <li><strong>${safe(t('curved_frame.v3.ui.pdf.steps.optional_stop_notch.strong'))}</strong> ${safe(t('curved_frame.v3.ui.pdf.steps.optional_stop_notch.text'))}</li>
+              <li><strong>${safe(t('curved_frame.v3.ui.pdf.steps.glue_optional.strong'))}</strong> ${safe(t('curved_frame.v3.ui.pdf.steps.glue_optional.text'))}</li>
+              <li><strong>${safe(t('curved_frame.v3.ui.pdf.steps.finish.strong'))}</strong> ${safe(t('curved_frame.v3.ui.pdf.steps.finish.text'))}</li>
             </ol>
-            <div class="tip"><strong>Tip:</strong> If bending feels too stiff, increase kerf density (smaller row spacing) or reduce bend radius (stronger curve). If edges crack, enable Edge Safety and/or increase bend radius.</div>
+            <div class="tip"><strong>${safe(t('curved_frame.v3.ui.pdf.tip.strong'))}</strong> ${safe(t('curved_frame.v3.ui.pdf.tip.text'))}</div>
           </div>
         </div>
       </body>
