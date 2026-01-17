@@ -107,12 +107,12 @@ export function InlayOffsetTool({ onResetCallback }: InlayOffsetToolProps) {
             <div className="mt-3 flex flex-wrap gap-2">
               {INLAY_PRESETS.map((preset) => (
                 <button
-                  key={preset.name}
+                  key={preset.id}
                   onClick={() => applyPreset(preset)}
                   className="rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
-                  title={preset.description}
+                  title={t(`inlay_offset_calculator.preset.${preset.id}.description`)}
                 >
-                  {preset.name}
+                  {t(`inlay_offset_calculator.preset.${preset.id}.label`)}
                 </button>
               ))}
             </div>
