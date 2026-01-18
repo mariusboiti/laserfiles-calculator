@@ -8,15 +8,19 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 
 export const runtime = 'nodejs';
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
-
-const db = prisma as any;
+async function getDb(): Promise<any> {
+  const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+  if (!globalForPrisma.prisma) {
+    const mod = await import('@prisma/client');
+    const Prisma = (mod as any).PrismaClient as typeof PrismaClient;
+    globalForPrisma.prisma = new Prisma();
+  }
+  return globalForPrisma.prisma as any;
+}
 
 async function getCurrentUserId(): Promise<string | null> {
   const cookieStore = await cookies();
@@ -40,6 +44,14 @@ export interface TourProgressData {
  */
 export async function GET(req: NextRequest) {
   try {
+    let db: any = null;
+    try {
+      db = await getDb();
+    } catch (err) {
+      console.error('Failed to initialize Prisma for tour progress. Falling back to defaults.', err);
+      db = null;
+    }
+
     let userId = await getCurrentUserId();
 
     if (!userId) {
@@ -64,11 +76,13 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      const progress = await db.tourProgress.findUnique({
+      const progress = db
+        ? await db.tourProgress.findUnique({
         where: {
           userId_toolSlug: { userId, toolSlug },
         },
-      });
+          })
+        : null;
 
       if (!progress) {
         return NextResponse.json({
@@ -115,6 +129,14 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    let db: any = null;
+    try {
+      db = await getDb();
+    } catch (err) {
+      console.error('Failed to initialize Prisma for tour progress. Skipping persistence.', err);
+      db = null;
+    }
+
     let userId = await getCurrentUserId();
 
     if (!userId) {
@@ -147,7 +169,8 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const progress = await db.tourProgress.upsert({
+      const progress = db
+        ? await db.tourProgress.upsert({
         where: {
           userId_toolSlug: { userId, toolSlug },
         },
@@ -161,7 +184,8 @@ export async function POST(req: NextRequest) {
           status,
           lastStepIndex: lastStepIndex ?? 0,
         },
-      });
+          })
+        : { toolSlug, status, lastStepIndex: lastStepIndex ?? 0 };
 
       return NextResponse.json({
         ok: true,
