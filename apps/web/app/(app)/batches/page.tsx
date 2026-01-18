@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 type BatchStatus =
   | 'PLANNED'
@@ -71,6 +72,7 @@ const BATCH_STATUS_OPTIONS: BatchStatus[] = [
 ];
 
 export default function BatchesPage() {
+  const t = useT();
   const [batches, setBatches] = useState<BatchListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +130,7 @@ export default function BatchesPage() {
       });
       setBatches(res.data.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load batches';
+      const message = err?.response?.data?.message || t('batches.failed_to_load');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -149,7 +151,7 @@ export default function BatchesPage() {
   async function handleCreateBatch(e: FormEvent) {
     e.preventDefault();
     if (!creatingName.trim()) {
-      setCreateError('Batch name is required.');
+      setCreateError(t('batches.form.name_required'));
       return;
     }
     setCreating(true);
@@ -169,7 +171,7 @@ export default function BatchesPage() {
       setCreatingPriority('NORMAL');
       await loadBatches({ status, seasonId, templateId, targetDateFrom, targetDateTo });
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create batch';
+      const message = err?.response?.data?.message || t('batches.failed_to_create');
       setCreateError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setCreating(false);
@@ -181,24 +183,21 @@ export default function BatchesPage() {
       await apiClient.patch(`/batches/${id}`, { status: newStatus });
       await loadBatches({ status, seasonId, templateId, targetDateFrom, targetDateTo });
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update batch status';
+      const message = err?.response?.data?.message || t('batches.failed_to_update_status');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
 
   function formatStatus(status: string): string {
-    return status.replace(/_/g, ' ');
+    return t(`batches.status.${String(status).toLowerCase()}` as any);
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Batches</h1>
-          <p className="mt-1 text-xs text-slate-400">
-            Group similar items into production batches so you can work more efficiently in busy
-            seasons.
-          </p>
+          <h1 className="text-xl font-semibold tracking-tight">{t('batches.title')}</h1>
+          <p className="mt-1 text-xs text-slate-400">{t('batches.subtitle')}</p>
         </div>
         <form
           onSubmit={handleFilterSubmit}
@@ -209,7 +208,7 @@ export default function BatchesPage() {
             onChange={(e) => setStatus(e.target.value)}
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
           >
-            <option value="">All statuses</option>
+            <option value="">{t('batches.filters.status.all')}</option>
             {BATCH_STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
                 {formatStatus(s)}
@@ -221,11 +220,11 @@ export default function BatchesPage() {
             onChange={(e) => setSeasonId(e.target.value)}
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
           >
-            <option value="">All seasons</option>
+            <option value="">{t('batches.filters.season.all')}</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
-                {s.isActive ? ' (active)' : ''}
+                {s.isActive ? ` (${t('common.active')})` : ''}
               </option>
             ))}
           </select>
@@ -234,7 +233,7 @@ export default function BatchesPage() {
             onChange={(e) => setTemplateId(e.target.value)}
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
           >
-            <option value="">All templates</option>
+            <option value="">{t('batches.filters.template.all')}</option>
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -257,7 +256,7 @@ export default function BatchesPage() {
             type="submit"
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600"
           >
-            Apply
+            {t('batches.filters.apply')}
           </button>
         </form>
       </div>
@@ -267,11 +266,9 @@ export default function BatchesPage() {
           onSubmit={handleCreateBatch}
           className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
-          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Quick create batch
-          </div>
+          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('batches.quick_create.title')}</div>
           <label className="flex flex-col gap-1">
-            <span>Batch name *</span>
+            <span>{t('batches.form.name')}</span>
             <input
               type="text"
               value={creatingName}
@@ -280,50 +277,50 @@ export default function BatchesPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Season (optional)</span>
+            <span>{t('batches.form.season_optional')}</span>
             <select
               value={creatingSeasonId}
               onChange={(e) => setCreatingSeasonId(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="">(none)</option>
+              <option value="">{t('common.none')}</option>
               {seasons.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
-                  {s.isActive ? ' (active)' : ''}
+                  {s.isActive ? ` (${t('common.active')})` : ''}
                 </option>
               ))}
             </select>
           </label>
           <div className="grid gap-2 md:grid-cols-2">
             <label className="flex flex-col gap-1">
-              <span>Batch type</span>
+              <span>{t('batches.form.type')}</span>
               <select
                 value={creatingBatchType}
                 onChange={(e) => setCreatingBatchType(e.target.value as BatchType)}
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
               >
-                <option value="TEMPLATE_RUN">Template run</option>
-                <option value="MIXED">Mixed</option>
-                <option value="CUSTOM">Custom</option>
+                <option value="TEMPLATE_RUN">{t('batches.form.type.template_run')}</option>
+                <option value="MIXED">{t('batches.form.type.mixed')}</option>
+                <option value="CUSTOM">{t('batches.form.type.custom')}</option>
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span>Priority</span>
+              <span>{t('batches.form.priority')}</span>
               <select
                 value={creatingPriority}
                 onChange={(e) => setCreatingPriority(e.target.value as BatchPriority)}
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
               >
-                <option value="LOW">Low</option>
-                <option value="NORMAL">Normal</option>
-                <option value="HIGH">High</option>
-                <option value="URGENT">Urgent</option>
+                <option value="LOW">{t('batches.priority.low')}</option>
+                <option value="NORMAL">{t('batches.priority.normal')}</option>
+                <option value="HIGH">{t('batches.priority.high')}</option>
+                <option value="URGENT">{t('batches.priority.urgent')}</option>
               </select>
             </label>
           </div>
           <label className="flex flex-col gap-1">
-            <span>Target date (optional)</span>
+            <span>{t('batches.form.target_date_optional')}</span>
             <input
               type="date"
               value={creatingTargetDate}
@@ -337,34 +334,32 @@ export default function BatchesPage() {
             disabled={creating}
             className="rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {creating ? 'Creating…' : 'Create batch'}
+            {creating ? t('batches.creating') : t('batches.create')}
           </button>
         </form>
 
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between gap-2">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Batches
-            </div>
-            {loading && <div className="text-[11px] text-slate-400">Loading…</div>}
+            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('batches.list.title')}</div>
+            {loading && <div className="text-[11px] text-slate-400">{t('batches.loading')}</div>}
           </div>
           {error && <p className="text-[11px] text-red-400">{error}</p>}
           {!loading && !error && batches.length === 0 && (
-            <p className="text-[11px] text-slate-400">No batches found.</p>
+            <p className="text-[11px] text-slate-400">{t('batches.none_found')}</p>
           )}
           {!loading && !error && batches.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/60">
               <table className="min-w-full text-left text-xs text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Batch</th>
-                    <th className="px-3 py-2">Season</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Priority</th>
-                    <th className="px-3 py-2">Items</th>
-                    <th className="px-3 py-2">Target date</th>
-                    <th className="px-3 py-2">Est. minutes</th>
-                    <th className="px-3 py-2">Actions</th>
+                    <th className="px-3 py-2">{t('batches.table.batch')}</th>
+                    <th className="px-3 py-2">{t('batches.table.season')}</th>
+                    <th className="px-3 py-2">{t('batches.table.status')}</th>
+                    <th className="px-3 py-2">{t('batches.table.priority')}</th>
+                    <th className="px-3 py-2">{t('batches.table.items')}</th>
+                    <th className="px-3 py-2">{t('batches.table.target_date')}</th>
+                    <th className="px-3 py-2">{t('batches.table.estimated_minutes')}</th>
+                    <th className="px-3 py-2">{t('batches.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -380,10 +375,10 @@ export default function BatchesPage() {
                           </Link>
                           <span className="text-[10px] text-slate-500">
                             {b.batchType === 'TEMPLATE_RUN'
-                              ? 'Template run'
+                              ? t('batches.form.type.template_run')
                               : b.batchType === 'MIXED'
-                              ? 'Mixed'
-                              : 'Custom'}
+                              ? t('batches.form.type.mixed')
+                              : t('batches.form.type.custom')}
                           </span>
                         </div>
                       </td>
@@ -421,7 +416,7 @@ export default function BatchesPage() {
                               : 'bg-slate-700 text-slate-200'
                           }`}
                         >
-                          {b.priority}
+                          {t(`batches.priority.${b.priority.toLowerCase()}` as any)}
                         </span>
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">
@@ -441,21 +436,21 @@ export default function BatchesPage() {
                           onClick={() => handleQuickStatus(b.id, 'READY')}
                           className="mr-1 rounded-md border border-sky-600 px-2 py-0.5 text-[11px] text-sky-300 hover:bg-sky-900/40"
                         >
-                          Mark READY
+                          {t('batches.actions.mark_ready')}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleQuickStatus(b.id, 'IN_PROGRESS')}
                           className="mr-1 rounded-md border border-emerald-600 px-2 py-0.5 text-[11px] text-emerald-300 hover:bg-emerald-900/40"
                         >
-                          In progress
+                          {t('batches.actions.in_progress')}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleQuickStatus(b.id, 'DONE')}
                           className="rounded-md border border-slate-600 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
                         >
-                          Done
+                          {t('batches.actions.done')}
                         </button>
                       </td>
                     </tr>

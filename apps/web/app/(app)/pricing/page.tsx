@@ -185,7 +185,13 @@ export default function PricingPage() {
       }
 
       const res = await apiClient.post<{ id: string }>('/quotes', payload);
-      setSaveMessage(`${t('pricing.quote_saved_prefix')} (ID: ${res.data.id.slice(0, 8)}...)`);
+      setSaveMessage(
+        t('pricing.quote_saved_prefix') +
+          ' ' +
+          t('pricing.quote_saved_id_suffix')
+            .replace('{0}', String(res.data.id.slice(0, 8)))
+            .replace('{1}', '...'),
+      );
     } catch (err: any) {
       const message = err?.response?.data?.message || t('pricing.failed_to_save_quote');
       setSaveError(Array.isArray(message) ? message.join(', ') : String(message));

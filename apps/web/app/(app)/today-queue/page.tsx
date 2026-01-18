@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 type BatchStatus =
   | 'PLANNED'
@@ -64,6 +65,7 @@ interface TodayQueueResponse {
 }
 
 export default function TodayQueuePage() {
+  const t = useT();
   const [data, setData] = useState<TodayQueueResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function TodayQueuePage() {
       const res = await apiClient.get<TodayQueueResponse>('/today-queue');
       setData(res.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load today queue';
+      const message = err?.response?.data?.message || t('today_queue.failed_to_load');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -93,7 +95,7 @@ export default function TodayQueuePage() {
       await apiClient.post('/today-queue/pin', { entityType, id });
       await load();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to pin';
+      const message = err?.response?.data?.message || t('today_queue.failed_to_pin');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setPinning(null);
@@ -106,35 +108,39 @@ export default function TodayQueuePage() {
       await apiClient.delete('/today-queue/pin', { data: { entityType, id } });
       await load();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to unpin';
+      const message = err?.response?.data?.message || t('today_queue.failed_to_unpin');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setPinning(null);
     }
   }
 
-  function formatStatus(status: string): string {
-    return status.replace(/_/g, ' ');
+  function formatBatchStatus(status: string): string {
+    return t(`batches.status.${String(status).toLowerCase()}` as any);
+  }
+
+  function formatOrderStatus(status: string): string {
+    return t(`order.status.${String(status).toLowerCase()}` as any);
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Today Queue</h1>
-          <p className="mt-1 text-xs text-slate-400">
-            See what should be worked on today: active batches, ready batches, and urgent
-            unbatched items.
-          </p>
+          <h1 className="text-xl font-semibold tracking-tight">{t('today_queue.title')}</h1>
+          <p className="mt-1 text-xs text-slate-400">{t('today_queue.subtitle')}</p>
         </div>
         {data && (
           <div className="text-[11px] text-slate-500">
-            Generated at {new Date(data.generatedAt).toLocaleTimeString()}
+            {t('today_queue.generated_at_prefix').replace(
+              '{0}',
+              new Date(data.generatedAt).toLocaleTimeString(),
+            )}
           </div>
         )}
       </div>
 
-      {loading && <p className="text-sm text-slate-400">Loading today queue…</p>}
+      {loading && <p className="text-sm text-slate-400">{t('today_queue.loading')}</p>}
       {error && !loading && <p className="text-sm text-red-400">{error}</p>}
 
       {!loading && !error && data && (
@@ -142,13 +148,11 @@ export default function TodayQueuePage() {
           {/* Pinned section */}
           {(data.pinned.batches.length > 0 || data.pinned.items.length > 0) && (
             <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Pinned for today
-              </div>
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('today_queue.pinned_for_today')}</div>
               <div className="grid gap-3 md:grid-cols-2">
                 {data.pinned.batches.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-[11px] text-slate-400">Pinned batches</div>
+                    <div className="text-[11px] text-slate-400">{t('today_queue.pinned_batches')}</div>
                     <div className="flex flex-col gap-2">
                       {data.pinned.batches.map((b) => (
                         <div
@@ -167,7 +171,7 @@ export default function TodayQueuePage() {
                                     : 'bg-slate-800 text-slate-300'
                                 }`}
                               >
-                                {formatStatus(b.status)}
+                                {formatBatchStatus(b.status)}
                               </span>
                               <span
                                 className={`inline-flex rounded-full px-2 py-0.5 text-[11px] ${
@@ -178,20 +182,16 @@ export default function TodayQueuePage() {
                                     : 'bg-slate-700 text-slate-200'
                                 }`}
                               >
-                                {b.priority}
+                                {t(`batches.priority.${b.priority.toLowerCase()}` as any)}
                               </span>
                               {b.targetDate && (
                                 <span className="text-[11px] text-slate-400">
-                                  Target {new Date(b.targetDate).toLocaleDateString()}
+                                  {t('today_queue.target_prefix').replace('{0}', new Date(b.targetDate).toLocaleDateString())}
                                 </span>
                               )}
-                              <span className="text-[11px] text-slate-400">
-                                Items: {b.itemsCount}
-                              </span>
+                              <span className="text-[11px] text-slate-400">{t('today_queue.items_prefix').replace('{0}', String(b.itemsCount))}</span>
                               {typeof b.estimatedMinutesTotal === 'number' && (
-                                <span className="text-[11px] text-slate-400">
-                                  Est: {b.estimatedMinutesTotal} min
-                                </span>
+                                <span className="text-[11px] text-slate-400">{t('today_queue.est_prefix').replace('{0}', String(b.estimatedMinutesTotal))}</span>
                               )}
                             </div>
                           </div>
@@ -201,7 +201,7 @@ export default function TodayQueuePage() {
                             disabled={pinning === `BATCH:${b.id}`}
                             className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            Unpin
+                            {t('today_queue.unpin')}
                           </button>
                         </div>
                       ))}
@@ -210,7 +210,7 @@ export default function TodayQueuePage() {
                 )}
                 {data.pinned.items.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-[11px] text-slate-400">Pinned urgent items</div>
+                    <div className="text-[11px] text-slate-400">{t('today_queue.pinned_urgent_items')}</div>
                     <div className="flex flex-col gap-2">
                       {data.pinned.items.map((it) => (
                         <div
@@ -220,19 +220,14 @@ export default function TodayQueuePage() {
                           <div>
                             <div className="text-xs font-medium text-slate-100">{it.title}</div>
                             <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                              <span>Qty: {it.quantity}</span>
+                              <span>{t('today_queue.qty_prefix').replace('{0}', String(it.quantity))}</span>
                               {it.order && (
                                 <span>
-                                  Order {it.order.id.slice(0, 8)}… ·{' '}
-                                  {formatStatus(it.order.status)}
+                                  {t('today_queue.order_prefix')} {it.order.id.slice(0, 8)}… · {formatOrderStatus(it.order.status)}
                                 </span>
                               )}
-                              {it.template && (
-                                <span>Template: {it.template.name}</span>
-                              )}
-                              {it.estimatedMinutes != null && (
-                                <span>Est: {it.estimatedMinutes} min</span>
-                              )}
+                              {it.template && <span>{t('today_queue.template_prefix').replace('{0}', it.template.name)}</span>}
+                              {it.estimatedMinutes != null && <span>{t('today_queue.est_prefix').replace('{0}', String(it.estimatedMinutes))}</span>}
                             </div>
                           </div>
                           <button
@@ -241,7 +236,7 @@ export default function TodayQueuePage() {
                             disabled={pinning === `ORDER_ITEM:${it.id}`}
                             className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            Unpin
+                            {t('today_queue.unpin')}
                           </button>
                         </div>
                       ))}
@@ -256,12 +251,10 @@ export default function TodayQueuePage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
               <div className="mb-1 flex items-center justify-between gap-2">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Batches in progress
-                </div>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('today_queue.batches_in_progress')}</div>
               </div>
               {data.batchesInProgress.length === 0 && (
-                <p className="text-[11px] text-slate-400">No batches in progress.</p>
+                <p className="text-[11px] text-slate-400">{t('today_queue.no_batches_in_progress')}</p>
               )}
               {data.batchesInProgress.length > 0 && (
                 <div className="flex flex-col gap-2">
@@ -273,11 +266,9 @@ export default function TodayQueuePage() {
                       <div>
                         <div className="text-xs font-medium text-slate-100">{b.name}</div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                          {b.season && <span>Season: {b.season.name}</span>}
-                          <span>Items: {b.itemsCount}</span>
-                          {typeof b.estimatedMinutesTotal === 'number' && (
-                            <span>Est: {b.estimatedMinutesTotal} min</span>
-                          )}
+                          {b.season && <span>{t('today_queue.season_prefix').replace('{0}', b.season.name)}</span>}
+                          <span>{t('today_queue.items_prefix').replace('{0}', String(b.itemsCount))}</span>
+                          {typeof b.estimatedMinutesTotal === 'number' && <span>{t('today_queue.est_prefix').replace('{0}', String(b.estimatedMinutesTotal))}</span>}
                         </div>
                       </div>
                       <button
@@ -286,7 +277,7 @@ export default function TodayQueuePage() {
                         disabled={pinning === `BATCH:${b.id}`}
                         className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        Pin
+                        {t('today_queue.pin')}
                       </button>
                     </div>
                   ))}
@@ -296,12 +287,10 @@ export default function TodayQueuePage() {
 
             <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
               <div className="mb-1 flex items-center justify-between gap-2">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Batches ready to cut
-                </div>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('today_queue.batches_ready_to_cut')}</div>
               </div>
               {data.batchesReady.length === 0 && (
-                <p className="text-[11px] text-slate-400">No ready batches.</p>
+                <p className="text-[11px] text-slate-400">{t('today_queue.no_ready_batches')}</p>
               )}
               {data.batchesReady.length > 0 && (
                 <div className="flex flex-col gap-2">
@@ -313,14 +302,10 @@ export default function TodayQueuePage() {
                       <div>
                         <div className="text-xs font-medium text-slate-100">{b.name}</div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                          {b.season && <span>Season: {b.season.name}</span>}
-                          <span>Items: {b.itemsCount}</span>
-                          {b.targetDate && (
-                            <span>Target {new Date(b.targetDate).toLocaleDateString()}</span>
-                          )}
-                          {typeof b.estimatedMinutesTotal === 'number' && (
-                            <span>Est: {b.estimatedMinutesTotal} min</span>
-                          )}
+                          {b.season && <span>{t('today_queue.season_prefix').replace('{0}', b.season.name)}</span>}
+                          <span>{t('today_queue.items_prefix').replace('{0}', String(b.itemsCount))}</span>
+                          {b.targetDate && <span>{t('today_queue.target_prefix').replace('{0}', new Date(b.targetDate).toLocaleDateString())}</span>}
+                          {typeof b.estimatedMinutesTotal === 'number' && <span>{t('today_queue.est_prefix').replace('{0}', String(b.estimatedMinutesTotal))}</span>}
                         </div>
                       </div>
                       <button
@@ -329,7 +314,7 @@ export default function TodayQueuePage() {
                         disabled={pinning === `BATCH:${b.id}`}
                         className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        Pin
+                        {t('today_queue.pin')}
                       </button>
                     </div>
                   ))}
@@ -341,14 +326,10 @@ export default function TodayQueuePage() {
           {/* Urgent items not batched */}
           <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
             <div className="mb-1 flex items-center justify-between gap-2">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Urgent items not in a batch
-              </div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('today_queue.urgent_items_not_in_batch')}</div>
             </div>
             {data.urgentItems.length === 0 && (
-              <p className="text-[11px] text-slate-400">
-                No urgent unbatched items right now. Great time to plan the next batch.
-              </p>
+              <p className="text-[11px] text-slate-400">{t('today_queue.none_urgent_unbatched')}</p>
             )}
             {data.urgentItems.length > 0 && (
               <div className="flex flex-col gap-2">
@@ -360,16 +341,14 @@ export default function TodayQueuePage() {
                     <div>
                       <div className="text-xs font-medium text-slate-100">{it.title}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                        <span>Qty: {it.quantity}</span>
+                        <span>{t('today_queue.qty_prefix').replace('{0}', String(it.quantity))}</span>
                         {it.order && (
                           <span>
-                            Order {it.order.id.slice(0, 8)}… · {formatStatus(it.order.status)}
+                            {t('today_queue.order_prefix')} {it.order.id.slice(0, 8)}… · {formatOrderStatus(it.order.status)}
                           </span>
                         )}
-                        {it.template && <span>Template: {it.template.name}</span>}
-                        {it.estimatedMinutes != null && (
-                          <span>Est: {it.estimatedMinutes} min</span>
-                        )}
+                        {it.template && <span>{t('today_queue.template_prefix').replace('{0}', it.template.name)}</span>}
+                        {it.estimatedMinutes != null && <span>{t('today_queue.est_prefix').replace('{0}', String(it.estimatedMinutes))}</span>}
                       </div>
                     </div>
                     <button
@@ -378,7 +357,7 @@ export default function TodayQueuePage() {
                       disabled={pinning === `ORDER_ITEM:${it.id}`}
                       className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Pin
+                      {t('today_queue.pin')}
                     </button>
                   </div>
                 ))}

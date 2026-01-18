@@ -77,11 +77,11 @@ export default function MaterialsPage() {
       } catch (err) {
         // Use default categories if API fails
         setCategories([
-          { label: 'Plywood', value: 'PLYWOOD' },
-          { label: 'MDF', value: 'MDF' },
-          { label: 'Acrylic', value: 'ACRYLIC' },
-          { label: 'Mirror Acrylic', value: 'MIRROR_ACRYLIC' },
-          { label: 'Other', value: 'OTHER' },
+          { label: t('materials.categories.plywood'), value: 'PLYWOOD' },
+          { label: t('materials.categories.mdf'), value: 'MDF' },
+          { label: t('materials.categories.acrylic'), value: 'ACRYLIC' },
+          { label: t('materials.categories.mirror_acrylic'), value: 'MIRROR_ACRYLIC' },
+          { label: t('materials.categories.other'), value: 'OTHER' },
         ]);
       }
     }

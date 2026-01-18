@@ -55,6 +55,25 @@ const MATERIAL_CATEGORIES = ['PLYWOOD', 'MDF', 'ACRYLIC', 'MIRROR_ACRYLIC', 'OTH
 
 export default function OffcutsPage() {
   const t = useT();
+
+  function formatMaterialCategory(value: string) {
+    const upper = String(value).toUpperCase();
+    if (upper === 'PLYWOOD') return t('materials.categories.plywood');
+    if (upper === 'MDF') return t('materials.categories.mdf');
+    if (upper === 'ACRYLIC') return t('materials.categories.acrylic');
+    if (upper === 'MIRROR_ACRYLIC') return t('materials.categories.mirror_acrylic');
+    if (upper === 'OTHER') return t('materials.categories.other');
+    return String(value);
+  }
+
+  function formatOffcutStatus(value: string) {
+    return t(`offcuts.status.${String(value).toLowerCase()}` as any);
+  }
+
+  function formatOffcutCondition(value: string) {
+    return t(`offcuts.condition.${String(value).toLowerCase()}` as any);
+  }
+
   const [offcuts, setOffcuts] = useState<OffcutListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,11 +139,9 @@ export default function OffcutsPage() {
       } catch (err: any) {
         const data = err?.response?.data;
         if (data?.code === 'FEATURE_LOCKED') {
-          setError(
-            'Funcționalitatea Scrap & Offcuts nu este inclusă în planul tău curent. Fă upgrade pentru a vedea și gestiona offcuts.',
-          );
+          setError(t('offcuts.feature_locked'));
         } else {
-          const message = data?.message || 'Failed to load offcuts';
+          const message = data?.message || t('offcuts.failed_to_load');
           setError(Array.isArray(message) ? message.join(', ') : String(message));
         }
       } finally {
@@ -164,12 +181,12 @@ export default function OffcutsPage() {
   async function handleCreateOffcut(e: React.FormEvent) {
     e.preventDefault();
     if (!createMaterialId) {
-      setCreateError('Selectează un material');
+      setCreateError(t('offcuts.create.validation.select_material'));
       return;
     }
     const material = materials.find((m) => m.id === createMaterialId);
     if (!material) {
-      setCreateError('Material invalid');
+      setCreateError(t('offcuts.create.validation.invalid_material'));
       return;
     }
 
@@ -214,18 +231,16 @@ export default function OffcutsPage() {
     } catch (err: any) {
       const data = err?.response?.data;
       if (data?.code === 'FEATURE_LOCKED') {
-        setCreateError(
-          'Funcționalitatea Scrap & Offcuts nu este inclusă în planul tău curent. Fă upgrade pentru a adăuga offcuts.',
-        );
+        setCreateError(t('offcuts.create.feature_locked'));
       } else if (data?.code === 'LIMIT_REACHED' && data?.limitKey === 'max_offcuts_tracked') {
         const limit = data?.limit;
         setCreateError(
           typeof limit === 'number'
-            ? `Ai atins limita de ${limit} offcuts urmărite pentru planul tău. Marchează unele ca „USED” sau „DISCARDED” sau fă upgrade de plan.`
-            : 'Ai atins limita de offcuts urmărite pentru planul tău. Marchează unele ca „USED” sau „DISCARDED” sau fă upgrade de plan.',
+            ? t('offcuts.create.limit_reached_with_limit').replace('{0}', String(limit))
+            : t('offcuts.create.limit_reached_generic'),
         );
       } else {
-        const message = data?.message || 'Nu s-a putut crea offcut-ul';
+        const message = data?.message || t('offcuts.create.failed_to_create');
         setCreateError(Array.isArray(message) ? message.join(', ') : String(message));
       }
     } finally {
@@ -270,7 +285,7 @@ export default function OffcutsPage() {
             )}
             {Array.from(stats.byCategory.entries()).map(([cat, area]) => (
               <div key={cat} className="flex items-center justify-between text-[11px] text-slate-300">
-                <span>{cat}</span>
+                <span>{formatMaterialCategory(cat)}</span>
                 <span>{(area / 1_000_000).toFixed(2)} m²</span>
               </div>
             ))}
@@ -320,7 +335,7 @@ export default function OffcutsPage() {
                 onChange={(e) => setCreateMaterialId(e.target.value)}
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
               >
-                <option value="">{t('order_detail.select_template')}</option>
+                <option value="">{t('offcuts.form.select_material')}</option>
                 {materials.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name} · {m.category} · {m.thicknessMm}mm
@@ -410,7 +425,7 @@ export default function OffcutsPage() {
                 >
                   {OFFCUT_CONDITIONS.map((c) => (
                     <option key={c} value={c}>
-                      {c}
+                      {formatOffcutCondition(c)}
                     </option>
                   ))}
                 </select>
@@ -464,7 +479,7 @@ export default function OffcutsPage() {
                   <option value="">{t('offcuts.filter.category')}</option>
                   {MATERIAL_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {c}
+                      {formatMaterialCategory(c)}
                     </option>
                   ))}
                 </select>
@@ -484,7 +499,7 @@ export default function OffcutsPage() {
                   <option value="">{t('offcuts.filter.status')}</option>
                   {OFFCUT_STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {formatOffcutStatus(s)}
                     </option>
                   ))}
                 </select>
@@ -496,7 +511,7 @@ export default function OffcutsPage() {
                   <option value="">{t('offcuts.filter.condition')}</option>
                   {OFFCUT_CONDITIONS.map((c) => (
                     <option key={c} value={c}>
-                      {c}
+                      {formatOffcutCondition(c)}
                     </option>
                   ))}
                 </select>
@@ -539,16 +554,16 @@ export default function OffcutsPage() {
                     <th className="px-3 py-2">{t('offcuts.table.shape_dimensions')}</th>
                     <th className="px-3 py-2">{t('offcuts.table.qty')}</th>
                     <th className="px-3 py-2">{t('offcuts.table.location')}</th>
-                    <th className="px-3 py-2">{t('customers.table.contact')}</th>
+                    <th className="px-3 py-2">{t('offcuts.table.condition')}</th>
                     <th className="px-3 py-2">{t('offcuts.table.status')}</th>
-                    <th className="px-3 py-2">{t('customers.table.created')}</th>
+                    <th className="px-3 py-2">{t('offcuts.table.created')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {offcuts.map((o) => {
                     const materialLabel = o.material
                       ? `${o.material.name} · ${o.material.category} · ${o.thicknessMm}mm`
-                      : `Material ${o.materialId} · ${o.thicknessMm}mm`;
+                      : t('offcuts.material_unknown').replace('{0}', String(o.materialId)).replace('{1}', String(o.thicknessMm));
                     const sizeLabel = (() => {
                       if (o.shapeType === 'RECTANGLE' && o.widthMm && o.heightMm) {
                         return `${o.widthMm} × ${o.heightMm} mm`;

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface TemplateCategory {
   id: string;
@@ -33,6 +34,7 @@ interface TemplatesListResponse {
 }
 
 export default function TemplatesPage() {
+  const t = useT();
   const [templates, setTemplates] = useState<TemplateListItem[]>([]);
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,11 +64,9 @@ export default function TemplatesPage() {
     } catch (err: any) {
       const data = err?.response?.data;
       if (data?.code === 'FEATURE_LOCKED') {
-        setError(
-          'Templates are not available on your current plan. Upgrade your membership to unlock this feature.',
-        );
+        setError(t('templates.feature_locked'));
       } else {
-        const message = data?.message || 'Failed to load templates';
+        const message = data?.message || t('templates.failed_to_load');
         setError(Array.isArray(message) ? message.join(', ') : String(message));
       }
     } finally {
@@ -100,7 +100,7 @@ export default function TemplatesPage() {
   async function handleCreateTemplate(e: FormEvent) {
     e.preventDefault();
     if (!newName.trim()) {
-      setCreateError('Name is required');
+      setCreateError(t('templates.form.name_required'));
       return;
     }
 
@@ -120,18 +120,16 @@ export default function TemplatesPage() {
     } catch (err: any) {
       const data = err?.response?.data;
       if (data?.code === 'FEATURE_LOCKED') {
-        setCreateError(
-          'You cannot create templates on your current plan. Upgrade your membership to add more templates.',
-        );
+        setCreateError(t('templates.create_locked'));
       } else if (data?.code === 'LIMIT_REACHED' && data?.limitKey === 'max_templates') {
         const limit = data?.limit;
         setCreateError(
           typeof limit === 'number'
-            ? `You reached the maximum of ${limit} templates for your current plan. Delete an existing template or upgrade your membership to add more.`
-            : 'You reached the maximum number of templates allowed for your current plan. Delete an existing template or upgrade your membership to add more.',
+            ? t('templates.limit_reached_with_limit').replace('{0}', String(limit))
+            : t('templates.limit_reached_generic'),
         );
       } else {
-        const message = data?.message || 'Failed to create template';
+        const message = data?.message || t('templates.failed_to_create');
         setCreateError(Array.isArray(message) ? message.join(', ') : String(message));
       }
     } finally {
@@ -143,15 +141,13 @@ export default function TemplatesPage() {
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Templates</h1>
-          <p className="mt-1 text-xs text-slate-400">
-            Create reusable product templates with variants, personalization fields and pricing rules.
-          </p>
+          <h1 className="text-xl font-semibold tracking-tight">{t('templates.title')}</h1>
+          <p className="mt-1 text-xs text-slate-400">{t('templates.subtitle')}</p>
         </div>
         <form onSubmit={handleFilterSubmit} className="flex flex-wrap items-center gap-2 text-sm">
           <input
             type="text"
-            placeholder="Search name or description..."
+            placeholder={t('templates.search_placeholder')}
             className="w-40 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 md:w-60"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -161,7 +157,7 @@ export default function TemplatesPage() {
             onChange={(e) => setCategoryId(e.target.value)}
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
           >
-            <option value="">All categories</option>
+            <option value="">{t('templates.filters.all_categories')}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -175,13 +171,13 @@ export default function TemplatesPage() {
               onChange={(e) => setOnlyActive(e.target.checked)}
               className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
             />
-            <span>Only active</span>
+            <span>{t('templates.only_active')}</span>
           </label>
           <button
             type="submit"
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600"
           >
-            Apply
+            {t('templates.apply')}
           </button>
         </form>
       </div>
@@ -191,11 +187,9 @@ export default function TemplatesPage() {
           onSubmit={handleCreateTemplate}
           className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
-          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Add template
-          </div>
+          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('templates.add_title')}</div>
           <label className="flex flex-col gap-1">
-            <span>Name *</span>
+            <span>{t('templates.form.name')}</span>
             <input
               type="text"
               value={newName}
@@ -205,13 +199,13 @@ export default function TemplatesPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Category</span>
+            <span>{t('templates.form.category')}</span>
             <select
               value={newCategoryId}
               onChange={(e) => setNewCategoryId(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="">(none)</option>
+              <option value="">{t('common.none')}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -225,23 +219,21 @@ export default function TemplatesPage() {
             disabled={creating}
             className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {creating ? 'Creating…' : 'Create template'}
+            {creating ? t('templates.creating') : t('templates.create')}
           </button>
         </form>
 
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between gap-2">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Templates list
-            </div>
-            <div className="text-[11px] text-slate-500">Total: {templates.length}</div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('templates.list_title')}</div>
+            <div className="text-[11px] text-slate-500">{t('common.total').replace('{0}', String(templates.length))}</div>
           </div>
 
-          {loading && <p className="text-xs text-slate-400">Loading templates...</p>}
+          {loading && <p className="text-xs text-slate-400">{t('templates.loading')}</p>}
           {error && !loading && <p className="text-xs text-red-400">{error}</p>}
 
           {!loading && !error && templates.length === 0 && (
-            <p className="text-xs text-slate-400">No templates found.</p>
+            <p className="text-xs text-slate-400">{t('templates.none_found')}</p>
           )}
 
           {!loading && !error && templates.length > 0 && (
@@ -249,47 +241,47 @@ export default function TemplatesPage() {
               <table className="min-w-full text-left text-xs text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Name</th>
-                    <th className="px-3 py-2">Category</th>
-                    <th className="px-3 py-2">Material</th>
-                    <th className="px-3 py-2">Counts</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Created</th>
+                    <th className="px-3 py-2">{t('templates.table.name')}</th>
+                    <th className="px-3 py-2">{t('templates.table.category')}</th>
+                    <th className="px-3 py-2">{t('templates.table.material')}</th>
+                    <th className="px-3 py-2">{t('templates.table.counts')}</th>
+                    <th className="px-3 py-2">{t('templates.table.status')}</th>
+                    <th className="px-3 py-2">{t('templates.table.created')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {templates.map((t) => (
-                    <tr key={t.id} className="border-t border-slate-800 hover:bg-slate-800/60">
+                  {templates.map((tpl) => (
+                    <tr key={tpl.id} className="border-t border-slate-800 hover:bg-slate-800/60">
                       <td className="px-3 py-2 align-top text-xs font-medium text-slate-100">
-                        <Link href={`/templates/${t.id}`} className="text-sky-400 hover:underline">
-                          {t.name}
+                        <Link href={`/templates/${tpl.id}`} className="text-sky-400 hover:underline">
+                          {tpl.name}
                         </Link>
-                        <div className="text-[11px] text-slate-500">{t.slug}</div>
+                        <div className="text-[11px] text-slate-500">{tpl.slug}</div>
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
-                        {t.category ? t.category.name : '-'}
+                        {tpl.category ? tpl.category.name : '-'}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
-                        {t.defaultMaterial ? t.defaultMaterial.name : '-'}
+                        {tpl.defaultMaterial ? tpl.defaultMaterial.name : '-'}
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">
-                        <div>Variants: {t._count?.variants ?? 0}</div>
-                        <div>Fields: {t._count?.fields ?? 0}</div>
-                        <div>Rules: {t._count?.pricingRules ?? 0}</div>
+                        <div>{t('templates.counts.variants').replace('{0}', String(tpl._count?.variants ?? 0))}</div>
+                        <div>{t('templates.counts.fields').replace('{0}', String(tpl._count?.fields ?? 0))}</div>
+                        <div>{t('templates.counts.rules').replace('{0}', String(tpl._count?.pricingRules ?? 0))}</div>
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[11px] ${
-                            t.isActive
+                            tpl.isActive
                               ? 'bg-emerald-500/20 text-emerald-300'
                               : 'bg-slate-800 text-slate-300'
                           }`}
                         >
-                          {t.isActive ? 'Active' : 'Inactive'}
+                          {tpl.isActive ? t('common.active') : t('common.inactive')}
                         </span>
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-400">
-                        {new Date(t.createdAt).toLocaleString()}
+                        {new Date(tpl.createdAt).toLocaleString()}
                       </td>
                     </tr>
                   ))}
