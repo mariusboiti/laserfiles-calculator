@@ -28,6 +28,8 @@ const offcuts_module_1 = require("./offcuts/offcuts.module");
 const usage_module_1 = require("./usage/usage.module");
 const webhooks_module_1 = require("./webhooks/webhooks.module");
 const billing_module_1 = require("./billing/billing.module");
+const email_module_1 = require("./email/email.module");
+const feedback_module_1 = require("./feedback/feedback.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -54,6 +56,8 @@ exports.AppModule = AppModule = __decorate([
             usage_module_1.UsageModule,
             webhooks_module_1.WebhooksModule,
             billing_module_1.BillingModule,
+            email_module_1.EmailModule,
+            feedback_module_1.FeedbackModule,
         ],
     })
 ], AppModule);

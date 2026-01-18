@@ -12,6 +12,7 @@ import { collectContext, submitReport, type ReportContext, type SubmitResult } f
 import { capturePreviewScreenshot } from '@/lib/support/capturePreview';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { toast } from '@/components/system';
 
 export type ReportMode = 'problem' | 'feedback';
 
@@ -115,13 +116,16 @@ export function ReportIssuePanel({
 
     if (result.success) {
       setStatus('success');
+      toast(t('report.success_title'), 'success');
       // Auto-close after success
       setTimeout(() => {
         onClose();
       }, 2500);
     } else {
       setStatus('error');
-      setErrorMessage(result.error || 'Something went wrong. Please try again.');
+      const msg = result.error || 'Something went wrong. Please try again.';
+      setErrorMessage(msg);
+      toast(msg, 'error');
     }
   };
 
