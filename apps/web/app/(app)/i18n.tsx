@@ -3443,10 +3443,7 @@ const translations: Record<Locale, Record<string, string>> = {
     'order_detail.name_field': 'Campo nombre',
     'order_detail.select_field_to_fill': 'Seleccionar campo a completar de cada línea',
     'order_detail.lines_label': 'Líneas (una por artículo, opcional `|cant`)',
-    'order_detail.lines_placeholder': 'p. ej.
-Ana
-Bogdan|2
-Claudia',
+    'order_detail.lines_placeholder': 'p. ej.\nAna\nBogdan|2\nClaudia',
     'order_detail.preview_bulk': 'Previsualizar lote',
     'order_detail.add_items': 'Añadir artículos',
     'order_detail.preview_items': 'Previsualizar artículos',
@@ -4580,11 +4577,8 @@ Claudia',
     'order_detail.name_field': 'Champ nom',
     'order_detail.select_field_to_fill': 'Sélectionner le champ à remplir pour chaque ligne',
     'order_detail.lines_label': 'Lignes (une par article, optionnel `|qté`)',
-    'order_detail.lines_placeholder': 'ex.
-Ana
-Bogdan|2
-Claudia',
-    'order_detail.preview_bulk': 'Aperçu lot',
+    'order_detail.lines_placeholder': 'ex.\nAna\nBogdan|2\nClaudia',
+    'order_detail.preview_bulk': 'Aperçu en lot',
     'order_detail.add_items': 'Ajouter des articles',
     'order_detail.preview_items': 'Aperçu des articles',
     'order_detail.activity_log': 'Journal d\'activité',
