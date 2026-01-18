@@ -3,6 +3,8 @@
  * Abstracted to support multiple backends (API, email, webhook, etc.)
  */
 
+import { apiClient } from '@/lib/api-client';
+
 export interface ReportContext {
   toolSlug?: string;
   toolName?: string;
@@ -111,93 +113,52 @@ function truncateToolState(state: unknown, maxBytes: number = 50000): unknown {
  */
 export async function submitReport(payload: ReportPayload): Promise<SubmitResult> {
   try {
-    // Prepare attachments
-    const attachments: Array<{ filename: string; mimeType: string; base64: string }> = [];
+    const message = payload.description.trim().slice(0, 2000);
+    const tool = payload.context.toolSlug || payload.context.toolName;
 
-    // Add screenshot if included
-    if (payload.includeScreenshot && payload.screenshotDataUrl) {
-      const base64 = payload.screenshotDataUrl.split(',')[1];
-      if (base64) {
-        attachments.push({
-          filename: 'preview-screenshot.jpg',
-          mimeType: 'image/jpeg',
-          base64,
-        });
-      }
-    }
+    const meta: Record<string, unknown> = {
+      ...payload.context,
+      reportMode: payload.mode,
+      includeToolState: payload.includeToolState,
+      includeScreenshot: payload.includeScreenshot,
+    };
 
-    // Add tool state if included
     if (payload.includeToolState && payload.toolState) {
-      const truncated = truncateToolState(payload.toolState);
-      const stateJson = JSON.stringify(truncated, null, 2);
-      const base64 = btoa(unescape(encodeURIComponent(stateJson)));
-      attachments.push({
-        filename: 'tool-state.json',
-        mimeType: 'application/json',
-        base64,
-      });
+      meta.toolState = truncateToolState(payload.toolState);
     }
 
-    // Build title from description (first line or truncated)
-    const descLines = payload.description.trim().split('\n');
-    const title = descLines[0].slice(0, 100) || (payload.mode === 'problem' ? 'Problem Report' : 'Feedback');
-
-    // Submit to existing feedback API
-    const response = await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: payload.mode === 'problem' ? 'bug' : 'feature',
-        toolSlug: payload.context.toolSlug || undefined,
-        pageUrl: payload.context.pageUrl,
-        title,
-        message: payload.description,
-        severity: payload.mode === 'problem' ? 'medium' : undefined,
-        attachments,
-        metadata: {
-          ...payload.context,
-          reportMode: payload.mode,
-          includeToolState: payload.includeToolState,
-          includeScreenshot: payload.includeScreenshot,
-        },
-      }),
+    const res = await apiClient.post('/feedback', {
+      type: payload.mode === 'problem' ? 'bug' : 'feedback',
+      message,
+      tool,
+      pageUrl: payload.context.pageUrl,
+      meta,
     });
 
-    const contentType = response.headers.get('content-type') || '';
-    let data: any = null;
-    let rawText: string | null = null;
-
-    if (contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      rawText = await response.text();
+    const ok = !!res.data?.ok;
+    if (!ok) {
+      return { success: false, error: 'Failed to submit report' };
     }
 
-    if (!response.ok) {
-      return {
-        success: false,
-        error:
-          data?.error?.message ||
-          `Failed to submit report (HTTP ${response.status})${rawText ? `: ${rawText.slice(0, 200)}` : ''}`,
-      };
-    }
-
-    if (!data?.ok) {
-      return {
-        success: false,
-        error: data?.error?.message || 'Failed to submit report',
-      };
-    }
-
-    return {
-      success: true,
-      ticketId: data.data?.id,
-    };
+    return { success: true };
   } catch (error) {
     console.error('Failed to submit report:', error);
+
+    const errAny = error as any;
+    const status: number | undefined = errAny?.response?.status;
+    const serverMessage = errAny?.response?.data?.message;
+    const serverErrorMessage = errAny?.response?.data?.error?.message;
+
+    const message =
+      (typeof serverMessage === 'string' && serverMessage) ||
+      (Array.isArray(serverMessage) && serverMessage[0]) ||
+      (typeof serverErrorMessage === 'string' && serverErrorMessage) ||
+      (typeof errAny?.message === 'string' && errAny.message) ||
+      'Failed to submit report';
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to submit report',
+      error: status ? `${message} (HTTP ${status})` : message,
     };
   }
 }
