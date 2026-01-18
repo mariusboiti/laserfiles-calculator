@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api-client';
+import { useT } from '../../i18n';
 
 interface StoreConnection {
   id: string;
@@ -42,6 +43,7 @@ interface ExternalOrderReview extends ExternalOrder {
 }
 
 export default function SalesChannelsOrdersPage() {
+  const t = useT();
   const [connections, setConnections] = useState<StoreConnection[]>([]);
   const [orders, setOrders] = useState<ExternalOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,7 @@ export default function SalesChannelsOrdersPage() {
         setSelectedConnectionId(connectionsRes.data[0].id);
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load connections';
+      const message = err?.response?.data?.message || t('sales_channels.failed_to_load_connections');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
@@ -86,7 +88,7 @@ export default function SalesChannelsOrdersPage() {
       );
       setOrders(res.data.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load external orders';
+      const message = err?.response?.data?.message || t('sales_channels_orders.failed_to_load_orders');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -113,7 +115,7 @@ export default function SalesChannelsOrdersPage() {
       );
       setSelectedOrder(res.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load order details';
+      const message = err?.response?.data?.message || t('sales_channels_orders.failed_to_load_details');
       setDetailError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setDetailLoading(false);
@@ -129,19 +131,19 @@ export default function SalesChannelsOrdersPage() {
       }>(`/sales-channels/external-orders/${id}/create-internal`, {});
       await loadOrders();
       if (res.data.internalOrderId) {
-        alert(`Internal order created: ${res.data.internalOrderId}`);
+        alert(t('sales_channels_orders.alert.created_internal').replace('{0}', String(res.data.internalOrderId)));
       } else if (res.data.alreadyCreated) {
-        alert('Internal order was already created for this external order.');
+        alert(t('sales_channels_orders.alert.already_created'));
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create internal order';
+      const message = err?.response?.data?.message || t('sales_channels_orders.failed_to_create_internal');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
       await loadOrders();
     }
   }
 
   async function handleIgnore(id: string) {
-    if (!window.confirm('Mark this external order as ignored?')) return;
+    if (!window.confirm(t('sales_channels_orders.confirm_mark_ignored'))) return;
     try {
       await apiClient.post(`/sales-channels/external-orders/${id}/ignore`, {});
       if (selectedOrder && selectedOrder.id === id) {
@@ -149,7 +151,7 @@ export default function SalesChannelsOrdersPage() {
       }
       await loadOrders();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to mark order as ignored';
+      const message = err?.response?.data?.message || t('sales_channels_orders.failed_to_mark_ignored');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
@@ -157,7 +159,7 @@ export default function SalesChannelsOrdersPage() {
   async function handleApplySuggestionsForConnection() {
     const connectionId = selectedOrder?.connectionId || selectedConnectionId;
     if (!connectionId) {
-      alert('Select a connection or an order first.');
+      alert(t('sales_channels_orders.alert.select_connection_first'));
       return;
     }
     setQuickActionLoading(true);
@@ -174,10 +176,12 @@ export default function SalesChannelsOrdersPage() {
         await loadOrderDetail(selectedOrder.id);
       }
       alert(
-        `Applied suggestions: ${res.data.created} created, ${res.data.skipped} skipped (already mapped).`,
+        t('sales_channels_orders.suggestions_applied')
+          .replace('{0}', String(res.data.created))
+          .replace('{1}', String(res.data.skipped)),
       );
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to apply suggestions';
+      const message = err?.response?.data?.message || t('sales_channels_mappings.failed_to_apply_suggestions');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setQuickActionLoading(false);
@@ -187,17 +191,17 @@ export default function SalesChannelsOrdersPage() {
   function stateLabel(state: string) {
     switch (state) {
       case 'NEW':
-        return 'New';
+        return t('sales_channels_orders.state.new');
       case 'MAPPED':
-        return 'Mapped';
+        return t('sales_channels_orders.state.mapped');
       case 'CREATED_INTERNAL':
-        return 'Created';
+        return t('sales_channels_orders.state.created_internal');
       case 'NEEDS_REVIEW':
-        return 'Needs review';
+        return t('sales_channels_orders.state.needs_review');
       case 'ERROR':
-        return 'Error';
+        return t('sales_channels_orders.state.error');
       case 'IGNORED':
-        return 'Ignored';
+        return t('sales_channels_orders.state.ignored');
       default:
         return state;
     }
@@ -209,16 +213,13 @@ export default function SalesChannelsOrdersPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Link href="/sales-channels" className="text-sky-400 hover:underline">
-              Sales Channels
+              {t('sales_channels.title')}
             </Link>
             <span>/</span>
-            <span>External orders</span>
+            <span>{t('sales_channels_orders.title')}</span>
           </div>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">External orders</h1>
-          <p className="text-xs text-slate-400">
-            See orders imported from your connected sales channels and turn them into production
-            jobs.
-          </p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">{t('sales_channels_orders.title')}</h1>
+          <p className="text-xs text-slate-400">{t('sales_channels_orders.subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-200">
           <select
@@ -226,7 +227,7 @@ export default function SalesChannelsOrdersPage() {
             onChange={(e) => setSelectedConnectionId(e.target.value)}
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
           >
-            <option value="">All connections</option>
+            <option value="">{t('sales_channels_orders.filters.all_connections')}</option>
             {connections.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.channel})
@@ -238,12 +239,12 @@ export default function SalesChannelsOrdersPage() {
             onChange={(e) => setSelectedState(e.target.value)}
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
           >
-            <option value="">All states</option>
-            <option value="NEW">New</option>
-            <option value="NEEDS_REVIEW">Needs review</option>
-            <option value="CREATED_INTERNAL">Created</option>
-            <option value="ERROR">Error</option>
-            <option value="IGNORED">Ignored</option>
+            <option value="">{t('sales_channels_orders.filters.all_states')}</option>
+            <option value="NEW">{t('sales_channels_orders.state.new')}</option>
+            <option value="NEEDS_REVIEW">{t('sales_channels_orders.state.needs_review')}</option>
+            <option value="CREATED_INTERNAL">{t('sales_channels_orders.state.created_internal')}</option>
+            <option value="ERROR">{t('sales_channels_orders.state.error')}</option>
+            <option value="IGNORED">{t('sales_channels_orders.state.ignored')}</option>
           </select>
         </div>
       </div>
@@ -252,24 +253,24 @@ export default function SalesChannelsOrdersPage() {
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              External orders
+              {t('sales_channels_orders.list_title')}
             </div>
-            {loading && <div className="text-[11px] text-slate-400">Loading…</div>}
+            {loading && <div className="text-[11px] text-slate-400">{t('common.loading')}</div>}
           </div>
           {error && <p className="text-[11px] text-red-400">{error}</p>}
           {!loading && !error && orders.length === 0 && (
-            <p className="text-[11px] text-slate-400">No external orders found.</p>
+            <p className="text-[11px] text-slate-400">{t('sales_channels_orders.none_found')}</p>
           )}
           {!loading && !error && orders.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/60">
               <table className="min-w-full text-left text-xs text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Order</th>
-                    <th className="px-3 py-2">Channel</th>
-                    <th className="px-3 py-2">State</th>
-                    <th className="px-3 py-2">Imported</th>
-                    <th className="px-3 py-2">Actions</th>
+                    <th className="px-3 py-2">{t('sales_channels_orders.table.order')}</th>
+                    <th className="px-3 py-2">{t('sales_channels_orders.table.channel')}</th>
+                    <th className="px-3 py-2">{t('sales_channels_orders.table.state')}</th>
+                    <th className="px-3 py-2">{t('sales_channels_orders.table.imported')}</th>
+                    <th className="px-3 py-2">{t('sales_channels_orders.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -279,7 +280,7 @@ export default function SalesChannelsOrdersPage() {
                         <div className="font-medium">#{o.externalOrderNumber}</div>
                         {o.externalStatus && (
                           <div className="text-[11px] text-slate-400">
-                            Store status: {o.externalStatus}
+                            {t('sales_channels_orders.store_status')}: {o.externalStatus}
                           </div>
                         )}
                         {o.errorMessage && (
@@ -316,7 +317,7 @@ export default function SalesChannelsOrdersPage() {
                           onClick={() => loadOrderDetail(o.id)}
                           className="mr-2 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] hover:bg-slate-800"
                         >
-                          View
+                          {t('sales_channels_orders.actions.view')}
                         </button>
                         <button
                           type="button"
@@ -324,7 +325,7 @@ export default function SalesChannelsOrdersPage() {
                           className="rounded-md border border-emerald-600 px-2 py-0.5 text-[11px] text-emerald-300 hover:bg-emerald-900/40"
                           disabled={o.processedState === 'CREATED_INTERNAL'}
                         >
-                          Create internal
+                          {t('sales_channels_orders.actions.create_internal')}
                         </button>
                         {o.processedState !== 'IGNORED' && (
                           <button
@@ -332,7 +333,7 @@ export default function SalesChannelsOrdersPage() {
                             onClick={() => handleIgnore(o.id)}
                             className="ml-2 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
                           >
-                            Ignore
+                            {t('sales_channels_orders.actions.ignore')}
                           </button>
                         )}
                       </td>
@@ -346,12 +347,12 @@ export default function SalesChannelsOrdersPage() {
 
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Order details
+            {t('sales_channels_orders.details.title')}
           </div>
-          {detailLoading && <p className="text-[11px] text-slate-400">Loading details…</p>}
+          {detailLoading && <p className="text-[11px] text-slate-400">{t('sales_channels_orders.details.loading')}</p>}
           {detailError && <p className="text-[11px] text-red-400">{detailError}</p>}
           {!detailLoading && !selectedOrder && !detailError && (
-            <p className="text-[11px] text-slate-400">Select an order to see details.</p>
+            <p className="text-[11px] text-slate-400">{t('sales_channels_orders.details.select_to_see')}</p>
           )}
           {!detailLoading && selectedOrder && (
             <div className="space-y-2">
@@ -362,7 +363,7 @@ export default function SalesChannelsOrdersPage() {
                 </div>
                 {selectedOrder.externalStatus && (
                   <div className="text-[11px] text-slate-400">
-                    Store status: {selectedOrder.externalStatus}
+                    {t('sales_channels_orders.store_status')}: {selectedOrder.externalStatus}
                   </div>
                 )}
               </div>
@@ -373,7 +374,9 @@ export default function SalesChannelsOrdersPage() {
                   disabled={quickActionLoading}
                   className="rounded-md border border-emerald-600 px-2 py-0.5 text-[11px] text-emerald-300 hover:bg-emerald-900/40 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {quickActionLoading ? 'Applying suggestions…' : 'Auto-apply suggested mappings'}
+                  {quickActionLoading
+                    ? t('sales_channels_orders.actions.applying_suggestions')
+                    : t('sales_channels_orders.actions.auto_apply_mappings')}
                 </button>
                 {selectedOrder.processedState !== 'IGNORED' && (
                   <button
@@ -381,14 +384,14 @@ export default function SalesChannelsOrdersPage() {
                     onClick={() => handleIgnore(selectedOrder.id)}
                     className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
                   >
-                    Mark as ignored
+                    {t('sales_channels_orders.actions.mark_as_ignored')}
                   </button>
                 )}
               </div>
               <div className="mt-2 rounded-lg border border-slate-800 bg-slate-900/60 p-2">
-                <div className="mb-1 text-[11px] font-medium text-slate-400">Items</div>
+                <div className="mb-1 text-[11px] font-medium text-slate-400">{t('sales_channels_orders.details.items')}</div>
                 {selectedOrder.items.length === 0 && (
-                  <p className="text-[11px] text-slate-400">No items.</p>
+                  <p className="text-[11px] text-slate-400">{t('sales_channels_orders.details.no_items')}</p>
                 )}
                 {selectedOrder.items.length > 0 && (
                   <ul className="space-y-1 text-[11px] text-slate-200">
@@ -396,20 +399,19 @@ export default function SalesChannelsOrdersPage() {
                       <li key={item.id} className="border-b border-slate-800 pb-1 last:border-b-0">
                         <div className="font-medium">{item.title}</div>
                         <div className="text-slate-400">
-                          Qty: {item.quantity}
+                          {t('sales_channels_orders.details.qty')}: {item.quantity}
                           {typeof item.unitPrice === 'number' && (
                             <span>
-                              {' '}
-                              · Price: {item.unitPrice.toFixed(2)}
+                              {' '}· {t('sales_channels_orders.details.price')}: {item.unitPrice.toFixed(2)}
                             </span>
                           )}
                         </div>
                         {item.externalProductId && (
-                          <div className="text-slate-500">Product ID: {item.externalProductId}</div>
+                          <div className="text-slate-500">{t('sales_channels_orders.details.product_id')}: {item.externalProductId}</div>
                         )}
                         {item.optionsJson && Object.keys(item.optionsJson).length > 0 && (
                           <div className="mt-0.5 text-slate-400">
-                            Personalization/options:{' '}
+                            {t('sales_channels_orders.details.personalization')}: {' '}
                             {Object.entries(item.optionsJson)
                               .slice(0, 4)
                               .map(([k, v], idx) => (

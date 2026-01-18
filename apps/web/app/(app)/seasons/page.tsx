@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface Season {
   id: string;
@@ -24,6 +25,7 @@ interface SeasonsListResponse {
 }
 
 export default function SeasonsPage() {
+  const t = useT();
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function SeasonsPage() {
       const res = await apiClient.get<SeasonsListResponse>('/seasons');
       setSeasons(res.data.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load seasons';
+      const message = err?.response?.data?.message || t('seasons.failed_to_load');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -78,7 +80,7 @@ export default function SeasonsPage() {
   async function handleSaveSeason(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setSaveError('Name is required');
+      setSaveError(t('seasons.form.name_required'));
       return;
     }
 
@@ -105,7 +107,7 @@ export default function SeasonsPage() {
       resetForm();
       await loadSeasons();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to save season';
+      const message = err?.response?.data?.message || t('seasons.failed_to_save');
       setSaveError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setSaving(false);
@@ -117,7 +119,7 @@ export default function SeasonsPage() {
       await apiClient.post(`/seasons/${id}/set-active`, {});
       await loadSeasons();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to set active season';
+      const message = err?.response?.data?.message || t('seasons.failed_to_set_active');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
@@ -126,11 +128,8 @@ export default function SeasonsPage() {
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Seasons &amp; Batches</h1>
-          <p className="mt-1 text-xs text-slate-400">
-            Plan your busy periods (Christmas, weddings, school gifts) and group orders into
-            production batches.
-          </p>
+          <h1 className="text-xl font-semibold tracking-tight">{t('seasons.title')}</h1>
+          <p className="mt-1 text-xs text-slate-400">{t('seasons.subtitle')}</p>
         </div>
       </div>
 
@@ -139,11 +138,9 @@ export default function SeasonsPage() {
           onSubmit={handleSaveSeason}
           className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
-          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            {editingId ? 'Edit season' : 'Create season'}
-          </div>
+          <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{editingId ? t('seasons.form.edit') : t('seasons.form.create')}</div>
           <label className="flex flex-col gap-1">
-            <span>Name *</span>
+            <span>{t('seasons.form.name')}</span>
             <input
               type="text"
               value={name}
@@ -153,7 +150,7 @@ export default function SeasonsPage() {
           </label>
           <div className="grid gap-2 md:grid-cols-2">
             <label className="flex flex-col gap-1">
-              <span>Start date (optional)</span>
+              <span>{t('seasons.form.start_date_optional')}</span>
               <input
                 type="date"
                 value={startDate}
@@ -162,7 +159,7 @@ export default function SeasonsPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>End date (optional)</span>
+              <span>{t('seasons.form.end_date_optional')}</span>
               <input
                 type="date"
                 value={endDate}
@@ -178,10 +175,10 @@ export default function SeasonsPage() {
               onChange={(e) => setIsActive(e.target.checked)}
               className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500"
             />
-            <span>Set as active season</span>
+            <span>{t('seasons.form.set_active')}</span>
           </label>
           <label className="flex flex-col gap-1">
-            <span>Notes</span>
+            <span>{t('seasons.form.notes')}</span>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -196,7 +193,7 @@ export default function SeasonsPage() {
               disabled={saving}
               className="rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? 'Saving…' : editingId ? 'Save changes' : 'Create season'}
+              {saving ? t('common.saving') : editingId ? t('common.save_changes') : t('seasons.create')}
             </button>
             {editingId && (
               <button
@@ -204,7 +201,7 @@ export default function SeasonsPage() {
                 onClick={resetForm}
                 className="rounded-md border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-800"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             )}
           </div>
@@ -212,25 +209,23 @@ export default function SeasonsPage() {
 
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between gap-2">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Seasons
-            </div>
-            {loading && <div className="text-[11px] text-slate-400">Loading…</div>}
+            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('seasons.list.title')}</div>
+            {loading && <div className="text-[11px] text-slate-400">{t('seasons.loading')}</div>}
           </div>
           {error && <p className="text-[11px] text-red-400">{error}</p>}
           {!loading && !error && seasons.length === 0 && (
-            <p className="text-[11px] text-slate-400">No seasons defined yet.</p>
+            <p className="text-[11px] text-slate-400">{t('seasons.none_found')}</p>
           )}
           {!loading && !error && seasons.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/60">
               <table className="min-w-full text-left text-xs text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Season</th>
-                    <th className="px-3 py-2">Dates</th>
-                    <th className="px-3 py-2">Summary</th>
-                    <th className="px-3 py-2">Batches</th>
-                    <th className="px-3 py-2">Actions</th>
+                    <th className="px-3 py-2">{t('seasons.table.season')}</th>
+                    <th className="px-3 py-2">{t('seasons.table.dates')}</th>
+                    <th className="px-3 py-2">{t('seasons.table.summary')}</th>
+                    <th className="px-3 py-2">{t('seasons.table.batches')}</th>
+                    <th className="px-3 py-2">{t('seasons.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -241,7 +236,7 @@ export default function SeasonsPage() {
                           <span className="font-medium">{s.name}</span>
                           {s.isActive && (
                             <span className="inline-flex rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                              Active
+                              {t('common.active')}
                             </span>
                           )}
                         </div>
@@ -262,12 +257,12 @@ export default function SeasonsPage() {
                           {s.endDate ? new Date(s.endDate).toLocaleDateString() : '-'}
                         </div>
                         <div className="text-[10px] text-slate-500">
-                          Created {new Date(s.createdAt).toLocaleDateString()}
+                          {t('seasons.created_prefix').replace('{0}', new Date(s.createdAt).toLocaleDateString())}
                         </div>
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">
-                        <div>Orders: {s._count?.orders ?? 0}</div>
-                        <div>Items: {s.itemsCount ?? 0}</div>
+                        <div>{t('seasons.summary.orders_prefix').replace('{0}', String(s._count?.orders ?? 0))}</div>
+                        <div>{t('seasons.summary.items_prefix').replace('{0}', String(s.itemsCount ?? 0))}</div>
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">
                         {s._count?.batches ?? 0}
@@ -278,7 +273,7 @@ export default function SeasonsPage() {
                           onClick={() => startEdit(s)}
                           className="mr-2 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] hover:bg-slate-800"
                         >
-                          Edit
+                          {t('common.edit')}
                         </button>
                         {!s.isActive && (
                           <button
@@ -286,7 +281,7 @@ export default function SeasonsPage() {
                             onClick={() => handleSetActive(s.id)}
                             className="rounded-md border border-emerald-600 px-2 py-0.5 text-[11px] text-emerald-300 hover:bg-emerald-900/40"
                           >
-                            Set active
+                            {t('seasons.actions.set_active')}
                           </button>
                         )}
                       </td>

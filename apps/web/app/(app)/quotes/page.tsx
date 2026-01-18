@@ -61,31 +61,33 @@ export default function QuotesPage() {
     const data = quote.dataJson || {};
     const breakdown = data.breakdown || {};
     const input = data.input || {};
-    
+
+    const na = t('common.na');
+
     const rows = [
-      ['Quote ID', quote.id],
-      ['Created At', new Date(quote.createdAt).toLocaleString()],
-      ['Customer', quote.customer?.name || 'N/A'],
-      ['Customer Email', quote.customer?.email || 'N/A'],
+      [t('quotes.csv.quote_id'), quote.id],
+      [t('quotes.csv.created_at'), new Date(quote.createdAt).toLocaleString()],
+      [t('quotes.csv.customer'), quote.customer?.name || na],
+      [t('quotes.csv.customer_email'), quote.customer?.email || na],
       [''],
-      ['Material', data.material?.name || 'N/A'],
-      ['Material Category', data.material?.category || 'N/A'],
-      ['Thickness (mm)', data.material?.thicknessMm || 'N/A'],
+      [t('quotes.csv.material'), data.material?.name || na],
+      [t('quotes.csv.material_category'), data.material?.category || na],
+      [t('quotes.csv.thickness_mm'), data.material?.thicknessMm || na],
       [''],
-      ['Quantity', input.quantity || 'N/A'],
-      ['Width (mm)', input.widthMm || 'N/A'],
-      ['Height (mm)', input.heightMm || 'N/A'],
-      ['Waste Percent', input.wastePercent || 'N/A'],
-      ['Machine Minutes', input.machineMinutes || 'N/A'],
-      ['Machine Hourly Cost', input.machineHourlyCost || 'N/A'],
-      ['Target Margin Percent', input.targetMarginPercent || 'N/A'],
+      [t('quotes.csv.quantity'), input.quantity || na],
+      [t('quotes.csv.width_mm'), input.widthMm || na],
+      [t('quotes.csv.height_mm'), input.heightMm || na],
+      [t('quotes.csv.waste_percent'), input.wastePercent || na],
+      [t('quotes.csv.machine_minutes'), input.machineMinutes || na],
+      [t('quotes.csv.machine_hourly_cost'), input.machineHourlyCost || na],
+      [t('quotes.csv.target_margin_percent'), input.targetMarginPercent || na],
       [''],
-      ['Material Cost', breakdown.materialCost?.toFixed(2) || 'N/A'],
-      ['Machine Cost', breakdown.machineCost?.toFixed(2) || 'N/A'],
-      ['Labor Cost', breakdown.laborCost?.toFixed(2) || 'N/A'],
-      ['Total Cost', breakdown.totalCost?.toFixed(2) || 'N/A'],
-      ['Margin Percent', breakdown.marginPercent || 'N/A'],
-      ['Recommended Price', breakdown.recommendedPrice?.toFixed(2) || 'N/A'],
+      [t('quotes.csv.material_cost'), breakdown.materialCost?.toFixed(2) || na],
+      [t('quotes.csv.machine_cost'), breakdown.machineCost?.toFixed(2) || na],
+      [t('quotes.csv.labor_cost'), breakdown.laborCost?.toFixed(2) || na],
+      [t('quotes.csv.total_cost'), breakdown.totalCost?.toFixed(2) || na],
+      [t('quotes.csv.margin_percent'), breakdown.marginPercent || na],
+      [t('quotes.csv.recommended_price'), breakdown.recommendedPrice?.toFixed(2) || na],
     ];
 
     return rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');

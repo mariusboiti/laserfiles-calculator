@@ -291,15 +291,15 @@ export default function SalesChannelsMappingsPage() {
   async function handleSaveMapping(e: FormEvent) {
     e.preventDefault();
     if (!selectedConnectionId) {
-      setFormError('Select a connection first.');
+      setFormError(t('sales_channels_mappings.form.select_connection_first'));
       return;
     }
     if (!formExternalProductId.trim() || !formExternalProductName.trim()) {
-      setFormError('External product ID and name are required.');
+      setFormError(t('sales_channels_mappings.form.external_id_name_required'));
       return;
     }
     if (!formTemplateId) {
-      setFormError('Template is required.');
+      setFormError(t('sales_channels_mappings.form.template_required'));
       return;
     }
 
@@ -308,7 +308,7 @@ export default function SalesChannelsMappingsPage() {
       try {
         personalizationMappingJson = JSON.parse(formPersonalizationJsonText);
       } catch {
-        setFormError('Personalization mapping must be valid JSON.');
+        setFormError(t('sales_channels_mappings.form.personalization_json_invalid'));
         return;
       }
     }
@@ -317,7 +317,7 @@ export default function SalesChannelsMappingsPage() {
     if (formPriceOverride.trim()) {
       const parsed = Number(formPriceOverride.trim());
       if (Number.isNaN(parsed)) {
-        setFormError('Price override must be a number.');
+        setFormError(t('sales_channels_mappings.form.price_override_number'));
         return;
       }
       priceOverrideNum = parsed;
@@ -363,7 +363,7 @@ export default function SalesChannelsMappingsPage() {
 
       resetForm();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to save product mapping';
+      const message = err?.response?.data?.message || t('sales_channels_mappings.failed_to_save_mapping');
       setFormError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setFormSaving(false);
@@ -371,7 +371,7 @@ export default function SalesChannelsMappingsPage() {
   }
 
   async function handleDeleteMapping(id: string) {
-    if (!window.confirm('Delete this mapping?')) return;
+    if (!window.confirm(t('sales_channels_mappings.confirm_delete'))) return;
     try {
       await apiClient.delete(`/sales-channels/mappings/${id}`);
       setMappings((prev) => prev.filter((m) => m.id !== id));
@@ -379,7 +379,7 @@ export default function SalesChannelsMappingsPage() {
         resetForm();
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to delete mapping';
+      const message = err?.response?.data?.message || t('sales_channels_mappings.failed_to_delete_mapping');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
@@ -390,15 +390,14 @@ export default function SalesChannelsMappingsPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Link href="/sales-channels" className="text-sky-400 hover:underline">
-              Sales Channels
+              {t('sales_channels.title')}
             </Link>
             <span>/</span>
-            <span>Product mappings</span>
+            <span>{t('sales_channels_mappings.title')}</span>
           </div>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">Product mappings</h1>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">{t('sales_channels_mappings.title')}</h1>
           <p className="text-xs text-slate-400">
-            Tell the system which store products or listings correspond to your internal templates
-            or template products.
+            {t('sales_channels_mappings.subtitle')}
           </p>
         </div>
         <form
@@ -410,7 +409,7 @@ export default function SalesChannelsMappingsPage() {
             onChange={(e) => setSelectedConnectionId(e.target.value)}
             className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
           >
-            <option value="">Select connection</option>
+            <option value="">{t('sales_channels_mappings.form.select_connection')}</option>
             {connections.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.channel})
@@ -419,7 +418,7 @@ export default function SalesChannelsMappingsPage() {
           </select>
           <input
             type="text"
-            placeholder="Search external product name…"
+            placeholder={t('sales_channels_mappings.form.search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-40 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 md:w-64"
@@ -428,14 +427,14 @@ export default function SalesChannelsMappingsPage() {
             type="submit"
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600"
           >
-            Apply
+            {t('common.filter')}
           </button>
           <button
             type="button"
             onClick={loadSuggestions}
             className="rounded-md border border-slate-600 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-800"
           >
-            Suggest mappings
+            {t('sales_channels_mappings.suggestions.load')}
           </button>
         </form>
       </div>
@@ -444,16 +443,16 @@ export default function SalesChannelsMappingsPage() {
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Existing mappings
+              {t('sales_channels_mappings.existing_title')}
             </div>
-            {loading && <div className="text-[11px] text-slate-400">Loading…</div>}
+            {t('common.loading')}
           </div>
           {error && <p className="text-[11px] text-red-400">{error}</p>}
           {!loading && !error && (!selectedConnectionId || mappings.length === 0) && (
             <p className="text-[11px] text-slate-400">
               {selectedConnectionId
-                ? 'No mappings yet for this connection.'
-                : 'Select a connection to see its mappings.'}
+                ? t('sales_channels_mappings.no_mappings_for_connection')
+                : t('sales_channels_mappings.select_connection_to_see')}
             </p>
           )}
           {!loading && !error && mappings.length > 0 && (
@@ -461,10 +460,10 @@ export default function SalesChannelsMappingsPage() {
               <table className="min-w-full text-left text-xs text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">External product</th>
-                    <th className="px-3 py-2">Template / Preset</th>
-                    <th className="px-3 py-2">Pricing</th>
-                    <th className="px-3 py-2">Actions</th>
+                    <th className="px-3 py-2">{t('sales_channels_mappings.table.external_product')}</th>
+                    <th className="px-3 py-2">{t('sales_channels_mappings.table.template_preset')}</th>
+                    <th className="px-3 py-2">{t('sales_channels_mappings.table.pricing')}</th>
+                    <th className="px-3 py-2">{t('sales_channels_mappings.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -472,16 +471,21 @@ export default function SalesChannelsMappingsPage() {
                     <tr key={m.id} className="border-t border-slate-800">
                       <td className="px-3 py-2 align-top text-xs text-slate-200">
                         <div className="font-medium">{m.externalProductName}</div>
-                        <div className="text-[11px] text-slate-500">ID: {m.externalProductId}</div>
+                        <div className="text-[11px] text-slate-500">{t('sales_channels_mappings.id')}: {m.externalProductId}</div>
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
                         <div>
-                          {m.template ? m.template.name : '(template missing)'}
+                          {m.material && (
+                            <span>
+                              {t('sales_channels_mappings.material')}: {m.material.name}
+                            </span>
+                          )}
+                          {m.template ? m.template.name : t('sales_channels_mappings.template_missing')}
                           {m.variant && <span> – {m.variant.name}</span>}
                         </div>
                         {m.templateProduct && (
                           <div className="text-[11px] text-slate-400">
-                            Preset: {m.templateProduct.name}
+                            {t('sales_channels_mappings.preset')}: {m.templateProduct.name}
                           </div>
                         )}
                         {m.material && (
@@ -489,9 +493,9 @@ export default function SalesChannelsMappingsPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">
-                        <div>Mode: {m.pricingMode}</div>
+                        <div>{t('sales_channels_mappings.mode')}: {m.pricingMode}</div>
                         {typeof m.priceOverride === 'number' && (
-                          <div>Override: {m.priceOverride.toFixed(2)}</div>
+                          <div>{t('sales_channels_mappings.override')}: {m.priceOverride.toFixed(2)}</div>
                         )}
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">
@@ -500,14 +504,14 @@ export default function SalesChannelsMappingsPage() {
                           onClick={() => startEdit(m)}
                           className="mr-2 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] hover:bg-slate-800"
                         >
-                          Edit
+                          {t('common.edit')}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteMapping(m.id)}
                           className="rounded-md border border-red-700 px-2 py-0.5 text-[11px] text-red-300 hover:bg-red-900/40"
                         >
-                          Delete
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>
@@ -519,7 +523,7 @@ export default function SalesChannelsMappingsPage() {
           <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-200">
             <div className="mb-1 flex items-center justify-between gap-2">
               <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Suggestions
+                {t('sales_channels_mappings.suggestions.title')}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -527,7 +531,7 @@ export default function SalesChannelsMappingsPage() {
                   onClick={loadSuggestions}
                   className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] hover:bg-slate-800"
                 >
-                  Refresh
+                  {t('common.refresh')}
                 </button>
                 <button
                   type="button"
@@ -535,20 +539,19 @@ export default function SalesChannelsMappingsPage() {
                   disabled={applySuggestionsLoading || suggestions.length === 0}
                   className="rounded-md border border-emerald-600 px-2 py-0.5 text-[11px] text-emerald-300 hover:bg-emerald-900/40 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {applySuggestionsLoading ? 'Applying…' : 'Apply high confidence'}
+                  {applySuggestionsLoading ? t('sales_channels_mappings.suggestions.applying') : t('sales_channels_mappings.suggestions.apply_high_confidence')}
                 </button>
               </div>
             </div>
             {suggestionsLoading && (
-              <p className="text-[11px] text-slate-400">Computing suggestions…</p>
+              <p className="text-[11px] text-slate-400">{t('sales_channels_mappings.suggestions.computing')}</p>
             )}
             {suggestionsError && (
               <p className="text-[11px] text-red-400">{suggestionsError}</p>
             )}
             {!suggestionsLoading && suggestions.length === 0 && !suggestionsError && (
               <p className="text-[11px] text-slate-400">
-                No suggestions yet. Import some orders for this connection and run &quot;Suggest
-                mappings&quot;.
+                {t('sales_channels_mappings.suggestions.no_suggestions_yet')}
               </p>
             )}
             {!suggestionsLoading && suggestions.length > 0 && (
@@ -556,9 +559,9 @@ export default function SalesChannelsMappingsPage() {
                 <table className="min-w-full text-left text-xs text-slate-200">
                   <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                     <tr>
-                      <th className="px-3 py-2">External product</th>
-                      <th className="px-3 py-2">Suggested mapping</th>
-                      <th className="px-3 py-2">Score</th>
+                      <th className="px-3 py-2">{t('sales_channels_mappings.suggestions.table.external_product')}</th>
+                      <th className="px-3 py-2">{t('sales_channels_mappings.suggestions.table.suggested_mapping')}</th>
+                      <th className="px-3 py-2">{t('sales_channels_mappings.suggestions.table.score')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -566,13 +569,13 @@ export default function SalesChannelsMappingsPage() {
                       <tr key={`${s.externalProductId}-${s.suggestedTemplateId}-${s.suggestedTemplateProductId || 'none'}`} className="border-t border-slate-800">
                         <td className="px-3 py-2 align-top text-xs text-slate-200">
                           <div className="font-medium">{s.externalProductName}</div>
-                          <div className="text-[11px] text-slate-500">ID: {s.externalProductId}</div>
+                          <div className="text-[11px] text-slate-500">{t('sales_channels_mappings.id')}: {s.externalProductId}</div>
                         </td>
                         <td className="px-3 py-2 align-top text-xs text-slate-300">
                           <div>{s.suggestedTemplateName}</div>
                           {s.suggestedTemplateProductName && (
                             <div className="text-[11px] text-slate-400">
-                              Preset: {s.suggestedTemplateProductName}
+                              {t('sales_channels_mappings.preset')}: {s.suggestedTemplateProductName}
                             </div>
                           )}
                         </td>
@@ -586,7 +589,7 @@ export default function SalesChannelsMappingsPage() {
                                 : 'text-slate-300'
                             }
                           >
-                            {s.confidence} ({s.score})
+                            {s.confidence === 'HIGH' ? t('sales_channels_mappings.suggestions.confidence.high') : s.confidence === 'MEDIUM' ? t('sales_channels_mappings.suggestions.confidence.medium') : t('sales_channels_mappings.suggestions.confidence.low')} ({s.score})
                           </span>
                         </td>
                       </tr>
@@ -603,16 +606,16 @@ export default function SalesChannelsMappingsPage() {
           className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
           <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            {editingId ? 'Edit mapping' : 'Create mapping'}
+              {t('sales_channels_mappings.form.edit_title')}
           </div>
           <label className="flex flex-col gap-1">
-            <span>Connection</span>
+            <span>{t('sales_channels_mappings.form.connection')}</span>
             <select
               value={selectedConnectionId}
               onChange={(e) => setSelectedConnectionId(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="">Select connection</option>
+              <option value="">{t('sales_channels_mappings.form.select_connection')}</option>
               {connections.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.channel})
@@ -621,7 +624,7 @@ export default function SalesChannelsMappingsPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span>External product ID</span>
+            <span>{t('sales_channels_mappings.form.external_product_id')}</span>
             <input
               type="text"
               value={formExternalProductId}
@@ -630,7 +633,7 @@ export default function SalesChannelsMappingsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>External product name</span>
+            <span>{t('sales_channels_mappings.form.external_product_name')}</span>
             <input
               type="text"
               value={formExternalProductName}
@@ -639,13 +642,13 @@ export default function SalesChannelsMappingsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Template</span>
+            <span>{t('sales_channels_mappings.form.template')}</span>
             <select
               value={formTemplateId}
               onChange={(e) => setFormTemplateId(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="">Select template</option>
+              <option value="">{t('sales_channels_mappings.form.select_template')}</option>
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -654,13 +657,13 @@ export default function SalesChannelsMappingsPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span>Template product preset (optional)</span>
+            <span>{t('sales_channels_mappings.form.template_product_optional')}</span>
             <select
               value={formTemplateProductId}
               onChange={(e) => setFormTemplateProductId(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="">(none)</option>
+              <option value="">{t('common.none')}</option>
               {templateProducts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -669,13 +672,13 @@ export default function SalesChannelsMappingsPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span>Material override (optional)</span>
+            <span>{t('sales_channels_mappings.form.material_override_optional')}</span>
             <select
               value={formMaterialId}
               onChange={(e) => setFormMaterialId(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="">Use template / variant default</option>
+              <option value="">{t('sales_channels_mappings.form.use_template_default')}</option>
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -684,7 +687,7 @@ export default function SalesChannelsMappingsPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span>Pricing mode</span>
+            <span>{t('sales_channels_mappings.form.pricing_mode')}</span>
             <select
               value={formPricingMode}
               onChange={(e) =>
@@ -694,13 +697,13 @@ export default function SalesChannelsMappingsPage() {
               }
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="USE_TEMPLATE_RULES">Use template rules</option>
-              <option value="EXTERNAL_PRICE_IGNORE">Ignore external price</option>
-              <option value="PRICE_OVERRIDE">Use external / override price</option>
+              <option value="USE_TEMPLATE_RULES">{t('sales_channels_mappings.form.pricing_mode_use_template')}</option>
+              <option value="EXTERNAL_PRICE_IGNORE">{t('sales_channels_mappings.form.pricing_mode_ignore_external')}</option>
+              <option value="PRICE_OVERRIDE">{t('sales_channels_mappings.form.pricing_mode_override')}</option>
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span>Price override (for PRICE_OVERRIDE)</span>
+            <span>{t('sales_channels_mappings.form.price_override')} ({t('sales_channels_mappings.for_price_override')})</span>
             <input
               type="number"
               min={0}
@@ -711,13 +714,13 @@ export default function SalesChannelsMappingsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Personalization mapping (JSON)</span>
+            <span>{t('sales_channels_mappings.form.personalization_mapping')}</span>
             <textarea
               rows={4}
               value={formPersonalizationJsonText}
               onChange={(e) => setFormPersonalizationJsonText(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-              placeholder='e.g. {"fields": {"name_text": "Name", "size": "Size"}}'
+              placeholder={t('sales_channels_mappings.form.personalization_placeholder')}
             />
           </label>
           {formError && <p className="text-[11px] text-red-400">{formError}</p>}
@@ -727,7 +730,7 @@ export default function SalesChannelsMappingsPage() {
               disabled={formSaving}
               className="rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {formSaving ? 'Saving…' : editingId ? 'Save changes' : 'Create mapping'}
+              {formSaving ? t('common.saving') : editingId ? t('sales_channels_mappings.form.update') : t('sales_channels_mappings.form.create')}
             </button>
             {editingId && (
               <button
@@ -735,7 +738,7 @@ export default function SalesChannelsMappingsPage() {
                 onClick={resetForm}
                 className="rounded-md border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-800"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             )}
           </div>
