@@ -145,7 +145,7 @@ export default function SalesChannelsMappingsPage() {
         setSelectedConnectionId(connectionsRes.data[0].id);
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load metadata';
+      const message = err?.response?.data?.message || t('sales_channels_mappings.failed_to_load_metadata');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
@@ -153,7 +153,7 @@ export default function SalesChannelsMappingsPage() {
   async function loadSuggestions() {
     if (!selectedConnectionId) {
       setSuggestions([]);
-      setSuggestionsError('Select a connection first to compute suggestions.');
+      setSuggestionsError(t('sales_channels_mappings.suggestions.select_connection_first'));
       return;
     }
     setSuggestionsLoading(true);
@@ -167,7 +167,7 @@ export default function SalesChannelsMappingsPage() {
       );
       setSuggestions(res.data.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load suggestions';
+      const message = err?.response?.data?.message || t('sales_channels_mappings.failed_to_load_suggestions');
       setSuggestionsError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setSuggestionsLoading(false);
@@ -193,7 +193,7 @@ export default function SalesChannelsMappingsPage() {
       );
       setMappings(res.data.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load product mappings';
+      const message = err?.response?.data?.message || t('sales_channels_mappings.failed_to_load_mappings');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -232,16 +232,16 @@ export default function SalesChannelsMappingsPage() {
 
   async function handleApplyHighConfidence() {
     if (!selectedConnectionId) {
-      setSuggestionsError('Select a connection first.');
+      setSuggestionsError(t('sales_channels_mappings.form.select_connection_first'));
       return;
     }
     const high = suggestions.filter((s) => s.score >= 80);
     if (high.length === 0) {
-      setSuggestionsError('No high-confidence suggestions available to apply.');
+      setSuggestionsError(t('sales_channels_mappings.suggestions.no_high_confidence'));
       return;
     }
     const confirmed = window.confirm(
-      `Apply ${high.length} high-confidence suggestions and create mappings?`,
+      t('sales_channels_mappings.suggestions.confirm_apply_high_confidence').replace('{0}', String(high.length)),
     );
     if (!confirmed) return;
 
@@ -262,7 +262,7 @@ export default function SalesChannelsMappingsPage() {
         setSuggestions((prev) => prev.filter((s) => !appliedIds.has(s.externalProductId)));
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to apply suggestions';
+      const message = err?.response?.data?.message || t('sales_channels_mappings.failed_to_apply_suggestions');
       setSuggestionsError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setApplySuggestionsLoading(false);
@@ -414,7 +414,7 @@ export default function SalesChannelsMappingsPage() {
             <option value="">{t('sales_channels_mappings.form.select_connection')}</option>
             {connections.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name} ({c.channel})
+                {c.name} ({t(`sales_channels.channel.${c.channel.toLowerCase()}` as any)})
               </option>
             ))}
           </select>
@@ -490,12 +490,16 @@ export default function SalesChannelsMappingsPage() {
                             {t('sales_channels_mappings.preset')}: {m.templateProduct.name}
                           </div>
                         )}
-                        {m.material && (
-                          <div className="text-[11px] text-slate-400">Material: {m.material.name}</div>
-                        )}
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-300">
-                        <div>{t('sales_channels_mappings.mode')}: {m.pricingMode}</div>
+                        <div>
+                          {t('sales_channels_mappings.mode')}:{' '}
+                          {m.pricingMode === 'USE_TEMPLATE_RULES'
+                            ? t('sales_channels_mappings.form.pricing_mode_use_template')
+                            : m.pricingMode === 'EXTERNAL_PRICE_IGNORE'
+                            ? t('sales_channels_mappings.form.pricing_mode_ignore_external')
+                            : t('sales_channels_mappings.form.pricing_mode_override')}
+                        </div>
                         {typeof m.priceOverride === 'number' && (
                           <div>{t('sales_channels_mappings.override')}: {m.priceOverride.toFixed(2)}</div>
                         )}
@@ -620,7 +624,7 @@ export default function SalesChannelsMappingsPage() {
               <option value="">{t('sales_channels_mappings.form.select_connection')}</option>
               {connections.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.channel})
+                  {c.name} ({t(`sales_channels.channel.${c.channel.toLowerCase()}` as any)})
                 </option>
               ))}
             </select>

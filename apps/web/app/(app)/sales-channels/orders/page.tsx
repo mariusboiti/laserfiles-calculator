@@ -230,7 +230,7 @@ export default function SalesChannelsOrdersPage() {
             <option value="">{t('sales_channels_orders.filters.all_connections')}</option>
             {connections.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name} ({c.channel})
+                {c.name} ({t(`sales_channels.channel.${c.channel.toLowerCase()}` as any)})
               </option>
             ))}
           </select>
@@ -289,7 +289,7 @@ export default function SalesChannelsOrdersPage() {
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
                         <div>{o.connection.name}</div>
-                        <div className="text-[11px] text-slate-500">{o.connection.channel}</div>
+                        <div className="text-[11px] text-slate-500">{t(`sales_channels.channel.${o.connection.channel.toLowerCase()}` as any)}</div>
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span
@@ -359,7 +359,7 @@ export default function SalesChannelsOrdersPage() {
               <div className="text-xs text-slate-200">
                 <div className="font-medium">#{selectedOrder.externalOrderNumber}</div>
                 <div className="text-[11px] text-slate-400">
-                  {selectedOrder.connection.name} ({selectedOrder.connection.channel})
+                  {selectedOrder.connection.name} ({t(`sales_channels.channel.${selectedOrder.connection.channel.toLowerCase()}` as any)})
                 </div>
                 {selectedOrder.externalStatus && (
                   <div className="text-[11px] text-slate-400">

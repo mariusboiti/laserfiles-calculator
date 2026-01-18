@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { apiClient } from '../../../lib/api-client';
+import { useT } from '../i18n';
 
 interface StoreConnection {
   id: string;
@@ -21,6 +22,7 @@ interface StoreConnection {
 }
 
 export default function SalesChannelsPage() {
+  const t = useT();
   const [connections, setConnections] = useState<StoreConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export default function SalesChannelsPage() {
       const res = await apiClient.get<StoreConnection[]>('/sales-channels/connections');
       setConnections(res.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load connections';
+      const message = err?.response?.data?.message || t('sales_channels.failed_to_load_connections');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -69,7 +71,7 @@ export default function SalesChannelsPage() {
     e.preventDefault();
     setWooMessage(null);
     if (!wooName.trim() || !wooStoreUrl.trim()) {
-      setWooMessage('Name and store URL are required.');
+      setWooMessage(t('sales_channels.woo.validation.name_store_url_required'));
       return;
     }
     setWooCreating(true);
@@ -92,7 +94,7 @@ export default function SalesChannelsPage() {
       };
       const res = await apiClient.post<StoreConnection>('/sales-channels/connections', body);
       setConnections((prev) => [res.data, ...prev]);
-      setWooMessage('WooCommerce connection saved. You can test it and run Sync later.');
+      setWooMessage(t('sales_channels.woo.saved_message'));
       setWooName('');
       setWooStoreUrl('');
       setWooApiKey('');
@@ -100,7 +102,7 @@ export default function SalesChannelsPage() {
       setWooEnableStatusPush(false);
       setWooShippedStatusValue('');
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create WooCommerce connection';
+      const message = err?.response?.data?.message || t('sales_channels.woo.failed_to_create');
       setWooMessage(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setWooCreating(false);
@@ -111,7 +113,7 @@ export default function SalesChannelsPage() {
     e.preventDefault();
     setEtsyMessage(null);
     if (!etsyName.trim() || !etsyToken.trim()) {
-      setEtsyMessage('Name and access token are required.');
+      setEtsyMessage(t('sales_channels.etsy.validation.name_token_required'));
       return;
     }
     setEtsyCreating(true);
@@ -133,14 +135,14 @@ export default function SalesChannelsPage() {
       };
       const res = await apiClient.post<StoreConnection>('/sales-channels/connections', body);
       setConnections((prev) => [res.data, ...prev]);
-      setEtsyMessage('Etsy connection saved. You can upgrade to full OAuth later.');
+      setEtsyMessage(t('sales_channels.etsy.saved_message'));
       setEtsyName('');
       setEtsyToken('');
       setEtsyShopId('');
       setEtsyEnableStatusPush(false);
       setEtsyShippedStatusValue('');
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create Etsy connection';
+      const message = err?.response?.data?.message || t('sales_channels.etsy.failed_to_create');
       setEtsyMessage(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setEtsyCreating(false);
@@ -151,7 +153,7 @@ export default function SalesChannelsPage() {
     e.preventDefault();
     setCsvMessage(null);
     if (!csvText.trim()) {
-      setCsvMessage('Paste a CSV text with at least one line.');
+      setCsvMessage(t('sales_channels.csv.validation.paste_csv'));
       return;
     }
     setCsvImporting(true);
@@ -166,13 +168,15 @@ export default function SalesChannelsPage() {
         totalCsvRows: number;
       }>('/sales-channels/csv/import', body);
       setCsvMessage(
-        `Imported ${res.data.importedOrders} orders from ${res.data.totalCsvRows} CSV rows.`,
+        t('sales_channels.csv.imported_message')
+          .replace('{0}', String(res.data.importedOrders))
+          .replace('{1}', String(res.data.totalCsvRows)),
       );
       setCsvText('');
       setCsvName('');
       await loadConnections();
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to import CSV';
+      const message = err?.response?.data?.message || t('sales_channels.csv.failed_to_import');
       setCsvMessage(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setCsvImporting(false);
@@ -186,9 +190,9 @@ export default function SalesChannelsPage() {
         {},
       );
       await loadConnections();
-      alert(res.data.message || 'Test completed.');
+      alert(res.data.message || t('sales_channels.test_completed'));
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Test failed';
+      const message = err?.response?.data?.message || t('sales_channels.test_failed');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
@@ -202,11 +206,11 @@ export default function SalesChannelsPage() {
       await loadConnections();
       alert(
         res.data.imported
-          ? `Imported ${res.data.imported} orders.`
-          : 'Sync completed. No new orders found.',
+          ? t('sales_channels.sync_imported').replace('{0}', String(res.data.imported))
+          : t('sales_channels.sync_completed_no_new'),
       );
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Sync failed';
+      const message = err?.response?.data?.message || t('sales_channels.sync_failed');
       alert(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
@@ -214,10 +218,9 @@ export default function SalesChannelsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Sales Channels</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t('sales_channels.title')}</h1>
         <p className="mt-1 text-xs text-slate-400">
-          Connect your WooCommerce or Etsy store, or import CSV orders, and turn them into
-          production-ready workshop jobs.
+          {t('sales_channels.subtitle')}
         </p>
       </div>
 
@@ -226,12 +229,12 @@ export default function SalesChannelsPage() {
           onSubmit={handleCreateWoo}
           className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
-          <div className="text-sm font-medium text-slate-100">WooCommerce</div>
+          <div className="text-sm font-medium text-slate-100">{t('sales_channels.woo.title')}</div>
           <p className="text-[11px] text-slate-400">
-            Connect your Woo store. We&apos;ll use API keys or an access token to pull orders.
+            {t('sales_channels.woo.subtitle')}
           </p>
           <label className="flex flex-col gap-1">
-            <span>Name</span>
+            <span>{t('sales_channels.form.name')}</span>
             <input
               type="text"
               value={wooName}
@@ -240,17 +243,17 @@ export default function SalesChannelsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Store URL</span>
+            <span>{t('sales_channels.woo.store_url')}</span>
             <input
               type="text"
-              placeholder="https://example.com"
+              placeholder={t('sales_channels.woo.store_url_placeholder')}
               value={wooStoreUrl}
               onChange={(e) => setWooStoreUrl(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>API key (optional)</span>
+            <span>{t('sales_channels.woo.api_key_optional')}</span>
             <input
               type="text"
               value={wooApiKey}
@@ -259,7 +262,7 @@ export default function SalesChannelsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>API secret (optional)</span>
+            <span>{t('sales_channels.woo.api_secret_optional')}</span>
             <input
               type="password"
               value={wooApiSecret}
@@ -274,14 +277,14 @@ export default function SalesChannelsPage() {
               onChange={(e) => setWooEnableStatusPush(e.target.checked)}
               className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500"
             />
-            <span>Enable shipped status push (Woo → mark order as completed)</span>
+            <span>{t('sales_channels.woo.enable_status_push')}</span>
           </label>
           {wooEnableStatusPush && (
             <label className="flex flex-col gap-1">
-              <span>Woo shipped status value (optional)</span>
+              <span>{t('sales_channels.woo.shipped_status_value_optional')}</span>
               <input
                 type="text"
-                placeholder="completed"
+                placeholder={t('sales_channels.woo.shipped_status_value_placeholder')}
                 value={wooShippedStatusValue}
                 onChange={(e) => setWooShippedStatusValue(e.target.value)}
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
@@ -294,7 +297,7 @@ export default function SalesChannelsPage() {
             disabled={wooCreating}
             className="mt-1 rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {wooCreating ? 'Saving…' : 'Connect WooCommerce'}
+            {wooCreating ? t('common.saving') : t('sales_channels.woo.connect')}
           </button>
         </form>
 
@@ -302,12 +305,12 @@ export default function SalesChannelsPage() {
           onSubmit={handleCreateEtsy}
           className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
-          <div className="text-sm font-medium text-slate-100">Etsy</div>
+          <div className="text-sm font-medium text-slate-100">{t('sales_channels.etsy.title')}</div>
           <p className="text-[11px] text-slate-400">
-            Connect your Etsy shop using a token for now. Architecture is ready for OAuth later.
+            {t('sales_channels.etsy.subtitle')}
           </p>
           <label className="flex flex-col gap-1">
-            <span>Name</span>
+            <span>{t('sales_channels.form.name')}</span>
             <input
               type="text"
               value={etsyName}
@@ -316,7 +319,7 @@ export default function SalesChannelsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Access token</span>
+            <span>{t('sales_channels.etsy.access_token')}</span>
             <input
               type="password"
               value={etsyToken}
@@ -325,7 +328,7 @@ export default function SalesChannelsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Shop ID (optional)</span>
+            <span>{t('sales_channels.etsy.shop_id_optional')}</span>
             <input
               type="text"
               value={etsyShopId}
@@ -340,14 +343,14 @@ export default function SalesChannelsPage() {
               onChange={(e) => setEtsyEnableStatusPush(e.target.checked)}
               className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500"
             />
-            <span>Enable shipped status push (Etsy)</span>
+            <span>{t('sales_channels.etsy.enable_status_push')}</span>
           </label>
           {etsyEnableStatusPush && (
             <label className="flex flex-col gap-1">
-              <span>Etsy shipped status value (optional)</span>
+              <span>{t('sales_channels.etsy.shipped_status_value_optional')}</span>
               <input
                 type="text"
-                placeholder="shipped"
+                placeholder={t('sales_channels.etsy.shipped_status_value_placeholder')}
                 value={etsyShippedStatusValue}
                 onChange={(e) => setEtsyShippedStatusValue(e.target.value)}
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
@@ -360,7 +363,7 @@ export default function SalesChannelsPage() {
             disabled={etsyCreating}
             className="mt-1 rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {etsyCreating ? 'Saving…' : 'Connect Etsy'}
+            {etsyCreating ? t('common.saving') : t('sales_channels.etsy.connect')}
           </button>
         </form>
 
@@ -368,13 +371,12 @@ export default function SalesChannelsPage() {
           onSubmit={handleImportCsv}
           className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
-          <div className="text-sm font-medium text-slate-100">CSV Import</div>
+          <div className="text-sm font-medium text-slate-100">{t('sales_channels.csv.title')}</div>
           <p className="text-[11px] text-slate-400">
-            Paste a CSV export from any store. We create temporary connections and import orders
-            into the review queue.
+            {t('sales_channels.csv.subtitle')}
           </p>
           <label className="flex flex-col gap-1">
-            <span>Connection name (optional)</span>
+            <span>{t('sales_channels.csv.connection_name_optional')}</span>
             <input
               type="text"
               value={csvName}
@@ -383,13 +385,13 @@ export default function SalesChannelsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>CSV content</span>
+            <span>{t('sales_channels.csv.content')}</span>
             <textarea
               rows={6}
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-              placeholder="external_order_number,customer_name,item_title,quantity,personalization_text,external_product_id\n1234,John Doe,Invitatie Model X,2,Name=John,SKU-INV-X"
+              placeholder={t('sales_channels.csv.placeholder')}
             />
           </label>
           {csvMessage && <p className="text-[11px] text-slate-300">{csvMessage}</p>}
@@ -398,7 +400,7 @@ export default function SalesChannelsPage() {
             disabled={csvImporting}
             className="mt-1 rounded-md bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {csvImporting ? 'Importing…' : 'Import CSV'}
+            {csvImporting ? t('sales_channels.csv.importing') : t('sales_channels.csv.import')}
           </button>
         </form>
       </div>
@@ -406,25 +408,25 @@ export default function SalesChannelsPage() {
       <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Existing connections
+            {t('sales_channels.connections.title')}
           </div>
-          {loading && <div className="text-[11px] text-slate-400">Loading…</div>}
+          {loading && <div className="text-[11px] text-slate-400">{t('common.loading')}</div>}
         </div>
         {error && <p className="text-[11px] text-red-400">{error}</p>}
         {!loading && !error && connections.length === 0 && (
-          <p className="text-[11px] text-slate-400">No connections yet.</p>
+          <p className="text-[11px] text-slate-400">{t('sales_channels.connections.none_found')}</p>
         )}
         {!loading && !error && connections.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/60">
             <table className="min-w-full text-left text-xs text-slate-200">
               <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                 <tr>
-                  <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">Channel</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Import health</th>
-                  <th className="px-3 py-2">Last sync</th>
-                  <th className="px-3 py-2">Actions</th>
+                  <th className="px-3 py-2">{t('sales_channels.connections.table.name')}</th>
+                  <th className="px-3 py-2">{t('sales_channels.connections.table.channel')}</th>
+                  <th className="px-3 py-2">{t('sales_channels.connections.table.status')}</th>
+                  <th className="px-3 py-2">{t('sales_channels.connections.table.import_health')}</th>
+                  <th className="px-3 py-2">{t('sales_channels.connections.table.last_sync')}</th>
+                  <th className="px-3 py-2">{t('sales_channels.connections.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -433,7 +435,9 @@ export default function SalesChannelsPage() {
                     <td className="px-3 py-2 align-top text-xs font-medium text-slate-100">
                       {c.name}
                     </td>
-                    <td className="px-3 py-2 align-top text-xs text-slate-300">{c.channel}</td>
+                    <td className="px-3 py-2 align-top text-xs text-slate-300">
+                      {t(`sales_channels.channel.${c.channel.toLowerCase()}` as any)}
+                    </td>
                     <td className="px-3 py-2 align-top">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-[11px] ${
@@ -444,7 +448,7 @@ export default function SalesChannelsPage() {
                             : 'bg-slate-800 text-slate-300'
                         }`}
                       >
-                        {c.status}
+                        {t(`sales_channels.connection_status.${c.status.toLowerCase()}` as any)}
                       </span>
                     </td>
                     <td className="px-3 py-2 align-top text-[11px] text-slate-300">
@@ -461,31 +465,37 @@ export default function SalesChannelsPage() {
                           }`}
                         >
                           {c.importHealth === 'OK'
-                            ? 'Healthy'
+                            ? t('sales_channels.import_health.ok')
                             : c.importHealth === 'STALE'
-                            ? 'Stale'
+                            ? t('sales_channels.import_health.stale')
                             : c.importHealth === 'ERROR'
-                            ? 'Issues'
-                            : 'No data'}
+                            ? t('sales_channels.import_health.issues')
+                            : t('sales_channels.import_health.no_data')}
                         </span>
                       </div>
                       {c.externalOrderStats && (
                         <div className="space-y-0.5 text-[11px] text-slate-400">
-                          <div>Imported: {c.externalOrderStats.total}</div>
-                          <div>Needs review: {c.externalOrderStats.needsReview}</div>
+                          <div>
+                            {t('sales_channels.stats.imported').replace('{0}', String(c.externalOrderStats.total))}
+                          </div>
+                          <div>
+                            {t('sales_channels.stats.needs_review').replace('{0}', String(c.externalOrderStats.needsReview))}
+                          </div>
                           {c.externalOrderStats.ignored > 0 && (
-                            <div>Ignored: {c.externalOrderStats.ignored}</div>
+                            <div>
+                              {t('sales_channels.stats.ignored').replace('{0}', String(c.externalOrderStats.ignored))}
+                            </div>
                           )}
                           {c.externalOrderStats.error > 0 && (
                             <div className="text-red-300">
-                              Error: {c.externalOrderStats.error}
+                              {t('sales_channels.stats.error').replace('{0}', String(c.externalOrderStats.error))}
                             </div>
                           )}
                         </div>
                       )}
                     </td>
                     <td className="px-3 py-2 align-top text-[11px] text-slate-400">
-                      {c.lastSyncAt ? new Date(c.lastSyncAt).toLocaleString() : 'Never'}
+                      {c.lastSyncAt ? new Date(c.lastSyncAt).toLocaleString() : t('sales_channels.never')}
                     </td>
                     <td className="px-3 py-2 align-top text-[11px] text-slate-300">
                       <button
@@ -493,14 +503,14 @@ export default function SalesChannelsPage() {
                         onClick={() => handleTestConnection(c.id)}
                         className="mr-2 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] hover:bg-slate-800"
                       >
-                        Test
+                        {t('sales_channels.actions.test')}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleSyncConnection(c.id)}
                         className="rounded-md border border-sky-600 px-2 py-0.5 text-[11px] text-sky-300 hover:bg-sky-900/40"
                       >
-                        Sync now
+                        {t('sales_channels.actions.sync_now')}
                       </button>
                     </td>
                   </tr>
