@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api-client';
+import { useT } from '../../i18n';
 
 interface StoreConnection {
   id: string;
@@ -89,6 +90,7 @@ interface ApplySuggestionsResponse {
 }
 
 export default function SalesChannelsMappingsPage() {
+  const t = useT();
   const [connections, setConnections] = useState<StoreConnection[]>([]);
   const [mappings, setMappings] = useState<ExternalProductMapping[]>([]);
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
