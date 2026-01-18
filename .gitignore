@@ -31,5 +31,19 @@ docker-data
 # logs
 *.log
 
+# i18n sync scratch files
+*.tmp
+*.bak
+*.patch
+*_keys*.txt
+*_missing*.txt
+*_lines*.txt
+*_block*.txt
+*_block.tmp
+all_en_keys.txt
+sales_channels_all_en.txt
+sales_channels_keys_en.txt
+sync_i18n.py
+
 # explicitly keep the workspace lockfile tracked
 !pnpm-lock.yaml

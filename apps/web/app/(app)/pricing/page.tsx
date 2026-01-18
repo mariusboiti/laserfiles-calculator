@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { apiClient } from '../../../lib/api-client';
 import { useT } from '../i18n';
+import { useEntitlement } from '@/lib/entitlements/client';
 
 interface MaterialListItem {
   id: string;
@@ -57,6 +58,7 @@ interface PricePreviewResult {
 
 export default function PricingPage() {
   const t = useT();
+  const { entitlement, loading: entitlementLoading, error: entitlementError } = useEntitlement();
   const [materials, setMaterials] = useState<MaterialListItem[]>([]);
   const [materialsLoading, setMaterialsLoading] = useState(true);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
@@ -83,8 +85,15 @@ export default function PricingPage() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const entitlementPlan = entitlement?.plan ?? null;
+  const canUsePricing = entitlementPlan === 'TRIALING' || entitlementPlan === 'ACTIVE';
+
   useEffect(() => {
     async function loadMaterials() {
+      if (!canUsePricing) {
+        setMaterialsLoading(false);
+        return;
+      }
       setMaterialsLoading(true);
       setMaterialsError(null);
       try {
@@ -102,10 +111,14 @@ export default function PricingPage() {
     }
 
     loadMaterials();
-  }, [materialId]);
+  }, [materialId, canUsePricing]);
 
   useEffect(() => {
     async function loadCustomers() {
+      if (!canUsePricing) {
+        setCustomersLoading(false);
+        return;
+      }
       setCustomersLoading(true);
       setCustomersError(null);
       try {
@@ -122,10 +135,11 @@ export default function PricingPage() {
     }
 
     loadCustomers();
-  }, []);
+  }, [canUsePricing]);
 
   async function handleCalculate(e: FormEvent) {
     e.preventDefault();
+    if (!canUsePricing) return;
     if (!materialId) {
       setPreviewError(t('pricing.validation.select_material'));
       return;
@@ -161,6 +175,7 @@ export default function PricingPage() {
   }
 
   async function handleSaveQuote() {
+    if (!canUsePricing) return;
     if (!preview) {
       setSaveError(t('pricing.validation.nothing_to_save'));
       return;
@@ -198,6 +213,23 @@ export default function PricingPage() {
     } finally {
       setSavingQuote(false);
     }
+  }
+
+  if (entitlementLoading) {
+    return <p className="text-sm text-slate-400">{t('common.loading')}</p>;
+  }
+
+  if (entitlementError) {
+    return <p className="text-sm text-red-400">{entitlementError}</p>;
+  }
+
+  if (!canUsePricing) {
+    return (
+      <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <h1 className="text-lg font-semibold tracking-tight text-slate-100">{t('pricing.locked_title')}</h1>
+        <p className="text-sm text-slate-400">{t('pricing.locked_desc')}</p>
+      </div>
+    );
   }
 
   return (
