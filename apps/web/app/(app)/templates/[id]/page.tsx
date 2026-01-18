@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api-client';
+import { useT } from '../../i18n';
 
 type TemplateFieldType = 'TEXT' | 'NUMBER' | 'CHOICE';
 type TemplateRuleType =
@@ -76,6 +77,7 @@ interface TemplateDetail {
 }
 
 export default function TemplateDetailPage() {
+  const t = useT();
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
@@ -155,11 +157,9 @@ export default function TemplateDetailPage() {
       } catch (err: any) {
         const data = err?.response?.data;
         if (data?.code === 'FEATURE_LOCKED') {
-          setError(
-            'Templates are not available on your current plan. Upgrade your membership to view and edit templates.',
-          );
+          setError(t('templates.feature_locked'));
         } else {
-          const message = data?.message || 'Failed to load template';
+          const message = data?.message || t('template_detail.failed_to_load');
           setError(Array.isArray(message) ? message.join(', ') : String(message));
         }
       } finally {
@@ -192,7 +192,7 @@ export default function TemplateDetailPage() {
       const res = await apiClient.patch<TemplateDetail>(`/templates/${id}`, body);
       setTemplate(res.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update template';
+      const message = err?.response?.data?.message || t('template_detail.failed_to_update');
       setDetailsError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setSavingDetails(false);
@@ -203,7 +203,7 @@ export default function TemplateDetailPage() {
     e.preventDefault();
     if (!id) return;
     if (!newVariantName.trim()) {
-      setVariantsError('Variant name is required');
+      setVariantsError(t('template_detail.validation.variant_name_required'));
       return;
     }
 
@@ -223,11 +223,9 @@ export default function TemplateDetailPage() {
     } catch (err: any) {
       const data = err?.response?.data;
       if (data?.code === 'FEATURE_LOCKED') {
-        setVariantsError(
-          'You cannot modify templates on your current plan. Upgrade your membership to add variants.',
-        );
+        setVariantsError(t('template_detail.variants.feature_locked'));
       } else {
-        const message = data?.message || 'Failed to create variant';
+        const message = data?.message || t('template_detail.variants.failed_to_create');
         setVariantsError(Array.isArray(message) ? message.join(', ') : String(message));
       }
     } finally {
@@ -254,7 +252,7 @@ export default function TemplateDetailPage() {
     e.preventDefault();
     if (!id) return;
     if (!newFieldKey.trim() || !newFieldLabel.trim()) {
-      setFieldsError('Key and label are required');
+      setFieldsError(t('template_detail.validation.field_key_label_required'));
       return;
     }
 
@@ -275,11 +273,9 @@ export default function TemplateDetailPage() {
     } catch (err: any) {
       const data = err?.response?.data;
       if (data?.code === 'FEATURE_LOCKED') {
-        setFieldsError(
-          'You cannot modify templates on your current plan. Upgrade your membership to add personalization fields.',
-        );
+        setFieldsError(t('template_detail.fields.feature_locked'));
       } else {
-        const message = data?.message || 'Failed to create field';
+        const message = data?.message || t('template_detail.fields.failed_to_create');
         setFieldsError(Array.isArray(message) ? message.join(', ') : String(message));
       }
     } finally {
@@ -305,7 +301,7 @@ export default function TemplateDetailPage() {
     e.preventDefault();
     if (!id) return;
     if (!fieldEditLabel.trim()) {
-      setFieldEditError('Label is required');
+      setFieldEditError(t('template_detail.validation.label_required'));
       return;
     }
 
@@ -325,7 +321,7 @@ export default function TemplateDetailPage() {
       setFields((prev) => prev.map((f) => (f.id === fieldId ? res.data : f)));
       setEditingFieldId(null);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update field';
+      const message = err?.response?.data?.message || t('template_detail.fields.failed_to_update');
       setFieldEditError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setFieldEditSaving(false);
@@ -337,7 +333,7 @@ export default function TemplateDetailPage() {
     if (!id) return;
     const value = Number(newRuleValue);
     if (!value || Number.isNaN(value)) {
-      setRulesError('Rule value must be a number');
+      setRulesError(t('template_detail.validation.rule_value_number'));
       return;
     }
 
@@ -361,11 +357,9 @@ export default function TemplateDetailPage() {
     } catch (err: any) {
       const data = err?.response?.data;
       if (data?.code === 'FEATURE_LOCKED') {
-        setRulesError(
-          'You cannot modify templates on your current plan. Upgrade your membership to add pricing rules.',
-        );
+        setRulesError(t('template_detail.pricing_rules.feature_locked'));
       } else {
-        const message = data?.message || 'Failed to create pricing rule';
+        const message = data?.message || t('template_detail.pricing_rules.failed_to_create');
         setRulesError(Array.isArray(message) ? message.join(', ') : String(message));
       }
     } finally {
@@ -393,7 +387,7 @@ export default function TemplateDetailPage() {
 
     const valueNum = Number(ruleEditValue);
     if (!valueNum || Number.isNaN(valueNum)) {
-      setRuleEditError('Rule value must be a number');
+      setRuleEditError(t('template_detail.validation.rule_value_number'));
       return;
     }
 
@@ -402,7 +396,7 @@ export default function TemplateDetailPage() {
       ruleEditPriority &&
       (Number.isNaN(priorityNum) || !Number.isFinite(priorityNum as number))
     ) {
-      setRuleEditError('Priority must be a number');
+      setRuleEditError(t('template_detail.validation.priority_number'));
       return;
     }
 
@@ -429,7 +423,7 @@ export default function TemplateDetailPage() {
       );
       setEditingRuleId(null);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update pricing rule';
+      const message = err?.response?.data?.message || t('template_detail.pricing_rules.failed_to_update');
       setRuleEditError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setRuleEditSaving(false);
@@ -437,11 +431,11 @@ export default function TemplateDetailPage() {
   }
 
   if (!id) {
-    return <p className="text-sm text-red-400">Missing template id in URL.</p>;
+    return <p className="text-sm text-red-400">{t('template_detail.missing_id')}</p>;
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-400">Loading template...</p>;
+    return <p className="text-sm text-slate-400">{t('template_detail.loading')}</p>;
   }
 
   if (error) {
@@ -449,7 +443,7 @@ export default function TemplateDetailPage() {
   }
 
   if (!template) {
-    return <p className="text-sm text-slate-400">Template not found.</p>;
+    return <p className="text-sm text-slate-400">{t('template_detail.not_found')}</p>;
   }
 
   return (
@@ -458,17 +452,19 @@ export default function TemplateDetailPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Link href="/templates" className="text-sky-400 hover:underline">
-              Templates
+              {t('templates.title')}
             </Link>
             <span>/</span>
             <span>{template.name}</span>
           </div>
           <h1 className="mt-1 text-xl font-semibold tracking-tight">{template.name}</h1>
-          <p className="text-xs text-slate-400">Slug: {template.slug}</p>
+          <p className="text-xs text-slate-400">
+            {t('template_detail.slug_prefix').replace('{0}', template.slug)}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
-            {template.isActive ? 'Active' : 'Inactive'}
+            {template.isActive ? t('common.active') : t('common.inactive')}
           </span>
           {template.category && (
             <span className="inline-flex rounded-full bg-slate-800 px-2 py-0.5">
@@ -479,7 +475,7 @@ export default function TemplateDetailPage() {
             href={`/template-products?templateId=${template.id}`}
             className="inline-flex items-center rounded-full bg-emerald-600/20 px-2 py-0.5 text-emerald-300 hover:bg-emerald-600/30"
           >
-            Create Template Product
+            {t('template_detail.create_template_product')}
           </Link>
         </div>
       </div>
@@ -495,7 +491,7 @@ export default function TemplateDetailPage() {
                 : 'bg-slate-900/40 text-slate-300 hover:text-slate-100'
             }`}
           >
-            Details
+            {t('template_detail.tabs.details')}
           </button>
           <button
             type="button"
@@ -506,7 +502,7 @@ export default function TemplateDetailPage() {
                 : 'bg-slate-900/40 text-slate-300 hover:text-slate-100'
             }`}
           >
-            Variants
+            {t('template_detail.tabs.variants')}
           </button>
           <button
             type="button"
@@ -517,7 +513,7 @@ export default function TemplateDetailPage() {
                 : 'bg-slate-900/40 text-slate-300 hover:text-slate-100'
             }`}
           >
-            Fields
+            {t('template_detail.tabs.fields')}
           </button>
           <button
             type="button"
@@ -528,7 +524,7 @@ export default function TemplateDetailPage() {
                 : 'bg-slate-900/40 text-slate-300 hover:text-slate-100'
             }`}
           >
-            Pricing rules
+            {t('template_detail.tabs.pricing_rules')}
           </button>
         </nav>
       </div>
@@ -540,7 +536,7 @@ export default function TemplateDetailPage() {
         >
           <div className="grid gap-3 md:grid-cols-2">
             <label className="flex flex-col gap-1">
-              <span>Name *</span>
+              <span>{t('template_detail.form.name')}</span>
               <input
                 type="text"
                 value={template.name}
@@ -550,7 +546,7 @@ export default function TemplateDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>Slug</span>
+              <span>{t('template_detail.form.slug')}</span>
               <input
                 type="text"
                 value={template.slug}
@@ -559,7 +555,7 @@ export default function TemplateDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>Category</span>
+              <span>{t('template_detail.form.category')}</span>
               <select
                 value={template.categoryId ?? ''}
                 onChange={(e) =>
@@ -570,7 +566,7 @@ export default function TemplateDetailPage() {
                 }
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
               >
-                <option value="">(none)</option>
+                <option value="">{t('common.none')}</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -579,7 +575,7 @@ export default function TemplateDetailPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span>Default material</span>
+              <span>{t('template_detail.form.default_material')}</span>
               <select
                 value={template.defaultMaterialId ?? ''}
                 onChange={(e) =>
@@ -590,7 +586,7 @@ export default function TemplateDetailPage() {
                 }
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
               >
-                <option value="">(none)</option>
+                <option value="">{t('common.none')}</option>
                 {materials.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -599,7 +595,7 @@ export default function TemplateDetailPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span>Base width (mm)</span>
+              <span>{t('template_detail.form.base_width_mm')}</span>
               <input
                 type="number"
                 min={1}
@@ -614,7 +610,7 @@ export default function TemplateDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>Base height (mm)</span>
+              <span>{t('template_detail.form.base_height_mm')}</span>
               <input
                 type="number"
                 min={1}
@@ -629,7 +625,7 @@ export default function TemplateDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>Layers count</span>
+              <span>{t('template_detail.form.layers_count')}</span>
               <input
                 type="number"
                 min={1}
@@ -650,11 +646,11 @@ export default function TemplateDetailPage() {
                 onChange={(e) => setTemplate({ ...template, isActive: e.target.checked })}
                 className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
               />
-              <span>Template is active</span>
+              <span>{t('template_detail.form.is_active')}</span>
             </label>
           </div>
           <label className="flex flex-col gap-1">
-            <span>Description</span>
+            <span>{t('template_detail.form.description')}</span>
             <textarea
               value={template.description ?? ''}
               onChange={(e) => setTemplate({ ...template, description: e.target.value || null })}
@@ -668,7 +664,7 @@ export default function TemplateDetailPage() {
             disabled={savingDetails}
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {savingDetails ? 'Saving…' : 'Save changes'}
+            {savingDetails ? t('common.saving') : t('common.save_changes')}
           </button>
         </form>
       )}
@@ -680,10 +676,10 @@ export default function TemplateDetailPage() {
             className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
           >
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Add variant
+              {t('template_detail.variants.add_variant')}
             </div>
             <label className="flex flex-col gap-1">
-              <span>Name *</span>
+              <span>{t('template_detail.form.name')}</span>
               <input
                 type="text"
                 value={newVariantName}
@@ -693,13 +689,13 @@ export default function TemplateDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>Default material</span>
+              <span>{t('template_detail.form.default_material')}</span>
               <select
                 value={newVariantMaterialId}
                 onChange={(e) => setNewVariantMaterialId(e.target.value)}
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
               >
-                <option value="">(none)</option>
+                <option value="">{t('common.none')}</option>
                 {materials.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -713,19 +709,21 @@ export default function TemplateDetailPage() {
               disabled={savingVariant}
               className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {savingVariant ? 'Saving…' : 'Add variant'}
+              {savingVariant ? t('common.saving') : t('template_detail.variants.add_variant')}
             </button>
           </form>
 
           <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
             <div className="mb-1 flex items-center justify-between gap-2">
               <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Variants
+                {t('template_detail.tabs.variants')}
               </div>
-              <div className="text-[11px] text-slate-500">Total: {variants.length}</div>
+              <div className="text-[11px] text-slate-500">
+                {t('common.total').replace('{0}', String(variants.length))}
+              </div>
             </div>
             {variants.length === 0 && (
-              <p className="text-xs text-slate-400">No variants yet.</p>
+              <p className="text-xs text-slate-400">{t('template_detail.variants.none_found')}</p>
             )}
             {variants.length > 0 && (
               <ul className="space-y-2 text-xs">
@@ -740,7 +738,7 @@ export default function TemplateDetailPage() {
                         {v.defaultMaterialId
                           ? materials.find((m) => m.id === v.defaultMaterialId)?.name ||
                             v.defaultMaterialId
-                          : 'No material'}
+                          : t('template_detail.variants.no_material')}
                       </div>
                     </div>
                     <button
@@ -748,7 +746,7 @@ export default function TemplateDetailPage() {
                       onClick={() => toggleVariantActive(v)}
                       className="text-[11px] text-sky-400 hover:text-sky-300"
                     >
-                      {v.isActive ? 'Disable' : 'Enable'}
+                      {v.isActive ? t('common.disable') : t('common.enable')}
                     </button>
                   </li>
                 ))}
@@ -765,10 +763,10 @@ export default function TemplateDetailPage() {
             className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
           >
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Add field
+              {t('template_detail.fields.add_field')}
             </div>
             <label className="flex flex-col gap-1">
-              <span>Key *</span>
+              <span>{t('template_detail.fields.key')}</span>
               <input
                 type="text"
                 value={newFieldKey}
@@ -778,7 +776,7 @@ export default function TemplateDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>Label *</span>
+              <span>{t('template_detail.fields.label')}</span>
               <input
                 type="text"
                 value={newFieldLabel}
@@ -788,7 +786,7 @@ export default function TemplateDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>Type</span>
+              <span>{t('template_detail.fields.type')}</span>
               <select
                 value={newFieldType}
                 onChange={(e) => setNewFieldType(e.target.value as TemplateFieldType)}
@@ -806,7 +804,7 @@ export default function TemplateDetailPage() {
                 onChange={(e) => setNewFieldRequired(e.target.checked)}
                 className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
               />
-              <span>Required</span>
+              <span>{t('template_detail.fields.required')}</span>
             </label>
             {fieldsError && <p className="text-[11px] text-red-400">{fieldsError}</p>}
             <button
@@ -814,18 +812,22 @@ export default function TemplateDetailPage() {
               disabled={savingField}
               className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {savingField ? 'Saving…' : 'Add field'}
+              {savingField ? t('common.saving') : t('template_detail.fields.add_field')}
             </button>
           </form>
 
           <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
             <div className="mb-1 flex items-center justify-between gap-2">
               <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Fields
+                {t('template_detail.tabs.fields')}
               </div>
-              <div className="text-[11px] text-slate-500">Total: {fields.length}</div>
+              <div className="text-[11px] text-slate-500">
+                {t('common.total').replace('{0}', String(fields.length))}
+              </div>
             </div>
-            {fields.length === 0 && <p className="text-xs text-slate-400">No fields yet.</p>}
+            {fields.length === 0 && (
+              <p className="text-xs text-slate-400">{t('template_detail.fields.none_found')}</p>
+            )}
             {fields.length > 0 && (
               <ul className="space-y-2 text-xs">
                 {fields.map((f) => (
@@ -840,7 +842,7 @@ export default function TemplateDetailPage() {
                       >
                         <div className="grid gap-2 md:grid-cols-2">
                           <label className="flex flex-col gap-1">
-                            <span>Label</span>
+                            <span>{t('template_detail.fields.label')}</span>
                             <input
                               type="text"
                               value={fieldEditLabel}
@@ -850,7 +852,7 @@ export default function TemplateDetailPage() {
                             />
                           </label>
                           <div className="flex flex-col gap-1">
-                            <span className="text-slate-300">Options</span>
+                            <span className="text-slate-300">{t('template_detail.fields.options')}</span>
                             <div className="flex flex-wrap gap-2 text-[11px]">
                               <label className="inline-flex items-center gap-1">
                                 <input
@@ -861,7 +863,7 @@ export default function TemplateDetailPage() {
                                   }
                                   className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
                                 />
-                                <span>Required</span>
+                                <span>{t('template_detail.fields.required')}</span>
                               </label>
                               <label className="inline-flex items-center gap-1">
                                 <input
@@ -872,7 +874,7 @@ export default function TemplateDetailPage() {
                                   }
                                   className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
                                 />
-                                <span>Affects pricing</span>
+                                <span>{t('template_detail.fields.affects_pricing')}</span>
                               </label>
                               <label className="inline-flex items-center gap-1">
                                 <input
@@ -885,14 +887,16 @@ export default function TemplateDetailPage() {
                                   }
                                   className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
                                 />
-                                <span>In notes</span>
+                                <span>{t('template_detail.fields.in_notes')}</span>
                               </label>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-[11px] text-slate-400">
-                            Type: {f.fieldType} • Key: {f.key}
+                            {t('template_detail.fields.type_key_line')
+                              .replace('{0}', String(f.fieldType))
+                              .replace('{1}', String(f.key))}
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -900,14 +904,14 @@ export default function TemplateDetailPage() {
                               onClick={cancelEditField}
                               className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
                             >
-                              Cancel
+                              {t('common.cancel')}
                             </button>
                             <button
                               type="submit"
                               disabled={fieldEditSaving}
                               className="rounded-md bg-sky-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {fieldEditSaving ? 'Saving…' : 'Save'}
+                              {fieldEditSaving ? t('common.saving') : t('common.save')}
                             </button>
                           </div>
                         </div>
@@ -919,22 +923,28 @@ export default function TemplateDetailPage() {
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <div className="font-medium text-slate-100">{f.label}</div>
-                          <div className="text-[11px] text-slate-400">Key: {f.key}</div>
+                          <div className="text-[11px] text-slate-400">
+                            {t('template_detail.fields.key_prefix').replace('{0}', String(f.key))}
+                          </div>
                           <div className="text-[11px] text-slate-500">
-                            {f.affectsPricing && 'Affects pricing'}
+                            {f.affectsPricing && t('template_detail.fields.affects_pricing')}
                             {f.affectsPricing && f.affectsProductionNotes && ' • '}
-                            {f.affectsProductionNotes && 'In production notes'}
+                            {f.affectsProductionNotes && t('template_detail.fields.in_production_notes')}
                           </div>
                         </div>
                         <div className="text-right text-[11px] text-slate-400">
-                          <div>Type: {f.fieldType}</div>
-                          <div>{f.required ? 'Required' : 'Optional'}</div>
+                          <div>
+                            {t('template_detail.fields.type_prefix').replace('{0}', String(f.fieldType))}
+                          </div>
+                          <div>
+                            {f.required ? t('common.required') : t('common.optional')}
+                          </div>
                           <button
                             type="button"
                             onClick={() => startEditField(f)}
                             className="mt-1 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
                           >
-                            Edit
+                            {t('common.edit')}
                           </button>
                         </div>
                       </div>
@@ -954,10 +964,10 @@ export default function TemplateDetailPage() {
             className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
           >
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Add pricing rule
+              {t('template_detail.pricing_rules.add_rule')}
             </div>
             <label className="flex flex-col gap-1">
-              <span>Type</span>
+              <span>{t('template_detail.pricing_rules.type')}</span>
               <select
                 value={newRuleType}
                 onChange={(e) => setNewRuleType(e.target.value as TemplateRuleType)}
@@ -972,7 +982,7 @@ export default function TemplateDetailPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span>Value *</span>
+              <span>{t('template_detail.pricing_rules.value')}</span>
               <input
                 type="number"
                 step="0.01"
@@ -983,13 +993,13 @@ export default function TemplateDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span>Variant (optional)</span>
+              <span>{t('template_detail.pricing_rules.variant_optional')}</span>
               <select
                 value={newRuleVariantId}
                 onChange={(e) => setNewRuleVariantId(e.target.value)}
                 className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
               >
-                <option value="">Applies to all variants</option>
+                <option value="">{t('template_detail.pricing_rules.applies_to_all_variants')}</option>
                 {variants.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name}
@@ -1003,19 +1013,21 @@ export default function TemplateDetailPage() {
               disabled={savingRule}
               className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {savingRule ? 'Saving…' : 'Add rule'}
+              {savingRule ? t('common.saving') : t('template_detail.pricing_rules.add_rule')}
             </button>
           </form>
 
           <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
             <div className="mb-1 flex items-center justify-between gap-2">
               <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Pricing rules
+                {t('template_detail.tabs.pricing_rules')}
               </div>
-              <div className="text-[11px] text-slate-500">Total: {pricingRules.length}</div>
+              <div className="text-[11px] text-slate-500">
+                {t('common.total').replace('{0}', String(pricingRules.length))}
+              </div>
             </div>
             {pricingRules.length === 0 && (
-              <p className="text-xs text-slate-400">No pricing rules yet.</p>
+              <p className="text-xs text-slate-400">{t('template_detail.pricing_rules.none_found')}</p>
             )}
             {pricingRules.length > 0 && (
               <ul className="space-y-2 text-xs">
@@ -1031,7 +1043,7 @@ export default function TemplateDetailPage() {
                       >
                         <div className="grid gap-2 md:grid-cols-3">
                           <label className="flex flex-col gap-1">
-                            <span>Type</span>
+                            <span>{t('template_detail.pricing_rules.type')}</span>
                             <select
                               value={ruleEditType}
                               onChange={(e) =>
@@ -1048,7 +1060,7 @@ export default function TemplateDetailPage() {
                             </select>
                           </label>
                           <label className="flex flex-col gap-1">
-                            <span>Value</span>
+                            <span>{t('template_detail.pricing_rules.value')}</span>
                             <input
                               type="number"
                               step="0.01"
@@ -1059,7 +1071,7 @@ export default function TemplateDetailPage() {
                             />
                           </label>
                           <label className="flex flex-col gap-1">
-                            <span>Priority</span>
+                            <span>{t('template_detail.pricing_rules.priority')}</span>
                             <input
                               type="number"
                               value={ruleEditPriority}
@@ -1068,13 +1080,13 @@ export default function TemplateDetailPage() {
                             />
                           </label>
                           <label className="flex flex-col gap-1 md:col-span-3">
-                            <span>Variant (optional)</span>
+                            <span>{t('template_detail.pricing_rules.variant_optional')}</span>
                             <select
                               value={ruleEditVariantId}
                               onChange={(e) => setRuleEditVariantId(e.target.value)}
                               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
-                              <option value="">Applies to all variants</option>
+                              <option value="">{t('template_detail.pricing_rules.applies_to_all_variants')}</option>
                               {variants.map((v) => (
                                 <option key={v.id} value={v.id}>
                                   {v.name}
@@ -1085,7 +1097,10 @@ export default function TemplateDetailPage() {
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-[11px] text-slate-400">
-                            Current: {r.ruleType} • Value: {r.value} • Priority: {r.priority}
+                            {t('template_detail.pricing_rules.current_line')
+                              .replace('{0}', String(r.ruleType))
+                              .replace('{1}', String(r.value))
+                              .replace('{2}', String(r.priority))}
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -1093,14 +1108,14 @@ export default function TemplateDetailPage() {
                               onClick={cancelEditRule}
                               className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
                             >
-                              Cancel
+                              {t('common.cancel')}
                             </button>
                             <button
                               type="submit"
                               disabled={ruleEditSaving}
                               className="rounded-md bg-sky-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {ruleEditSaving ? 'Saving…' : 'Save'}
+                              {ruleEditSaving ? t('common.saving') : t('common.save')}
                             </button>
                           </div>
                         </div>
@@ -1113,21 +1128,25 @@ export default function TemplateDetailPage() {
                         <div>
                           <div className="font-medium text-slate-100">{r.ruleType}</div>
                           <div className="text-[11px] text-slate-400">
-                            Value: {r.value}{' '}
+                            {t('template_detail.pricing_rules.value_prefix').replace('{0}', String(r.value))}{' '}
                             {r.variantId &&
-                              `• Variant: ${
-                                variants.find((v) => v.id === r.variantId)?.name || r.variantId
-                              }`}
+                              t('template_detail.pricing_rules.variant_suffix')
+                                .replace(
+                                  '{0}',
+                                  String(variants.find((v) => v.id === r.variantId)?.name || r.variantId),
+                                )}
                           </div>
                         </div>
                         <div className="text-right text-[11px] text-slate-400">
-                          <div>Priority: {r.priority}</div>
+                          <div>
+                            {t('template_detail.pricing_rules.priority_prefix').replace('{0}', String(r.priority))}
+                          </div>
                           <button
                             type="button"
                             onClick={() => startEditRule(r)}
                             className="mt-1 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
                           >
-                            Edit
+                            {t('common.edit')}
                           </button>
                         </div>
                       </div>

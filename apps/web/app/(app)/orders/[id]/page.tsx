@@ -1050,7 +1050,7 @@ export default function OrderDetailPage() {
                     <span
                       className="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[11px]"
                     >
-                      {link.channel}{' '}
+                      {t(`sales_channels.channel.${link.channel.toLowerCase()}` as any)}{' '}
                       {link.externalOrderNumber ? `#${link.externalOrderNumber}` : ''}
                     </span>
                     <span className="text-[11px] text-slate-400">
@@ -1213,7 +1213,7 @@ export default function OrderDetailPage() {
                               <span className="text-amber-300">*</span>
                             )}{' '}
                             <span className="text-[10px] text-slate-500">
-                              ({field.fieldType})
+                              ({t(`order_detail.field_type.${field.fieldType.toLowerCase()}` as any)})
                             </span>
                           </span>
                           <input
@@ -1387,7 +1387,7 @@ export default function OrderDetailPage() {
                                       {t('order_detail.template_prefix')} {item.template.name}
                                       {item.templateVariant && item.templateVariant.name && (
                                         <span>
-                                          {' '}- {item.templateVariant.name}
+                                          {' '} - {item.templateVariant.name}
                                         </span>
                                       )}
                                     </div>
@@ -1541,8 +1541,7 @@ export default function OrderDetailPage() {
                                         >
                                           <div className="space-y-0.5 text-slate-200">
                                             <div>
-                                              {item.material?.name || t('order_detail.material_fallback')} · {s.thicknessMm}
-                                              mm
+                                              {item.material?.name || t('order_detail.material_fallback')} · {s.thicknessMm} mm
                                             </div>
                                             <div className="text-slate-400">
                                               {sizeLabel}
@@ -1611,7 +1610,7 @@ export default function OrderDetailPage() {
                       {file.url.split('/').pop()}
                     </a>
                     <span className="text-[11px] text-slate-500">
-                      {Math.round(file.size / 1024)} KB
+                      {Math.round(file.size / 1024)} {t('common.unit_kb')}
                     </span>
                   </li>
                 ))}
@@ -1739,7 +1738,7 @@ export default function OrderDetailPage() {
                 {order.activityLog.map((entry) => (
                   <li key={entry.id} className="border-b border-slate-800 pb-1 last:border-b-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">{entry.field}</span>
+                      <span className="font-medium">{t(`order_detail.activity_field.${entry.field.toLowerCase()}` as any)}</span>
                       <span className="text-[11px] text-slate-500">
                         {new Date(entry.createdAt).toLocaleString()}
                       </span>

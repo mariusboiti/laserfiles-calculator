@@ -123,7 +123,7 @@ export default function TemplateProductsPage() {
       });
       setTemplateProducts(res.data.data);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to load template products';
+      const message = err?.response?.data?.message || t('template_products.failed_to_load');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setLoading(false);
@@ -181,17 +181,17 @@ export default function TemplateProductsPage() {
     e.preventDefault();
 
     if (!newName.trim()) {
-      setCreateError('Name is required');
+      setCreateError(t('template_products.validation.name_required'));
       return;
     }
     if (!newTemplateId) {
-      setCreateError('Template is required');
+      setCreateError(t('template_products.validation.template_required'));
       return;
     }
 
     const qtyNum = Number(newQuantity);
     if (!qtyNum || Number.isNaN(qtyNum) || qtyNum <= 0) {
-      setCreateError('Default quantity must be at least 1');
+      setCreateError(t('template_products.validation.default_quantity_min_1'));
       return;
     }
 
@@ -199,7 +199,7 @@ export default function TemplateProductsPage() {
     if (newPriceOverride.trim()) {
       const parsed = Number(newPriceOverride.trim());
       if (Number.isNaN(parsed)) {
-        setCreateError('Price override must be a number');
+        setCreateError(t('template_products.validation.price_override_number'));
         return;
       }
       priceOverrideNum = parsed;
@@ -210,7 +210,7 @@ export default function TemplateProductsPage() {
       try {
         personalizationJson = JSON.parse(newPersonalizationText);
       } catch {
-        setCreateError('Personalization defaults must be valid JSON');
+        setCreateError(t('template_products.validation.personalization_json'));
         return;
       }
     }
@@ -246,7 +246,7 @@ export default function TemplateProductsPage() {
       setNewPersonalizationText('');
       setVariantsForTemplate([]);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to create template product';
+      const message = err?.response?.data?.message || t('template_products.failed_to_create');
       setCreateError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setCreating(false);
@@ -275,13 +275,13 @@ export default function TemplateProductsPage() {
     if (!editingId) return;
 
     if (!editName.trim()) {
-      setEditError('Name is required');
+      setEditError(t('template_products.validation.name_required'));
       return;
     }
 
     const qtyNum = Number(editQuantity);
     if (!qtyNum || Number.isNaN(qtyNum) || qtyNum <= 0) {
-      setEditError('Default quantity must be at least 1');
+      setEditError(t('template_products.validation.default_quantity_min_1'));
       return;
     }
 
@@ -289,7 +289,7 @@ export default function TemplateProductsPage() {
     if (editPriceOverride.trim()) {
       const parsed = Number(editPriceOverride.trim());
       if (Number.isNaN(parsed)) {
-        setEditError('Price override must be a number');
+        setEditError(t('template_products.validation.price_override_number'));
         return;
       }
       priceOverrideNum = parsed;
@@ -325,7 +325,7 @@ export default function TemplateProductsPage() {
       setTemplateProducts((prev) => prev.map((p) => (p.id === editingId ? res.data : p)));
       setEditingId(null);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to update template product';
+      const message = err?.response?.data?.message || t('template_products.failed_to_update');
       setEditError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
       setEditLoading(false);
@@ -333,7 +333,7 @@ export default function TemplateProductsPage() {
   }
 
   async function handleDeleteTemplateProduct(id: string) {
-    const confirmed = window.confirm('Delete this template product?');
+    const confirmed = window.confirm(t('template_products.delete_confirm'));
     if (!confirmed) return;
 
     try {
@@ -343,7 +343,7 @@ export default function TemplateProductsPage() {
         cancelEdit();
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to delete template product';
+      const message = err?.response?.data?.message || t('template_products.failed_to_delete');
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     }
   }
@@ -352,9 +352,9 @@ export default function TemplateProductsPage() {
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Template Products</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t('template_products.title')}</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Saved presets that combine a template, variant, material and defaults for quick order items.
+            {t('template_products.subtitle')}
           </p>
         </div>
         <form
@@ -363,7 +363,7 @@ export default function TemplateProductsPage() {
         >
           <input
             type="text"
-            placeholder="Search by name..."
+            placeholder={t('template_products.search_placeholder')}
             className="w-40 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 md:w-60"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -375,13 +375,13 @@ export default function TemplateProductsPage() {
               onChange={(e) => setOnlyActive(e.target.checked)}
               className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
             />
-            <span>Only active</span>
+            <span>{t('template_products.only_active')}</span>
           </label>
           <button
             type="submit"
             className="rounded-md bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-600"
           >
-            Apply
+            {t('template_products.apply')}
           </button>
         </form>
       </div>
@@ -392,10 +392,10 @@ export default function TemplateProductsPage() {
           className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
         >
           <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            Add template product
+            {t('template_products.add_title')}
           </div>
           <label className="flex flex-col gap-1">
-            <span>Name *</span>
+            <span>{t('template_products.form.name')}</span>
             <input
               type="text"
               value={newName}
@@ -405,14 +405,14 @@ export default function TemplateProductsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Template *</span>
+            <span>{t('template_products.form.template')}</span>
             <select
               value={newTemplateId}
               onChange={(e) => handleTemplateChange(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
               required
             >
-              <option value="">Select template</option>
+              <option value="">{t('template_products.form.select_template')}</option>
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -421,14 +421,14 @@ export default function TemplateProductsPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span>Variant</span>
+            <span>{t('template_products.form.variant')}</span>
             <select
               value={newVariantId}
               onChange={(e) => setNewVariantId(e.target.value)}
               disabled={variantsForTemplate.length === 0}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none disabled:opacity-60 focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="">(default)</option>
+              <option value="">{t('template_products.form.default_variant')}</option>
               {variantsForTemplate.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name}
@@ -437,13 +437,13 @@ export default function TemplateProductsPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span>Material</span>
+            <span>{t('template_products.form.material')}</span>
             <select
               value={newMaterialId}
               onChange={(e) => setNewMaterialId(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             >
-              <option value="">Use default from template/variant</option>
+              <option value="">{t('template_products.form.use_default_material')}</option>
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name} {m.thicknessMm}mm {formatUnitType(m.unitType)}
@@ -452,7 +452,7 @@ export default function TemplateProductsPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span>Default quantity *</span>
+            <span>{t('template_products.form.default_quantity')}</span>
             <input
               type="number"
               min={1}
@@ -463,7 +463,7 @@ export default function TemplateProductsPage() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Price override</span>
+            <span>{t('template_products.form.price_override')}</span>
             <input
               type="number"
               min={0}
@@ -471,17 +471,17 @@ export default function TemplateProductsPage() {
               value={newPriceOverride}
               onChange={(e) => setNewPriceOverride(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-              placeholder="Leave empty to use pricing engine"
+              placeholder={t('template_products.form.price_override_placeholder')}
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>Personalization defaults (JSON)</span>
+            <span>{t('template_products.form.personalization_defaults')}</span>
             <textarea
               rows={3}
               value={newPersonalizationText}
               onChange={(e) => setNewPersonalizationText(e.target.value)}
               className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-              placeholder='e.g. {"name":"John"}'
+              placeholder={t('template_products.form.personalization_placeholder')}
             />
           </label>
           <label className="flex items-center gap-2 text-xs text-slate-300">
@@ -491,7 +491,7 @@ export default function TemplateProductsPage() {
               onChange={(e) => setNewIsActive(e.target.checked)}
               className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
             />
-            <span>Template product is active</span>
+            <span>{t('template_products.form.is_active')}</span>
           </label>
           {createError && <p className="text-[11px] text-red-400">{createError}</p>}
           <button
@@ -499,23 +499,25 @@ export default function TemplateProductsPage() {
             disabled={creating}
             className="rounded-md bg-emerald-500 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {creating ? 'Creating…' : 'Create template product'}
+            {creating ? t('template_products.creating') : t('template_products.create')}
           </button>
         </form>
 
         <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between gap-2">
             <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Template products list
+              {t('template_products.list_title')}
             </div>
-            <div className="text-[11px] text-slate-500">Total: {templateProducts.length}</div>
+            <div className="text-[11px] text-slate-500">
+              {t('common.total').replace('{0}', String(templateProducts.length))}
+            </div>
           </div>
 
-          {loading && <p className="text-xs text-slate-400">Loading template products...</p>}
+          {loading && <p className="text-xs text-slate-400">{t('template_products.loading')}</p>}
           {error && !loading && <p className="text-xs text-red-400">{error}</p>}
 
           {!loading && !error && templateProducts.length === 0 && (
-            <p className="text-xs text-slate-400">No template products found.</p>
+            <p className="text-xs text-slate-400">{t('template_products.none_found')}</p>
           )}
 
           {!loading && !error && templateProducts.length > 0 && (
@@ -523,15 +525,15 @@ export default function TemplateProductsPage() {
               <table className="min-w-full text-left text-xs text-slate-200">
                 <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] uppercase tracking-wide text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Name</th>
-                    <th className="px-3 py-2">Template</th>
-                    <th className="px-3 py-2">Variant</th>
-                    <th className="px-3 py-2">Material</th>
-                    <th className="px-3 py-2">Qty</th>
-                    <th className="px-3 py-2">Price</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Created</th>
-                    <th className="px-3 py-2">Actions</th>
+                    <th className="px-3 py-2">{t('template_products.table.name')}</th>
+                    <th className="px-3 py-2">{t('template_products.table.template')}</th>
+                    <th className="px-3 py-2">{t('template_products.table.variant')}</th>
+                    <th className="px-3 py-2">{t('template_products.table.material')}</th>
+                    <th className="px-3 py-2">{t('template_products.table.qty')}</th>
+                    <th className="px-3 py-2">{t('template_products.table.price')}</th>
+                    <th className="px-3 py-2">{t('template_products.table.status')}</th>
+                    <th className="px-3 py-2">{t('template_products.table.created')}</th>
+                    <th className="px-3 py-2">{t('template_products.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -541,7 +543,7 @@ export default function TemplateProductsPage() {
                         <div>{p.name}</div>
                         {p.template && (
                           <div className="text-[11px] text-slate-500">
-                            from template{' '}
+                            {t('template_products.from_template')}{' '}
                             <Link
                               href={`/templates/${p.template.id}`}
                               className="text-sky-400 hover:underline"
@@ -552,13 +554,13 @@ export default function TemplateProductsPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
-                        {p.template ? p.template.name : '-'}
+                        {p.template ? p.template.name : t('common.na')}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
-                        {p.variant ? p.variant.name : '-'}
+                        {p.variant ? p.variant.name : t('common.na')}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
-                        {p.material ? p.material.name : '-'}
+                        {p.material ? p.material.name : t('common.na')}
                       </td>
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
                         {p.defaultQuantity}
@@ -566,7 +568,7 @@ export default function TemplateProductsPage() {
                       <td className="px-3 py-2 align-top text-xs text-slate-300">
                         {typeof p.priceOverride === 'number'
                           ? p.priceOverride.toFixed(2)
-                          : 'Engine'}
+                          : t('template_products.price_engine')}
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span
@@ -576,7 +578,7 @@ export default function TemplateProductsPage() {
                               : 'bg-slate-800 text-slate-300'
                           }`}
                         >
-                          {p.isActive ? 'Active' : 'Inactive'}
+                          {p.isActive ? t('common.active') : t('common.inactive')}
                         </span>
                       </td>
                       <td className="px-3 py-2 align-top text-[11px] text-slate-400">
@@ -588,14 +590,14 @@ export default function TemplateProductsPage() {
                           onClick={() => startEdit(p)}
                           className="mr-2 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-200 hover:bg-slate-800"
                         >
-                          Edit
+                          {t('common.edit')}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteTemplateProduct(p.id)}
                           className="rounded-md border border-red-700 px-2 py-0.5 text-[11px] text-red-300 hover:bg-red-900/40"
                         >
-                          Delete
+                          {t('template_products.delete')}
                         </button>
                       </td>
                     </tr>
@@ -610,10 +612,10 @@ export default function TemplateProductsPage() {
               className="mt-3 space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-200"
             >
               <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                Edit template product
+                {t('template_products.edit_title')}
               </div>
               <label className="flex flex-col gap-1">
-                <span>Name *</span>
+                <span>{t('template_products.form.name')}</span>
                 <input
                   type="text"
                   value={editName}
@@ -623,13 +625,13 @@ export default function TemplateProductsPage() {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span>Material</span>
+                <span>{t('template_products.form.material')}</span>
                 <select
                   value={editMaterialId}
                   onChange={(e) => setEditMaterialId(e.target.value)}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 >
-                  <option value="">Use default from template/variant</option>
+                  <option value="">{t('template_products.form.use_default_material')}</option>
                   {materials.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} {m.thicknessMm}mm {formatUnitType(m.unitType)}
@@ -638,7 +640,7 @@ export default function TemplateProductsPage() {
                 </select>
               </label>
               <label className="flex flex-col gap-1">
-                <span>Default quantity *</span>
+                <span>{t('template_products.form.default_quantity')}</span>
                 <input
                   type="number"
                   min={1}
@@ -649,7 +651,7 @@ export default function TemplateProductsPage() {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span>Price override</span>
+                <span>{t('template_products.form.price_override')}</span>
                 <input
                   type="number"
                   min={0}
@@ -657,7 +659,7 @@ export default function TemplateProductsPage() {
                   value={editPriceOverride}
                   onChange={(e) => setEditPriceOverride(e.target.value)}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                  placeholder="Leave empty to use pricing engine"
+                  placeholder={t('template_products.form.price_override_placeholder')}
                 />
               </label>
               <label className="flex items-center gap-2 text-xs text-slate-300">
@@ -667,7 +669,7 @@ export default function TemplateProductsPage() {
                   onChange={(e) => setEditIsActive(e.target.checked)}
                   className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500"
                 />
-                <span>Template product is active</span>
+                <span>{t('template_products.form.is_active')}</span>
               </label>
               {editError && <p className="text-[11px] text-red-400">{editError}</p>}
               <div className="flex flex-wrap items-center gap-2">
@@ -676,14 +678,14 @@ export default function TemplateProductsPage() {
                   disabled={editLoading}
                   className="rounded-md bg-sky-500 px-3 py-1 text-[11px] font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {editLoading ? 'Saving…' : 'Save changes'}
+                  {editLoading ? t('common.saving') : t('common.save_changes')}
                 </button>
                 <button
                   type="button"
                   onClick={cancelEdit}
                   className="rounded-md border border-slate-700 px-3 py-1 text-[11px] text-slate-200 hover:bg-slate-800"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
             </form>
