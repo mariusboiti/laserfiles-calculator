@@ -161,24 +161,35 @@ export async function POST(req: NextRequest) {
             finalBytes = new TextEncoder().encode(sanitized);
           }
 
-          const key = generateFeedbackKey(ticket.id, filename);
-          const url = await storeFile({ key, contentType: mimeType, bytes: finalBytes });
+          try {
+            const key = generateFeedbackKey(ticket.id, filename);
+            const url = await storeFile({ key, contentType: mimeType, bytes: finalBytes });
 
-          const att = await db.feedbackAttachment.create({
-            data: {
+            const att = await db.feedbackAttachment.create({
+              data: {
+                ticketId: ticket.id,
+                filename,
+                mimeType,
+                sizeBytes: finalBytes.length,
+                url,
+              },
+            });
+
+            savedAttachments.push({
+              id: att.id,
+              filename: att.filename,
+              url: att.url,
+            });
+          } catch (err) {
+            console.error('Failed to store feedback attachment. Skipping attachment.', {
               ticketId: ticket.id,
               filename,
               mimeType,
               sizeBytes: finalBytes.length,
-              url,
-            },
-          });
-
-          savedAttachments.push({
-            id: att.id,
-            filename: att.filename,
-            url: att.url,
-          });
+              error: err instanceof Error ? err.message : String(err),
+            });
+            continue;
+          }
         }
       }
 
