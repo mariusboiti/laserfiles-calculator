@@ -8,18 +8,19 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { PrismaClient } from '@prisma/client';
-import { storeFile, generateArtifactKey } from '@/lib/storage/server';
-import { sanitizeSvg } from '@/lib/artifacts/svg';
-import { sendFeedbackNotification } from '@/lib/email/sendEmail';
+import type { PrismaClient } from '@prisma/client';
 
 export const runtime = 'nodejs';
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
-
-const db = prisma as any;
+async function getDb(): Promise<any> {
+  const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+  if (!globalForPrisma.prisma) {
+    const mod = await import('@prisma/client');
+    const Prisma = (mod as any).PrismaClient as typeof PrismaClient;
+    globalForPrisma.prisma = new Prisma();
+  }
+  return globalForPrisma.prisma as any;
+}
 
 const MAX_ATTACHMENTS = 5;
 const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
@@ -63,6 +64,11 @@ function generateFeedbackKey(ticketId: string, filename: string): string {
  */
 export async function POST(req: NextRequest) {
   try {
+    const db = await getDb();
+    const { storeFile } = await import('@/lib/storage/server');
+    const { sanitizeSvg } = await import('@/lib/artifacts/svg');
+    const { sendFeedbackNotification } = await import('@/lib/email/sendEmail');
+
     let user = await getCurrentUser();
     
     if (!user) {
