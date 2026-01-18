@@ -217,18 +217,27 @@ export async function POST(req: NextRequest) {
       }
 
       // Send email notification (don't block on failure)
-      sendFeedbackNotification({
-        type: feedbackType === 'BUG' ? 'bug' : 'feature',
-        toolSlug: toolSlug || undefined,
-        title,
-        message,
-        pageUrl: pageUrl || undefined,
-        userEmail: user.email || undefined,
-        ticketId: ticket.id,
-        metadata: metadata || undefined,
-      }).catch((err) => {
+      let emailSent = false;
+      try {
+        const emailPromise = sendFeedbackNotification({
+          type: feedbackType === 'BUG' ? 'bug' : 'feature',
+          toolSlug: toolSlug || undefined,
+          title,
+          message,
+          pageUrl: pageUrl || undefined,
+          userEmail: user.email || undefined,
+          ticketId: ticket.id,
+          metadata: metadata || undefined,
+        });
+
+        emailSent = await Promise.race([
+          emailPromise,
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2500)),
+        ]);
+      } catch (err) {
         console.error('Failed to send feedback notification email:', err);
-      });
+        emailSent = false;
+      }
 
       return NextResponse.json({
         ok: true,
@@ -239,12 +248,13 @@ export async function POST(req: NextRequest) {
           status: ticket.status,
           attachments: savedAttachments,
           createdAt: ticket.createdAt,
+          emailSent,
         },
       });
     } catch (dbError) {
       console.error('Failed to create feedback ticket:', dbError);
       return NextResponse.json(
-        { ok: true, data: { id: null } },
+        { ok: true, data: { id: null, emailSent: false } },
         { status: 200 }
       );
     }

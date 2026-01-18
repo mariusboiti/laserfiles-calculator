@@ -12,6 +12,42 @@ export interface EmailOptions {
   html?: string;
 }
 
+async function sendEmailViaResend(options: EmailOptions): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return false;
+
+  const from = process.env.SMTP_FROM || process.env.RESEND_FROM || 'onboarding@resend.dev';
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [options.to],
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      console.error('Failed to send email via Resend:', res.status, txt.slice(0, 500));
+      return false;
+    }
+
+    console.log(`Email sent successfully to ${options.to} (Resend)`);
+    return true;
+  } catch (error) {
+    console.error('Failed to send email via Resend:', error);
+    return false;
+  }
+}
+
 // Create reusable transporter using SMTP
 function createTransporter() {
   // Use environment variables for SMTP configuration
@@ -42,6 +78,9 @@ function createTransporter() {
  * Returns true if successful, false otherwise
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
+  const resendOk = await sendEmailViaResend(options);
+  if (resendOk) return true;
+
   const transporter = createTransporter();
   
   if (!transporter) {
