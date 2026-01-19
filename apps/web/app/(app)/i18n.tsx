@@ -8,7 +8,7 @@ export type Locale = 'en' | 'ro' | 'es' | 'fr' | 'de';
 const storageKey = 'appLocale';
 
 const localeOptions: Array<{ locale: Locale; flag: string; label: string }> = [
-  { locale: 'en', flag: '🇬🇧', label: 'English' },
+  { locale: 'en', flag: 'EN', label: 'English' },
   { locale: 'ro', flag: '🇷🇴', label: 'Română' },
   { locale: 'es', flag: '🇪🇸', label: 'Español' },
   { locale: 'fr', flag: '🇫🇷', label: 'Français' },

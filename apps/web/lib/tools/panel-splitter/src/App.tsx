@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { useUnitSystem } from '@/components/units/UnitSystemProvider';
 import { Uploader } from './components/Uploader';
 import { Settings } from './components/Settings';
 import { PreviewCanvas } from './components/PreviewCanvas';
@@ -96,6 +97,7 @@ function validateSettings(settings: SettingsType, t: (key: string) => string): V
 export default function App({ onResetCallback }: AppProps) {
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+  const { unitSystem } = useUnitSystem();
 
   const localizeRuntimeError = useCallback((err: unknown) => {
     if (err instanceof Error) {
@@ -129,6 +131,14 @@ export default function App({ onResetCallback }: AppProps) {
   });
 
   const cancelRef = useRef(false);
+
+  // Keep tool settings unit system in sync with global toggle
+  useEffect(() => {
+    setSettings((prev) => {
+      if (prev.unitSystem === unitSystem) return prev;
+      return { ...prev, unitSystem };
+    });
+  }, [unitSystem]);
 
   const resetToDefaults = useCallback(() => {
     setSvgInfo(null);
@@ -334,23 +344,6 @@ export default function App({ onResetCallback }: AppProps) {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <header className="border-b border-slate-800 bg-slate-900/60">
-        <div className="max-w-screen-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <svg className="w-8 h-8" viewBox="0 0 100 100">
-              <rect x="5" y="5" width="40" height="40" fill="#0ea5e9" rx="4"/>
-              <rect x="55" y="5" width="40" height="40" fill="#38bdf8" rx="4"/>
-              <rect x="5" y="55" width="40" height="40" fill="#38bdf8" rx="4"/>
-              <rect x="55" y="55" width="40" height="40" fill="#0ea5e9" rx="4"/>
-            </svg>
-            <div>
-              <h1 className="text-xl font-bold text-slate-100">{t('panel_splitter.app.header_title')}</h1>
-              <p className="text-sm text-slate-400">{t('panel_splitter.app.header_subtitle')}</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-screen-2xl mx-auto p-4">
         {/* Warnings Display */}
         {warnings.length > 0 && (
@@ -532,12 +525,6 @@ export default function App({ onResetCallback }: AppProps) {
           </div>
         </div>
       </main>
-
-      <footer className="mt-8 py-4 border-t border-gray-200 bg-white">
-        <div className="max-w-screen-2xl mx-auto px-4 text-center text-sm text-gray-500">
-          {t('panel_splitter.app.footer')}
-        </div>
-      </footer>
     </div>
   );
 }

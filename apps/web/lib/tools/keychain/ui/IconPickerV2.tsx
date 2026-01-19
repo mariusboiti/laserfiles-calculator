@@ -412,7 +412,7 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
                 {/* Warning note */}
                 <div className="bg-slate-900 rounded p-2 text-xs text-slate-400">
                   <AlertTriangle className="w-3 h-3 inline mr-1 text-yellow-500" />
-                  Don't request copyrighted logos. Generate generic icons unless you own rights.
+                  Don&apos;t request copyrighted logos. Generate generic icons unless you own rights.
                 </div>
                 
                 {aiConfigured === false && (

@@ -9,6 +9,7 @@ import { HingedLidPinUI } from './panels/HingedLidPinUI';
 import { HingedSidePinUI } from './panels/HingedSidePinUI';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { useUnitSystem } from '@/components/units/UnitSystemProvider';
 
 interface BoxMakerAppProps {
   onResetCallback?: (callback: () => void) => void;
@@ -19,7 +20,7 @@ export default function BoxMakerApp({ onResetCallback }: BoxMakerAppProps) {
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const [boxType, setBoxType] = useState<BoxType>(BoxType.simple);
-  const [unitSystem, setUnitSystem] = useState<'mm' | 'in'>('mm');
+  const { unitSystem, setUnitSystem } = useUnitSystem();
   const resetFnRef = useRef<(() => void) | null>(null);
 
   // Register reset callback with parent
