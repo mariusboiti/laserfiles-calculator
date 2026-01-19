@@ -276,7 +276,7 @@ export function CurvedPhotoFrameV3Tool({
     const nextSegment = Math.max(6, Math.min(10, 8 - (factor - 1) * 1.2));
     const nextGap = Math.max(2, Math.min(4, 3 + (factor - 1) * 0.25));
     const nextRowSpacing = Math.max(1.5, Math.min(5, 2.6 - (factor - 1) * 0.55 - (thickness - 4) * 0.1));
-    const nextBendZoneHeight = Math.max(18, Math.min(30, 24 + (thickness - 4) * 1.5 + (factor - 1) * 2.5));
+    const nextBendZoneHeight = Math.max(18, Math.min(80, 24 + (thickness - 4) * 1.5 + (factor - 1) * 2.5));
 
     setFrameSettings((prev) => {
       if (!prev.autoKerf) return prev;
@@ -1172,7 +1172,7 @@ export function CurvedPhotoFrameV3Tool({
                         type="number"
                         step={1}
                         min={18}
-                        max={30}
+                        max={80}
                         value={frameSettings.bendZoneHeightMm}
                         onChange={(e) =>
                           setFrameSettings((prev) => ({ ...prev, bendZoneHeightMm: Number(e.target.value) }))
