@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
@@ -43,6 +43,11 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
 
   const currentZoom = viewMode === 'single' ? singleZoom : viewMode === 'detail' ? detailZoom : sheetZoom;
   const setCurrentZoom = viewMode === 'single' ? setSingleZoom : viewMode === 'detail' ? setDetailZoom : setSheetZoom;
+
+  const svgDataUri = useMemo(() => {
+    if (!displayContent) return null;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(displayContent)}`;
+  }, [displayContent]);
 
   useEffect(() => {
     if (viewMode === 'sheet' && svgContent) {
@@ -118,17 +123,18 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
       
       {/* Preview area - always rendered, even if empty */}
       <div className="border border-slate-700 rounded-lg flex-1 min-h-0 bg-slate-100 overflow-auto relative">
-        {displayContent ? (
-          <div 
+        {svgDataUri ? (
+          <div
             className="inline-block p-4 min-w-full min-h-full"
-            style={{ 
-              transform: `scale(${currentZoom / 100})`, 
+            style={{
+              transform: `scale(${currentZoom / 100})`,
               transformOrigin: 'top left',
               width: `${100 / (currentZoom / 100)}%`,
               height: `${100 / (currentZoom / 100)}%`
             }}
-            dangerouslySetInnerHTML={{ __html: displayContent }}
-          />
+          >
+            <img src={svgDataUri} alt="" className="block" />
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full text-center text-slate-500 p-4">
             <div>
