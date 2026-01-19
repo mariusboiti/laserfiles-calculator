@@ -74,11 +74,12 @@ export function DownloadSection({
         )}
 
         <button
+          type="button"
           onClick={onGenerate}
           disabled={!canGenerate || isGenerating}
           className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
-          {isGenerating ? t('bulk_name_tags.download.generating') : t('bulk_name_tags.download.generate_btn')}
+          <span>{isGenerating ? t('bulk_name_tags.download.generating') : t('bulk_name_tags.download.generate_btn')}</span>
         </button>
         
         {!canGenerate && (
@@ -90,10 +91,11 @@ export function DownloadSection({
         {generatedContent && (
           <div className="border-t pt-4">
             <button
+              type="button"
               onClick={handleDownload}
               className="w-full bg-green-600 text-white py-3 px-4 rounded-md font-medium hover:bg-green-700 transition-colors"
             >
-              {outputMode === 'sheet' ? t('bulk_name_tags.download.download_sheet_svg') : t('bulk_name_tags.download.download_zip')}
+              <span>{outputMode === 'sheet' ? t('bulk_name_tags.download.download_sheet_svg') : t('bulk_name_tags.download.download_zip')}</span>
             </button>
             
             <div className="mt-3 text-sm text-slate-300 bg-emerald-500/10 p-3 rounded border border-emerald-500/30">

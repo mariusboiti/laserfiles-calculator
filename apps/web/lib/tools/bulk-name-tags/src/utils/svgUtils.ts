@@ -162,7 +162,7 @@ export async function createTextElement(
         // Center vertically - bbox.y is typically negative (above baseline)
         const offsetY = actualY - bbox.y - bbox.height / 2;
         
-        return `<path d="${pathD}" fill="none" stroke="black" stroke-width="0.2" transform="translate(${offsetX.toFixed(3)}, ${offsetY.toFixed(3)})"/>`;
+        return `<path d="${pathD}" fill="black" stroke="none" transform="translate(${offsetX.toFixed(3)}, ${offsetY.toFixed(3)})"/>`;
       }
     } catch (error) {
       console.warn('Font loading failed, falling back to text element:', error);
@@ -171,7 +171,7 @@ export async function createTextElement(
   
   // Fallback to regular text element for system fonts or if path conversion fails
   const fontFamily = config.embeddedFont?.fontFamily || config.fontFamily;
-  return `<text x="${x}" y="${actualY}" text-anchor="${textAnchor}" dominant-baseline="middle" font-family="${fontFamily}" font-size="${fontSize}" letter-spacing="${config.letterSpacing}">${escapeXml(processedText)}</text>`;
+  return `<text x="${x}" y="${actualY}" text-anchor="${textAnchor}" dominant-baseline="middle" font-family="${fontFamily}" font-size="${fontSize}" letter-spacing="${config.letterSpacing}" fill="black">${escapeXml(processedText)}</text>`;
 }
 
 function escapeCssString(value: string): string {
@@ -234,7 +234,7 @@ export async function generateSingleTag(
   
   // Add hole if enabled
   const holeElement = holeConfig?.enabled 
-    ? `<circle cx="${holeConfig.x}" cy="${holeConfig.y}" r="${holeConfig.radius}" fill="none" stroke="black" stroke-width="0.2" />`
+    ? `<circle cx="${holeConfig.x}" cy="${holeConfig.y}" r="${holeConfig.radius}" fill="none" stroke="#ff0000" stroke-width="0.2" />`
     : '';
 
   const { x, y, textAnchor } = calculateTextPosition(bounds, textConfig);
@@ -269,10 +269,14 @@ export async function generateSingleTag(
     : '';
 
   return `<g${groupTransform}>
+<g class="tag-outline">
 ${templateContent}
-${holeElement}
+</g>
+${holeElement ? `<g class="tag-hole">${holeElement}</g>` : ''}
+<g class="tag-text">
 ${line1Text}
 ${line2Text}
+</g>
 </g>`;
 }
 
@@ -290,6 +294,12 @@ export async function generateNameTagSvg(
   const bounds = parseTemplateBounds(baseTemplateSvg);
   const unitSystem: UnitSystem = options?.unitSystem ?? 'mm';
   const templateSize = options?.templateSize ?? null;
+
+  const embeddedFontDefs = createEmbeddedFontDefs(textConfig);
+  const styleDefs = `<defs><style type="text/css"><![CDATA[
+  .tag-outline path, .tag-outline rect, .tag-outline circle, .tag-outline ellipse, .tag-outline line, .tag-outline polyline, .tag-outline polygon { stroke: #ff0000 !important; fill: none !important; }
+  .tag-text path, .tag-text text { fill: #000000 !important; stroke: none !important; }
+  ]]></style></defs>`;
 
   const mmToIn = (mm: number) => mm / 25.4;
   const formatLength = (mm: number) => {
@@ -311,6 +321,8 @@ export async function generateNameTagSvg(
       const tagContent = await generateSingleTag(baseTemplateSvg, name, textConfig, bounds, 0, 0, 0, scaleX, scaleY, options?.holeConfig);
       const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${formatLength(outWidth)}" height="${formatLength(outHeight)}" viewBox="0 0 ${outWidth} ${outHeight}">
+${styleDefs}
+${embeddedFontDefs}
 ${tagContent}
 </svg>`;
 
@@ -356,6 +368,8 @@ ${tagContent}
 
     const sheetSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${formatLength(sheetConfig.sheetWidth)}" height="${formatLength(sheetConfig.sheetHeight)}" viewBox="0 0 ${sheetConfig.sheetWidth} ${sheetConfig.sheetHeight}">
+${styleDefs}
+${embeddedFontDefs}
 ${allTags}
 </svg>`;
 
