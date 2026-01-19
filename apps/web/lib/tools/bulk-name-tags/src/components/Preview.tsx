@@ -11,8 +11,6 @@ interface PreviewProps {
 }
 
 function getCroppedSvg(svgContent: string): string {
-  // Crop to the top-left quarter of the sheet for an easier "detail" design view.
-  // We do this by overriding the root <svg> viewBox.
   const viewBoxMatch = svgContent.match(/viewBox=(['"])([^'"]+)\1/i);
   if (!viewBoxMatch) return svgContent;
 
@@ -46,10 +44,8 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
   const currentZoom = viewMode === 'single' ? singleZoom : viewMode === 'detail' ? detailZoom : sheetZoom;
   const setCurrentZoom = viewMode === 'single' ? setSingleZoom : viewMode === 'detail' ? setDetailZoom : setSheetZoom;
 
-  // Auto-adjust sheet zoom to fit when switching to sheet view
   useEffect(() => {
     if (viewMode === 'sheet' && svgContent) {
-      // Start with a smaller zoom for sheet view to show more
       setSheetZoom(30);
     }
   }, [viewMode, svgContent]);
@@ -97,21 +93,19 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
             </button>
           </div>
 
-          {/* Zoom control - always visible when content exists */}
-          {displayContent && (
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-slate-300">{t('bulk_name_tags.preview.zoom')}</label>
-              <input
-                type="range"
-                min={viewMode === 'sheet' ? 10 : 25}
-                max={viewMode === 'sheet' ? 200 : viewMode === 'detail' ? 500 : 300}
-                value={currentZoom}
-                onChange={(e) => setCurrentZoom(Number(e.target.value))}
-                className="w-24"
-              />
-              <span className="text-xs text-slate-400 w-10">{currentZoom}%</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-300">{t('bulk_name_tags.preview.zoom')}</label>
+            <input
+              type="range"
+              min={viewMode === 'sheet' ? 10 : 25}
+              max={viewMode === 'sheet' ? 200 : viewMode === 'detail' ? 500 : 300}
+              value={currentZoom}
+              onChange={(e) => setCurrentZoom(Number(e.target.value))}
+              className="w-24"
+              disabled={!displayContent}
+            />
+            <span className="text-xs text-slate-400 w-10">{currentZoom}%</span>
+          </div>
         </div>
       </div>
 
