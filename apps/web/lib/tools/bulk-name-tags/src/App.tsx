@@ -201,7 +201,7 @@ function App({ onResetCallback }: AppProps) {
       return;
     }
 
-    const previewBaseName: NameRecord = { name: '', line1: '', line2: undefined };
+    const previewBaseName: NameRecord = { line1: '', line2: undefined };
     const hasAnyNames = names.length > 0;
     const previewNamesForSingle = hasAnyNames ? [names[0]] : [previewBaseName];
 
