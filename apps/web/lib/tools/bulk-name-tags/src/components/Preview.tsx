@@ -10,17 +10,41 @@ interface PreviewProps {
   sheetHeight?: number;
 }
 
+function getCroppedSvg(svgContent: string): string {
+  // Crop to the top-left quarter of the sheet for an easier "detail" design view.
+  // We do this by overriding the root <svg> viewBox.
+  const viewBoxMatch = svgContent.match(/viewBox=(['"])([^'"]+)\1/i);
+  if (!viewBoxMatch) return svgContent;
+
+  const parts = viewBoxMatch[2].trim().split(/\s+/).map(Number);
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return svgContent;
+
+  const [x, y, w, h] = parts;
+  const croppedW = w / 2;
+  const croppedH = h / 2;
+  const croppedViewBox = `${x} ${y} ${croppedW} ${croppedH}`;
+
+  return svgContent.replace(viewBoxMatch[0], `viewBox="${croppedViewBox}"`);
+}
+
 export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sheetHeight }: PreviewProps) {
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const [singleZoom, setSingleZoom] = useState(100);
   const [sheetZoom, setSheetZoom] = useState(50);
-  const [viewMode, setViewMode] = useState<'single' | 'sheet'>('sheet');
+  const [detailZoom, setDetailZoom] = useState(200);
+  const [viewMode, setViewMode] = useState<'single' | 'sheet' | 'detail'>('detail');
 
-  const displayContent = viewMode === 'single' ? singleTagSvg : svgContent;
-  const currentZoom = viewMode === 'single' ? singleZoom : sheetZoom;
-  const setCurrentZoom = viewMode === 'single' ? setSingleZoom : setSheetZoom;
+  const displayContent =
+    viewMode === 'single'
+      ? singleTagSvg
+      : viewMode === 'detail'
+        ? (svgContent ? getCroppedSvg(svgContent) : null)
+        : svgContent;
+
+  const currentZoom = viewMode === 'single' ? singleZoom : viewMode === 'detail' ? detailZoom : sheetZoom;
+  const setCurrentZoom = viewMode === 'single' ? setSingleZoom : viewMode === 'detail' ? setDetailZoom : setSheetZoom;
 
   // Auto-adjust sheet zoom to fit when switching to sheet view
   useEffect(() => {
@@ -38,6 +62,17 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
         <div className="flex items-center gap-3">
           {/* View mode toggle - always visible */}
           <div className="flex rounded-md overflow-hidden border border-slate-700">
+            <button
+              type="button"
+              onClick={() => setViewMode('detail')}
+              className={`px-2 py-1 text-xs font-medium ${
+                viewMode === 'detail'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              {t('bulk_name_tags.preview.detail_view')}
+            </button>
             <button
               type="button"
               onClick={() => setViewMode('single')}
@@ -69,7 +104,7 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
               <input
                 type="range"
                 min={viewMode === 'sheet' ? 10 : 25}
-                max={viewMode === 'sheet' ? 200 : 300}
+                max={viewMode === 'sheet' ? 200 : viewMode === 'detail' ? 500 : 300}
                 value={currentZoom}
                 onChange={(e) => setCurrentZoom(Number(e.target.value))}
                 className="w-24"
@@ -81,7 +116,7 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
       </div>
 
       {/* Sheet dimensions info - always visible when in sheet mode */}
-      {viewMode === 'sheet' && sheetWidth && sheetHeight && (
+      {(viewMode === 'sheet' || viewMode === 'detail') && sheetWidth && sheetHeight && (
         <div className="text-xs text-slate-400 mb-2">
           {t('bulk_name_tags.preview.sheet_label')} {sheetWidth} × {sheetHeight} mm
         </div>
