@@ -133,6 +133,7 @@ export interface FrameSettings {
   kerfRowSpacingMm: number;
 
   bendZoneHeightMm: number;
+  bendZoneOffsetMm: number;
   supportLipHeightMm: number;
   slotDepthMm: number;
 }
@@ -198,6 +199,7 @@ export const DEFAULT_FRAME_SETTINGS: FrameSettings = {
   kerfRowSpacingMm: 2.3,
 
   bendZoneHeightMm: 24,
+  bendZoneOffsetMm: 0,
   supportLipHeightMm: 10,
   slotDepthMm: 8,
 };

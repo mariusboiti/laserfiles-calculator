@@ -68,6 +68,7 @@ export function computeEngraveSafeAreaMm(frameSettings: FrameSettings): { safeWm
   const border = clamp(frameSettings.borderMm, 6, 80);
 
   const bendZoneHeight = clamp(frameSettings.bendZoneHeightMm ?? 24, 18, 80);
+  const bendZoneOffset = clamp(frameSettings.bendZoneOffsetMm ?? 0, -80, 80);
   const supportLipHeight = clamp(frameSettings.supportLipHeightMm ?? 10, 8, 12);
 
   const plateW = photoW + border * 2;
@@ -78,7 +79,13 @@ export function computeEngraveSafeAreaMm(frameSettings: FrameSettings): { safeWm
   const kerfDownShiftMm = 15;
   const safetyGap = 1.5;
 
-  const kerfStartY = Math.min(
+  const baseKerfStartY = Math.min(
+    plateH - supportDepth + kerfDownShiftMm,
+    plateH - (supportLipHeight + safetyGap)
+  );
+
+  const kerfStartY = clamp(
+    baseKerfStartY - bendZoneOffset,
     plateH - supportDepth + kerfDownShiftMm,
     plateH - (supportLipHeight + safetyGap)
   );
@@ -110,6 +117,7 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
   
   // Zone heights (configurable) - these do NOT affect plate size
   const bendZoneHeight = clamp(frameSettings.bendZoneHeightMm ?? 24, 18, 80);
+  const bendZoneOffset = clamp(frameSettings.bendZoneOffsetMm ?? 0, -80, 80);
   const supportLipHeight = clamp(frameSettings.supportLipHeightMm ?? 10, 8, 12);
   
   // Total plate dimensions (ONLY from photo + border, independent of bend zone)
@@ -189,7 +197,13 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
   // Side support base (horizontal) is currently fixed at 50mm.
   const supportDepth = 60;
   const kerfDownShiftMm = 15;
-  const kerfStartY = Math.min(
+  const baseKerfStartY = Math.min(
+    plateBottomY - supportDepth + kerfDownShiftMm,
+    plateBottomY - (supportLipHeight + safetyGap)
+  );
+
+  const kerfStartY = clamp(
+    baseKerfStartY - bendZoneOffset,
     plateBottomY - supportDepth + kerfDownShiftMm,
     plateBottomY - (supportLipHeight + safetyGap)
   );
