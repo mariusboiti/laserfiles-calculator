@@ -228,19 +228,6 @@ export function TextSettings({ config, onChange, unitSystem }: TextSettingsProps
             ))}
           </select>
 
-          <div className="mt-2">
-            <label className="block text-xs font-medium text-slate-400 mb-1">
-              {t('bulk_name_tags.text.custom_font_label')}
-            </label>
-            <input
-              type="text"
-              value={config.fontFamily}
-              onChange={(e) => updateFontFamily(e.target.value)}
-              placeholder={t('bulk_name_tags.text.custom_font_placeholder')}
-              className="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-            />
-          </div>
-
           <div className="mt-3">
             <label className="block text-xs font-medium text-slate-400 mb-1">
               {t('bulk_name_tags.text.upload_font_label')}

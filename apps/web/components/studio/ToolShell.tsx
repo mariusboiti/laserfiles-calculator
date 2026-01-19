@@ -148,6 +148,7 @@ function ToolShellInner({
   const [exportError, setExportError] = useState<string | null>(null);
   const [lastSavedArtifact, setLastSavedArtifact] = useState<Artifact | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetNonce, setResetNonce] = useState(0);
   const [restoreCandidate, setRestoreCandidate] = useState<ToolSession | null>(null);
   const autosaveTimeoutRef = useRef<number | null>(null);
 
@@ -411,13 +412,12 @@ function ToolShellInner({
       onReset();
       return;
     }
-
-    requestPro('reset');
   };
 
   const confirmReset = () => {
     handleReset();
     clearSession(effectiveToolSlug);
+    setResetNonce((v) => v + 1);
     setResetConfirmOpen(false);
   };
 
@@ -764,7 +764,9 @@ function ToolShellInner({
               </div>
             </div>
           ) : (
-            children
+            <div key={resetNonce} className="h-full">
+              {children}
+            </div>
           )}
         </ToolErrorBoundary>
       </div>
