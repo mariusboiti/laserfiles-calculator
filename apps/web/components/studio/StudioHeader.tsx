@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { STUDIO_NAV, isActivePath } from '@/lib/studio/navigation/studioNav';
 import { AICreditsInfoPanel } from '@/components/ai';
+import { AiCreditsBadge } from '@/components/studio/AiCreditsBadge';
 import { useDisclaimer } from '@/components/legal';
 import { LanguageSwitcher, useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
@@ -93,6 +94,9 @@ export function StudioHeader() {
             >
               {t('shell.feedback')}
             </button>
+            <div className="hidden md:block">
+              <AiCreditsBadge />
+            </div>
             <button
               type="button"
               onClick={() => setAiCreditsOpen(true)}

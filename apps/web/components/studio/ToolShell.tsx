@@ -6,14 +6,13 @@ import { UpgradeModal } from './UpgradeModal';
 import { usePlan } from '@/lib/studio/access/usePlan';
 import { BackButton } from './BackButton';
 import { StudioBreadcrumbs } from './StudioBreadcrumbs';
-import { AiCreditsBadge } from './AiCreditsBadge';
 import { TourLauncher, TourOverlay, TourSuggestion } from '@/components/tours';
 import { useTour } from '@/lib/tours/useTour';
 import { hasTour } from '@/lib/tours/registry';
 import { FeedbackModal } from '@/components/feedback';
 import { ReportIssuePanel, type ReportMode } from '@/components/support';
 import { ToolErrorBoundary } from '@/components/errors';
-import { AIWarningBanner, AICreditInfo, SaveAIImageButton, AIImageLibraryPanel } from '@/components/ai';
+import { AIWarningBanner, SaveAIImageButton, AIImageLibraryPanel } from '@/components/ai';
 import type { AIImageAsset } from '@/lib/ai/aiImageLibrary';
 import { prepareForExport } from '@/lib/export/svgSafety';
 import { ExportMiniDisclaimer } from '@/components/legal';
@@ -519,99 +518,93 @@ function ToolShellInner({
           </div>
 
           <div className="flex items-center gap-3">
-            <AiCreditsBadge />
             <div>
               <div className="flex items-center gap-2">
-              <UnitSystemToggle />
-              {tourAvailable && (
-                <TourLauncher
-                  status={tourProgress.status}
-                  isLoading={tourLoading}
-                  hasTour={tourAvailable}
-                  onStartTour={startTour}
-                />
-              )}
-              {tutorialAvailable && (
+                <UnitSystemToggle />
+                {tourAvailable && (
+                  <TourLauncher
+                    status={tourProgress.status}
+                    isLoading={tourLoading}
+                    hasTour={tourAvailable}
+                    onStartTour={startTour}
+                  />
+                )}
+                {tutorialAvailable && (
+                  <button
+                    type="button"
+                    onClick={handleOpenTutorial}
+                    className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
+                    title={t('shell.open_tutorial')}
+                  >
+                    <BookOpen className="h-3.5 w-3.5" />
+                    {t('tools.tutorial')}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={handleOpenTutorial}
+                  onClick={() => toolUxState.onUndo?.()}
+                  disabled={!toolUxState.onUndo || toolUxState.canUndo === false}
+                  className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-50"
+                  title={
+                    toolUxState.onUndo && toolUxState.canUndo !== false
+                      ? t('shell.undo_title')
+                      : t('shell.undo_unavailable')
+                  }
+                >
+                  <CornerUpLeft className="h-3.5 w-3.5" />
+                  {t('shell.undo')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResetConfirmOpen(true)}
+                  className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
+                >
+                  {t('shell.reset')}
+                </button>
+                {showAiPanels && (
+                  <button
+                    type="button"
+                    onClick={() => setAiLibraryOpen(true)}
+                    className="flex items-center gap-1.5 rounded-md border border-violet-800 bg-violet-950/30 px-3 py-2 text-xs text-violet-300 hover:bg-violet-900/40"
+                    title={t('shell.ai_library_title')}
+                  >
+                    <ImageIcon className="h-3.5 w-3.5" />
+                    {t('shell.ai_library')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportIssueMode('problem');
+                    setReportIssueOpen(true);
+                  }}
                   className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
-                  title={t('shell.open_tutorial')}
+                  title={t('shell.report_problem_title')}
                 >
-                  <BookOpen className="h-3.5 w-3.5" />
-                  {t('tools.tutorial')}
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {t('shell.report')}
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => toolUxState.onUndo?.()}
-                disabled={!toolUxState.onUndo || toolUxState.canUndo === false}
-                className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900 disabled:opacity-50"
-                title={
-                  toolUxState.onUndo && toolUxState.canUndo !== false ? t('shell.undo_title') : t('shell.undo_unavailable')
-                }
-              >
-                <CornerUpLeft className="h-3.5 w-3.5" />
-                {t('shell.undo')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setResetConfirmOpen(true)}
-                className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
-              >
-                {t('shell.reset')}
-              </button>
-              {showAiPanels && (
                 <button
                   type="button"
-                  onClick={() => setAiLibraryOpen(true)}
-                  className="flex items-center gap-1.5 rounded-md border border-violet-800 bg-violet-950/30 px-3 py-2 text-xs text-violet-300 hover:bg-violet-900/40"
-                  title={t('shell.ai_library_title')}
+                  onClick={() => {
+                    setReportIssueMode('feedback');
+                    setReportIssueOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
+                  title={t('shell.feedback_title')}
                 >
-                  <ImageIcon className="h-3.5 w-3.5" />
-                  {t('shell.ai_library')}
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  {t('shell.feedback')}
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={handleHelp}
-                className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
-              >
-                {t('shell.help')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setReportIssueMode('problem');
-                  setReportIssueOpen(true);
-                }}
-                className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
-                title={t('shell.report_problem_title')}
-              >
-                <AlertCircle className="h-3.5 w-3.5" />
-                {t('shell.report')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setReportIssueMode('feedback');
-                  setReportIssueOpen(true);
-                }}
-                className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-900"
-                title={t('shell.feedback_title')}
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                {t('shell.feedback')}
-              </button>
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={exportBusy}
-                className="rounded-md bg-sky-500 px-3 py-2 text-xs font-medium text-white hover:bg-sky-600 disabled:opacity-60"
-                data-tour="export"
-              >
-                {t('shell.export')}
-              </button>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={exportBusy}
+                  className="rounded-md bg-sky-500 px-3 py-2 text-xs font-medium text-white hover:bg-sky-600 disabled:opacity-60"
+                  data-tour="export"
+                >
+                  {t('shell.export')}
+                </button>
               </div>
 
               <div className="mt-1 text-right text-[11px] text-slate-500">
@@ -775,12 +768,6 @@ function ToolShellInner({
           )}
         </ToolErrorBoundary>
       </div>
-
-      {showAiPanels && (
-        <div className="border-t border-slate-800 bg-slate-950/40 px-4 py-1 text-slate-100">
-          <AICreditInfo showSecondLine={false} />
-        </div>
-      )}
 
       {resetConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
