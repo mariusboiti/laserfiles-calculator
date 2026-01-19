@@ -480,7 +480,6 @@ function ToolShellInner({
             {showAiPanels && (
               <div className="mt-3 space-y-2">
                 <AIWarningBanner />
-                <AICreditInfo />
               </div>
             )}
           </div>
@@ -741,6 +740,12 @@ function ToolShellInner({
           )}
         </ToolErrorBoundary>
       </div>
+
+      {showAiPanels && (
+        <div className="border-t border-slate-800 bg-slate-950/40 px-4 py-2 text-slate-100">
+          <AICreditInfo />
+        </div>
+      )}
 
       {resetConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
