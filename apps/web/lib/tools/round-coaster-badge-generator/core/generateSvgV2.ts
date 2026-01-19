@@ -158,21 +158,21 @@ export function buildCoasterSvgV2(state: CoasterStateV2): BuildResultV2 {
   // Outer shape (cut)
   const outerPath = generateShapePath(shape, cx, cy, size, width, height);
   cutElements.push(
-    `<path d="${outerPath}" fill="none" stroke="${preview.layerColors ? LAYER_COLORS.CUT : '#000'}" stroke-width="${safeBorder.thickness}"/>`
+    `<path d="${outerPath}" fill="none" stroke="${LAYER_COLORS.CUT}" stroke-width="${safeBorder.thickness}"/>`
   );
   
   // Border rings (cut or score)
   if (safeBorder.enabled) {
     const innerPath = generateInnerShapePath(shape, cx, cy, size, safeBorder.inset, width, height);
     cutElements.push(
-      `<path d="${innerPath}" fill="none" stroke="${preview.layerColors ? LAYER_COLORS.CUT : '#000'}" stroke-width="${safeBorder.thickness}"/>`
+      `<path d="${innerPath}" fill="none" stroke="${LAYER_COLORS.CUT}" stroke-width="${safeBorder.thickness}"/>`
     );
     
     if (safeBorder.doubleBorder) {
       const doubleInset = safeBorder.inset + safeBorder.doubleBorderGap;
       const doublePath = generateInnerShapePath(shape, cx, cy, size, doubleInset, width, height);
       cutElements.push(
-        `<path d="${doublePath}" fill="none" stroke="${preview.layerColors ? LAYER_COLORS.CUT : '#000'}" stroke-width="${safeBorder.thickness}"/>`
+        `<path d="${doublePath}" fill="none" stroke="${LAYER_COLORS.CUT}" stroke-width="${safeBorder.thickness}"/>`
       );
     }
   }

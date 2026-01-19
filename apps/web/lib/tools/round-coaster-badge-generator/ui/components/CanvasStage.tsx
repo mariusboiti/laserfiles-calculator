@@ -349,7 +349,7 @@ export function CanvasStage({
   // Render element
   const renderElement = useCallback((element: CanvasElement) => {
     const { transform, layer } = element;
-    const color = showLayerColors ? LAYER_COLORS[layer] : '#000000';
+    const color = layer === 'CUT' ? LAYER_COLORS.CUT : (showLayerColors ? LAYER_COLORS[layer] : '#000000');
 
     if (layer === 'GUIDE' && !showGuide) return null;
 
