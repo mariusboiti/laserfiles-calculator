@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useEntitlement } from '@/lib/entitlements/client';
 
 interface AICreditsInfoPanelProps {
   open: boolean;
@@ -8,7 +9,15 @@ interface AICreditsInfoPanelProps {
 }
 
 export function AICreditsInfoPanel({ open, onClose }: AICreditsInfoPanelProps) {
+  const { entitlement, loading } = useEntitlement();
+
   if (!open) return null;
+
+  const creditsLine = loading
+    ? 'Loading credits…'
+    : entitlement
+      ? `${entitlement.aiCreditsRemaining}/${entitlement.aiCreditsTotal} credits remaining`
+      : 'Credits unavailable';
 
   return (
     <div className="fixed inset-0 z-[60]">
@@ -31,6 +40,11 @@ export function AICreditsInfoPanel({ open, onClose }: AICreditsInfoPanelProps) {
         </div>
 
         <div className="space-y-4 px-5 py-4 text-sm text-slate-300">
+          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <div className="text-xs text-slate-400">Current balance</div>
+            <div className="mt-1 text-sm font-medium text-slate-200">{creditsLine}</div>
+          </div>
+
           <div className="space-y-2">
             <div className="text-sm font-medium text-slate-200">What are AI credits?</div>
             <div className="text-sm text-slate-300">
