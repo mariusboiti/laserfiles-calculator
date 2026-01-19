@@ -827,6 +827,20 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
 
   const selectionCount = selection.selectedIds.length;
 
+  const elementsByLayer = useMemo(() => {
+    const cut: typeof doc.elements = [];
+    const engrave: typeof doc.elements = [];
+    const guide: typeof doc.elements = [];
+
+    for (const el of doc.elements) {
+      if (el.layer === 'CUT') cut.push(el);
+      else if (el.layer === 'ENGRAVE') engrave.push(el);
+      else guide.push(el);
+    }
+
+    return { cut, engrave, guide };
+  }, [doc.elements]);
+
   return (
     <div className="lfs-tool bg-slate-950 text-slate-100">
       {trace.TraceModal}
@@ -847,6 +861,60 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                   >
                     {t(preset.name)}
                   </button>
+                ))}
+              </div>
+            </Section>
+
+            {/* Layers */}
+            <Section title={t('round_coaster.sections.layers')} defaultOpen={false}>
+              <div className="space-y-3">
+                {(
+                  [
+                    { id: 'CUT' as const, label: t('round_coaster.layers.cut'), elements: elementsByLayer.cut },
+                    { id: 'ENGRAVE' as const, label: t('round_coaster.layers.engrave'), elements: elementsByLayer.engrave },
+                    { id: 'GUIDE' as const, label: t('round_coaster.layers.guide'), elements: elementsByLayer.guide },
+                  ] as const
+                ).map((group) => (
+                  <div key={group.id} className="space-y-1">
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <span
+                        className="inline-block h-2 w-2 rounded-full"
+                        style={{ backgroundColor: LAYER_COLORS[group.id] }}
+                      />
+                      <span>{group.label}</span>
+                      <span className="text-slate-600">({group.elements.length})</span>
+                    </div>
+                    {group.elements.length > 0 ? (
+                      <div className="space-y-1">
+                        {group.elements
+                          .slice()
+                          .reverse()
+                          .map((el) => {
+                            const isActive = selection.activeId === el.id;
+                            const isSelected = selection.selectedIds.includes(el.id);
+                            const isDisabled = el.visible === false;
+                            return (
+                              <button
+                                key={el.id}
+                                type="button"
+                                onClick={() => dispatch({ type: 'SELECT', ids: [el.id] })}
+                                className={`w-full text-left px-2 py-1 rounded border text-[11px] ${
+                                  isActive
+                                    ? 'bg-sky-600 border-sky-500 text-white'
+                                    : isSelected
+                                      ? 'bg-slate-800 border-slate-600 text-slate-100'
+                                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                                } ${isDisabled ? 'opacity-50' : ''}`}
+                              >
+                                {getElementDisplayName(el)}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-slate-600">{t('round_coaster.layers.empty')}</div>
+                    )}
+                  </div>
                 ))}
               </div>
             </Section>
