@@ -11,7 +11,7 @@ import {
 import { jobManager } from '../../../jobs/jobManager';
 
 import type { CanvasDocument, ViewTransform, HistoryState } from '../types/canvas';
-import { DEFAULT_VIEW, DEFAULT_SELECTION } from '../types/canvas';
+import { DEFAULT_VIEW, DEFAULT_SELECTION, LAYER_COLORS } from '../types/canvas';
 import {
   canvasReducer,
   createInitialHistory,
@@ -827,6 +827,32 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
 
   const selectionCount = selection.selectedIds.length;
 
+  const [lockScale, setLockScale] = useState(false);
+  const scaleRatioRef = useRef(1);
+
+  useEffect(() => {
+    if (!lockScale) return;
+    if (!selectedElement) return;
+    const sx = selectedElement.transform.scaleX ?? 1;
+    const sy = selectedElement.transform.scaleY ?? 1;
+    const safeSx = Math.abs(sx) < 0.000001 ? 1 : sx;
+    scaleRatioRef.current = sy / safeSx;
+  }, [lockScale, selectedElement?.id]);
+
+  const elementsByLayer = useMemo(() => {
+    const cut: typeof doc.elements = [];
+    const engrave: typeof doc.elements = [];
+    const guide: typeof doc.elements = [];
+
+    for (const el of doc.elements) {
+      if (el.layer === 'CUT') cut.push(el);
+      else if (el.layer === 'ENGRAVE') engrave.push(el);
+      else guide.push(el);
+    }
+
+    return { cut, engrave, guide };
+  }, [doc.elements]);
+
   return (
     <div className="lfs-tool bg-slate-950 text-slate-100">
       {trace.TraceModal}
@@ -851,29 +877,120 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
               </div>
             </Section>
 
+            {/* Layers */}
+            <Section title={t('round_coaster.sections.layers')} defaultOpen={false}>
+              <div className="space-y-3">
+                {(
+                  [
+                    { id: 'CUT' as const, label: t('round_coaster.layers.cut'), elements: elementsByLayer.cut },
+                    { id: 'ENGRAVE' as const, label: t('round_coaster.layers.engrave'), elements: elementsByLayer.engrave },
+                    { id: 'GUIDE' as const, label: t('round_coaster.layers.guide'), elements: elementsByLayer.guide },
+                  ] as const
+                ).map((group) => (
+                  <div key={group.id} className="space-y-1">
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <span
+                        className="inline-block h-2 w-2 rounded-full"
+                        style={{ backgroundColor: LAYER_COLORS[group.id] }}
+                      />
+                      <span>{group.label}</span>
+                      <span className="text-slate-600">({group.elements.length})</span>
+                    </div>
+                    {group.elements.length > 0 ? (
+                      <div className="space-y-1">
+                        {group.elements
+                          .slice()
+                          .reverse()
+                          .map((el) => {
+                            const isActive = selection.activeId === el.id;
+                            const isSelected = selection.selectedIds.includes(el.id);
+                            const isDisabled = el.visible === false;
+                            return (
+                              <button
+                                key={el.id}
+                                type="button"
+                                onClick={() => dispatch({ type: 'SELECT', ids: [el.id] })}
+                                className={`w-full text-left px-2 py-1 rounded border text-[11px] ${
+                                  isActive
+                                    ? 'bg-sky-600 border-sky-500 text-white'
+                                    : isSelected
+                                      ? 'bg-slate-800 border-slate-600 text-slate-100'
+                                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                                } ${isDisabled ? 'opacity-50' : ''}`}
+                              >
+                                {getElementDisplayName(el)}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-slate-600">{t('round_coaster.layers.empty')}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Section>
+
             {/* Selection */}
             <Section title={t('round_coaster.sections.selection')} defaultOpen={false}>
               {selectedElement ? (
                 <div className="space-y-3">
                   <div className="text-xs text-slate-400">{getElementDisplayName(selectedElement)}</div>
-                  <NumberInput
-                    label={t('round_coaster.labels.scale_x')}
-                    value={selectedElement.transform.scaleX}
-                    onChange={(v) => dispatch({ type: 'UPDATE_TRANSFORM', id: selectedElement.id, transform: { scaleX: v } })}
-                    min={0.1}
-                    max={10}
-                    step={0.1}
-                    unit="×"
+
+                  <Checkbox
+                    label={t('round_coaster.checkboxes.lock_aspect')}
+                    checked={lockScale}
+                    onChange={setLockScale}
                   />
-                  <NumberInput
-                    label={t('round_coaster.labels.scale_y')}
-                    value={selectedElement.transform.scaleY}
-                    onChange={(v) => dispatch({ type: 'UPDATE_TRANSFORM', id: selectedElement.id, transform: { scaleY: v } })}
-                    min={0.1}
-                    max={10}
-                    step={0.1}
-                    unit="×"
-                  />
+
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">{t('round_coaster.labels.scale_x')}</div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={10}
+                        step={0.1}
+                        value={selectedElement.transform.scaleX ?? 1}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const ratio = scaleRatioRef.current || 1;
+                          dispatch({
+                            type: 'UPDATE_TRANSFORM',
+                            id: selectedElement.id,
+                            transform: lockScale ? { scaleX: v, scaleY: v * ratio } : { scaleX: v },
+                          });
+                        }}
+                        className="w-full"
+                      />
+                      <span className="text-[10px] text-slate-500 w-10 text-right">{(selectedElement.transform.scaleX ?? 1).toFixed(1)}×</span>
+                    </div>
+                  </label>
+
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">{t('round_coaster.labels.scale_y')}</div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={10}
+                        step={0.1}
+                        value={selectedElement.transform.scaleY ?? 1}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const ratio = scaleRatioRef.current || 1;
+                          const safeRatio = Math.abs(ratio) < 0.000001 ? 1 : ratio;
+                          dispatch({
+                            type: 'UPDATE_TRANSFORM',
+                            id: selectedElement.id,
+                            transform: lockScale ? { scaleY: v, scaleX: v / safeRatio } : { scaleY: v },
+                          });
+                        }}
+                        className="w-full"
+                      />
+                      <span className="text-[10px] text-slate-500 w-10 text-right">{(selectedElement.transform.scaleY ?? 1).toFixed(1)}×</span>
+                    </div>
+                  </label>
                   {selectedElement.kind === 'text' && (
                     <NumberInput
                       label={t('round_coaster.labels.font_size')}
@@ -1143,37 +1260,60 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
                     {getElementDisplayName(selectedElement)}
                   </div>
 
-                  <NumberInput
-                    label={t('round_coaster.labels.scale_x')}
-                    value={selectedElement.transform.scaleX ?? 1}
-                    onChange={(v) =>
-                      dispatch({
-                        type: 'UPDATE_TRANSFORM',
-                        id: selectedElement.id,
-                        transform: { scaleX: v },
-                      })
-                    }
-                    min={0.1}
-                    max={10}
-                    step={0.1}
-                    unit="×"
+                  <Checkbox
+                    label={t('round_coaster.checkboxes.lock_aspect')}
+                    checked={lockScale}
+                    onChange={setLockScale}
                   />
 
-                  <NumberInput
-                    label={t('round_coaster.labels.scale_y')}
-                    value={selectedElement.transform.scaleY ?? 1}
-                    onChange={(v) =>
-                      dispatch({
-                        type: 'UPDATE_TRANSFORM',
-                        id: selectedElement.id,
-                        transform: { scaleY: v },
-                      })
-                    }
-                    min={0.1}
-                    max={10}
-                    step={0.1}
-                    unit="×"
-                  />
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">{t('round_coaster.labels.scale_x')}</div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={10}
+                        step={0.1}
+                        value={selectedElement.transform.scaleX ?? 1}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const ratio = scaleRatioRef.current || 1;
+                          dispatch({
+                            type: 'UPDATE_TRANSFORM',
+                            id: selectedElement.id,
+                            transform: lockScale ? { scaleX: v, scaleY: v * ratio } : { scaleX: v },
+                          });
+                        }}
+                        className="w-full"
+                      />
+                      <span className="text-[10px] text-slate-500 w-10 text-right">{(selectedElement.transform.scaleX ?? 1).toFixed(1)}×</span>
+                    </div>
+                  </label>
+
+                  <label className="grid gap-1">
+                    <div className="text-[11px] text-slate-400">{t('round_coaster.labels.scale_y')}</div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={10}
+                        step={0.1}
+                        value={selectedElement.transform.scaleY ?? 1}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const ratio = scaleRatioRef.current || 1;
+                          const safeRatio = Math.abs(ratio) < 0.000001 ? 1 : ratio;
+                          dispatch({
+                            type: 'UPDATE_TRANSFORM',
+                            id: selectedElement.id,
+                            transform: lockScale ? { scaleY: v, scaleX: v / safeRatio } : { scaleY: v },
+                          });
+                        }}
+                        className="w-full"
+                      />
+                      <span className="text-[10px] text-slate-500 w-10 text-right">{(selectedElement.transform.scaleY ?? 1).toFixed(1)}×</span>
+                    </div>
+                  </label>
 
                   {selectedElement.kind === 'text' && (
                     <NumberInput

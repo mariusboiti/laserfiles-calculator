@@ -68,11 +68,11 @@ function applyMatrix(pk: Awaited<ReturnType<typeof loadPathOps>>, pathD: string,
 
 export async function buildExportSvgAsync(
   doc: CanvasDocument,
-  useLayerColors: boolean = false
+  _useLayerColors: boolean = false
 ): Promise<string> {
   const cutoutLogos = doc.elements.filter((e): e is any => e.kind === 'logo' && e.op === 'CUT_OUT' && e.visible !== false);
   if (cutoutLogos.length === 0) {
-    return await buildExportSvgTextToPathAsync(doc, useLayerColors);
+    return await buildExportSvgTextToPathAsync(doc, _useLayerColors);
   }
 
   // Find base shape element (first CUT shape)
@@ -83,7 +83,7 @@ export async function buildExportSvgAsync(
       ...doc,
       elements: doc.elements.filter(e => !(e.kind === 'logo' && (e as any).op === 'CUT_OUT')),
     };
-    return await buildExportSvgTextToPathAsync(filtered, useLayerColors);
+    return await buildExportSvgTextToPathAsync(filtered, _useLayerColors);
   }
 
   const pk = await loadPathOps();
@@ -113,7 +113,7 @@ export async function buildExportSvgAsync(
       ...doc,
       elements: doc.elements.filter(e => !(e.kind === 'logo' && (e as any).op === 'CUT_OUT')),
     };
-    return await buildExportSvgTextToPathAsync(filtered, useLayerColors);
+    return await buildExportSvgTextToPathAsync(filtered, _useLayerColors);
   }
 
   // Difference base local path - cutoutUnion
@@ -129,12 +129,12 @@ export async function buildExportSvgAsync(
     .map((e) => (e.id === base.id ? ({ ...e, pathD: nextBasePathD } as any) : e));
 
   const nextDoc: CanvasDocument = { ...doc, elements: filteredElements };
-  return await buildExportSvgTextToPathAsync(nextDoc, useLayerColors);
+  return await buildExportSvgTextToPathAsync(nextDoc, _useLayerColors);
 }
 
 async function buildExportSvgTextToPathAsync(
   doc: CanvasDocument,
-  useLayerColors: boolean
+  _useLayerColors: boolean
 ): Promise<string> {
   const { artboard, elements } = doc;
   const { widthMm, heightMm } = artboard;
@@ -152,7 +152,7 @@ async function buildExportSvgTextToPathAsync(
   let svg = `<svg width="${widthMm}mm" height="${heightMm}mm" viewBox="0 0 ${widthMm} ${heightMm}" xmlns="http://www.w3.org/2000/svg">\n`;
 
   if (cutElements.length > 0) {
-    const cutColor = useLayerColors ? LAYER_COLORS.CUT : '#000000';
+    const cutColor = LAYER_COLORS.CUT;
     svg += `  <g id="CUT">\n`;
     for (const el of cutElements) {
       svg += await renderElementAsync(el, cutColor);
@@ -161,7 +161,7 @@ async function buildExportSvgTextToPathAsync(
   }
 
   if (engraveElements.length > 0) {
-    const engraveColor = useLayerColors ? LAYER_COLORS.ENGRAVE : '#000000';
+    const engraveColor = LAYER_COLORS.ENGRAVE;
     svg += `  <g id="ENGRAVE">\n`;
     for (const el of engraveElements) {
       svg += await renderElementAsync(el, engraveColor);
@@ -178,7 +178,7 @@ async function buildExportSvgTextToPathAsync(
  */
 export function buildExportSvg(
   doc: CanvasDocument,
-  useLayerColors: boolean = false
+  _useLayerColors: boolean = false
 ): string {
   const { artboard, elements } = doc;
   const { widthMm, heightMm } = artboard;
@@ -203,7 +203,7 @@ export function buildExportSvg(
 
   // CUT layer group
   if (cutElements.length > 0) {
-    const cutColor = useLayerColors ? LAYER_COLORS.CUT : '#000000';
+    const cutColor = LAYER_COLORS.CUT;
     svg += `  <g id="CUT">\n`;
     for (const el of cutElements) {
       svg += renderElement(el, cutColor);
@@ -213,7 +213,7 @@ export function buildExportSvg(
 
   // ENGRAVE layer group
   if (engraveElements.length > 0) {
-    const engraveColor = useLayerColors ? LAYER_COLORS.ENGRAVE : '#000000';
+    const engraveColor = LAYER_COLORS.ENGRAVE;
     svg += `  <g id="ENGRAVE">\n`;
     for (const el of engraveElements) {
       svg += renderElement(el, engraveColor);
