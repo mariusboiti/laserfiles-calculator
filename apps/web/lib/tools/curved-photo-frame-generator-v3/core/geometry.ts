@@ -285,7 +285,7 @@ export function generateFrontPlate(inputs: CurvedPhotoFrameV3Inputs): string {
   const body =
     defs +
     layerGroup('engrave', 'black', engraveParts.join('')) +
-    layerGroup('score', 'blue', scoreLines.join('')) +
+    layerGroup('score', 'red', scoreLines.join('')) +
     layerGroup('cut', 'red', cutPaths.join(''));
   
   return svgWrap(plateW, plateH, body);
