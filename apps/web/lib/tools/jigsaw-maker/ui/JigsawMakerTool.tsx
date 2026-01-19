@@ -16,6 +16,8 @@ import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib
 import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { useUnitSystem } from '@/components/units/UnitSystemProvider';
+import { fromDisplayLength, toDisplayLength } from '@/components/units/length';
 
 function downloadTextFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
@@ -38,6 +40,7 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
   const { api } = useToolUx();
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+  const { unitSystem } = useUnitSystem();
 
   useEffect(() => {
     api.setIsEmpty(false);
@@ -148,6 +151,8 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
   
   // Piece shape difficulty slider (0-100)
   const [pieceDifficulty, setPieceDifficulty] = useState(0);
+
+  const lenStep = unitSystem === 'in' ? 0.01 : 0.1;
   
 
   const resetToDefaults = useCallback(() => {
@@ -409,8 +414,8 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
   }, [inputs]);
 
   const pieceCount = rows * columns;
-  const pieceWidth = (widthMm / columns).toFixed(1);
-  const pieceHeight = (heightMm / rows).toFixed(1);
+  const pieceWidth = toDisplayLength(widthMm / columns, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1);
+  const pieceHeight = toDisplayLength(heightMm / rows, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1);
 
   const getExportPayload = useCallback(() => {
     const svg = puzzleResult.fullSvg;
@@ -547,18 +552,19 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
 
   return (
     <div className="lfs-tool lfs-tool-jigsaw-maker flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-900 bg-slate-950/80">
-        <div className="mx-auto flex w-full items-center justify-between gap-4 px-4 py-3">
-          <div>
-            <h1 className="text-sm font-semibold text-slate-100 md:text-base">{t('tools.jigsaw-maker.title')}</h1>
-            <p className="text-[11px] text-slate-400">{t('jigsaw.header.subtitle')}</p>
-          </div>
-        </div>
-      </header>
-
       <main className="mx-auto flex w-full flex-1 flex-col gap-4 px-4 py-4 md:flex-row">
         <section className="w-full md:w-80 lg:w-96">
-          <div className="max-h-[calc(100vh-96px)] overflow-y-auto rounded-lg border border-slate-800 bg-slate-900/40 p-3 md:p-4">
+          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-slate-100">{t('jigsaw.settings_title')}</div>
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] text-slate-200 hover:bg-slate-800"
+              >
+                {t('jigsaw.regenerate.label')}
+              </button>
+            </div>
             <div className="space-y-4">
               
               {/* Puzzle Mode */}
@@ -825,24 +831,26 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                 <div className="text-sm font-medium text-slate-100">{t('jigsaw.dimensions.title')}</div>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">{t('jigsaw.width_mm.label')}</div>
+                    <div className="text-[11px] text-slate-400">{t('jigsaw.width_mm.label')} ({unitSystem})</div>
                     <input
                       type="number"
-                      min={LIMITS.minWidthMm}
-                      max={LIMITS.maxWidthMm}
-                      value={widthMm}
-                      onChange={(e) => setWidthMm(Number(e.target.value))}
+                      min={toDisplayLength(LIMITS.minWidthMm, unitSystem)}
+                      max={toDisplayLength(LIMITS.maxWidthMm, unitSystem)}
+                      step={lenStep}
+                      value={toDisplayLength(widthMm, unitSystem)}
+                      onChange={(e) => setWidthMm(fromDisplayLength(Number(e.target.value), unitSystem))}
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">{t('jigsaw.height_mm.label')}</div>
+                    <div className="text-[11px] text-slate-400">{t('jigsaw.height_mm.label')} ({unitSystem})</div>
                     <input
                       type="number"
-                      min={LIMITS.minHeightMm}
-                      max={LIMITS.maxHeightMm}
-                      value={heightMm}
-                      onChange={(e) => setHeightMm(Number(e.target.value))}
+                      min={toDisplayLength(LIMITS.minHeightMm, unitSystem)}
+                      max={toDisplayLength(LIMITS.maxHeightMm, unitSystem)}
+                      step={lenStep}
+                      value={toDisplayLength(heightMm, unitSystem)}
+                      onChange={(e) => setHeightMm(fromDisplayLength(Number(e.target.value), unitSystem))}
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                   </label>
@@ -880,7 +888,7 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                   {t('jigsaw.grid.summary')
                     .replace('{pieces}', String(pieceCount))
                     .replace('{pieceWidth}', String(pieceWidth))
-                    .replace('{pieceHeight}', String(pieceHeight))}
+                    .replace('{pieceHeight}', String(pieceHeight))}{unitSystem}
                 </div>
               </div>
 
@@ -937,7 +945,7 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                       <option value="">{t('jigsaw.material_sheet.select_preset')}</option>
                       {MATERIAL_SHEET_PRESETS.map((preset) => (
                         <option key={preset.name} value={preset.name}>
-                          {preset.name} ({preset.widthMm}×{preset.heightMm}mm)
+                          {preset.name} ({toDisplayLength(preset.widthMm, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1)}×{toDisplayLength(preset.heightMm, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1)}{unitSystem})
                         </option>
                       ))}
                     </select>
@@ -945,15 +953,17 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                       <input
                         type="number"
                         placeholder={t('jigsaw.material_sheet.width_placeholder')}
-                        value={materialSheet.widthMm}
-                        onChange={(e) => setMaterialSheet(prev => ({ ...prev, widthMm: Number(e.target.value) }))}
+                        value={toDisplayLength(materialSheet.widthMm, unitSystem)}
+                        step={lenStep}
+                        onChange={(e) => setMaterialSheet(prev => ({ ...prev, widthMm: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                         className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                       />
                       <input
                         type="number"
                         placeholder={t('jigsaw.material_sheet.height_placeholder')}
-                        value={materialSheet.heightMm}
-                        onChange={(e) => setMaterialSheet(prev => ({ ...prev, heightMm: Number(e.target.value) }))}
+                        value={toDisplayLength(materialSheet.heightMm, unitSystem)}
+                        step={lenStep}
+                        onChange={(e) => setMaterialSheet(prev => ({ ...prev, heightMm: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                         className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                       />
                     </div>
@@ -961,15 +971,17 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                       <input
                         type="number"
                         placeholder={t('jigsaw.material_sheet.margin_placeholder')}
-                        value={materialSheet.marginMm}
-                        onChange={(e) => setMaterialSheet(prev => ({ ...prev, marginMm: Number(e.target.value) }))}
+                        value={toDisplayLength(materialSheet.marginMm, unitSystem)}
+                        step={lenStep}
+                        onChange={(e) => setMaterialSheet(prev => ({ ...prev, marginMm: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                         className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                       />
                       <input
                         type="number"
                         placeholder={t('jigsaw.material_sheet.gap_placeholder')}
-                        value={materialSheet.gapMm}
-                        onChange={(e) => setMaterialSheet(prev => ({ ...prev, gapMm: Number(e.target.value) }))}
+                        value={toDisplayLength(materialSheet.gapMm, unitSystem)}
+                        step={lenStep}
+                        onChange={(e) => setMaterialSheet(prev => ({ ...prev, gapMm: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                         className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                       />
                     </div>
@@ -1008,22 +1020,24 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <label className="grid gap-1">
-                          <div className="text-[10px] text-slate-400">{t('jigsaw.margin_mm.label')}</div>
+                          <div className="text-[10px] text-slate-400">{t('jigsaw.margin_mm.label')} ({unitSystem})</div>
                           <input
                             type="number"
-                            value={backingBoard.marginMm}
-                            onChange={(e) => setBackingBoard(prev => ({ ...prev, marginMm: Number(e.target.value) }))}
+                            step={lenStep}
+                            value={toDisplayLength(backingBoard.marginMm, unitSystem)}
+                            onChange={(e) => setBackingBoard(prev => ({ ...prev, marginMm: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                             className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                           />
                         </label>
                         <label className="grid gap-1">
-                          <div className="text-[10px] text-slate-400">{t('jigsaw.corner_radius.label')}</div>
+                          <div className="text-[10px] text-slate-400">{t('jigsaw.corner_radius.label')} ({unitSystem})</div>
                           <input
                             type="number"
-                            min={0}
-                            max={20}
-                            value={backingCornerRadius}
-                            onChange={(e) => setBackingCornerRadius(Number(e.target.value))}
+                            min={toDisplayLength(0, unitSystem)}
+                            max={toDisplayLength(20, unitSystem)}
+                            step={lenStep}
+                            value={toDisplayLength(backingCornerRadius, unitSystem)}
+                            onChange={(e) => setBackingCornerRadius(fromDisplayLength(Number(e.target.value), unitSystem))}
                             className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                           />
                         </label>
@@ -1045,24 +1059,27 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                             type="number"
                             placeholder="Ø"
                             title={t('jigsaw.backing_board.hole_diameter_title')}
-                            value={backingBoard.hangingHoleDiameter}
-                            onChange={(e) => setBackingBoard(prev => ({ ...prev, hangingHoleDiameter: Number(e.target.value) }))}
+                            step={lenStep}
+                            value={toDisplayLength(backingBoard.hangingHoleDiameter, unitSystem)}
+                            onChange={(e) => setBackingBoard(prev => ({ ...prev, hangingHoleDiameter: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                             className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-100"
                           />
                           <input
                             type="number"
                             placeholder={t('jigsaw.backing_board.hole_spacing_placeholder')}
                             title={t('jigsaw.backing_board.hole_spacing_title')}
-                            value={backingBoard.hangingHoleSpacing}
-                            onChange={(e) => setBackingBoard(prev => ({ ...prev, hangingHoleSpacing: Number(e.target.value) }))}
+                            step={lenStep}
+                            value={toDisplayLength(backingBoard.hangingHoleSpacing, unitSystem)}
+                            onChange={(e) => setBackingBoard(prev => ({ ...prev, hangingHoleSpacing: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                             className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-100"
                           />
                           <input
                             type="number"
                             placeholder="Y"
                             title={t('jigsaw.backing_board.hole_y_offset_title')}
-                            value={backingBoard.hangingHoleYOffset}
-                            onChange={(e) => setBackingBoard(prev => ({ ...prev, hangingHoleYOffset: Number(e.target.value) }))}
+                            step={lenStep}
+                            value={toDisplayLength(backingBoard.hangingHoleYOffset, unitSystem)}
+                            onChange={(e) => setBackingBoard(prev => ({ ...prev, hangingHoleYOffset: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                             className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-100"
                           />
                         </div>
@@ -1084,16 +1101,18 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                             type="number"
                             placeholder="Ø"
                             title={t('jigsaw.backing_board.magnet_diameter_title')}
-                            value={backingBoard.magnetHoleDiameter}
-                            onChange={(e) => setBackingBoard(prev => ({ ...prev, magnetHoleDiameter: Number(e.target.value) }))}
+                            step={lenStep}
+                            value={toDisplayLength(backingBoard.magnetHoleDiameter, unitSystem)}
+                            onChange={(e) => setBackingBoard(prev => ({ ...prev, magnetHoleDiameter: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                             className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-100"
                           />
                           <input
                             type="number"
                             placeholder={t('jigsaw.backing_board.magnet_inset_placeholder')}
                             title={t('jigsaw.backing_board.magnet_inset_title')}
-                            value={backingBoard.magnetHoleInset}
-                            onChange={(e) => setBackingBoard(prev => ({ ...prev, magnetHoleInset: Number(e.target.value) }))}
+                            step={lenStep}
+                            value={toDisplayLength(backingBoard.magnetHoleInset, unitSystem)}
+                            onChange={(e) => setBackingBoard(prev => ({ ...prev, magnetHoleInset: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                             className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-100"
                           />
                         </div>
@@ -1108,26 +1127,26 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                 <div className="text-sm font-medium text-slate-100">{t('jigsaw.advanced.title')}</div>
                 <div className="mt-3 space-y-3">
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">{t('jigsaw.corner_radius.label')}</div>
+                    <div className="text-[11px] text-slate-400">{t('jigsaw.corner_radius.label')} ({unitSystem})</div>
                     <input
                       type="number"
-                      min={LIMITS.minCornerRadius}
-                      max={LIMITS.maxCornerRadius}
-                      step={0.5}
-                      value={cornerRadius}
-                      onChange={(e) => setCornerRadius(Number(e.target.value))}
+                      min={toDisplayLength(LIMITS.minCornerRadius, unitSystem)}
+                      max={toDisplayLength(LIMITS.maxCornerRadius, unitSystem)}
+                      step={lenStep}
+                      value={toDisplayLength(cornerRadius, unitSystem)}
+                      onChange={(e) => setCornerRadius(fromDisplayLength(Number(e.target.value), unitSystem))}
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                   </label>
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">{t('jigsaw.kerf_offset.label')}</div>
+                    <div className="text-[11px] text-slate-400">{t('jigsaw.kerf_offset.label')} ({unitSystem})</div>
                     <input
                       type="number"
-                      min={LIMITS.minKerfOffset}
-                      max={LIMITS.maxKerfOffset}
-                      step={0.01}
-                      value={kerfOffset}
-                      onChange={(e) => setKerfOffset(Number(e.target.value))}
+                      min={toDisplayLength(LIMITS.minKerfOffset, unitSystem)}
+                      max={toDisplayLength(LIMITS.maxKerfOffset, unitSystem)}
+                      step={unitSystem === 'in' ? 0.001 : 0.01}
+                      value={toDisplayLength(kerfOffset, unitSystem)}
+                      onChange={(e) => setKerfOffset(fromDisplayLength(Number(e.target.value), unitSystem))}
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                   </label>
@@ -1180,14 +1199,14 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                 <div className="mt-3 space-y-3">
                   {/* Margin */}
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">{t('jigsaw.generator.outer_margin.label')}</div>
+                    <div className="text-[11px] text-slate-400">{t('jigsaw.generator.outer_margin.label')} ({unitSystem})</div>
                     <input
                       type="number"
-                      min={0}
-                      max={20}
-                      step={0.5}
-                      value={marginMm}
-                      onChange={(e) => setMarginMm(Number(e.target.value))}
+                      min={toDisplayLength(0, unitSystem)}
+                      max={toDisplayLength(20, unitSystem)}
+                      step={lenStep}
+                      value={toDisplayLength(marginMm, unitSystem)}
+                      onChange={(e) => setMarginMm(fromDisplayLength(Number(e.target.value), unitSystem))}
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                     <div className="text-[10px] text-slate-500">{t('jigsaw.generator.outer_margin.helper')}</div>
@@ -1252,14 +1271,14 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                   
                   {/* Clearance */}
                   <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">{t('jigsaw.generator.clearance.label')}</div>
+                    <div className="text-[11px] text-slate-400">{t('jigsaw.generator.clearance.label')} ({unitSystem})</div>
                     <input
                       type="number"
-                      min={-0.2}
-                      max={0.2}
-                      step={0.01}
-                      value={clearanceMm}
-                      onChange={(e) => setClearanceMm(Number(e.target.value))}
+                      min={toDisplayLength(-0.2, unitSystem)}
+                      max={toDisplayLength(0.2, unitSystem)}
+                      step={unitSystem === 'in' ? 0.001 : 0.01}
+                      value={toDisplayLength(clearanceMm, unitSystem)}
+                      onChange={(e) => setClearanceMm(fromDisplayLength(Number(e.target.value), unitSystem))}
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                     <div className="text-[10px] text-slate-500">{t('jigsaw.generator.clearance.helper')}</div>
@@ -1384,9 +1403,11 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                 <div className="text-sm font-medium text-slate-100">{t('jigsaw.preview.title')}</div>
                 <div className="text-[10px] text-slate-500">
                   {t('jigsaw.preview.summary')
-                    .replace('{widthMm}', String(widthMm))
-                    .replace('{heightMm}', String(heightMm))
-                    .replace('{pieces}', String(pieceCount))}
+                    .replace('{widthMm}', String(toDisplayLength(widthMm, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1)))
+                    .replace('{heightMm}', String(toDisplayLength(heightMm, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1)))
+                    .replace('{unit}', unitSystem)
+                    .replace('{pieces}', String(pieceCount))
+                  }
                 </div>
               </div>
               <div className="flex items-center gap-2 justify-end">

@@ -13,10 +13,10 @@ type UpgradeModalProps = {
 };
 
 export function UpgradeModal({ open, onClose, title, feature }: UpgradeModalProps) {
-  if (!open) return null;
-
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

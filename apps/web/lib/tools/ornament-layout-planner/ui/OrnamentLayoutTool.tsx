@@ -14,6 +14,8 @@ import type { TemplateItem, LayoutSettings, SheetLayout } from '../types/layout'
 import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { useLanguage } from '@/lib/i18n/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { useUnitSystem } from '@/components/units/UnitSystemProvider';
+import { fromDisplayLength, toDisplayLength } from '@/components/units/length';
 
 interface OrnamentLayoutToolProps {
   onResetCallback?: (callback: () => void) => void;
@@ -24,6 +26,7 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
   const { api } = useToolUx();
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+  const { unitSystem } = useUnitSystem();
 
   useEffect(() => {
     api.setIsEmpty(false);
@@ -39,6 +42,8 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
   // UI state
   const [currentSheetIndex, setCurrentSheetIndex] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
+
+  const lenStep = unitSystem === 'in' ? 0.01 : 0.1;
 
   // Generate layout
   const layoutResult = useMemo(() => {
@@ -64,7 +69,17 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
 
   // Preview SVG
   const previewSvg = useMemo(() => {
-    if (!currentSheet) return '';
+    if (!currentSheet) {
+      const w = Number(settings.sheetW) || 300;
+      const h = Number(settings.sheetH) || 200;
+      const vb = `0 0 ${w} ${h}`;
+      return `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${w}mm" height="${h}mm">
+  <rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff" />
+  <rect x="0.5" y="0.5" width="${Math.max(0, w - 1)}" height="${Math.max(0, h - 1)}" fill="none" stroke="#94a3b8" stroke-width="1" />
+</svg>
+      `.trim();
+    }
     
     return generateSheetSvg({
       sheetIndex: currentSheet.sheetIndex,
@@ -360,7 +375,9 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
                     </button>
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
-                    <span>{tpl.width.toFixed(1)}×{tpl.height.toFixed(1)}mm</span>
+                    <span>
+                      {toDisplayLength(tpl.width, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1)}×{toDisplayLength(tpl.height, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1)}{unitSystem}
+                    </span>
                     <input
                       type="number"
                       value={tpl.qty}
@@ -403,29 +420,32 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
             
             <div className="mt-3 grid grid-cols-3 gap-2">
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.width_mm')}</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.width_mm')} ({unitSystem})</div>
                 <input
                   type="number"
-                  value={settings.sheetW}
-                  onChange={(e) => setSettings((s) => ({ ...s, sheetW: Number(e.target.value) }))}
+                  value={toDisplayLength(settings.sheetW, unitSystem)}
+                  onChange={(e) => setSettings((s) => ({ ...s, sheetW: fromDisplayLength(Number(e.target.value), unitSystem) }))}
+                  step={lenStep}
                   className="rounded border border-slate-800 bg-slate-950 px-1 py-1 text-xs w-full"
                 />
               </label>
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.height_mm')}</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.height_mm')} ({unitSystem})</div>
                 <input
                   type="number"
-                  value={settings.sheetH}
-                  onChange={(e) => setSettings((s) => ({ ...s, sheetH: Number(e.target.value) }))}
+                  value={toDisplayLength(settings.sheetH, unitSystem)}
+                  onChange={(e) => setSettings((s) => ({ ...s, sheetH: fromDisplayLength(Number(e.target.value), unitSystem) }))}
+                  step={lenStep}
                   className="rounded border border-slate-800 bg-slate-950 px-1 py-1 text-xs w-full"
                 />
               </label>
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.margin_mm')}</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.margin_mm')} ({unitSystem})</div>
                 <input
                   type="number"
-                  value={settings.margin}
-                  onChange={(e) => setSettings((s) => ({ ...s, margin: Number(e.target.value) }))}
+                  value={toDisplayLength(settings.margin, unitSystem)}
+                  onChange={(e) => setSettings((s) => ({ ...s, margin: fromDisplayLength(Number(e.target.value), unitSystem) }))}
+                  step={lenStep}
                   className="rounded border border-slate-800 bg-slate-950 px-1 py-1 text-xs w-full"
                 />
               </label>
@@ -438,31 +458,31 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
             <div className="space-y-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-slate-300">{t('ornament_layout.ui.hole_size_mm')}</label>
-                  <span className="text-xs text-slate-400">{settings.holeRadius.toFixed(1)}</span>
+                  <label className="text-xs text-slate-300">{t('ornament_layout.ui.hole_size_mm')} ({unitSystem})</label>
+                  <span className="text-xs text-slate-400">{toDisplayLength(settings.holeRadius, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1)}</span>
                 </div>
                 <input
                   type="range"
-                  min="1"
-                  max="5"
-                  step="0.1"
-                  value={settings.holeRadius}
-                  onChange={(e) => setSettings((s) => ({ ...s, holeRadius: Number(e.target.value) }))}
+                  min={toDisplayLength(1, unitSystem)}
+                  max={toDisplayLength(5, unitSystem)}
+                  step={unitSystem === 'in' ? 0.01 : 0.1}
+                  value={toDisplayLength(settings.holeRadius, unitSystem)}
+                  onChange={(e) => setSettings((s) => ({ ...s, holeRadius: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                   className="w-full"
                 />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-slate-300">{t('ornament_layout.ui.hole_position_mm_from_top')}</label>
-                  <span className="text-xs text-slate-400">{settings.holeYOffset.toFixed(1)}</span>
+                  <label className="text-xs text-slate-300">{t('ornament_layout.ui.hole_position_mm_from_top')} ({unitSystem})</label>
+                  <span className="text-xs text-slate-400">{toDisplayLength(settings.holeYOffset, unitSystem).toFixed(unitSystem === 'in' ? 3 : 1)}</span>
                 </div>
                 <input
                   type="range"
-                  min="5"
-                  max="25"
-                  step="0.5"
-                  value={settings.holeYOffset}
-                  onChange={(e) => setSettings((s) => ({ ...s, holeYOffset: Number(e.target.value) }))}
+                  min={toDisplayLength(5, unitSystem)}
+                  max={toDisplayLength(25, unitSystem)}
+                  step={unitSystem === 'in' ? 0.02 : 0.5}
+                  value={toDisplayLength(settings.holeYOffset, unitSystem)}
+                  onChange={(e) => setSettings((s) => ({ ...s, holeYOffset: fromDisplayLength(Number(e.target.value), unitSystem) }))}
                   className="w-full"
                 />
               </div>
@@ -561,20 +581,22 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.gap_x_mm')}</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.gap_x_mm')} ({unitSystem})</div>
                 <input
                   type="number"
-                  value={settings.gapX}
-                  onChange={(e) => setSettings((s) => ({ ...s, gapX: Number(e.target.value) }))}
+                  value={toDisplayLength(settings.gapX, unitSystem)}
+                  onChange={(e) => setSettings((s) => ({ ...s, gapX: fromDisplayLength(Number(e.target.value), unitSystem) }))}
+                  step={lenStep}
                   className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
                 />
               </label>
               <label className="grid gap-1">
-                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.gap_y_mm')}</div>
+                <div className="text-[10px] text-slate-300">{t('ornament_layout.ui.gap_y_mm')} ({unitSystem})</div>
                 <input
                   type="number"
-                  value={settings.gapY}
-                  onChange={(e) => setSettings((s) => ({ ...s, gapY: Number(e.target.value) }))}
+                  value={toDisplayLength(settings.gapY, unitSystem)}
+                  onChange={(e) => setSettings((s) => ({ ...s, gapY: fromDisplayLength(Number(e.target.value), unitSystem) }))}
+                  step={lenStep}
                   className="rounded border border-slate-800 bg-slate-950 px-2 py-1 text-xs"
                 />
               </label>
@@ -688,11 +710,15 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
           {/* Preview */}
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 sticky top-4">
             <div className="mb-2 text-xs text-slate-300">{t('ornament_layout.ui.preview')}</div>
-            <div className="overflow-auto rounded-lg border border-slate-800 bg-white p-3 max-h-[calc(100vh-8rem)]">
-              {previewSvg ? (
-                <div dangerouslySetInnerHTML={{ __html: previewSvg }} />
-              ) : (
-                <div className="text-sm text-slate-500">{t('ornament_layout.ui.no_preview_available')}</div>
+            <div className="relative overflow-auto rounded-lg border border-slate-800 bg-white p-3 max-h-[calc(100vh-8rem)]">
+              <div dangerouslySetInnerHTML={{ __html: previewSvg }} />
+
+              {templates.length === 0 && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="rounded-md bg-slate-950/70 px-3 py-2 text-xs text-slate-100 shadow">
+                    {t('ornament_layout.ui.preview_overlay_select_template')}
+                  </div>
+                </div>
               )}
             </div>
           </div>

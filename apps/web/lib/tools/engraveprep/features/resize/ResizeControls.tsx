@@ -11,6 +11,8 @@ import { useImageStore } from '../../store/useImageStore';
 import { DPI_OPTIONS } from '../../types';
 import { useLanguage } from '@/lib/i18n/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { useUnitSystem } from '@/components/units/UnitSystemProvider';
+import { fromDisplayLength, toDisplayLength } from '@/components/units/length';
 
 export function ResizeControls() {
   const { 
@@ -22,10 +24,14 @@ export function ResizeControls() {
   } = useImageStore();
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+  const { unitSystem } = useUnitSystem();
 
   const mmToInch = 1 / 25.4;
   const widthPx = Math.round(resizeState.widthMm * mmToInch * resizeState.dpi);
   const heightPx = Math.round(resizeState.heightMm * mmToInch * resizeState.dpi);
+  const minDisplay = toDisplayLength(50, unitSystem);
+  const maxDisplay = toDisplayLength(5000, unitSystem);
+  const stepDisplay = unitSystem === 'in' ? 0.01 : 1;
   const dpiOptions = useMemo(() => DPI_OPTIONS.map((option) => ({
     ...option,
     label: t(`engraveprep.resize.dpi.${option.value}.label`),
@@ -44,11 +50,11 @@ export function ResizeControls() {
         <label className="text-xs text-gray-400 block mb-1">{t('engraveprep.resize.width')}</label>
         <input
           type="number"
-          value={resizeState.widthMm}
-          onChange={(e) => setResizeWidth(Number(e.target.value))}
-          step="1"
-          min="50"
-          max="5000"
+          value={toDisplayLength(resizeState.widthMm, unitSystem)}
+          onChange={(e) => setResizeWidth(fromDisplayLength(Number(e.target.value), unitSystem))}
+          step={stepDisplay}
+          min={minDisplay}
+          max={maxDisplay}
           className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white
                      focus:outline-none focus:border-blue-500"
         />
@@ -76,11 +82,11 @@ export function ResizeControls() {
         <label className="text-xs text-gray-400 block mb-1">{t('engraveprep.resize.height')}</label>
         <input
           type="number"
-          value={resizeState.heightMm}
-          onChange={(e) => setResizeHeight(Number(e.target.value))}
-          step="1"
-          min="50"
-          max="5000"
+          value={toDisplayLength(resizeState.heightMm, unitSystem)}
+          onChange={(e) => setResizeHeight(fromDisplayLength(Number(e.target.value), unitSystem))}
+          step={stepDisplay}
+          min={minDisplay}
+          max={maxDisplay}
           className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white
                      focus:outline-none focus:border-blue-500"
         />
@@ -125,7 +131,7 @@ export function ResizeControls() {
           <div className="flex justify-between items-center">
             <span className="text-xs text-gray-400">{t('engraveprep.resize.lightburn.line_interval')}</span>
             <span className="text-sm text-blue-300 font-mono font-semibold">
-              {(25.4 / resizeState.dpi).toFixed(3)} mm
+              {toDisplayLength(25.4 / resizeState.dpi, unitSystem).toFixed(unitSystem === 'in' ? 4 : 3)} {unitSystem}
             </span>
           </div>
           <p className="text-xs text-gray-500 leading-relaxed">

@@ -28,6 +28,7 @@ import { createArtifact, addToPriceCalculator, type Artifact } from '@/lib/artif
 import { showArtifactSavedToast } from '@/lib/tools/export/useExportArtifact';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { UnitSystemProvider, useUnitSystem } from '@/components/units/UnitSystemProvider';
 
 // Lazy load TutorialPanel for code splitting
 const TutorialPanel = lazy(() => import('@/components/tutorial/TutorialPanel').then(m => ({ default: m.TutorialPanel })));
@@ -64,23 +65,56 @@ export function ToolShell({
   getExportPayload,
 }: ToolShellProps) {
   return (
-    <ToolUxProvider>
-      <ToolShellInner
-        slug={slug}
-        titleKey={titleKey}
-        descriptionKey={descriptionKey}
-        proFeatures={proFeatures}
-        toolSlug={toolSlug}
-        showBack={showBack}
-        onReset={onReset}
-        onExport={onExport}
-        onHelp={onHelp}
-        help={help}
-        getExportPayload={getExportPayload}
+    <UnitSystemProvider>
+      <ToolUxProvider>
+        <ToolShellInner
+          slug={slug}
+          titleKey={titleKey}
+          descriptionKey={descriptionKey}
+          proFeatures={proFeatures}
+          toolSlug={toolSlug}
+          showBack={showBack}
+          onReset={onReset}
+          onExport={onExport}
+          onHelp={onHelp}
+          help={help}
+          getExportPayload={getExportPayload}
+        >
+          {children}
+        </ToolShellInner>
+      </ToolUxProvider>
+    </UnitSystemProvider>
+  );
+}
+
+function UnitSystemToggle() {
+  const { unitSystem, setUnitSystem } = useUnitSystem();
+
+  return (
+    <div className="inline-flex overflow-hidden rounded-md border border-slate-700 bg-slate-950">
+      <button
+        type="button"
+        onClick={() => setUnitSystem('mm')}
+        className={
+          unitSystem === 'mm'
+            ? 'px-2 py-1 text-[11px] font-medium text-slate-950 bg-sky-300'
+            : 'px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
+        }
       >
-        {children}
-      </ToolShellInner>
-    </ToolUxProvider>
+        mm
+      </button>
+      <button
+        type="button"
+        onClick={() => setUnitSystem('in')}
+        className={
+          unitSystem === 'in'
+            ? 'px-2 py-1 text-[11px] font-medium text-slate-950 bg-sky-300'
+            : 'px-2 py-1 text-[11px] text-slate-200 hover:bg-slate-900'
+        }
+      >
+        in
+      </button>
+    </div>
   );
 }
 
@@ -488,6 +522,7 @@ function ToolShellInner({
             <AiCreditsBadge />
             <div>
               <div className="flex items-center gap-2">
+              <UnitSystemToggle />
               {tourAvailable && (
                 <TourLauncher
                   status={tourProgress.status}
@@ -742,8 +777,8 @@ function ToolShellInner({
       </div>
 
       {showAiPanels && (
-        <div className="border-t border-slate-800 bg-slate-950/40 px-4 py-2 text-slate-100">
-          <AICreditInfo />
+        <div className="border-t border-slate-800 bg-slate-950/40 px-4 py-1 text-slate-100">
+          <AICreditInfo showSecondLine={false} />
         </div>
       )}
 

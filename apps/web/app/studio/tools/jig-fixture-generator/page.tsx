@@ -5,14 +5,14 @@ import { ToolShell } from '../../../../components/studio/ToolShell';
 import { getToolBySlug } from '../../../../lib/studio/tools/registry';
 
 export default function JigFixtureGeneratorPage() {
+  const [getExportPayload, setGetExportPayload] = useState<
+    null | (() => Promise<{ svg: string; name?: string; meta?: any }> | { svg: string; name?: string; meta?: any })
+  >(null);
+
   const tool = getToolBySlug('jig-fixture-generator');
   if (!tool) return null;
 
   const Tool = tool.Component;
-
-  const [getExportPayload, setGetExportPayload] = useState<
-    null | (() => Promise<{ svg: string; name?: string; meta?: any }> | { svg: string; name?: string; meta?: any })
-  >(null);
 
   return (
     <ToolShell

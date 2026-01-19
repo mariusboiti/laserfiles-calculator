@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { TextLayoutConfig, SheetLayoutConfig, NameRecord, CSVMapping, GeneratedSVG, TemplateSizeConfig, UnitSystem, HoleConfig } from './types';
+import type { TextLayoutConfig, SheetLayoutConfig, NameRecord, CSVMapping, GeneratedSVG, TemplateSizeConfig, HoleConfig } from './types';
 import type { ParsedCSVData } from './utils/csvUtils';
 import { mapCSVToNames } from './utils/csvUtils';
 import { calculateSheetCapacity, generateNameTagSvg, parseTemplateBounds, sanitizeSvgForInlinePreview } from './utils/svgUtils';
@@ -14,6 +14,8 @@ import { DownloadSection } from './components/DownloadSection';
 import { DEFAULTS, DEMO_NAMES } from '../config/defaults';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { useUnitSystem } from '@/components/units/UnitSystemProvider';
+import type { UnitSystem } from '@/components/units/UnitSystemProvider';
 
 const STORAGE_KEY = 'bulk-name-tag-generator.state.v1';
 
@@ -25,8 +27,9 @@ function App({ onResetCallback }: AppProps) {
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
+  const { unitSystem, setUnitSystem } = useUnitSystem();
+
   const [templateSvg, setTemplateSvg] = useState<string | null>(null);
-  const [unitSystem, setUnitSystem] = useState<UnitSystem>('mm');
   const [templateSize, setTemplateSize] = useState<TemplateSizeConfig | null>(null);
   const [holeConfig, setHoleConfig] = useState<HoleConfig>({ enabled: false, x: 25, y: 8, radius: 2.5 });
   const [namesInputMode, setNamesInputMode] = useState<'csv' | 'manual'>('csv');
@@ -285,17 +288,6 @@ function App({ onResetCallback }: AppProps) {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <header className="border-b border-slate-800 bg-slate-900/60">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-slate-100">
-            {t('bulk_name_tags.header_title')}
-          </h1>
-          <p className="text-slate-400 mt-1">
-            {t('bulk_name_tags.header_subtitle')}
-          </p>
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
           <div className="space-y-6">
@@ -417,12 +409,6 @@ function App({ onResetCallback }: AppProps) {
           </div>
         </div>
       </main>
-
-      <footer className="border-t border-slate-800 bg-slate-900/60 mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-6 text-center text-slate-400 text-sm">
-          <p>{t('bulk_name_tags.footer')}</p>
-        </div>
-      </footer>
     </div>
   );
 }

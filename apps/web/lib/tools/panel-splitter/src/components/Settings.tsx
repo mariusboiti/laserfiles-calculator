@@ -4,6 +4,7 @@ import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { Settings as SettingsType, ExportMode, NumberingFormat, ValidationError, RegistrationMarkType, MarkPlacement } from '../types';
 import { Tooltip } from './Tooltip';
 import { BED_PRESETS } from '../../config/defaults';
+import { useUnitSystem } from '@/components/units/UnitSystemProvider';
 
 interface SettingsProps {
   settings: SettingsType;
@@ -57,6 +58,7 @@ function NumberInput({
 export function Settings({ settings, onChange, errors }: SettingsProps) {
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
+  const { setUnitSystem } = useUnitSystem();
 
   const getError = (field: string) => errors.find(e => e.field === field)?.message;
 
@@ -142,7 +144,10 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
         <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wide">{t('panel_splitter.settings.unit_system')}</h3>
         <div className="flex gap-2">
           <button
-            onClick={() => updateSetting('unitSystem', 'mm')}
+            onClick={() => {
+              setUnitSystem('mm');
+              updateSetting('unitSystem', 'mm');
+            }}
             className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
               settings.unitSystem === 'mm'
                 ? 'bg-sky-600 text-white'
@@ -152,7 +157,10 @@ export function Settings({ settings, onChange, errors }: SettingsProps) {
             {t('panel_splitter.units.millimeters')}
           </button>
           <button
-            onClick={() => updateSetting('unitSystem', 'in')}
+            onClick={() => {
+              setUnitSystem('in');
+              updateSetting('unitSystem', 'in');
+            }}
             className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
               settings.unitSystem === 'in'
                 ? 'bg-sky-600 text-white'

@@ -189,7 +189,7 @@ export function AIImageLibraryPanel({
               <ImageIcon className="w-12 h-12 text-slate-700 mb-4" />
               <h3 className="text-lg font-medium text-slate-400">No images saved yet</h3>
               <p className="text-sm text-slate-500 mt-1 max-w-md">
-                Generate images with AI tools and click "Save" to add them to your library for reuse.
+                Generate images with AI tools and click &quot;Save&quot; to add them to your library for reuse.
               </p>
             </div>
           ) : viewMode === 'grid' ? (

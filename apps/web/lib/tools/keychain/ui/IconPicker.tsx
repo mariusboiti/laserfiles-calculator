@@ -139,7 +139,7 @@ export function IconPicker({ selectedId, onSelect, uploadedIcons = [], onUpload 
           {/* Results count */}
           {search && (
             <div className="text-xs text-slate-500 flex-shrink-0">
-              Found {allIcons.length} icons for "{search}"
+              Found {allIcons.length} icons for &quot;{search}&quot;
             </div>
           )}
 
