@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { LanguageProvider } from '@/app/(app)/i18n';
 import { GuidedTour } from '@/app/(app)/guided-tour';
 import { StudioHeader } from '@/components/studio/StudioHeader';
@@ -21,8 +21,11 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
 
 function StudioShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+
+  const isToolPage = pathname.startsWith('/studio/tools');
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +72,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
           <DisclaimerProvider userKey={user?.id || user?.email || user?.name}>
             <div className="min-h-screen bg-slate-950 text-slate-100">
               <StudioHeader />
-              <main className="mx-auto w-full max-w-7xl px-6 py-6 md:px-8 overflow-x-hidden">{children}</main>
+              <main
+                className={`mx-auto w-full max-w-7xl px-6 md:px-8 overflow-x-hidden ${
+                  isToolPage ? 'pt-1 pb-6' : 'py-6'
+                }`}
+              >
+                {children}
+              </main>
             </div>
             <ReleaseChecklist />
           </DisclaimerProvider>
