@@ -205,6 +205,35 @@ function App({ onResetCallback }: AppProps) {
     const hasAnyNames = names.length > 0;
     const previewNamesForSingle = hasAnyNames ? [names[0]] : [previewBaseName];
 
+    const buildSheetPreviewNames = () => {
+      // Ensure the sheet view contains multiple tags so users can tune spacing visually.
+      // This does NOT affect export; only the live preview.
+      if (sheetConfig.outputMode !== 'sheet') {
+        return hasAnyNames ? names : [previewBaseName];
+      }
+
+      let maxTags = 0;
+      try {
+        const bounds = parseTemplateBounds(templateSvg);
+        const scaleX = templateSize ? templateSize.width / bounds.width : 1;
+        const scaleY = templateSize ? templateSize.height / bounds.height : 1;
+        const capacityBounds = {
+          ...bounds,
+          width: bounds.width * scaleX,
+          height: bounds.height * scaleY,
+        };
+        maxTags = calculateSheetCapacity(capacityBounds, sheetConfig).maxTags;
+      } catch {
+        maxTags = 0;
+      }
+
+      const desired = Math.min(maxTags || 12, 12);
+      const count = Math.max(desired, 6);
+      const seed = hasAnyNames ? names : [previewBaseName];
+
+      return Array.from({ length: count }, (_, i) => seed[i % seed.length]);
+    };
+
     const generatePreviews = async () => {
       try {
         // Generate single tag preview (first name only)
@@ -225,7 +254,7 @@ function App({ onResetCallback }: AppProps) {
         // Generate sheet preview
         const previewNames = sheetConfig.outputMode === 'separate'
           ? (hasAnyNames ? names.slice(0, 3) : [previewBaseName])
-          : (hasAnyNames ? names : [previewBaseName]);
+          : buildSheetPreviewNames();
 
         const result = await generateNameTagSvg(templateSvg, previewNames, textConfig, sheetConfig, { templateSize, unitSystem, holeConfig });
 

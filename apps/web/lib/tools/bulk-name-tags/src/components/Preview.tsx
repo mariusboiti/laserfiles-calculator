@@ -16,7 +16,7 @@ export function Preview({ svgContent, isGenerating, singleTagSvg, sheetWidth, sh
 
   const [singleZoom, setSingleZoom] = useState(100);
   const [sheetZoom, setSheetZoom] = useState(50);
-  const [viewMode, setViewMode] = useState<'single' | 'sheet'>('single');
+  const [viewMode, setViewMode] = useState<'single' | 'sheet'>('sheet');
 
   const displayContent = viewMode === 'single' ? singleTagSvg : svgContent;
   const currentZoom = viewMode === 'single' ? singleZoom : sheetZoom;
