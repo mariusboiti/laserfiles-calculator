@@ -32,7 +32,7 @@ function App({ onResetCallback }: AppProps) {
   const [templateSvg, setTemplateSvg] = useState<string | null>(null);
   const [templateSize, setTemplateSize] = useState<TemplateSizeConfig | null>(null);
   const [holeConfig, setHoleConfig] = useState<HoleConfig>({ enabled: false, x: 25, y: 8, radius: 2.5 });
-  const [namesInputMode, setNamesInputMode] = useState<'csv' | 'manual'>('csv');
+  const [namesInputMode, setNamesInputMode] = useState<'csv' | 'manual'>('manual');
   const [csvData, setCsvData] = useState<ParsedCSVData | null>(null);
   const [csvMapping, setCsvMapping] = useState<CSVMapping>({
     nameColumn: '',
@@ -76,8 +76,8 @@ function App({ onResetCallback }: AppProps) {
     setTemplateSvg(null);
     setTemplateSize(null);
     setNamesInputMode('manual');
-    setManualNamesText(DEMO_NAMES.join('\n'));
-    setNames(DEMO_NAMES.map(name => ({ name, line1: name, line2: undefined })));
+    setManualNamesText('');
+    setNames([]);
     setCsvData(null);
     setCsvMapping({ nameColumn: '', line2Column: undefined });
     setGeneratedContent(null);
@@ -146,7 +146,7 @@ function App({ onResetCallback }: AppProps) {
         csvMapping: CSVMapping;
       }>;
 
-      const nextMode = parsed.namesInputMode ?? 'csv';
+      const nextMode = parsed.namesInputMode ?? 'manual';
       const nextManualText = typeof parsed.manualNamesText === 'string' ? parsed.manualNamesText : '';
 
       if (parsed.unitSystem) setUnitSystem(parsed.unitSystem);
@@ -195,17 +195,27 @@ function App({ onResetCallback }: AppProps) {
   useEffect(() => {
     setGeneratedContent(null);
 
-    if (!templateSvg || names.length === 0) {
+    if (!templateSvg) {
       setPreviewSvg(null);
       setSingleTagPreviewSvg(null);
       return;
     }
 
+    const previewBaseName: NameRecord = { name: '', line1: '', line2: undefined };
+    const hasAnyNames = names.length > 0;
+    const previewNamesForSingle = hasAnyNames ? [names[0]] : [previewBaseName];
+
     const generatePreviews = async () => {
       try {
         // Generate single tag preview (first name only)
         const singleTagConfig = { ...sheetConfig, outputMode: 'separate' as const };
-        const singleResult = await generateNameTagSvg(templateSvg, [names[0]], textConfig, singleTagConfig, { templateSize, unitSystem, holeConfig });
+        const singleResult = await generateNameTagSvg(
+          templateSvg,
+          previewNamesForSingle,
+          textConfig,
+          singleTagConfig,
+          { templateSize, unitSystem, holeConfig }
+        );
         if (Array.isArray(singleResult) && singleResult.length > 0) {
           setSingleTagPreviewSvg(sanitizeSvgForInlinePreview(singleResult[0].svg));
         } else {
@@ -214,8 +224,8 @@ function App({ onResetCallback }: AppProps) {
 
         // Generate sheet preview
         const previewNames = sheetConfig.outputMode === 'separate'
-          ? names.slice(0, 3)
-          : names;
+          ? (hasAnyNames ? names.slice(0, 3) : [previewBaseName])
+          : (hasAnyNames ? names : [previewBaseName]);
 
         const result = await generateNameTagSvg(templateSvg, previewNames, textConfig, sheetConfig, { templateSize, unitSystem, holeConfig });
 
