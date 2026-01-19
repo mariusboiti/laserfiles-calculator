@@ -113,7 +113,7 @@ export async function buildExportSvgAsync(
       ...doc,
       elements: doc.elements.filter(e => !(e.kind === 'logo' && (e as any).op === 'CUT_OUT')),
     };
-    return await buildExportSvgTextToPathAsync(filtered, useLayerColors);
+    return await buildExportSvgTextToPathAsync(filtered, _useLayerColors);
   }
 
   // Difference base local path - cutoutUnion

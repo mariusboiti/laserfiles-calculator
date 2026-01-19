@@ -11,7 +11,7 @@ import {
 import { jobManager } from '../../../jobs/jobManager';
 
 import type { CanvasDocument, ViewTransform, HistoryState } from '../types/canvas';
-import { DEFAULT_VIEW, DEFAULT_SELECTION } from '../types/canvas';
+import { DEFAULT_VIEW, DEFAULT_SELECTION, LAYER_COLORS } from '../types/canvas';
 import {
   canvasReducer,
   createInitialHistory,
