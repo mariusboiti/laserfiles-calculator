@@ -34,7 +34,7 @@ const CATEGORY_KEY: Record<keyof typeof TOOL_CATEGORIES, string> = {
 };
 
 export function ToolsHub() {
-  const { plan, entitlement, entitlementLoading } = usePlan();
+  const { plan, entitlement, entitlementLoading, aiAllowed, canUseStudio } = usePlan();
   const [query, setQuery] = useState('');
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
@@ -49,12 +49,8 @@ export function ToolsHub() {
 
   const isLocked = useMemo(() => {
     if (entitlementLoading) return false;
-    if (!entitlement) return true;
-    if (entitlement.plan === 'INACTIVE' || entitlement.plan === 'CANCELED') return true;
-    if (!isTrialValid) return true;
-    if (entitlement.plan === 'TRIALING' && entitlement.aiCreditsRemaining <= 0) return true;
-    return false;
-  }, [entitlement, entitlementLoading, isTrialValid]);
+    return !canUseStudio;
+  }, [canUseStudio, entitlementLoading]);
 
   const filteredTools = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -141,7 +137,7 @@ export function ToolsHub() {
           <h2 className="mb-4 text-xl font-semibold text-slate-100">{t('tools.search_results')}</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredTools.map((tool) => (
-              <ToolCard key={tool.slug} tool={tool} plan={plan} aiCreditsRemaining={entitlement?.aiCreditsRemaining ?? 0} />
+              <ToolCard key={tool.slug} tool={tool} plan={plan} aiCreditsRemaining={entitlement?.aiCreditsRemaining ?? 0} aiAllowed={aiAllowed} />
             ))}
           </div>
           {filteredTools.length === 0 && (
@@ -162,7 +158,7 @@ export function ToolsHub() {
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {tools.map((tool) => (
-                    <ToolCard key={tool.slug} tool={tool} plan={plan} aiCreditsRemaining={entitlement?.aiCreditsRemaining ?? 0} />
+                    <ToolCard key={tool.slug} tool={tool} plan={plan} aiCreditsRemaining={entitlement?.aiCreditsRemaining ?? 0} aiAllowed={aiAllowed} />
                   ))}
                 </div>
               </div>
@@ -178,13 +174,15 @@ function ToolCard({
   tool,
   plan,
   aiCreditsRemaining,
+  aiAllowed,
 }: {
   tool: typeof studioTools[0];
   plan: string;
   aiCreditsRemaining: number;
+  aiAllowed: boolean;
 }) {
   const tutorialAvailable = hasTutorial(tool.slug);
-  const aiLocked = Boolean(tool.usesAI) && aiCreditsRemaining <= 0;
+  const aiLocked = Boolean(tool.usesAI) && (!aiAllowed || aiCreditsRemaining <= 0);
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 

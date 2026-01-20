@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export type EntitlementStatus = {
-  plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED';
+  plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED' | 'FREE_RO' | 'FREE';
   trialStartedAt: string | null;
   trialEndsAt: string | null;
   aiCreditsTotal: number;
@@ -15,6 +15,12 @@ export type EntitlementStatus = {
   isActive: boolean;
   daysLeftInTrial: number | null;
   stripeCustomerId: string | null;
+  canUseStudio?: boolean;
+  canUseAi?: boolean;
+  trialEligible?: boolean;
+  graceUntil?: string | null;
+  country?: string | null;
+  reason?: string;
 };
 
 type UseEntitlementResult = {
@@ -35,6 +41,12 @@ const defaultEntitlement: EntitlementStatus = {
   isActive: false,
   daysLeftInTrial: null,
   stripeCustomerId: null,
+  canUseStudio: false,
+  canUseAi: false,
+  trialEligible: true,
+  graceUntil: null,
+  country: null,
+  reason: 'DEFAULT',
 };
 
 function getAccessToken(): string {
@@ -133,7 +145,12 @@ export function useEntitlement(): UseEntitlementResult {
         const incoming = data.data as any;
         const planRaw = String(incoming?.plan ?? '').toUpperCase();
         const plan: EntitlementStatus['plan'] =
-          planRaw === 'TRIALING' || planRaw === 'ACTIVE' || planRaw === 'INACTIVE' || planRaw === 'CANCELED'
+          planRaw === 'TRIALING' ||
+          planRaw === 'ACTIVE' ||
+          planRaw === 'INACTIVE' ||
+          planRaw === 'CANCELED' ||
+          planRaw === 'FREE_RO' ||
+          planRaw === 'FREE'
             ? (planRaw as EntitlementStatus['plan'])
             : 'INACTIVE';
 
@@ -207,6 +224,7 @@ export async function startTopup(
 
 export function canUseAi(entitlement: EntitlementStatus | null): boolean {
   if (!entitlement) return false;
+  if (typeof entitlement.canUseAi === 'boolean') return entitlement.canUseAi;
   if (!entitlement.isActive && entitlement.plan !== 'TRIALING') return false;
   return entitlement.aiCreditsRemaining > 0;
 }

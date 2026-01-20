@@ -131,7 +131,7 @@ function ToolShellInner({
   help,
   getExportPayload,
 }: ToolShellProps) {
-  const { plan, canUse, entitlement, entitlementLoading, aiAllowed } = usePlan();
+  const { plan, canUse, entitlement, entitlementLoading, aiAllowed, canUseStudio } = usePlan();
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
   const title = t(titleKey);
@@ -173,12 +173,8 @@ function ToolShellInner({
 
   const isLocked = useMemo(() => {
     if (entitlementLoading) return false;
-    if (!entitlement) return true;
-    if (entitlement.plan === 'INACTIVE' || entitlement.plan === 'CANCELED') return true;
-    if (!isTrialValid) return true;
-    if (entitlement.plan === 'TRIALING' && entitlement.aiCreditsRemaining <= 0) return true;
-    return false;
-  }, [entitlement, entitlementLoading, isTrialValid]);
+    return !canUseStudio;
+  }, [canUseStudio, entitlementLoading]);
 
   const canUseThisTool = useMemo(() => {
     if (isLocked) return false;

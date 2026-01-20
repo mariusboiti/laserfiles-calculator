@@ -31,10 +31,10 @@ export function AiCreditsBadge() {
   }
 
   const hasCredits = canUseAi(entitlement);
-  const { plan, aiCreditsRemaining, aiCreditsTotal, daysLeftInTrial } = entitlement;
+  const { plan, aiCreditsRemaining, aiCreditsTotal, daysLeftInTrial, trialEligible } = entitlement;
 
   // No entitlement - show start trial CTA
-  if (plan === 'INACTIVE') {
+  if (trialEligible) {
     const handleStartTrial = async () => {
       setStarting(true);
       const result = await startTrial();
