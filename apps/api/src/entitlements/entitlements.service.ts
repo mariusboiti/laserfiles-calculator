@@ -1,4 +1,4 @@
-import { Injectable, Optional, Logger } from '@nestjs/common';
+import { Injectable, Optional, Logger, ForbiddenException, HttpException, HttpStatus } from '@nestjs/common';
 import { ENTITLEMENTS_VERSION, IdentityEntitlements, PlanName, FeatureFlags, EntitlementLimits } from '@laser/shared/entitlements';
 import type { WpGetEntitlementsResponse } from '@laser/shared/wp-plugin-contract';
 import { PrismaService } from '../prisma/prisma.service';
@@ -165,6 +165,87 @@ export class EntitlementsService {
       graceUntil,
       country,
       reason,
+    };
+  }
+
+  async consumeAiCredit(input: {
+    userId: string;
+    toolSlug: string;
+    actionType: string;
+    provider: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<{
+    aiCreditsTotal: number;
+    aiCreditsUsed: number;
+    aiCreditsRemaining: number;
+    usageEventId: string;
+  }> {
+    if (!this.prisma) {
+      throw new Error('Prisma not available');
+    }
+
+    const entitlement = await this.prisma.userEntitlement.findUnique({
+      where: { userId: input.userId },
+    });
+
+    if (!entitlement) {
+      throw new ForbiddenException('AI features require an active trial or subscription');
+    }
+
+    const now = new Date();
+    const plan = String((entitlement as any).plan || '').toUpperCase();
+
+    if (plan !== 'ACTIVE' && plan !== 'TRIALING') {
+      throw new ForbiddenException('AI features require an active trial or subscription');
+    }
+
+    if (plan === 'TRIALING') {
+      if (!entitlement.trialEndsAt || entitlement.trialEndsAt <= now) {
+        throw new ForbiddenException('Trial expired');
+      }
+    }
+
+    const remaining = Number(entitlement.aiCreditsTotal) - Number(entitlement.aiCreditsUsed);
+    if (remaining <= 0) {
+      throw new HttpException('AI credits exhausted', HttpStatus.PAYMENT_REQUIRED);
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.userEntitlement.update({
+        where: { id: entitlement.id },
+        data: { aiCreditsUsed: { increment: 1 } },
+        select: { aiCreditsTotal: true, aiCreditsUsed: true },
+      });
+
+      const usage = await tx.aiUsageEvent.create({
+        data: {
+          userId: input.userId,
+          entitlementId: entitlement.id,
+          toolSlug: input.toolSlug,
+          actionType: input.actionType,
+          provider: input.provider,
+          creditsConsumed: 1,
+          metadata: input.metadata as any,
+        },
+        select: { id: true },
+      });
+
+      return { updated, usage };
+    });
+
+    const aiCreditsTotal = Number(result.updated.aiCreditsTotal ?? 0);
+    const aiCreditsUsed = Number(result.updated.aiCreditsUsed ?? 0);
+    const aiCreditsRemaining = Math.max(0, aiCreditsTotal - aiCreditsUsed);
+
+    this.logger.debug(
+      `AI credit consumed: userId=${input.userId} tool=${input.toolSlug} action=${input.actionType} provider=${input.provider} remaining=${aiCreditsRemaining}`,
+    );
+
+    return {
+      aiCreditsTotal,
+      aiCreditsUsed,
+      aiCreditsRemaining,
+      usageEventId: result.usage.id,
     };
   }
 
