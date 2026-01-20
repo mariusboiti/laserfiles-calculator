@@ -16,6 +16,14 @@ export default function StudioPricingPage() {
 
   const plan = entitlement?.plan;
 
+  const planLabel = (() => {
+    if (plan === 'TRIALING') return t('billing.badge.trial');
+    if (plan === 'ACTIVE') return t('billing.badge.active');
+    if (plan === 'INACTIVE') return t('billing.badge.inactive');
+    if (plan === 'CANCELED') return t('billing.badge.canceled');
+    return t('billing.badge.no_plan');
+  })();
+
   const onSubscribe = async (interval: 'monthly' | 'annual') => {
     setAction(`subscribe-${interval}`);
     setLocalError(null);
@@ -95,7 +103,7 @@ export default function StudioPricingPage() {
             <h2 className="text-lg font-semibold text-slate-100">{t('pricing.credit_topups_title')}</h2>
             <p className="mt-1 text-sm text-slate-400">{t('pricing.credit_topups_desc')}</p>
             <p className="mt-1 text-xs text-slate-500">
-              {t('pricing.current_plan')}: {plan || t('common.none')}
+              {t('pricing.current_plan')}: {planLabel}
             </p>
           </div>
           <button

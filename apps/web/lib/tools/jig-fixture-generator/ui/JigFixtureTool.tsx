@@ -499,7 +499,7 @@ export function JigFixtureTool({ onResetCallback, onGetExportPayload }: JigFixtu
             {/* Custom SVG Upload - separate section */}
             <div className="mt-3 rounded-md border border-slate-700 bg-slate-900/50 p-3">
               <div className="text-xs text-slate-300 mb-2">{t('jig_fixture.ui.object.custom_upload_label')}</div>
-              <div className="flex gap-2 items-center">
+              <div className="grid grid-cols-[minmax(0,1fr),auto] items-center gap-2">
                 <input
                   type="file"
                   accept=".svg,image/svg+xml"
@@ -527,7 +527,7 @@ export function JigFixtureTool({ onResetCallback, onGetExportPayload }: JigFixtu
                     reader.readAsText(file);
                     e.target.value = '';
                   }}
-                  className="flex-1 text-xs text-slate-200 file:mr-2 file:rounded-md file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:text-slate-200 hover:file:bg-slate-700"
+                  className="min-w-0 text-xs text-slate-200 file:mr-2 file:rounded-md file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-xs file:text-slate-200 hover:file:bg-slate-700"
                 />
                 {customShape && (
                   <button
@@ -537,7 +537,7 @@ export function JigFixtureTool({ onResetCallback, onGetExportPayload }: JigFixtu
                       setCustomShape(null);
                       setCustomShapeName('');
                     }}
-                    className="rounded-md border border-red-800 bg-red-950/50 px-2 py-1 text-xs text-red-300 hover:bg-red-900/50"
+                    className="shrink-0 rounded-md border border-red-800 bg-red-950/50 px-2 py-1 text-xs text-red-300 hover:bg-red-900/50"
                   >
                     {t('jig_fixture.ui.object.custom_clear')}
                   </button>

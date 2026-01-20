@@ -2,6 +2,7 @@ import { Injectable, Optional, Logger } from '@nestjs/common';
 import { ENTITLEMENTS_VERSION, IdentityEntitlements, PlanName, FeatureFlags, EntitlementLimits } from '@laser/shared/entitlements';
 import type { WpGetEntitlementsResponse } from '@laser/shared/wp-plugin-contract';
 import { PrismaService } from '../prisma/prisma.service';
+import { getRequestCountry, type RequestLike } from '../common/geo/country.resolver';
 import axios from 'axios';
 
 interface CacheEntry {
@@ -28,8 +29,11 @@ export class EntitlementsService {
    * UI entitlement endpoint (Studio):
    * Reads UserEntitlement by internal UUID userId and returns credits + status.
    */
-  async getUiEntitlementsForUserId(userId: string): Promise<{
-    plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED';
+  async getUiEntitlementsForUserId(
+    userId: string,
+    req?: RequestLike,
+  ): Promise<{
+    plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED' | 'FREE_RO' | 'FREE';
     trialStartedAt: string | null;
     trialEndsAt: string | null;
     aiCreditsTotal: number;
@@ -38,6 +42,12 @@ export class EntitlementsService {
     isActive: boolean;
     daysLeftInTrial: number | null;
     stripeCustomerId: string | null;
+    canUseStudio: boolean;
+    canUseAi: boolean;
+    trialEligible: boolean;
+    graceUntil: string | null;
+    country: string | null;
+    reason: string;
   }> {
     if (!this.prisma) {
       // Should not happen in prod, but keep safe fallback
@@ -51,14 +61,33 @@ export class EntitlementsService {
         isActive: false,
         daysLeftInTrial: null,
         stripeCustomerId: null,
+        canUseStudio: false,
+        canUseAi: false,
+        trialEligible: true,
+        graceUntil: null,
+        country: null,
+        reason: 'PRISMA_UNAVAILABLE',
       };
     }
 
-    const ent = await this.prisma.userEntitlement.findUnique({
-      where: { userId },
-    });
+    const [ent, user] = await this.prisma.$transaction([
+      this.prisma.userEntitlement.findUnique({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
+    ]);
 
     const now = new Date();
+
+    const country = getRequestCountry(req);
+    const roFreeEnabled = (process.env.RO_FREE_ENABLED || '').trim() === '1' || (process.env.RO_FREE_ENABLED || '').trim().toLowerCase() === 'true';
+    const roCodes = (process.env.RO_FREE_COUNTRY_CODES || 'RO')
+      .split(',')
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    const isRo = Boolean(country) && roCodes.includes(String(country));
+    const graceDays = Number(process.env.NON_RO_FREE_GRACE_DAYS || '7');
+    const graceMs = (Number.isFinite(graceDays) && graceDays > 0 ? graceDays : 7) * 24 * 60 * 60 * 1000;
+    const graceUntilDate = user?.createdAt ? new Date(user.createdAt.getTime() + graceMs) : null;
+    const inGrace = Boolean(graceUntilDate) && graceUntilDate!.getTime() > now.getTime();
 
     const trialStartedAt = ent?.trialStartedAt ? ent.trialStartedAt.toISOString() : null;
     const trialEndsAt = ent?.trialEndsAt ? ent.trialEndsAt.toISOString() : null;
@@ -77,7 +106,7 @@ export class EntitlementsService {
     const isTrialValid =
       entPlan === 'TRIALING' && Boolean(ent?.trialEndsAt) && (ent!.trialEndsAt as Date) > now;
 
-    type UiEntitlementPlan = 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED';
+    type UiEntitlementPlan = 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED' | 'FREE_RO' | 'FREE';
     let plan: UiEntitlementPlan = 'INACTIVE';
     if (isTrialValid) {
       plan = 'TRIALING';
@@ -89,7 +118,36 @@ export class EntitlementsService {
       plan = 'CANCELED';
     }
 
+    const hasDbEntitlement = Boolean(ent);
     const isActive = plan === 'ACTIVE' || plan === 'TRIALING';
+
+    // Effective access rules
+    const canUseAi = Boolean(isActive && remaining > 0);
+    const canUseStudio = Boolean(
+      isActive ||
+        (roFreeEnabled && isRo) ||
+        (!isRo && inGrace),
+    );
+    const trialEligible = !isActive;
+    const graceUntil = !isRo && graceUntilDate ? graceUntilDate.toISOString() : null;
+
+    const reason = (() => {
+      if (isActive) return 'ENTITLEMENT_ACTIVE';
+      if (roFreeEnabled && isRo) return hasDbEntitlement ? 'RO_FREE_OVERRIDE' : 'RO_FREE';
+      if (!isRo && inGrace) return 'NON_RO_GRACE';
+      if (!hasDbEntitlement) return 'NO_ENTITLEMENT';
+      return 'ENTITLEMENT_INACTIVE';
+    })();
+
+    if (!hasDbEntitlement && roFreeEnabled && isRo) {
+      plan = 'FREE_RO';
+    } else if (!hasDbEntitlement && !isRo) {
+      plan = 'FREE';
+    }
+
+    this.logger.debug(
+      `UI entitlements: userId=${userId} country=${country ?? 'null'} plan=${plan} canUseStudio=${canUseStudio} canUseAi=${canUseAi} reason=${reason}`,
+    );
 
     return {
       plan,
@@ -101,6 +159,12 @@ export class EntitlementsService {
       isActive,
       daysLeftInTrial,
       stripeCustomerId: ent?.stripeCustomerId ?? null,
+      canUseStudio,
+      canUseAi,
+      trialEligible,
+      graceUntil,
+      country,
+      reason,
     };
   }
 

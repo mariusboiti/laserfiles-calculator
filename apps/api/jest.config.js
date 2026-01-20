@@ -1,6 +1,6 @@
 module.exports = {
   testEnvironment: 'node',
-  testMatch: ['**/*.spec.js'],
+  testMatch: ['**/*.spec.js', '**/*.spec.ts'],
   rootDir: '.',
   moduleFileExtensions: ['js', 'json', 'ts'],
   transform: {

@@ -36,7 +36,7 @@ export function generateJigSvg(options: JigOptions): { svg: string; meta: JigMet
     ? `<rect x="0" y="0" width="${bedW}" height="${bedH}" fill="none" stroke="#000" stroke-width="0.2" />`
     : '';
 
-  const cutStroke = 'stroke="#000" stroke-width="0.2" fill="none"';
+  const cutStroke = 'stroke="#ff0000" stroke-width="0.2" fill="none"';
   const engraveStroke = 'stroke="#000" stroke-width="0.1" fill="none" stroke-dasharray="1 1"';
 
   const holes: string[] = [];

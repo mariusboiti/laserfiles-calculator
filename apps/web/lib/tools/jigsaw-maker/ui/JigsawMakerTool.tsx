@@ -1444,7 +1444,7 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                 </button>
               </div>
             </div>
-            <div className="flex flex-1 items-center justify-center overflow-auto rounded-lg border border-slate-800 bg-white p-4 min-h-[300px]">
+            <div className="flex items-center justify-center overflow-auto rounded-lg border border-slate-800 bg-white p-4 h-[380px] md:h-[520px] max-h-[60vh]">
               {(() => {
                 if (isLoadingPathOps) {
                   return (
@@ -1474,7 +1474,7 @@ export function JigsawMakerTool({ onResetCallback, onGetExportPayload }: JigsawM
                   return (
                     <div 
                       className="w-full h-full flex items-center justify-center"
-                      style={{ minHeight: '250px' }}
+                      style={{ minHeight: '200px' }}
                     >
                       <div
                         style={{ 

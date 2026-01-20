@@ -8,7 +8,14 @@ export function usePlan() {
     entitlement && (entitlement.plan === 'ACTIVE' || entitlement.plan === 'TRIALING')
       ? ('pro' as Plan)
       : ('free' as Plan);
+
   const aiAllowed = canUseAi(entitlement);
+
+  const canUseStudio = useMemo(() => {
+    if (!entitlement) return false;
+    if (typeof entitlement.canUseStudio === 'boolean') return entitlement.canUseStudio;
+    return entitlement.plan === 'ACTIVE' || entitlement.plan === 'TRIALING';
+  }, [entitlement]);
 
   const canUse = useMemo(() => {
     return (feature?: string) => {
@@ -23,6 +30,7 @@ export function usePlan() {
     canUse,
     entitlement,
     aiAllowed,
+    canUseStudio,
     entitlementLoading: loading,
     entitlementError: error,
     refetchEntitlement: refetch,

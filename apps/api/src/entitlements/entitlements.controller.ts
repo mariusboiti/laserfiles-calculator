@@ -80,7 +80,7 @@ export class EntitlementsController {
       throw new UnauthorizedException('Missing user id in token');
     }
 
-    const data = await this.entitlementsService.getUiEntitlementsForUserId(String(userId));
+    const data = await this.entitlementsService.getUiEntitlementsForUserId(String(userId), req);
     return { ok: true, data };
   }
 

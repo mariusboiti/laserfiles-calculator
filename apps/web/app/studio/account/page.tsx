@@ -104,6 +104,13 @@ export default function AccountPage() {
         ? t('account.billing_cycle_monthly')
         : null;
 
+  const roleRaw = String(user?.role || 'USER').toUpperCase();
+  const roleLabel = (() => {
+    if (roleRaw === 'USER') return t('account.role.user');
+    if (roleRaw === 'ADMIN') return t('account.role.admin');
+    return roleRaw;
+  })();
+
   return (
     <div className="space-y-6">
       <div>
@@ -140,7 +147,7 @@ export default function AccountPage() {
               </div>
               <div>
                 <div className="text-slate-400">{t('account.role')}</div>
-                <div className="mt-1 text-slate-200">{user?.role || 'USER'}</div>
+                <div className="mt-1 text-slate-200">{roleLabel}</div>
               </div>
             </div>
           </div>

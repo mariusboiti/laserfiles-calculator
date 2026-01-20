@@ -276,7 +276,7 @@ export function CurvedPhotoFrameV3Tool({
     const nextSegment = Math.max(6, Math.min(10, 8 - (factor - 1) * 1.2));
     const nextGap = Math.max(2, Math.min(4, 3 + (factor - 1) * 0.25));
     const nextRowSpacing = Math.max(1.5, Math.min(5, 2.6 - (factor - 1) * 0.55 - (thickness - 4) * 0.1));
-    const nextBendZoneHeight = Math.max(18, Math.min(30, 24 + (thickness - 4) * 1.5 + (factor - 1) * 2.5));
+    const nextBendZoneHeight = Math.max(18, Math.min(80, 24 + (thickness - 4) * 1.5 + (factor - 1) * 2.5));
 
     setFrameSettings((prev) => {
       if (!prev.autoKerf) return prev;
@@ -1165,17 +1165,32 @@ export function CurvedPhotoFrameV3Tool({
 
                 <div className="col-span-2 border-t border-slate-800 pt-3 mt-2">
                   <div className="text-xs text-slate-400 mb-2">{t('curved_frame.v3.ui.frame.bending_zone')}</div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     <label className="grid gap-1">
                       <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.bend_zone_mm')}</div>
                       <input
                         type="number"
                         step={1}
                         min={18}
-                        max={30}
+                        max={80}
                         value={frameSettings.bendZoneHeightMm}
                         onChange={(e) =>
                           setFrameSettings((prev) => ({ ...prev, bendZoneHeightMm: Number(e.target.value) }))
+                        }
+                        className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                      />
+                    </label>
+
+                    <label className="grid gap-1">
+                      <div className="text-xs text-slate-300">{t('curved_frame.v3.ui.frame.bend_zone_offset_mm')}</div>
+                      <input
+                        type="number"
+                        step={1}
+                        min={-80}
+                        max={80}
+                        value={frameSettings.bendZoneOffsetMm}
+                        onChange={(e) =>
+                          setFrameSettings((prev) => ({ ...prev, bendZoneOffsetMm: Number(e.target.value) }))
                         }
                         className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                       />

@@ -98,6 +98,43 @@ export default function DashboardPage() {
       {/* AI Credits & Billing */}
       <BillingCard />
 
+      {/* Tooluri in lucru */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-slate-100">Tooluri in lucru</h2>
+          <span className="text-xs text-slate-500">Coming soon</span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            'Multilayer Maker',
+            'Photo to Stained Glass',
+            'Bookmarks Make',
+            'Frame Maker',
+            'Wine Box Maker',
+            'Easel Display Maker',
+            'Wooden Book Cover Generator',
+            'Display Maker',
+          ].map((name) => (
+            <div
+              key={name}
+              className="rounded-lg border border-slate-800 bg-slate-950/40 px-4 py-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-medium text-slate-200">{name}</div>
+                <span className="rounded-full bg-amber-900/30 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                  In lucru
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 text-sm text-slate-400">
+          Lucrez constant la imbunatatirea toolurilor existente.
+        </div>
+      </div>
+
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">

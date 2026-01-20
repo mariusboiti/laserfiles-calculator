@@ -28,6 +28,8 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
   const { unitSystem } = useUnitSystem();
 
+  const [previewZoom, setPreviewZoom] = useState(1);
+
   useEffect(() => {
     api.setIsEmpty(false);
   }, [api]);
@@ -711,7 +713,27 @@ export function OrnamentLayoutTool({ onResetCallback, onGetExportPayload }: Orna
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 sticky top-4">
             <div className="mb-2 text-xs text-slate-300">{t('ornament_layout.ui.preview')}</div>
             <div className="relative overflow-auto rounded-lg border border-slate-800 bg-white p-3 max-h-[calc(100vh-8rem)]">
-              <div dangerouslySetInnerHTML={{ __html: previewSvg }} />
+              <div
+                className="origin-top-left"
+                style={{ transform: `scale(${previewZoom})` }}
+                dangerouslySetInnerHTML={{ __html: previewSvg }}
+              />
+
+              <div className="absolute left-3 top-3 rounded-md border border-slate-200 bg-white/90 px-2 py-1 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] text-slate-700">{t('ornament_layout.ui.zoom')}</div>
+                  <input
+                    type="range"
+                    min={0.25}
+                    max={3}
+                    step={0.05}
+                    value={previewZoom}
+                    onChange={(e) => setPreviewZoom(Number(e.target.value))}
+                    className="w-28"
+                  />
+                  <div className="w-10 text-right text-[10px] text-slate-700">{Math.round(previewZoom * 100)}%</div>
+                </div>
+              </div>
 
               {templates.length === 0 && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
