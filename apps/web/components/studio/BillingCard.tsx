@@ -64,9 +64,19 @@ export function BillingCard() {
     return null;
   }
 
-  const { plan, aiCreditsRemaining, aiCreditsTotal, aiCreditsUsed, daysLeftInTrial } = entitlement;
+  const {
+    plan,
+    aiCreditsRemaining,
+    aiCreditsTotal,
+    aiCreditsUsed,
+    daysLeftInTrial,
+    trialEligible,
+  } = entitlement;
+
   const effectivePlan =
-    plan === 'TRIALING' || plan === 'ACTIVE' || plan === 'INACTIVE' || plan === 'CANCELED' ? plan : 'INACTIVE';
+    plan === 'TRIALING' || plan === 'ACTIVE' || plan === 'CANCELED' ? plan : 'INACTIVE';
+
+  const showTrialCta = typeof trialEligible === 'boolean' ? trialEligible : effectivePlan === 'INACTIVE';
   const creditPercent = aiCreditsTotal > 0 ? (aiCreditsRemaining / aiCreditsTotal) * 100 : 0;
   const hasCredits = canUseAi(entitlement);
 
@@ -173,7 +183,7 @@ export function BillingCard() {
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        {effectivePlan === 'INACTIVE' && (
+        {showTrialCta && (
           <button
             onClick={handleStartTrial}
             disabled={actionLoading === 'trial'}
@@ -184,7 +194,7 @@ export function BillingCard() {
           </button>
         )}
 
-        {(effectivePlan === 'INACTIVE' || effectivePlan === 'CANCELED') && (
+        {(showTrialCta || effectivePlan === 'CANCELED') && (
           <>
             <button
               onClick={() => handleSubscribe('monthly')}
@@ -243,7 +253,7 @@ export function BillingCard() {
       </div>
 
       {/* Info text */}
-      {effectivePlan === 'INACTIVE' && (
+      {showTrialCta && (
         <p className="mt-4 text-xs text-slate-500">
           {t('billing.trial_info_text')}
         </p>
