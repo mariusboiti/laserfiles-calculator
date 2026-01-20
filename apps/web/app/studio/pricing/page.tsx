@@ -16,6 +16,16 @@ export default function StudioPricingPage() {
 
   const plan = entitlement?.plan;
 
+  const errorLabel = (() => {
+    if (!error) return null;
+    if (error === 'ENTITLEMENTS_HTTP_401') return t('pricing.entitlements_http_401');
+    if (error === 'ENTITLEMENTS_HTTP_403') return t('pricing.entitlements_http_403');
+    if (error === 'ENTITLEMENTS_HTTP_404') return t('pricing.entitlements_http_404');
+    if (error === 'ENTITLEMENTS_HTTP_500') return t('pricing.entitlements_http_500');
+    if (error.startsWith('ENTITLEMENTS_HTTP_')) return t('pricing.entitlements_http_generic');
+    return error;
+  })();
+
   const planLabel = (() => {
     if (plan === 'TRIALING') return t('billing.badge.trial');
     if (plan === 'ACTIVE') return t('billing.badge.active');
@@ -53,9 +63,9 @@ export default function StudioPricingPage() {
         </p>
       </div>
 
-      {(error || localError) && (
+      {(errorLabel || localError) && (
         <div className="rounded-lg border border-red-800 bg-red-900/20 p-3 text-sm text-red-300">
-          {localError || error}
+          {localError || errorLabel}
         </div>
       )}
 

@@ -101,8 +101,8 @@ export default function DashboardPage() {
       {/* Tooluri in lucru */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-slate-100">Tooluri in lucru</h2>
-          <span className="text-xs text-slate-500">Coming soon</span>
+          <h2 className="text-lg font-semibold text-slate-100">{t('dashboard.tools_in_progress.title')}</h2>
+          <span className="text-xs text-slate-500">{t('dashboard.tools_in_progress.coming_soon')}</span>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -123,7 +123,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium text-slate-200">{name}</div>
                 <span className="rounded-full bg-amber-900/30 px-2 py-0.5 text-[10px] font-medium text-amber-300">
-                  In lucru
+                  {t('dashboard.tools_in_progress.badge')}
                 </span>
               </div>
             </div>
@@ -131,7 +131,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-4 text-sm text-slate-400">
-          Lucrez constant la imbunatatirea toolurilor existente.
+          {t('dashboard.tools_in_progress.note')}
         </div>
       </div>
 
