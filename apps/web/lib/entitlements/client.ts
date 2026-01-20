@@ -126,7 +126,7 @@ export function useEntitlement(): UseEntitlementResult {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api-backend/entitlements/me', {
+      const response = await fetch('/api/entitlements/me', {
         headers: authHeaders(),
         cache: 'no-store',
         credentials: 'include',
@@ -134,7 +134,8 @@ export function useEntitlement(): UseEntitlementResult {
 
       if (!response.ok) {
         const text = await response.text().catch(() => '');
-        setError(`Entitlements request failed: ${response.status} ${text}`);
+        console.warn('Entitlements request failed:', response.status, text);
+        setError(`ENTITLEMENTS_HTTP_${response.status}`);
         setEntitlement(defaultEntitlement);
         return;
       }
@@ -159,11 +160,11 @@ export function useEntitlement(): UseEntitlementResult {
           plan,
         });
       } else {
-        setError(data?.error?.message || 'Failed to fetch entitlement');
+        setError(data?.error?.message || 'ENTITLEMENTS_FAILED');
         setEntitlement(defaultEntitlement);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch entitlement');
+      setError(err instanceof Error ? err.message : 'ENTITLEMENTS_FAILED');
       setEntitlement(defaultEntitlement);
     } finally {
       setLoading(false);
@@ -189,7 +190,8 @@ export async function startTrial(): Promise<{ success: boolean; error?: string }
   try {
     // Plans are purchased in WordPress (WooCommerce). Studio only redirects.
     // Monthly product id (trial starts here): 2817
-    window.location.href = getWpCheckoutAddToCartUrl(2817);
+    // Use cart add-to-cart to avoid double-add issues when checkout URL redirects.
+    window.location.href = getWpCartAddToCartUrl(2817);
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to start trial' };
@@ -202,7 +204,9 @@ export async function startSubscription(
   try {
     // Plans are purchased in WordPress (WooCommerce)
     const productId = interval === 'annual' ? 2820 : 2817;
-    window.location.href = getWpCheckoutAddToCartUrl(productId);
+    // Use cart add-to-cart (not checkout add-to-cart) to avoid double-add
+    // when WooCommerce redirects checkout to a canonical slug.
+    window.location.href = getWpCartAddToCartUrl(productId);
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to start subscription' };
