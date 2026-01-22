@@ -75,10 +75,16 @@ export class EntitlementsService {
       };
     }
 
-    const [ent, user] = await this.prisma.$transaction([
-      this.prisma.userEntitlement.findUnique({ where: { userId } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
-    ]);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, createdAt: true },
+    });
+
+    if (user?.email) {
+      await this.fetchAndApplyEntitlementsByEmail(user.email);
+    }
+
+    const ent = await this.prisma.userEntitlement.findUnique({ where: { userId } });
 
     const now = new Date();
 
