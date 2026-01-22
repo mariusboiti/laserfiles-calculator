@@ -1,9 +1,14 @@
-import { Injectable, Optional, Logger, ForbiddenException, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, Optional, Logger, ForbiddenException, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
 import { ENTITLEMENTS_VERSION, IdentityEntitlements, PlanName, FeatureFlags, EntitlementLimits } from '@laser/shared/entitlements';
 import type { WpGetEntitlementsResponse } from '@laser/shared/wp-plugin-contract';
 import { PrismaService } from '../prisma/prisma.service';
 import { getRequestCountry, type RequestLike } from '../common/geo/country.resolver';
 import axios from 'axios';
+import * as bcrypt from 'bcryptjs';
+
+const TRIAL_LEVEL_ID = 2;
+const MONTHLY_LEVEL_ID = 1;
+const ANNUAL_LEVEL_ID = 3;
 
 interface CacheEntry {
   data: IdentityEntitlements;
@@ -166,6 +171,178 @@ export class EntitlementsService {
       country,
       reason,
     };
+  }
+
+  async applyWpEntitlementPayload(payload: any): Promise<void> {
+    if (!this.prisma) {
+      throw new Error('Prisma not available');
+    }
+
+    const event = String(payload?.event ?? '').toUpperCase();
+    if (event && event !== 'ENTITLEMENT_UPDATED') {
+      this.logger.debug(`Ignoring WP entitlement payload with event=${event}`);
+      return;
+    }
+
+    const rawEmail = payload?.email;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+    if (!email) {
+      throw new BadRequestException('Missing email in entitlement payload');
+    }
+
+    const wpUserId = payload?.wpUserId ? String(payload.wpUserId) : null;
+    const levelId = Number(payload?.levelId ?? 0) || 0;
+    const planRaw = String(payload?.plan ?? '').toUpperCase();
+    const intervalRaw = String(payload?.interval ?? '').toLowerCase();
+    const trialEndsAtInput = payload?.trialEndsAt;
+    const aiCreditsTotalInput = payload?.aiCreditsTotal;
+
+    let entPlan: 'INACTIVE' | 'TRIALING' | 'ACTIVE' | 'CANCELED' = 'INACTIVE';
+    if (planRaw === 'ACTIVE') {
+      entPlan = 'ACTIVE';
+    } else if (planRaw === 'TRIAL' || levelId === TRIAL_LEVEL_ID) {
+      entPlan = 'TRIALING';
+    } else if (planRaw === 'CANCELED') {
+      entPlan = 'CANCELED';
+    } else {
+      entPlan = 'INACTIVE';
+    }
+
+    let subscriptionType: 'MONTHLY' | 'ANNUAL' | null = null;
+    if (levelId === MONTHLY_LEVEL_ID || intervalRaw === 'monthly') {
+      subscriptionType = 'MONTHLY';
+    } else if (levelId === ANNUAL_LEVEL_ID || intervalRaw === 'annual') {
+      subscriptionType = 'ANNUAL';
+    }
+
+    let trialEndsAt: Date | null = null;
+    if (trialEndsAtInput) {
+      const t = new Date(trialEndsAtInput);
+      if (!Number.isNaN(t.getTime())) {
+        trialEndsAt = t;
+      }
+    }
+
+    const prisma = this.prisma;
+
+    // Find or create user by email
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      const randomPassword = Math.random().toString(36).slice(2);
+      const hashed = await bcrypt.hash(randomPassword, 10);
+
+      try {
+        user = await prisma.user.create({
+          data: {
+            email,
+            name: email,
+            role: 'WORKER',
+            password: hashed,
+          },
+        });
+      } catch (e: any) {
+        // Handle race where another request created the user
+        user = await prisma.user.findUnique({ where: { email } });
+        if (!user) throw e;
+      }
+    }
+
+    // Optionally persist wpUserId and subscription interval on User for visibility
+    const userUpdateData: Record<string, any> = {};
+    if (wpUserId) {
+      userUpdateData.wpUserId = wpUserId;
+    }
+    if (subscriptionType) {
+      userUpdateData.subscriptionType = subscriptionType;
+      userUpdateData.subscriptionStatus =
+        entPlan === 'ACTIVE' || entPlan === 'TRIALING' ? 'ACTIVE' : 'CANCELLED';
+    }
+
+    if (Object.keys(userUpdateData).length > 0) {
+      try {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: userUpdateData,
+        });
+      } catch (e: any) {
+        this.logger.warn(`Failed to update user with WP entitlement data: ${e?.message ?? e}`);
+      }
+    }
+
+    const existing = await prisma.userEntitlement.findUnique({ where: { userId: user.id } });
+
+    let nextTotal = Number(aiCreditsTotalInput ?? existing?.aiCreditsTotal ?? 0);
+    if (!Number.isFinite(nextTotal) || nextTotal < 0) {
+      nextTotal = 0;
+    }
+
+    if (!existing) {
+      await prisma.userEntitlement.create({
+        data: {
+          userId: user.id,
+          plan: entPlan,
+          trialStartedAt: entPlan === 'TRIALING' ? new Date() : null,
+          trialEndsAt,
+          aiCreditsTotal: nextTotal,
+          aiCreditsUsed: 0,
+        },
+      });
+    } else {
+      await prisma.userEntitlement.update({
+        where: { userId: user.id },
+        data: {
+          plan: entPlan,
+          trialEndsAt,
+          // Intentionally keep aiCreditsUsed unchanged per requirements
+          aiCreditsTotal: nextTotal,
+          ...(entPlan === 'TRIALING' && !existing.trialStartedAt
+            ? { trialStartedAt: new Date() }
+            : {}),
+        },
+      });
+    }
+
+    this.logger.log(
+      `Applied WP entitlement payload: email=${email} userId=${user.id} plan=${entPlan} total=${nextTotal} interval=${subscriptionType ?? 'n/a'}`,
+    );
+  }
+
+  async fetchAndApplyEntitlementsByEmail(email: string): Promise<void> {
+    const trimmed = (email || '').trim().toLowerCase();
+    if (!trimmed) return;
+
+    const apiKey = process.env.LASERFILES_API_KEY || process.env.WP_PLUGIN_API_KEY || '';
+    if (!apiKey) {
+      this.logger.debug('LASERFILES_API_KEY not configured – skipping entitlements sync by email');
+      return;
+    }
+
+    const base = (process.env.WP_PLUGIN_BASE_URL || 'https://laserfilespro.com').replace(/\/$/, '');
+    const url = `${base}/wp-json/laserfiles/v1/entitlements?email=${encodeURIComponent(trimmed)}`;
+
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          'x-api-key': apiKey,
+        },
+        timeout: 5000,
+      });
+
+      const payload = response?.data;
+      if (!payload) {
+        return;
+      }
+
+      if (!payload.event) {
+        payload.event = 'ENTITLEMENT_UPDATED';
+      }
+
+      await this.applyWpEntitlementPayload(payload);
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to fetch entitlements from WP for email=${trimmed}: ${err?.message ?? err}`,
+      );
+    }
   }
 
   async consumeAiCredit(input: {
