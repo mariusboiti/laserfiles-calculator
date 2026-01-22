@@ -126,7 +126,7 @@ export function useEntitlement(): UseEntitlementResult {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/entitlements/me', {
+      const response = await fetch('/api-backend/entitlements/me', {
         headers: authHeaders(),
         cache: 'no-store',
         credentials: 'include',
