@@ -200,6 +200,8 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    await this.entitlementsService.fetchAndApplyEntitlementsByEmail(user.email);
+
     const tokens = this.signTokens({
       id: user.id,
       email: user.email,
@@ -307,6 +309,14 @@ export class AuthController {
     if (!userId) {
       throw new UnauthorizedException('Missing user id in token');
     }
+    const baseUser = await prisma.user.findUnique({
+      where: { id: String(userId) },
+      select: { email: true },
+    });
+
+    if (baseUser?.email) {
+      await this.entitlementsService.fetchAndApplyEntitlementsByEmail(baseUser.email);
+    }
 
     const fullUser = await prisma.user.findUnique({
       where: { id: String(userId) },
@@ -329,45 +339,44 @@ export class AuthController {
       },
     });
 
-    const entPlan = String((fullUser as any)?.entitlement?.plan ?? 'INACTIVE');
-    const trialEndsAt = (fullUser as any)?.entitlement?.trialEndsAt ?? null;
+    const entPlanRaw = String((fullUser as any)?.entitlement?.plan ?? 'INACTIVE').toUpperCase();
+    const trialEndsAtValue = (fullUser as any)?.entitlement?.trialEndsAt ?? null;
     const now = new Date();
-    const isTrialExpired =
-      entPlan === 'TRIALING' && trialEndsAt && new Date(trialEndsAt).getTime() <= now.getTime();
 
     const plan = (() => {
-      if (entPlan === 'TRIALING') return 'TRIAL';
-      if (entPlan === 'ACTIVE') {
-        const cycle = String((fullUser as any)?.subscriptionType ?? '').toUpperCase();
-        if (cycle === 'ANNUAL') return 'PRO_ANNUAL';
-        return 'PRO_MONTHLY';
-      }
-      return 'FREE';
+      if (entPlanRaw === 'TRIALING') return 'TRIAL';
+      if (entPlanRaw === 'ACTIVE') return 'ACTIVE';
+      if (entPlanRaw === 'CANCELED') return 'CANCELED';
+      return 'INACTIVE';
     })();
 
-    const status = (() => {
-      if (entPlan === 'CANCELED') return 'CANCELED';
-      if (isTrialExpired) return 'EXPIRED';
-      if (entPlan === 'TRIALING') return 'TRIAL';
-      if (entPlan === 'ACTIVE') return 'ACTIVE';
-      return 'FREE';
+    const interval = (() => {
+      const cycle = String((fullUser as any)?.subscriptionType ?? '').toUpperCase();
+      if (cycle === 'ANNUAL') return 'annual';
+      if (cycle === 'MONTHLY') return 'monthly';
+      return null;
     })();
 
-    const billingCycle =
-      plan === 'PRO_ANNUAL' ? 'annual' : plan === 'PRO_MONTHLY' ? 'monthly' : null;
+    const trialEndsAt = trialEndsAtValue ? new Date(trialEndsAtValue) : null;
 
     const aiCreditsTotal = Number((fullUser as any)?.entitlement?.aiCreditsTotal ?? 0) || 0;
     const aiCreditsUsed = Number((fullUser as any)?.entitlement?.aiCreditsUsed ?? 0) || 0;
+
+    const canAccessStudio =
+      plan === 'ACTIVE' || (plan === 'TRIAL' && trialEndsAt !== null && trialEndsAt.getTime() > now.getTime());
+
+    const canUseAI = canAccessStudio && aiCreditsUsed < aiCreditsTotal;
 
     return {
       user: {
         ...(fullUser as any),
         plan,
-        status,
-        billingCycle,
-        trialEndsAt: trialEndsAt ? new Date(trialEndsAt).toISOString() : null,
+        interval,
+        trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null,
         aiCreditsTotal,
         aiCreditsUsed,
+        canAccessStudio,
+        canUseAI,
       },
     };
   }
