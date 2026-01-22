@@ -183,15 +183,24 @@ export function useEntitlement(): UseEntitlementResult {
   };
 }
 
-/**
- * Start a trial - redirects to Stripe checkout
- */
 export async function startTrial(): Promise<{ success: boolean; error?: string }> {
   try {
-    // Plans are purchased in WordPress (WooCommerce). Studio only redirects.
-    // Monthly product id (trial starts here): 2817
-    // Use cart add-to-cart to avoid double-add issues when checkout URL redirects.
-    window.location.href = getWpCartAddToCartUrl(2817);
+    const base = getWpBaseUrl();
+
+    let levelId = '2';
+    if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_PMPR_TRIAL_LEVEL_ID) {
+      levelId = String(process.env.NEXT_PUBLIC_PMPR_TRIAL_LEVEL_ID);
+    }
+
+    let checkoutPath = '/membership-checkout/';
+    if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_PMPR_CHECKOUT_PATH) {
+      checkoutPath = String(process.env.NEXT_PUBLIC_PMPR_CHECKOUT_PATH);
+    }
+
+    const checkoutBase = `${base}${checkoutPath.startsWith('/') ? '' : '/'}${checkoutPath}`.replace(/\/$/, '');
+    const url = `${checkoutBase}/?pmpro_level=${encodeURIComponent(levelId)}`;
+
+    window.location.href = url;
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to start trial' };
