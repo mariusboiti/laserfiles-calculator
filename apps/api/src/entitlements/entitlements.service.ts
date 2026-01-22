@@ -196,6 +196,7 @@ export class EntitlementsService {
     const intervalRaw = String(payload?.interval ?? '').toLowerCase();
     const trialEndsAtInput = payload?.trialEndsAt;
     const aiCreditsTotalInput = payload?.aiCreditsTotal;
+    const topupCreditsInput = payload?.topupCredits;
 
     let entPlan: 'INACTIVE' | 'TRIALING' | 'ACTIVE' | 'CANCELED' = 'INACTIVE';
     if (planRaw === 'ACTIVE') {
@@ -271,10 +272,18 @@ export class EntitlementsService {
 
     const existing = await prisma.userEntitlement.findUnique({ where: { userId: user.id } });
 
-    let nextTotal = Number(aiCreditsTotalInput ?? existing?.aiCreditsTotal ?? 0);
-    if (!Number.isFinite(nextTotal) || nextTotal < 0) {
-      nextTotal = 0;
+    const existingTotal = Number(existing?.aiCreditsTotal ?? 0);
+    let baseTotal = Number(aiCreditsTotalInput ?? existingTotal);
+    if (!Number.isFinite(baseTotal) || baseTotal < 0) {
+      baseTotal = 0;
     }
+
+    let topup = Number(topupCreditsInput ?? 0);
+    if (!Number.isFinite(topup) || topup < 0) {
+      topup = 0;
+    }
+
+    const nextTotal = baseTotal + topup;
 
     if (!existing) {
       await prisma.userEntitlement.create({
