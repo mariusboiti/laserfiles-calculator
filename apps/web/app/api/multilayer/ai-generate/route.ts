@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      const image = await generateWithGemini({ apiKey, endpoint, model, prompt: fullPrompt });
+
       const response: AIGenerateResponse & { credits?: { used: number; remaining: number } } = {
         imageBase64: image.imageBase64,
         imageUrl: image.imageUrl,
