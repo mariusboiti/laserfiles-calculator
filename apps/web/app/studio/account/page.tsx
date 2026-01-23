@@ -41,9 +41,9 @@ export default function AccountPage() {
   const wpManageSubscriptionUrl = `${wpBase}/my-account/`;
   const wpBillingHistoryUrl = `${wpBase}/my-account/orders/`;
 
-  const plan = String(user?.plan || 'FREE');
-  const status = String(user?.status || (plan === 'FREE' ? 'FREE' : 'ACTIVE'));
-  const billingCycle = user?.billingCycle ? String(user.billingCycle) : null;
+  const plan = String(user?.plan || 'INACTIVE').toUpperCase();
+  const status = String(user?.status || plan).toUpperCase();
+  const billingCycle = user?.interval ? String(user.interval) : null;
   const trialEndsAt = user?.trialEndsAt ? new Date(String(user.trialEndsAt)) : null;
   const aiCreditsTotal = Number(user?.aiCreditsTotal ?? 0) || 0;
   const aiCreditsUsed = Number(user?.aiCreditsUsed ?? 0) || 0;
@@ -79,13 +79,14 @@ export default function AccountPage() {
     }
   }
 
-  const showFreeBanner = plan === 'FREE';
+  const showFreeBanner = plan === 'INACTIVE';
   const showTrialExpiredBanner = status === 'EXPIRED';
 
   const planLabel = (() => {
     if (plan === 'TRIAL') return t('account.plan_trial');
-    if (plan === 'PRO_MONTHLY') return t('account.plan_pro_monthly');
-    if (plan === 'PRO_ANNUAL') return t('account.plan_pro_annual');
+    if (plan === 'ACTIVE' && billingCycle === 'monthly') return t('account.plan_pro_monthly');
+    if (plan === 'ACTIVE' && billingCycle === 'annual') return t('account.plan_pro_annual');
+    if (plan === 'ACTIVE') return t('account.plan_pro_monthly');
     return t('account.plan_free');
   })();
 
@@ -177,7 +178,7 @@ export default function AccountPage() {
             )}
 
             <div className="mt-6 flex flex-wrap gap-3">
-              {plan === 'FREE' ? (
+              {plan === 'INACTIVE' ? (
                 <button
                   type="button"
                   disabled={actionLoading === 'trial'}
