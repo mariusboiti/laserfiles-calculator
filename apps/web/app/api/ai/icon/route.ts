@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getGeminiStatus } from '@/server/gemini';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'nodejs';
 
@@ -78,14 +79,41 @@ export async function POST(req: NextRequest) {
     // Enforce: white background only, no border/frame/outline/shadow.
     const imagePrompt = `${prompt}, black silhouette icon, centered, no text, plain white background, no border, no outline, no frame, no stroke, no shadow, no gradient`;
     
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req,
+        toolSlug: 'keychain-generator',
+        actionType: 'icon',
+        provider: 'gemini',
+        payload: body as any,
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for icon:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
+    }
+
     console.log('[AI Icon] Generating image for:', prompt);
     
     // ========================================================================
     // Generate image using /api/ai/gemini/image (same as Sign Generator)
+    // We add a bypass header to avoid double-charging since we already consumed a credit.
     // ========================================================================
-    const imageRes = await fetch('http://localhost:3000/api/ai/gemini/image', {
+    const internalUrl = `${req.nextUrl.origin}/api/ai/gemini/image`;
+    const imageRes = await fetch(internalUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Internal-Bypass-Credit': 'true'
+      },
       body: JSON.stringify({
         prompt: imagePrompt,
         mode: 'shapeSilhouette',
@@ -107,6 +135,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       ok: true,
       dataUrl, 
+      credits,
       ...(warning ? { warning } : {}) 
     });
     

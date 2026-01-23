@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { downloadTextFile } from '@/lib/studio/export/download';
 import { downloadZip } from '@/lib/studio/export/zip';
 import { exportCurvedPhotoFrameV2Dxf } from '../core/exportDxf';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 import {
   processImagePipeline,
   imageDataToDataUrl,
@@ -110,6 +111,9 @@ export function CurvedPhotoFrameV2Tool({
       const croppedDataUrl = canvas.toDataURL('image/png');
       setCropPreview(croppedDataUrl);
       setPhotoDataUrl(croppedDataUrl);
+      
+      // Refresh credits in UI
+      refreshEntitlements();
     } catch (error) {
       console.error('Auto-crop failed:', error);
       alert('Auto-crop failed. Using original image.');
@@ -161,6 +165,11 @@ export function CurvedPhotoFrameV2Tool({
 
       const processedDataUrl = imageDataToDataUrl(processed);
       setProcessedPhotoDataUrl(processedDataUrl);
+      
+      // Refresh credits in UI if background was removed (consumed a credit)
+      if (aiSettings.removeBackground && featureFlags.isProUser) {
+        refreshEntitlements();
+      }
     } catch (error) {
       console.error('Photo processing failed:', error);
       alert('Photo processing failed. Check console for details.');

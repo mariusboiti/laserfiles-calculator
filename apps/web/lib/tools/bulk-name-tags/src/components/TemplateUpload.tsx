@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 import { templateLibrary } from '../templateLibrary';
 import { parseTemplateBounds } from '../utils/svgUtils';
 import { validateLaserSafeSvg } from '../utils/aiTemplateUtils';
@@ -254,6 +255,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
       setSelectedTemplateId('');
       onTemplateLoad(validation.sanitizedSvg || svg);
+      refreshEntitlements();
     } catch (e) {
       setError(e instanceof Error ? e.message : t('bulk_name_tags.template.error_ai_generation_failed'));
     } finally {
@@ -279,6 +281,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
       const result = await generateSilhouetteImage(prompt);
       setSilhouetteImageDataUrl(result.dataUrl);
       setSelectedTemplateId('');
+      refreshEntitlements();
 
       // Auto-trace after generation for clean defaults.
       window.setTimeout(() => {
@@ -468,6 +471,7 @@ export function TemplateUpload({ onTemplateLoad, templateSvg, unitSystem, templa
 
       setSelectedTemplateId('');
       onTemplateLoad(validation.sanitizedSvg || extracted.svg);
+      refreshEntitlements();
     } catch (e) {
       setError(e instanceof Error ? e.message : t('bulk_name_tags.template.error_ai_generation_failed'));
     } finally {

@@ -5,6 +5,7 @@ import type { ProjectState, AIPreset, DetailLevel, BackgroundType, SourceImage }
 import type { Mode } from '@/lib/multilayer/modes';
 import { MODES, getModeDefaults } from '@/lib/multilayer/modes';
 import { ModeSelector } from './ModeSelector';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 interface SourceStepProps {
   project: ProjectState;
@@ -118,6 +119,7 @@ export function SourceStep({ project, onUpdateProject, onNext }: SourceStepProps
       onUpdateProject({ sourceImage, error: null, isProcessing: false });
       setHasGeneratedOnce(true);
       setActiveTab('upload');
+      refreshEntitlements();
     } catch (error) {
       console.warn('[Multilayer AI] generation failed', error);
       onUpdateProject({ 

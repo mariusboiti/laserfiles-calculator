@@ -1,4 +1,5 @@
 import type { AIImageSettings } from '../types/jigsawV3';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 /**
  * Module D: AI Image Generator Adapter
@@ -44,6 +45,9 @@ export async function generateAIImage(
     }
 
     const data = await response.json();
+
+    // Refresh credits in UI
+    refreshEntitlements();
 
     return {
       success: true,

@@ -29,6 +29,7 @@ import { generateCurvedTextPath } from '../core/canvas/curvedText';
 import { ExportMiniDisclaimer } from '@/components/legal';
 import { useLanguage } from '@/lib/i18n/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 // New panel components
 import { FontPicker } from './components/FontPicker';
@@ -763,6 +764,9 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
       showToast(t('round_coaster.ai.toast_failed'), 'error');
       return null;
     }
+
+    // Refresh credits in UI
+    refreshEntitlements();
 
     return { imageUrl: String(res.data.dataUrl), pathD: String(res.data.combinedPath) };
   }, [doc.artboard.heightMm, doc.artboard.widthMm, t]);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'nodejs';
 
@@ -187,6 +188,28 @@ export async function POST(req: NextRequest) {
 
     const fullPrompt = buildSilhouettePrompt(userPrompt);
 
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req,
+        toolSlug: 'bulk-name-tags', // This endpoint is primarily used by bulk-name-tags
+        actionType: 'silhouette',
+        provider: provider as any,
+        payload: body as any,
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for silhouette:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
+    }
+
     if (provider === 'openai') {
       const ok = isOpenAIConfigured();
       if (!ok.ok) return NextResponse.json({ error: ok.message }, { status: 500 });
@@ -206,7 +229,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Image generation returned no image data' }, { status: 500 });
       }
 
-      const res: SilhouetteGenerateResponse = { dataUrl, provider };
+      const res: SilhouetteGenerateResponse & { credits?: { used: number; remaining: number } } = { 
+        dataUrl, 
+        provider,
+        credits 
+      };
       return NextResponse.json(res);
     }
 
@@ -226,7 +253,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Image generation returned no image data' }, { status: 500 });
       }
 
-      const res: SilhouetteGenerateResponse = { dataUrl, provider };
+      const res: SilhouetteGenerateResponse & { credits?: { used: number; remaining: number } } = { 
+        dataUrl, 
+        provider,
+        credits 
+      };
       return NextResponse.json(res);
     }
 

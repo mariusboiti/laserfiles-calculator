@@ -7,6 +7,7 @@ import { getMyIcons, saveMyIcon, deleteMyIcon, type MyIcon } from '../core/myIco
 import { cleanupSvg } from '../core/svgCleanup';
 import { normalizePaths } from '../core/iconNormalize';
 import { calculateLaserSafeScore, getLevelEmoji, getLevelColor, getLevelBgColor } from '../core/laserSafeScore';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 import type { IconDef } from '../types';
 
 type IconTab = 'pack' | 'my-icons' | 'ai';
@@ -150,6 +151,9 @@ export function IconPickerV2({ selectedId, onSelect }: IconPickerV2Props) {
       
       // Store image preview - trace will be done when user clicks "Add to Keychain"
       setAiImagePreview(data.dataUrl);
+      
+      // Refresh credits in UI
+      refreshEntitlements();
       
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Failed to generate icon');

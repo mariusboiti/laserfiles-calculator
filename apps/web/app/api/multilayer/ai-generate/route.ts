@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { AIGenerateRequest, AIGenerateResponse } from '@/lib/multilayer/types';
 import { AI_PRESET_PROMPTS } from '@/lib/multilayer/types';
 import { buildAIPrompt, MODES } from '@/lib/multilayer/modes';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +22,28 @@ export async function POST(req: NextRequest) {
 
     if (!subject?.trim()) {
       return NextResponse.json({ error: 'Missing subject' }, { status: 400 });
+    }
+
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req,
+        toolSlug: 'multilayer-maker',
+        actionType: 'ai-generate',
+        provider: 'gemini',
+        payload: body as any,
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for multilayer ai-generate:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
     }
 
     const provider = (process.env.AI_PROVIDER || 'mock').toLowerCase();
@@ -58,12 +81,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const image = await generateWithGemini({ apiKey, endpoint, model, prompt: fullPrompt });
-      const response: AIGenerateResponse = {
+      const response: AIGenerateResponse & { credits?: { used: number; remaining: number } } = {
         imageBase64: image.imageBase64,
         imageUrl: image.imageUrl,
         seed,
         promptUsedHash: promptHash,
+        credits,
       };
       return NextResponse.json(response);
     }
@@ -82,11 +105,12 @@ export async function POST(req: NextRequest) {
 
       const image = await generateWithOpenAI({ apiKey, model, prompt: fullPrompt, size });
 
-      const response: AIGenerateResponse = {
+      const response: AIGenerateResponse & { credits?: { used: number; remaining: number } } = {
         imageBase64: image.imageBase64,
         imageUrl: image.imageUrl,
         seed,
         promptUsedHash: promptHash,
+        credits,
       };
 
       return NextResponse.json(response);
@@ -94,10 +118,11 @@ export async function POST(req: NextRequest) {
 
     // Mock fallback
     await new Promise((resolve) => setTimeout(resolve, 600));
-    const mockResponse: AIGenerateResponse = {
+    const mockResponse: AIGenerateResponse & { credits?: { used: number; remaining: number } } = {
       imageBase64: generateMockImage(subject, preset),
       seed,
       promptUsedHash: promptHash,
+      credits,
     };
     return NextResponse.json(mockResponse);
   } catch (error) {

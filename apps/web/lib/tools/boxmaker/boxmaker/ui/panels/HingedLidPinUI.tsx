@@ -8,6 +8,7 @@ import { layoutPanelsToSvg, generatePanelSvgs } from '../../core/hinged-pin/layo
 import { AIWarningBanner } from '@/components/ai';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 type FaceArtworkPlacement = {
   x: number;

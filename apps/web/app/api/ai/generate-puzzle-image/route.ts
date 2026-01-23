@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 /**
  * API endpoint for AI puzzle image generation
@@ -19,12 +20,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req: request,
+        toolSlug: 'jigsaw-maker',
+        actionType: 'generate-puzzle-image',
+        provider: 'internal',
+        payload: body as any,
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for generate-puzzle-image:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
+    }
+
     // TODO: Implement actual AI image generation
     // For now, return a placeholder response
     
     return NextResponse.json({
       success: false,
       error: 'AI image generation not yet implemented. Please upload an image manually.',
+      credits,
     }, { status: 501 });
 
   } catch (error) {

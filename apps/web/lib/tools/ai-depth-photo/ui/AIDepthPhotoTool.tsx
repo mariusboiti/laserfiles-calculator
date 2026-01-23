@@ -6,6 +6,7 @@ import { ASPECT_RATIOS, STYLE_PRESETS, PLAQUE_SHAPES, RELIEF_MATERIALS } from '.
 import { useAnalytics } from '@/lib/analytics/useAnalytics';
 import { useLanguage } from '@/lib/i18n/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 type TabView = 'final' | 'depth' | 'layers';
 
@@ -118,6 +119,9 @@ export function AIDepthPhotoTool() {
       setSeed(data.seed);
       setHasGeneratedOnce(true);
       setActiveTab('final');
+
+      // Refresh credits in UI
+      refreshEntitlements();
 
       // Auto-generate depth map
       generateDepthMap(data.imagePngBase64);

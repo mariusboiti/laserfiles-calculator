@@ -8,6 +8,7 @@
 import React, { useState, useCallback } from 'react';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 import {
   Sparkles,
   Wand2,
@@ -111,6 +112,7 @@ export function AiGeneratePanel({
         setImagePreviewDataUrl(null);
         onGenerated({ mode: 'shapeSilhouette', svg: data.svg, pngDataUrl: data.pngDataUrl });
         setHasGeneratedOnce(true);
+        refreshEntitlements();
         return;
       }
 
@@ -152,6 +154,7 @@ export function AiGeneratePanel({
 
       setImagePreviewDataUrl(`data:${mime};base64,${base64}`);
       setHasGeneratedOnce(true);
+      refreshEntitlements();
     } catch (e) {
       const msg =
         e && typeof (e as any).message === 'string'

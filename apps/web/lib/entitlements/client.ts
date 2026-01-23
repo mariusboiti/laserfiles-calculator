@@ -173,6 +173,15 @@ export function useEntitlement(): UseEntitlementResult {
 
   useEffect(() => {
     fetchEntitlement();
+
+    // Listen for custom refresh events
+    const handleRefresh = () => {
+      console.log('[Entitlements-Client] Refreshing entitlements due to event');
+      fetchEntitlement();
+    };
+
+    window.addEventListener('refresh-entitlements', handleRefresh);
+    return () => window.removeEventListener('refresh-entitlements', handleRefresh);
   }, [fetchEntitlement]);
 
   return {
@@ -291,6 +300,11 @@ export async function callAiGateway<T = any>(
     throw new Error(msg);
   }
 
+  // If this was a mutating request, refresh entitlements to update credit badge
+  if (method !== 'GET') {
+    refreshEntitlements();
+  }
+
   return payload as T;
 }
 
@@ -312,4 +326,13 @@ export function getEntitlementMessage(entitlement: EntitlementStatus | null): st
   if (entitlement.plan === 'CANCELED') return 'Your subscription was canceled. Renew to continue using AI credits.';
 
   return 'AI credits status unavailable.';
+}
+
+/**
+ * Trigger a global refresh of entitlements in the UI
+ */
+export function refreshEntitlements(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('refresh-entitlements'));
+  }
 }

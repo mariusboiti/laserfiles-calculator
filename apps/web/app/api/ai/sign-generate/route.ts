@@ -10,6 +10,7 @@ import {
   buildShapeSilhouettePrompt,
   validatePrompt 
 } from '../../../../lib/tools/personalised-sign-generator/core/ai/promptTemplates';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'nodejs';
 
@@ -164,6 +165,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
     }
 
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req,
+        toolSlug: 'personalised-sign-generator',
+        actionType: mode,
+        provider: 'gemini',
+        payload: body as any,
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for sign-generate:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
+    }
+
     if (mode === 'engravingSketch') {
       const { apiKey, endpoint, model } = getGeminiImageConfig();
       if (!apiKey) {
@@ -181,7 +204,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'AI returned no image data' }, { status: 500 });
       }
 
-      const responseData: GenerateResponse = { pngDataUrl: img };
+      const responseData: GenerateResponse & { credits?: { used: number; remaining: number } } = { 
+        pngDataUrl: img,
+        credits 
+      };
       return NextResponse.json(responseData);
     }
 
@@ -230,7 +256,11 @@ export async function POST(req: NextRequest) {
     // Basic validation
     const warning = validateGeneratedSvg(svg, mode);
 
-    const responseData: GenerateResponse = { svg, warning };
+    const responseData: GenerateResponse & { credits?: { used: number; remaining: number } } = { 
+      svg, 
+      warning,
+      credits 
+    };
     return NextResponse.json(responseData);
 
   } catch (error) {
