@@ -59,6 +59,20 @@ class AdminAdjustCreditsDto {
   reason?: string;
 }
 
+class ConsumeAiCreditDto {
+  @IsString()
+  toolSlug!: string;
+
+  @IsString()
+  actionType!: string;
+
+  @IsString()
+  provider!: string;
+
+  @IsOptional()
+  metadata?: Record<string, unknown>;
+}
+
 @ApiTags('entitlements')
 @Controller('entitlements')
 export class EntitlementsController {
@@ -81,6 +95,33 @@ export class EntitlementsController {
     }
 
     const data = await this.entitlementsService.getUiEntitlementsForUserId(String(userId), req);
+    return { ok: true, data };
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @Post('consume-ai-credit')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Consume 1 AI credit for the current user (authoritative backend)' })
+  async consumeAiCredit(@Req() req: any, @Body() dto: ConsumeAiCreditDto) {
+    const userId = req?.user?.id ?? req?.user?.sub ?? req?.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('Missing user id in token');
+    }
+
+    const { toolSlug, actionType, provider, metadata } = dto;
+    if (!toolSlug || !actionType || !provider) {
+      throw new BadRequestException('Missing toolSlug/actionType/provider');
+    }
+
+    const data = await this.entitlementsService.consumeAiCredit({
+      userId: String(userId),
+      toolSlug: String(toolSlug),
+      actionType: String(actionType),
+      provider: String(provider),
+      metadata: (metadata || undefined) as any,
+    });
+
     return { ok: true, data };
   }
 
