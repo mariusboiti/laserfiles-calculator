@@ -38,7 +38,7 @@ export class EntitlementsService {
     userId: string,
     req?: RequestLike,
   ): Promise<{
-    plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED' | 'FREE_RO' | 'FREE';
+    plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'FREE_RO' | 'FREE';
     trialStartedAt: string | null;
     trialEndsAt: string | null;
     aiCreditsTotal: number;
@@ -117,7 +117,7 @@ export class EntitlementsService {
     const isTrialValid =
       entPlan === 'TRIALING' && Boolean(ent?.trialEndsAt) && (ent!.trialEndsAt as Date) > now;
 
-    type UiEntitlementPlan = 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED' | 'FREE_RO' | 'FREE';
+    type UiEntitlementPlan = 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'FREE_RO' | 'FREE';
     let plan: UiEntitlementPlan = 'INACTIVE';
     if (isTrialValid) {
       plan = 'TRIALING';
@@ -125,8 +125,6 @@ export class EntitlementsService {
       plan = 'INACTIVE';
     } else if (entPlan === 'ACTIVE') {
       plan = 'ACTIVE';
-    } else if (entPlan === 'CANCELED') {
-      plan = 'CANCELED';
     }
 
     const hasDbEntitlement = Boolean(ent);
@@ -204,13 +202,11 @@ export class EntitlementsService {
     const aiCreditsTotalInput = payload?.aiCreditsTotal;
     const topupCreditsInput = payload?.topupCredits;
 
-    let entPlan: 'INACTIVE' | 'TRIALING' | 'ACTIVE' | 'CANCELED' = 'INACTIVE';
+    let entPlan: 'INACTIVE' | 'TRIALING' | 'ACTIVE' = 'INACTIVE';
     if (planRaw === 'ACTIVE') {
       entPlan = 'ACTIVE';
     } else if (planRaw === 'TRIAL' || levelId === TRIAL_LEVEL_ID) {
       entPlan = 'TRIALING';
-    } else if (planRaw === 'CANCELED') {
-      entPlan = 'CANCELED';
     } else {
       entPlan = 'INACTIVE';
     }
