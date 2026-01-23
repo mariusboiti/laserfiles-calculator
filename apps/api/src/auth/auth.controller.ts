@@ -346,7 +346,6 @@ export class AuthController {
     const plan = (() => {
       if (entPlanRaw === 'TRIALING') return 'TRIAL';
       if (entPlanRaw === 'ACTIVE') return 'ACTIVE';
-      if (entPlanRaw === 'CANCELED') return 'CANCELED';
       return 'INACTIVE';
     })();
 
