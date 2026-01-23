@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export type EntitlementStatus = {
-  plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'CANCELED' | 'FREE_RO' | 'FREE';
+  plan: 'TRIAL' | 'ACTIVE' | 'NONE' | 'CANCELED' | 'FREE_RO' | 'FREE';
   trialStartedAt: string | null;
   trialEndsAt: string | null;
   aiCreditsTotal: number;
@@ -32,7 +32,7 @@ type UseEntitlementResult = {
 
 // IMPORTANT: do NOT mask connectivity/auth issues with fake credits
 const defaultEntitlement: EntitlementStatus = {
-  plan: 'INACTIVE',
+  plan: 'NONE',
   trialStartedAt: null,
   trialEndsAt: null,
   aiCreditsTotal: 0,
@@ -146,14 +146,14 @@ export function useEntitlement(): UseEntitlementResult {
         const incoming = data.data as any;
         const planRaw = String(incoming?.plan ?? '').toUpperCase();
         const plan: EntitlementStatus['plan'] =
-          planRaw === 'TRIALING' ||
+          planRaw === 'TRIAL' ||
           planRaw === 'ACTIVE' ||
-          planRaw === 'INACTIVE' ||
+          planRaw === 'NONE' ||
           planRaw === 'CANCELED' ||
           planRaw === 'FREE_RO' ||
           planRaw === 'FREE'
             ? (planRaw as EntitlementStatus['plan'])
-            : 'INACTIVE';
+            : 'NONE';
 
         setEntitlement({
           ...(incoming as EntitlementStatus),
@@ -238,7 +238,7 @@ export async function startTopup(
 export function canUseAi(entitlement: EntitlementStatus | null): boolean {
   if (!entitlement) return false;
   if (typeof entitlement.canUseAi === 'boolean') return entitlement.canUseAi;
-  if (!entitlement.isActive && entitlement.plan !== 'TRIALING') return false;
+  if (!entitlement.isActive && entitlement.plan !== 'TRIAL') return false;
   return entitlement.aiCreditsRemaining > 0;
 }
 
@@ -297,7 +297,7 @@ export async function callAiGateway<T = any>(
 export function getEntitlementMessage(entitlement: EntitlementStatus | null): string {
   if (!entitlement) return 'Checking your AI credits...';
 
-  if (entitlement.plan === 'TRIALING') {
+  if (entitlement.plan === 'TRIAL') {
     const days = entitlement.daysLeftInTrial;
     if (typeof days === 'number') return `Trial active — ${days} day(s) left.`;
     return 'Trial active.';
@@ -308,7 +308,7 @@ export function getEntitlementMessage(entitlement: EntitlementStatus | null): st
       ? `${entitlement.aiCreditsRemaining} AI credits remaining.`
       : 'No AI credits remaining.';
   }
-  if (entitlement.plan === 'INACTIVE') return 'Your plan is inactive. Renew to continue using AI credits.';
+  if (entitlement.plan === 'NONE') return 'Your plan is inactive. Renew to continue using AI credits.';
   if (entitlement.plan === 'CANCELED') return 'Your subscription was canceled. Renew to continue using AI credits.';
 
   return 'AI credits status unavailable.';

@@ -12,13 +12,16 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 export const prisma = globalForPrisma.prisma || new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Type definitions (matches Prisma schema)
-export type EntitlementPlan = 'NONE' | 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+// Type definitions (matches normalized plan states for UI)
+export type EntitlementPlan = 'NONE' | 'TRIAL' | 'ACTIVE' | 'CANCELED' | 'EXPIRED';
+
+// Internal type for DB operations matching schema.prisma
+type DbEntitlementPlan = 'INACTIVE' | 'TRIALING' | 'ACTIVE' | 'CANCELED';
 
 export type UserEntitlement = {
   id: string;
   userId: string;
-  plan: EntitlementPlan;
+  plan: DbEntitlementPlan;
   trialStartedAt: Date | null;
   trialEndsAt: Date | null;
   aiCreditsTotal: number;
@@ -75,7 +78,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
       entitlement = await db.userEntitlement.create({
         data: {
           userId,
-          plan: 'NONE',
+          plan: 'INACTIVE',
           aiCreditsTotal: 25,
           aiCreditsUsed: 0,
         },
@@ -89,7 +92,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
     return {
       id: 'temp-' + userId,
       userId,
-      plan: 'NONE',
+      plan: 'INACTIVE',
       trialStartedAt: null,
       trialEndsAt: null,
       aiCreditsTotal: 25,
@@ -98,7 +101,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
       stripeSubscriptionId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as UserEntitlement;
   }
 }
 
@@ -118,16 +121,22 @@ export async function getEntitlementStatus(userId: string): Promise<EntitlementS
   }
 
   const isTrialValid = entitlement.plan === 'TRIALING' && 
-    entitlement.trialEndsAt && 
-    entitlement.trialEndsAt > now;
+    (entitlement.trialEndsAt === null || entitlement.trialEndsAt > now);
 
   const isActive: boolean = Boolean(
-    entitlement.plan === 'ACTIVE' || 
-    (isTrialValid && aiCreditsRemaining > 0)
+    entitlement.plan === 'ACTIVE' || isTrialValid
   );
 
+  // Normalize plan name for the status object
+  const plan: EntitlementPlan = (() => {
+    if (entitlement.plan === 'TRIALING') return 'TRIAL';
+    if (entitlement.plan === 'ACTIVE') return 'ACTIVE';
+    if (entitlement.plan === 'CANCELED') return 'CANCELED';
+    return 'NONE';
+  })();
+
   return {
-    plan: entitlement.plan,
+    plan,
     trialStartedAt: entitlement.trialStartedAt,
     trialEndsAt: entitlement.trialEndsAt,
     aiCreditsTotal: entitlement.aiCreditsTotal,
@@ -146,45 +155,18 @@ export async function requireEntitlementForAi(userId: string): Promise<UserEntit
   const entitlement = await getEntitlementForUser(userId);
   const now = new Date();
 
+  const dbPlan = entitlement.plan;
+  const isTrialValid = dbPlan === 'TRIALING' && (entitlement.trialEndsAt === null || entitlement.trialEndsAt > now);
+  const canAccessStudio = dbPlan === 'ACTIVE' || isTrialValid;
+
   // Check plan status
-  if (entitlement.plan === 'NONE' || entitlement.plan === 'INACTIVE') {
+  if (!canAccessStudio) {
     const error: EntitlementError = {
       code: 'TRIAL_REQUIRED',
       message: 'AI features require an active trial or subscription. Start your free trial to get 25 AI credits.',
       httpStatus: 403,
     };
     throw error;
-  }
-
-  if (entitlement.plan === 'EXPIRED') {
-    const error: EntitlementError = {
-      code: 'TRIAL_EXPIRED',
-      message: 'Your trial has expired. Please subscribe to continue using AI features.',
-      httpStatus: 410,
-    };
-    throw error;
-  }
-
-  // Check trial validity
-  if (entitlement.plan === 'TRIALING') {
-    if (!entitlement.trialEndsAt || entitlement.trialEndsAt <= now) {
-      // Update plan to expired
-      try {
-        await db.userEntitlement.update({
-          where: { id: entitlement.id },
-          data: { plan: 'EXPIRED' },
-        });
-      } catch (e) {
-        console.warn('Could not update entitlement:', e);
-      }
-      
-      const error: EntitlementError = {
-        code: 'TRIAL_EXPIRED',
-        message: 'Your trial has expired. Please subscribe to continue using AI features.',
-        httpStatus: 410,
-      };
-      throw error;
-    }
   }
 
   // Check credits
@@ -378,8 +360,8 @@ export async function syncFromStripeSubscription(params: {
     },
   });
 
-  // Map Stripe status to our plan
-  let plan: EntitlementPlan;
+  // Map Stripe status to our plan (Internal DB values)
+  let plan: DbEntitlementPlan;
   switch (status) {
     case 'trialing':
       plan = 'TRIALING';
@@ -393,7 +375,7 @@ export async function syncFromStripeSubscription(params: {
       plan = 'INACTIVE';
       break;
     default:
-      plan = 'NONE';
+      plan = 'INACTIVE';
   }
 
   const trialEndsAt = trialEnd ? new Date(trialEnd * 1000) : null;

@@ -38,7 +38,7 @@ export class EntitlementsService {
     userId: string,
     req?: RequestLike,
   ): Promise<{
-    plan: 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'FREE_RO' | 'FREE';
+    plan: 'TRIAL' | 'ACTIVE' | 'NONE' | 'CANCELED';
     trialStartedAt: string | null;
     trialEndsAt: string | null;
     aiCreditsTotal: number;
@@ -55,9 +55,8 @@ export class EntitlementsService {
     reason: string;
   }> {
     if (!this.prisma) {
-      // Should not happen in prod, but keep safe fallback
       return {
-        plan: 'INACTIVE',
+        plan: 'NONE',
         trialStartedAt: null,
         trialEndsAt: null,
         aiCreditsTotal: 0,
@@ -81,82 +80,47 @@ export class EntitlementsService {
     });
 
     if (user?.email) {
-      await this.fetchAndApplyEntitlementsByEmail(user.email);
+      // Conditional sync logic moved to AuthController.me or other high-level routes
+      // but we still ensure we have latest from DB
     }
 
     const ent = await this.prisma.userEntitlement.findUnique({ where: { userId } });
 
     const now = new Date();
-
     const country = getRequestCountry(req);
-    const roFreeEnabled = (process.env.RO_FREE_ENABLED || '').trim() === '1' || (process.env.RO_FREE_ENABLED || '').trim().toLowerCase() === 'true';
-    const roCodes = (process.env.RO_FREE_COUNTRY_CODES || 'RO')
-      .split(',')
-      .map((s) => s.trim().toUpperCase())
-      .filter(Boolean);
-    const isRo = Boolean(country) && roCodes.includes(String(country));
-    const graceDays = Number(process.env.NON_RO_FREE_GRACE_DAYS || '7');
-    const graceMs = (Number.isFinite(graceDays) && graceDays > 0 ? graceDays : 7) * 24 * 60 * 60 * 1000;
-    const graceUntilDate = user?.createdAt ? new Date(user.createdAt.getTime() + graceMs) : null;
-    const inGrace = Boolean(graceUntilDate) && graceUntilDate!.getTime() > now.getTime();
-
+    
     const trialStartedAt = ent?.trialStartedAt ? ent.trialStartedAt.toISOString() : null;
     const trialEndsAt = ent?.trialEndsAt ? ent.trialEndsAt.toISOString() : null;
-
-    let daysLeftInTrial: number | null = null;
-    if (ent?.plan === 'TRIALING' && ent.trialEndsAt) {
-      const msLeft = ent.trialEndsAt.getTime() - now.getTime();
-      daysLeftInTrial = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
-    }
 
     const total = Number(ent?.aiCreditsTotal ?? 0);
     const used = Number(ent?.aiCreditsUsed ?? 0);
     const remaining = Math.max(0, total - used);
 
-    const entPlan = String((ent as any)?.plan || '').toUpperCase();
-    const isTrialValid =
-      entPlan === 'TRIALING' && Boolean(ent?.trialEndsAt) && (ent!.trialEndsAt as Date) > now;
-
-    type UiEntitlementPlan = 'TRIALING' | 'ACTIVE' | 'INACTIVE' | 'FREE_RO' | 'FREE';
-    let plan: UiEntitlementPlan = 'INACTIVE';
-    if (isTrialValid) {
-      plan = 'TRIALING';
-    } else if (entPlan === 'INACTIVE') {
-      plan = 'INACTIVE';
-    } else if (entPlan === 'ACTIVE') {
-      plan = 'ACTIVE';
-    }
-
-    const hasDbEntitlement = Boolean(ent);
-    const isActive = plan === 'ACTIVE' || plan === 'TRIALING';
-
-    // Effective access rules
-    const canUseAi = Boolean(isActive && remaining > 0);
-    const canUseStudio = Boolean(
-      isActive ||
-        (roFreeEnabled && isRo) ||
-        (!isRo && inGrace),
-    );
-    const trialEligible = !isActive;
-    const graceUntil = !isRo && graceUntilDate ? graceUntilDate.toISOString() : null;
-
-    const reason = (() => {
-      if (isActive) return 'ENTITLEMENT_ACTIVE';
-      if (roFreeEnabled && isRo) return hasDbEntitlement ? 'RO_FREE_OVERRIDE' : 'RO_FREE';
-      if (!isRo && inGrace) return 'NON_RO_GRACE';
-      if (!hasDbEntitlement) return 'NO_ENTITLEMENT';
-      return 'ENTITLEMENT_INACTIVE';
+    const entPlanRaw = String((ent as any)?.plan || 'INACTIVE').toUpperCase();
+    
+    // Normalize plan names
+    const plan = (() => {
+      if (entPlanRaw === 'TRIALING') return 'TRIAL';
+      if (entPlanRaw === 'ACTIVE') return 'ACTIVE';
+      if (entPlanRaw === 'CANCELED') return 'CANCELED';
+      return 'NONE';
     })();
 
-    if (!hasDbEntitlement && roFreeEnabled && isRo) {
-      plan = 'FREE_RO';
-    } else if (!hasDbEntitlement && !isRo) {
-      plan = 'FREE';
+    // Gating logic per requirements
+    const canUseStudio =
+      plan === 'ACTIVE' ||
+      (plan === 'TRIAL' && (!ent?.trialEndsAt || now.getTime() < ent.trialEndsAt.getTime()));
+
+    const canUseAi = canUseStudio && used < total;
+    
+    let daysLeftInTrial: number | null = null;
+    if (plan === 'TRIAL' && ent?.trialEndsAt) {
+      const msLeft = ent.trialEndsAt.getTime() - now.getTime();
+      daysLeftInTrial = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
     }
 
-    this.logger.debug(
-      `UI entitlements: userId=${userId} country=${country ?? 'null'} plan=${plan} canUseStudio=${canUseStudio} canUseAi=${canUseAi} reason=${reason}`,
-    );
+    const isActive = plan === 'ACTIVE' || plan === 'TRIAL';
+    const trialEligible = plan === 'NONE';
 
     return {
       plan,
@@ -171,9 +135,9 @@ export class EntitlementsService {
       canUseStudio,
       canUseAi,
       trialEligible,
-      graceUntil,
+      graceUntil: null,
       country,
-      reason,
+      reason: plan === 'NONE' ? 'NO_ENTITLEMENT' : 'ENTITLEMENT_ACTIVE',
     };
   }
 
@@ -202,13 +166,17 @@ export class EntitlementsService {
     const aiCreditsTotalInput = payload?.aiCreditsTotal;
     const topupCreditsInput = payload?.topupCredits;
 
-    let entPlan: 'INACTIVE' | 'TRIALING' | 'ACTIVE' = 'INACTIVE';
-    // IMPORTANT: prioritize trial level id over generic plan strings from WP.
-    // WP can send plan=ACTIVE even for trial checkout; levelId is authoritative.
-    if (levelId === TRIAL_LEVEL_ID || planRaw === 'TRIAL') {
+    let entPlan: 'INACTIVE' | 'TRIALING' | 'ACTIVE' | 'CANCELED' = 'INACTIVE';
+    const wpPlanNormalized = planRaw.toUpperCase();
+    
+    // Auth logic: prioritize levelId and specific strings from WP
+    // Map to DB Enums: INACTIVE, TRIALING, ACTIVE, CANCELED
+    if (levelId === TRIAL_LEVEL_ID || wpPlanNormalized === 'TRIAL' || wpPlanNormalized === 'TRIALING') {
       entPlan = 'TRIALING';
-    } else if (planRaw === 'ACTIVE') {
+    } else if (wpPlanNormalized === 'ACTIVE' || wpPlanNormalized === 'PRO' || wpPlanNormalized === 'BUSINESS') {
       entPlan = 'ACTIVE';
+    } else if (wpPlanNormalized === 'CANCELED' || wpPlanNormalized === 'CANCELLED') {
+      entPlan = 'CANCELED';
     } else {
       entPlan = 'INACTIVE';
     }
@@ -218,14 +186,6 @@ export class EntitlementsService {
       subscriptionType = 'MONTHLY';
     } else if (levelId === ANNUAL_LEVEL_ID || intervalRaw === 'annual') {
       subscriptionType = 'ANNUAL';
-    }
-
-    let trialEndsAt: Date | null = null;
-    if (trialEndsAtInput) {
-      const t = new Date(trialEndsAtInput);
-      if (!Number.isNaN(t.getTime())) {
-        trialEndsAt = t;
-      }
     }
 
     const prisma = this.prisma;
@@ -275,7 +235,6 @@ export class EntitlementsService {
     }
 
     const existing = await prisma.userEntitlement.findUnique({ where: { userId: user.id } });
-
     const existingTotal = Number(existing?.aiCreditsTotal ?? 0);
 
     const defaultTrialCredits = Number(process.env.TRIAL_DEFAULT_AI_CREDITS ?? '25');
@@ -297,7 +256,6 @@ export class EntitlementsService {
 
     const inferredBaseTotal = (() => {
       // Only use inferred defaults if WP didn't send aiCreditsTotal, OR it sent 0 for an active plan.
-      // (WP may omit credits and default to 0; in that case we want our server-side defaults.)
       const wpCreditsRaw =
         aiCreditsTotalInput !== undefined && aiCreditsTotalInput !== null
           ? Number(aiCreditsTotalInput)
@@ -315,13 +273,10 @@ export class EntitlementsService {
       if (entPlan === 'ACTIVE') {
         if (subscriptionType === 'ANNUAL') return safeDefaultAnnualCredits;
         if (subscriptionType === 'MONTHLY') return safeDefaultMonthlyCredits;
-        // Fallback if interval missing but active
         return safeDefaultMonthlyCredits;
       }
 
-      // If WP explicitly provided 0 credits for an inactive plan, keep it.
       if (wpCreditsProvided) return wpCreditsRaw;
-
       return existingTotal;
     })();
 
@@ -337,13 +292,24 @@ export class EntitlementsService {
 
     const nextTotal = baseTotal + topup;
 
+    let effectiveTrialEndsAt: Date | null = null;
+    if (trialEndsAtInput) {
+      const t = new Date(trialEndsAtInput);
+      if (!Number.isNaN(t.getTime())) {
+        effectiveTrialEndsAt = t;
+      }
+    } else if (entPlan === 'TRIALING' && existing?.trialEndsAt) {
+      // Preserve existing trial end if not provided in payload but still trialing
+      effectiveTrialEndsAt = existing.trialEndsAt;
+    }
+
     if (!existing) {
       await prisma.userEntitlement.create({
         data: {
           userId: user.id,
           plan: entPlan,
           trialStartedAt: entPlan === 'TRIALING' ? new Date() : null,
-          trialEndsAt,
+          trialEndsAt: effectiveTrialEndsAt,
           aiCreditsTotal: nextTotal,
           aiCreditsUsed: 0,
         },
@@ -353,7 +319,7 @@ export class EntitlementsService {
         where: { userId: user.id },
         data: {
           plan: entPlan,
-          trialEndsAt,
+          trialEndsAt: effectiveTrialEndsAt,
           // Intentionally keep aiCreditsUsed unchanged per requirements
           aiCreditsTotal: nextTotal,
           ...(entPlan === 'TRIALING' && !existing.trialStartedAt
@@ -368,42 +334,60 @@ export class EntitlementsService {
     );
   }
 
-  async fetchAndApplyEntitlementsByEmail(email: string): Promise<void> {
+  /**
+   * Sync entitlements from WordPress by email.
+   * Fetches from WP and upserts into UserEntitlement.
+   */
+  async syncFromWordPressByEmail(email: string, requestId?: string): Promise<void> {
     const trimmed = (email || '').trim().toLowerCase();
     if (!trimmed) return;
 
     const apiKey = process.env.LASERFILES_API_KEY || process.env.WP_PLUGIN_API_KEY || '';
     if (!apiKey) {
-      this.logger.debug('LASERFILES_API_KEY not configured – skipping entitlements sync by email');
+      this.logger.warn(`[${requestId || 'no-id'}] LASERFILES_API_KEY not configured – skipping sync for ${trimmed}`);
       return;
     }
 
-    const base = (process.env.WP_PLUGIN_BASE_URL || 'https://laserfilespro.com').replace(/\/$/, '');
-    const url = `${base}/wp-json/laserfiles/v1/entitlements?email=${encodeURIComponent(trimmed)}`;
+    const base = (process.env.WORDPRESS_ENTITLEMENTS_URL || process.env.WP_PLUGIN_BASE_URL || 'https://laserfilespro.com').replace(/\/$/, '');
+    const url = base.includes('/wp-json/laserfiles/v1/entitlements') 
+      ? `${base}?email=${encodeURIComponent(trimmed)}`
+      : `${base}/wp-json/laserfiles/v1/entitlements?email=${encodeURIComponent(trimmed)}`;
+
+    this.logger.log(`[${requestId || 'no-id'}] Syncing entitlements from WP for email=${trimmed}`);
 
     try {
       const response = await axios.get(url, {
         headers: {
           'x-api-key': apiKey,
         },
-        timeout: 5000,
+        timeout: 10000,
       });
 
       const payload = response?.data;
       if (!payload) {
+        this.logger.warn(`[${requestId || 'no-id'}] WP returned empty payload for email=${trimmed}`);
         return;
       }
 
+      // Payload normalization for applyWpEntitlementPayload
       if (!payload.event) {
         payload.event = 'ENTITLEMENT_UPDATED';
       }
+      
+      // Ensure email is in payload if missing
+      if (!payload.email) payload.email = trimmed;
 
       await this.applyWpEntitlementPayload(payload);
+      this.logger.log(`[${requestId || 'no-id'}] Successfully synced entitlements for email=${trimmed}`);
     } catch (err: any) {
-      this.logger.warn(
-        `Failed to fetch entitlements from WP for email=${trimmed}: ${err?.message ?? err}`,
+      this.logger.error(
+        `[${requestId || 'no-id'}] Failed to sync from WP for email=${trimmed}: ${err?.message ?? err}`,
       );
     }
+  }
+
+  async fetchAndApplyEntitlementsByEmail(email: string): Promise<void> {
+    return this.syncFromWordPressByEmail(email, 'legacy-sync');
   }
 
   async consumeAiCredit(input: {

@@ -27,9 +27,9 @@ export default function StudioPricingPage() {
   })();
 
   const planLabel = (() => {
-    if (plan === 'TRIALING') return t('billing.badge.trial');
+    if (plan === 'TRIAL') return t('billing.badge.trial');
     if (plan === 'ACTIVE') return t('billing.badge.active');
-    if (plan === 'INACTIVE') return t('billing.badge.inactive');
+    if (plan === 'NONE') return t('billing.badge.inactive');
     if (plan === 'CANCELED') return t('billing.badge.canceled');
     return t('billing.badge.no_plan');
   })();

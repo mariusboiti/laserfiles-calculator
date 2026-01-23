@@ -165,8 +165,8 @@ function ToolShellInner({
 
   const isTrialValid = useMemo(() => {
     if (!entitlement) return false;
-    if (entitlement.plan !== 'TRIALING') return true;
-    if (!entitlement.trialEndsAt) return false;
+    if (entitlement.plan !== 'TRIAL') return true;
+    if (!entitlement.trialEndsAt) return true; // Follow authoritative backend
     const ends = new Date(entitlement.trialEndsAt).getTime();
     return Number.isFinite(ends) && ends > Date.now();
   }, [entitlement]);

@@ -86,7 +86,7 @@ export default function PricingPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const entitlementPlan = entitlement?.plan ?? null;
-  const canUsePricing = entitlementPlan === 'TRIALING' || entitlementPlan === 'ACTIVE';
+  const canUsePricing = entitlementPlan === 'TRIAL' || entitlementPlan === 'ACTIVE';
 
   useEffect(() => {
     async function loadMaterials() {

@@ -73,7 +73,7 @@ export function AiCreditsBadge() {
   return (
     <div className="flex items-center gap-2">
       {/* Trial days indicator */}
-      {plan === 'TRIALING' && daysLeftInTrial !== null && (
+      {plan === 'TRIAL' && daysLeftInTrial !== null && (
         <div className="flex items-center gap-1 rounded-full border border-sky-600/50 bg-sky-900/30 px-2 py-1 text-xs text-sky-300">
           <Clock className="h-3 w-3" />
           <span>

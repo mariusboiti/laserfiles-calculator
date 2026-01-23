@@ -5,7 +5,7 @@ import { useEntitlement, canUseAi } from '@/lib/entitlements/client';
 export function usePlan() {
   const { entitlement, loading, error, refetch } = useEntitlement();
   const plan =
-    entitlement && (entitlement.plan === 'ACTIVE' || entitlement.plan === 'TRIALING')
+    entitlement && (entitlement.plan === 'ACTIVE' || entitlement.plan === 'TRIAL')
       ? ('pro' as Plan)
       : ('free' as Plan);
 
@@ -14,7 +14,7 @@ export function usePlan() {
   const canUseStudio = useMemo(() => {
     if (!entitlement) return false;
     if (typeof entitlement.canUseStudio === 'boolean') return entitlement.canUseStudio;
-    return entitlement.plan === 'ACTIVE' || entitlement.plan === 'TRIALING';
+    return entitlement.plan === 'ACTIVE' || entitlement.plan === 'TRIAL';
   }, [entitlement]);
 
   const canUse = useMemo(() => {
