@@ -34,9 +34,20 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       try {
         const res = await apiClient.get('/auth/me', { withCredentials: true });
         if (cancelled) return;
-        setUser(res.data?.user ?? null);
-        if (!res.data?.user) {
+        
+        const userData = res.data?.user;
+        setUser(userData ?? null);
+
+        if (!userData) {
           router.push('/login');
+          return;
+        }
+
+        // If user is logged in but cannot access studio (no active plan/trial)
+        // and they are not already on the account or pricing page, redirect them.
+        const isPublicStudioPage = pathname === '/studio/pricing' || pathname === '/studio/account';
+        if (!userData.canAccessStudio && !isPublicStudioPage) {
+          router.push('/studio/account');
         }
       } catch {
         if (cancelled) return;

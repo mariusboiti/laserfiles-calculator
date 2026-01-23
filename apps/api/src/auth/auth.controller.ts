@@ -269,6 +269,9 @@ export class AuthController {
     const { wpUserId, email, displayName, name, entitlements } =
       await this.wpSsoExchangeService.exchangeCode(dto.code);
 
+    // Proactively sync entitlements from WP to ensure DB is up to date
+    await this.entitlementsService.syncFromWordPressByEmail(email, `exchange-${wpUserId}`);
+
     const loginResult = await this.authService.loginWithWp({
       wpUserId: String(wpUserId),
       email,
@@ -309,17 +312,36 @@ export class AuthController {
     if (!userId) {
       throw new UnauthorizedException('Missing user id in token');
     }
+
+    const userIdStr = String(userId);
     const baseUser = await prisma.user.findUnique({
-      where: { id: String(userId) },
-      select: { email: true },
+      where: { id: userIdStr },
+      select: {
+        email: true,
+        entitlement: {
+          select: {
+            plan: true,
+            aiCreditsTotal: true,
+            updatedAt: true,
+          },
+        },
+      },
     });
 
     if (baseUser?.email) {
-      await this.entitlementsService.fetchAndApplyEntitlementsByEmail(baseUser.email);
+      const now = new Date();
+      const ent = baseUser.entitlement;
+      const updatedAt = ent?.updatedAt ? new Date(ent.updatedAt) : null;
+      const stale = !updatedAt || now.getTime() - updatedAt.getTime() > 60000;
+      const inactiveWithCredits = ent?.plan === 'INACTIVE' && (ent?.aiCreditsTotal ?? 0) > 0;
+
+      if (!ent || stale || inactiveWithCredits) {
+        await this.entitlementsService.syncFromWordPressByEmail(baseUser.email, `me-sync-${userIdStr.slice(-4)}`);
+      }
     }
 
     const fullUser = await prisma.user.findUnique({
-      where: { id: String(userId) },
+      where: { id: userIdStr },
       select: {
         id: true,
         email: true,
@@ -346,7 +368,8 @@ export class AuthController {
     const plan = (() => {
       if (entPlanRaw === 'TRIALING') return 'TRIAL';
       if (entPlanRaw === 'ACTIVE') return 'ACTIVE';
-      return 'INACTIVE';
+      if (entPlanRaw === 'CANCELED') return 'CANCELED';
+      return 'NONE'; // Mapping INACTIVE to NONE
     })();
 
     const interval = (() => {
@@ -361,8 +384,10 @@ export class AuthController {
     const aiCreditsTotal = Number((fullUser as any)?.entitlement?.aiCreditsTotal ?? 0) || 0;
     const aiCreditsUsed = Number((fullUser as any)?.entitlement?.aiCreditsUsed ?? 0) || 0;
 
+    // Access gating logic as requested
     const canAccessStudio =
-      plan === 'ACTIVE' || (plan === 'TRIAL' && trialEndsAt !== null && trialEndsAt.getTime() > now.getTime());
+      plan === 'ACTIVE' ||
+      (plan === 'TRIAL' && (trialEndsAt === null || now.getTime() < trialEndsAt.getTime()));
 
     const canUseAI = canAccessStudio && aiCreditsUsed < aiCreditsTotal;
 
@@ -374,6 +399,7 @@ export class AuthController {
         trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null,
         aiCreditsTotal,
         aiCreditsUsed,
+        creditsRemaining: Math.max(0, aiCreditsTotal - aiCreditsUsed),
         canAccessStudio,
         canUseAI,
       },

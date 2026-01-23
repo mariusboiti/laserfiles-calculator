@@ -74,15 +74,15 @@ export function BillingCard() {
   } = entitlement;
 
   const effectivePlan =
-    plan === 'TRIALING' || plan === 'ACTIVE' || plan === 'CANCELED' ? plan : 'INACTIVE';
+    plan === 'TRIAL' || plan === 'ACTIVE' || plan === 'CANCELED' ? plan : 'NONE';
 
-  const showTrialCta = typeof trialEligible === 'boolean' ? trialEligible : effectivePlan === 'INACTIVE';
+  const showTrialCta = typeof trialEligible === 'boolean' ? trialEligible : effectivePlan === 'NONE';
   const creditPercent = aiCreditsTotal > 0 ? (aiCreditsRemaining / aiCreditsTotal) * 100 : 0;
   const hasCredits = canUseAi(entitlement);
 
   const getPlanBadge = () => {
     switch (effectivePlan) {
-      case 'TRIALING':
+      case 'TRIAL':
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-sky-900/50 border border-sky-700 px-2 py-0.5 text-xs text-sky-300">
             <Clock className="h-3 w-3" />
@@ -96,7 +96,7 @@ export function BillingCard() {
             {t('billing.badge.active')}
           </span>
         );
-      case 'INACTIVE':
+      case 'NONE':
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-900/50 border border-amber-700 px-2 py-0.5 text-xs text-amber-300">
             <AlertTriangle className="h-3 w-3" />
@@ -160,7 +160,7 @@ export function BillingCard() {
       </div>
 
       {/* Trial info */}
-      {effectivePlan === 'TRIALING' && daysLeftInTrial !== null && (
+      {effectivePlan === 'TRIAL' && daysLeftInTrial !== null && (
         <div className="mb-6 p-3 rounded-lg bg-sky-900/20 border border-sky-800">
           <div className="flex items-center gap-2 text-sky-300">
             <Clock className="h-4 w-4" />

@@ -16,10 +16,25 @@ export default function AccountPage() {
   const t = (key: string) => getStudioTranslation(locale as any, key);
 
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 5;
+    let timeoutId: NodeJS.Timeout;
+
     async function loadUser() {
       try {
         const res = await apiClient.get('/auth/me');
-        setUser(res.data.user);
+        const userData = res.data.user;
+        setUser(userData);
+
+        // Sync pending logic: if plan is NONE but user has credits, auto-refetch after 2s
+        if (
+          userData?.plan === 'NONE' &&
+          (userData?.aiCreditsTotal ?? 0) > 0 &&
+          retryCount < maxRetries
+        ) {
+          retryCount++;
+          timeoutId = setTimeout(loadUser, 2000);
+        }
       } catch (err) {
         console.error('Failed to load user:', err);
       } finally {
@@ -27,6 +42,10 @@ export default function AccountPage() {
       }
     }
     loadUser();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   if (loading) {
@@ -41,7 +60,7 @@ export default function AccountPage() {
   const wpManageSubscriptionUrl = `${wpBase}/my-account/`;
   const wpBillingHistoryUrl = `${wpBase}/my-account/orders/`;
 
-  const plan = String(user?.plan || 'INACTIVE').toUpperCase();
+  const plan = String(user?.plan || 'NONE').toUpperCase();
   const status = String(user?.status || plan).toUpperCase();
   const billingCycle = user?.interval ? String(user.interval) : null;
   const trialEndsAt = user?.trialEndsAt ? new Date(String(user.trialEndsAt)) : null;
@@ -79,14 +98,13 @@ export default function AccountPage() {
     }
   }
 
-  const showFreeBanner = plan === 'INACTIVE';
+  const showSyncPending = plan === 'NONE' && aiCreditsTotal > 0;
+  const showFreeBanner = plan === 'NONE' && !showSyncPending;
   const showTrialExpiredBanner = status === 'EXPIRED';
 
   const planLabel = (() => {
     if (plan === 'TRIAL') return t('account.plan_trial');
-    if (plan === 'ACTIVE' && billingCycle === 'monthly') return t('account.plan_pro_monthly');
-    if (plan === 'ACTIVE' && billingCycle === 'annual') return t('account.plan_pro_annual');
-    if (plan === 'ACTIVE') return t('account.plan_pro_monthly');
+    if (plan === 'ACTIVE') return t('account.plan_pro');
     return t('account.plan_free');
   })();
 
@@ -120,6 +138,13 @@ export default function AccountPage() {
           {t('account.subtitle')}
         </p>
       </div>
+
+      {showSyncPending && (
+        <div className="rounded-xl border border-blue-800 bg-blue-900/20 p-4 text-sm text-blue-200 flex items-center gap-3">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+          {t('account.sync_pending') || 'Syncing your plan from WordPress... Please wait.'}
+        </div>
+      )}
 
       {showFreeBanner && (
         <div className="rounded-xl border border-amber-800 bg-amber-900/20 p-4 text-sm text-amber-200">
@@ -178,7 +203,7 @@ export default function AccountPage() {
             )}
 
             <div className="mt-6 flex flex-wrap gap-3">
-              {plan === 'INACTIVE' ? (
+              {plan === 'NONE' ? (
                 <button
                   type="button"
                   disabled={actionLoading === 'trial'}

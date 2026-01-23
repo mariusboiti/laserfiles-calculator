@@ -33,7 +33,7 @@ export default function QuotesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const entitlementPlan = entitlement?.plan ?? null;
-  const canUseQuotes = entitlementPlan === 'TRIALING' || entitlementPlan === 'ACTIVE';
+  const canUseQuotes = entitlementPlan === 'TRIAL' || entitlementPlan === 'ACTIVE';
 
   useEffect(() => {
     async function load() {

@@ -165,46 +165,70 @@ export class EntitlementsController {
     }
   }
 
-  /**
-   * Webhook endpoint to receive entitlements change notifications from WordPress.
-   * Authentication: HMAC signature in X-Laserfiles-Signature header
-   */
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Receive entitlements change webhook from WordPress' })
   async handleWebhook(
-    @Body() body: EntitlementsWebhookDto,
-    @Headers('x-laserfiles-signature') signature?: string,
+    @Req() req: any,
+    @Body() body: any,
+    @Headers('x-wc-webhook-signature') signature?: string,
+    @Headers('x-laserfiles-signature') legacySignature?: string,
   ): Promise<{ received: boolean; eventId: string }> {
-    const webhookSecret = process.env.WP_PLUGIN_WEBHOOK_SECRET;
-    if (webhookSecret) {
-      if (!signature) {
-        this.logger.warn('Webhook received without signature');
-        throw new BadRequestException('Missing webhook signature');
+    const activeSignature = (signature || legacySignature || '').trim();
+    const webhookSecret = process.env.WP_WEBHOOK_SECRET || process.env.WP_PLUGIN_WEBHOOK_SECRET || process.env.LASERFILES_API_KEY;
+    
+    if (webhookSecret && activeSignature) {
+      const rawBody = req.rawBody;
+      let isValid = false;
+
+      if (rawBody) {
+        // Try Base64 (WooCommerce standard)
+        const expectedB64 = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('base64');
+        if (this.secureCompare(activeSignature, expectedB64)) {
+          isValid = true;
+        } else {
+          // Try Hex
+          const expectedHex = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
+          if (this.secureCompare(activeSignature, expectedHex)) {
+            isValid = true;
+          }
+        }
       }
 
-      const expectedSignature = this.computeHmacSignature(JSON.stringify(body), webhookSecret);
-      if (!this.secureCompare(signature, expectedSignature)) {
-        this.logger.warn('Webhook signature mismatch');
+      // Fallback to JSON.stringify if rawBody missing or signature still invalid
+      if (!isValid) {
+        const payloadStr = JSON.stringify(body);
+        const expectedHexFallback = crypto.createHmac('sha256', webhookSecret).update(payloadStr).digest('hex');
+        if (this.secureCompare(activeSignature, expectedHexFallback)) {
+          isValid = true;
+        }
+      }
+
+      if (!isValid) {
+        this.logger.warn(`Webhook signature mismatch for email=${body?.email}`);
         throw new BadRequestException('Invalid webhook signature');
       }
+    } else if (webhookSecret && !activeSignature) {
+      this.logger.warn('Webhook received without signature');
+      throw new BadRequestException('Missing webhook signature');
     }
 
-    const payload = body as WpEntitlementsChangedWebhook;
+    const payload = body as any;
+    const eventId = payload.eventId || `webhook-${Date.now()}`;
+    const email = payload.email;
 
     this.logger.log(
-      `Received entitlements webhook: event=${payload.event} wpUserId=${payload.wpUserId} eventId=${payload.eventId}`,
+      `Received entitlements webhook: event=${payload.event} email=${email} wpUserId=${payload.wpUserId} eventId=${eventId}`,
     );
 
-    this.entitlementsService.clearCacheForWpUser(payload.wpUserId);
-
-    if (payload.event === 'entitlements.updated') {
-      this.logger.log(`User ${payload.wpUserId} plan changed: ${payload.previousPlan} -> ${payload.newPlan}`);
-    } else if (payload.event === 'entitlements.expired' || payload.event === 'subscription.canceled') {
-      this.logger.log(`User ${payload.wpUserId} subscription ended: ${payload.event}`);
+    if (email) {
+      // Authoritative sync from WP based on the webhook notification
+      await this.entitlementsService.syncFromWordPressByEmail(email, `webhook-${eventId}`);
+    } else if (payload.wpUserId) {
+      this.entitlementsService.clearCacheForWpUser(payload.wpUserId);
     }
 
-    return { received: true, eventId: payload.eventId };
+    return { received: true, eventId };
   }
 
   private computeHmacSignature(payload: string, secret: string): string {
