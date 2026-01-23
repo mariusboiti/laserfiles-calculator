@@ -203,10 +203,12 @@ export class EntitlementsService {
     const topupCreditsInput = payload?.topupCredits;
 
     let entPlan: 'INACTIVE' | 'TRIALING' | 'ACTIVE' = 'INACTIVE';
-    if (planRaw === 'ACTIVE') {
-      entPlan = 'ACTIVE';
-    } else if (planRaw === 'TRIAL' || levelId === TRIAL_LEVEL_ID) {
+    // IMPORTANT: prioritize trial level id over generic plan strings from WP.
+    // WP can send plan=ACTIVE even for trial checkout; levelId is authoritative.
+    if (levelId === TRIAL_LEVEL_ID || planRaw === 'TRIAL') {
       entPlan = 'TRIALING';
+    } else if (planRaw === 'ACTIVE') {
+      entPlan = 'ACTIVE';
     } else {
       entPlan = 'INACTIVE';
     }
@@ -276,14 +278,14 @@ export class EntitlementsService {
 
     const existingTotal = Number(existing?.aiCreditsTotal ?? 0);
 
-    const defaultTrialCredits = Number(process.env.TRIAL_DEFAULT_AI_CREDITS ?? '50');
+    const defaultTrialCredits = Number(process.env.TRIAL_DEFAULT_AI_CREDITS ?? '25');
     const defaultMonthlyCredits = Number(process.env.MONTHLY_DEFAULT_AI_CREDITS ?? '200');
     const defaultAnnualCredits = Number(process.env.ANNUAL_DEFAULT_AI_CREDITS ?? '2400');
 
     const safeDefaultTrialCredits =
       Number.isFinite(defaultTrialCredits) && defaultTrialCredits >= 0
         ? defaultTrialCredits
-        : 50;
+        : 25;
     const safeDefaultMonthlyCredits =
       Number.isFinite(defaultMonthlyCredits) && defaultMonthlyCredits >= 0
         ? defaultMonthlyCredits
