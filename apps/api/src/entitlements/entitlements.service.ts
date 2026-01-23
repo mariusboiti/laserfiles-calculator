@@ -279,7 +279,44 @@ export class EntitlementsService {
     const existing = await prisma.userEntitlement.findUnique({ where: { userId: user.id } });
 
     const existingTotal = Number(existing?.aiCreditsTotal ?? 0);
-    let baseTotal = Number(aiCreditsTotalInput ?? existingTotal);
+
+    const defaultTrialCredits = Number(process.env.TRIAL_DEFAULT_AI_CREDITS ?? '50');
+    const defaultMonthlyCredits = Number(process.env.MONTHLY_DEFAULT_AI_CREDITS ?? '200');
+    const defaultAnnualCredits = Number(process.env.ANNUAL_DEFAULT_AI_CREDITS ?? '2400');
+
+    const safeDefaultTrialCredits =
+      Number.isFinite(defaultTrialCredits) && defaultTrialCredits >= 0
+        ? defaultTrialCredits
+        : 50;
+    const safeDefaultMonthlyCredits =
+      Number.isFinite(defaultMonthlyCredits) && defaultMonthlyCredits >= 0
+        ? defaultMonthlyCredits
+        : 200;
+    const safeDefaultAnnualCredits =
+      Number.isFinite(defaultAnnualCredits) && defaultAnnualCredits >= 0
+        ? defaultAnnualCredits
+        : 2400;
+
+    const inferredBaseTotal = (() => {
+      // Only use inferred defaults if WP didn't send aiCreditsTotal.
+      if (aiCreditsTotalInput !== undefined && aiCreditsTotalInput !== null) {
+        return aiCreditsTotalInput;
+      }
+      // If we already have credits in DB, keep them.
+      if (existingTotal > 0) return existingTotal;
+
+      if (entPlan === 'TRIALING') return safeDefaultTrialCredits;
+      if (entPlan === 'ACTIVE') {
+        if (subscriptionType === 'ANNUAL') return safeDefaultAnnualCredits;
+        if (subscriptionType === 'MONTHLY') return safeDefaultMonthlyCredits;
+        // Fallback if interval missing but active
+        return safeDefaultMonthlyCredits;
+      }
+
+      return existingTotal;
+    })();
+
+    let baseTotal = Number(inferredBaseTotal);
     if (!Number.isFinite(baseTotal) || baseTotal < 0) {
       baseTotal = 0;
     }
