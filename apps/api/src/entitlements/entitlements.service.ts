@@ -294,9 +294,17 @@ export class EntitlementsService {
         : 2400;
 
     const inferredBaseTotal = (() => {
-      // Only use inferred defaults if WP didn't send aiCreditsTotal.
-      if (aiCreditsTotalInput !== undefined && aiCreditsTotalInput !== null) {
-        return aiCreditsTotalInput;
+      // Only use inferred defaults if WP didn't send aiCreditsTotal, OR it sent 0 for an active plan.
+      // (WP may omit credits and default to 0; in that case we want our server-side defaults.)
+      const wpCreditsRaw =
+        aiCreditsTotalInput !== undefined && aiCreditsTotalInput !== null
+          ? Number(aiCreditsTotalInput)
+          : null;
+      const wpCreditsProvided = wpCreditsRaw !== null && Number.isFinite(wpCreditsRaw);
+      const wpCreditsIsPositive = wpCreditsProvided && (wpCreditsRaw as number) > 0;
+
+      if (wpCreditsIsPositive) {
+        return wpCreditsRaw;
       }
       // If we already have credits in DB, keep them.
       if (existingTotal > 0) return existingTotal;
@@ -308,6 +316,9 @@ export class EntitlementsService {
         // Fallback if interval missing but active
         return safeDefaultMonthlyCredits;
       }
+
+      // If WP explicitly provided 0 credits for an inactive plan, keep it.
+      if (wpCreditsProvided) return wpCreditsRaw;
 
       return existingTotal;
     })();
