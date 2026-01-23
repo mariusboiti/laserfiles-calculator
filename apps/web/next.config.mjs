@@ -50,7 +50,23 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
-    return [{ source: '/api/:path*', destination: 'http://api:4000/:path*' }];
+    return [
+      {
+        source: '/api/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-local-api',
+            value: 'true',
+          },
+        ],
+        destination: '/api/:path*',
+      },
+      {
+        source: '/api/((?!ai|artifacts|billing|bulk-name-tags|entitlements|feedback|health|multilayer|stripe|tours|trace).*)',
+        destination: 'http://api:4000/:1',
+      },
+    ];
   },
 };
 

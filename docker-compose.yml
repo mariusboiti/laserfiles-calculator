@@ -50,6 +50,7 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: /api-backend
+      DATABASE_URL: "postgresql://laser:laser@db:5432/laser?schema=public"
     expose:
       - "3000"
     ports:
