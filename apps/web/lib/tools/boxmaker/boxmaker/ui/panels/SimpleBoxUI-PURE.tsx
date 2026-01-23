@@ -6,6 +6,7 @@ import { buildSimpleBox, validateSimpleBox } from '../../core/geometry-core/simp
 import { layoutPanels, panelToSvg } from '../../core/geometry-core/svgExporter';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 type FaceArtworkPlacement = {
   x: number;
@@ -262,6 +263,9 @@ export function SimpleBoxUI({ boxTypeSelector, unitSystem, onResetCallback }: Si
       if (!targets.includes(selectedArtworkPanel)) {
         setSelectedArtworkPanel(targets[0]);
       }
+
+      // Refresh credits in UI
+      refreshEntitlements();
     } catch (e) {
       setArtworkError(e instanceof Error ? e.message : t('boxmaker.artwork_error.ai_generation_failed'));
     } finally {

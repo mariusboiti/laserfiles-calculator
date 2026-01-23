@@ -5,6 +5,8 @@
  * Provides functions to call AI through the centralized gateway with credit consumption
  */
 
+import { refreshEntitlements } from '../entitlements/client';
+
 export type AiGatewayError = {
   code: 'TRIAL_REQUIRED' | 'TRIAL_EXPIRED' | 'CREDITS_EXHAUSTED' | 'AI_ERROR' | 'NETWORK_ERROR' | 'INVALID_REQUEST';
   message: string;
@@ -41,6 +43,9 @@ export async function generateAiImage(params: {
     const result = await response.json();
 
     if (result.ok) {
+      // Trigger global refresh so credit counts update in the UI
+      refreshEntitlements();
+
       return {
         ok: true,
         data: result.data as { mime: string; base64: string; promptUsed: string },
@@ -91,6 +96,9 @@ export async function generateAiText(params: {
     const result = await response.json();
 
     if (result.ok) {
+      // Trigger global refresh so credit counts update in the UI
+      refreshEntitlements();
+
       return {
         ok: true,
         data: result.data as { text: string },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { DepthImageRequest, DepthImageResponse, AspectRatio } from '@/lib/tools/ai-depth-photo/types';
 import { MATERIAL_PROFILES, ASPECT_RATIOS } from '@/lib/tools/ai-depth-photo/types';
 import { applyEngravingNormalization } from './imageProcessing';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,28 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req: request,
+        toolSlug: 'ai-depth-photo',
+        actionType: 'depth-image',
+        provider: 'gemini',
+        payload: body as any,
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for depth-image:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
     }
 
     // V3: Build technical engraving prompt
@@ -96,12 +119,13 @@ export async function POST(request: NextRequest) {
       // Apply mandatory V3 post-processing for engraving
       const processedImage = await applyEngravingNormalization(imagePngBase64, body.engravingOptions);
 
-      const response: DepthImageResponse = {
+      const response: DepthImageResponse & { credits?: { used: number; remaining: number } } = {
         imagePngBase64: processedImage,
         depthMapPngBase64: processedImage, // Same as processed image for now
         seed: geminiData.candidates?.[0]?.finishReason || Math.random().toString(36).substring(7),
         histogramData: [], // TODO: Calculate histogram from processed image
         validationWarnings: [], // TODO: Add validation warnings
+        credits,
       };
 
       return NextResponse.json(response);

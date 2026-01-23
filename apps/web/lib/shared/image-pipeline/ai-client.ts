@@ -4,6 +4,7 @@
  */
 
 import type { AutoCropResult, RemoveBackgroundResult, CropRect } from './types';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 export interface AIProvider {
   autoCrop(imageDataUrl: string, aspectRatio?: number): Promise<AutoCropResult>;
@@ -23,7 +24,9 @@ class AIClientImpl implements AIProvider {
         throw new Error(`AI autocrop failed: ${response.statusText}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      refreshEntitlements();
+      return result;
     } catch (error) {
       console.warn('AI autocrop failed, using center crop fallback', error);
       return this.centerCropFallback(imageDataUrl, aspectRatio);
@@ -43,6 +46,7 @@ class AIClientImpl implements AIProvider {
       }
 
       const result = await response.json();
+      refreshEntitlements();
       
       const img = await this.loadImageData(result.imageDataUrl);
       return { imageData: img };

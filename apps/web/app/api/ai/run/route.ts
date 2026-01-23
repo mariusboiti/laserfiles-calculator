@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { isEntitlementError, type EntitlementError } from '@/lib/entitlements/server';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Allow up to 60 seconds for AI calls
@@ -245,47 +245,14 @@ async function executeAiCall(
   return callGeminiImage(payload);
 }
 
-async function consumeAiCreditViaBackend(args: {
+async function consumeAiCreditViaBackendProxy(args: {
   req: NextRequest;
   toolSlug: string;
   actionType: string;
   provider: string;
   payload: Record<string, unknown>;
 }): Promise<{ used: number; remaining: number }> {
-  const { req, toolSlug, actionType, provider, payload } = args;
-
-  const res = await fetch(`${req.nextUrl.origin}/api-backend/entitlements/consume-ai-credit`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(req.headers.get('authorization')
-        ? { Authorization: req.headers.get('authorization') as string }
-        : {}),
-      ...(req.headers.get('cookie') ? { Cookie: req.headers.get('cookie') as string } : {}),
-    },
-    credentials: 'include',
-    cache: 'no-store',
-    body: JSON.stringify({
-      toolSlug,
-      actionType,
-      provider,
-      metadata: { payloadKeys: Object.keys(payload) },
-    }),
-  });
-
-  const json = await res.json().catch(() => null);
-
-  if (!res.ok || !json?.ok) {
-    const code = json?.error?.code || json?.error?.name || 'AI_ERROR';
-    const message = json?.error?.message || json?.message || 'Failed to consume AI credit';
-    const err: any = { code, message, httpStatus: res.status || 500 };
-    throw err;
-  }
-
-  const total = Number(json?.data?.aiCreditsTotal ?? 0);
-  const used = Number(json?.data?.aiCreditsUsed ?? 0);
-  const remaining = Number(json?.data?.aiCreditsRemaining ?? Math.max(0, total - used));
-  return { used, remaining };
+  return consumeAiCreditViaBackend(args);
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<AiRunResponse>> {
@@ -323,7 +290,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AiRunResponse
     // Consume AI credit (authoritative in API backend; also validates entitlement)
     let credits: { used: number; remaining: number };
     try {
-      credits = await consumeAiCreditViaBackend({
+      credits = await consumeAiCreditViaBackendProxy({
         req,
         toolSlug,
         actionType,

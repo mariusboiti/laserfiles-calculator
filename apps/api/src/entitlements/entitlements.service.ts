@@ -402,6 +402,8 @@ export class EntitlementsService {
     aiCreditsRemaining: number;
     usageEventId: string;
   }> {
+    this.logger.log(`Consuming credit attempt: userId=${input.userId} tool=${input.toolSlug}`);
+
     if (!this.prisma) {
       throw new Error('Prisma not available');
     }
@@ -411,64 +413,77 @@ export class EntitlementsService {
     });
 
     if (!entitlement) {
+      this.logger.warn(`No entitlement found for userId=${input.userId}`);
       throw new ForbiddenException('AI features require an active trial or subscription');
     }
 
     const now = new Date();
     const plan = String((entitlement as any).plan || '').toUpperCase();
+    this.logger.debug(`User ${input.userId} plan=${plan} credits=${entitlement.aiCreditsUsed}/${entitlement.aiCreditsTotal}`);
 
     if (plan !== 'ACTIVE' && plan !== 'TRIALING') {
+      this.logger.warn(`Plan ${plan} not eligible for AI consumption`);
       throw new ForbiddenException('AI features require an active trial or subscription');
     }
 
     if (plan === 'TRIALING') {
       if (!entitlement.trialEndsAt || entitlement.trialEndsAt <= now) {
+        this.logger.warn(`Trial expired for user ${input.userId}`);
         throw new ForbiddenException('Trial expired');
       }
     }
 
-    const remaining = Number(entitlement.aiCreditsTotal) - Number(entitlement.aiCreditsUsed);
+    const total = Number(entitlement.aiCreditsTotal);
+    const used = Number(entitlement.aiCreditsUsed);
+    const remaining = total - used;
+
     if (remaining <= 0) {
+      this.logger.warn(`Credits exhausted for user ${input.userId}`);
       throw new HttpException('AI credits exhausted', HttpStatus.PAYMENT_REQUIRED);
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.userEntitlement.update({
-        where: { id: entitlement.id },
-        data: { aiCreditsUsed: { increment: 1 } },
-        select: { aiCreditsTotal: true, aiCreditsUsed: true },
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.userEntitlement.update({
+          where: { id: entitlement.id },
+          data: { aiCreditsUsed: { increment: 1 } },
+          select: { aiCreditsTotal: true, aiCreditsUsed: true },
+        });
+
+        const usage = await tx.aiUsageEvent.create({
+          data: {
+            userId: input.userId,
+            entitlementId: entitlement.id,
+            toolSlug: input.toolSlug,
+            actionType: input.actionType,
+            provider: input.provider,
+            creditsConsumed: 1,
+            metadata: input.metadata as any,
+          },
+          select: { id: true },
+        });
+
+        return { updated, usage };
       });
 
-      const usage = await tx.aiUsageEvent.create({
-        data: {
-          userId: input.userId,
-          entitlementId: entitlement.id,
-          toolSlug: input.toolSlug,
-          actionType: input.actionType,
-          provider: input.provider,
-          creditsConsumed: 1,
-          metadata: input.metadata as any,
-        },
-        select: { id: true },
-      });
+      const aiCreditsTotal = Number(result.updated.aiCreditsTotal ?? 0);
+      const aiCreditsUsed = Number(result.updated.aiCreditsUsed ?? 0);
+      const aiCreditsRemaining = Math.max(0, aiCreditsTotal - aiCreditsUsed);
 
-      return { updated, usage };
-    });
+      this.logger.log(
+        `AI credit consumed successfully: userId=${input.userId} remaining=${aiCreditsRemaining}`,
+      );
 
-    const aiCreditsTotal = Number(result.updated.aiCreditsTotal ?? 0);
-    const aiCreditsUsed = Number(result.updated.aiCreditsUsed ?? 0);
-    const aiCreditsRemaining = Math.max(0, aiCreditsTotal - aiCreditsUsed);
-
-    this.logger.debug(
-      `AI credit consumed: userId=${input.userId} tool=${input.toolSlug} action=${input.actionType} provider=${input.provider} remaining=${aiCreditsRemaining}`,
-    );
-
-    return {
-      aiCreditsTotal,
-      aiCreditsUsed,
-      aiCreditsRemaining,
-      usageEventId: result.usage.id,
-    };
+      return {
+        aiCreditsTotal,
+        aiCreditsUsed,
+        aiCreditsRemaining,
+        usageEventId: result.usage.id,
+      };
+    } catch (err: any) {
+      this.logger.error(`Failed to consume credit in DB: ${err.message}`, err.stack);
+      throw err;
+    }
   }
 
   async adminAdjustAiCredits(input: {

@@ -6,6 +6,7 @@ import type { AspectRatio, DepthStyle, MaterialProfile, DepthZones, PreviewMode,
 import { ASPECT_RATIOS, STYLE_PRESETS, MATERIAL_PROFILES, CANVAS_SHAPES } from '../types';
 import { useLanguage } from '@/lib/i18n/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 type TabView = 'final' | 'depth' | 'layers';
 type HistStatus = 'missingBlacks' | 'tooFlat' | 'ready' | null;
@@ -268,6 +269,9 @@ export function AIDepthEngravingTool() {
       setSeed(data.seed);
       setValidationWarnings(data.validationWarnings || []);
       setHasGeneratedOnce(true);
+
+      // Refresh credits in UI
+      refreshEntitlements();
 
       // Auto-switch to depth tab after generation
       setActiveTab('depth');

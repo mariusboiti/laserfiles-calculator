@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'nodejs';
 
@@ -144,6 +145,35 @@ export async function POST(req: NextRequest) {
       return jsonErr('Invalid mode', 400);
     }
 
+    const bypassCredit = req.headers.get('X-Internal-Bypass-Credit') === 'true';
+    let credits: { used: number; remaining: number } | undefined;
+
+    if (!bypassCredit) {
+      // Consume AI credit before processing
+      try {
+        credits = await consumeAiCreditViaBackend({
+          req,
+          toolSlug: 'internal-gemini-image',
+          actionType: mode,
+          provider: 'gemini',
+          payload: body as any,
+        });
+      } catch (error) {
+        if (isEntitlementError(error)) {
+          const entitlementError = error as EntitlementError;
+          return NextResponse.json({
+            ok: false,
+            error: {
+              message: entitlementError.message,
+              code: entitlementError.code
+            }
+          }, { status: entitlementError.httpStatus });
+        }
+        console.error('Credit consumption failed for internal-gemini-image:', error);
+        return jsonErr('Failed to verify AI credits', 500);
+      }
+    }
+
     const { apiKey, endpoint } = resolveGeminiImageConfig();
 
     if (!apiKey) {
@@ -229,7 +259,7 @@ export async function POST(req: NextRequest) {
       return jsonErr('Gemini returned empty image data', 502);
     }
 
-    return jsonOk({ ok: true, mime, base64, promptUsed });
+    return jsonOk({ ok: true, mime, base64, promptUsed, credits } as any);
   } catch (e) {
     return jsonErr(e instanceof Error ? e.message : 'AI image generation failed', 500);
   }

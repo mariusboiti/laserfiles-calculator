@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { DepthMapRequest, DepthMapResponse } from '@/lib/tools/ai-depth-photo/types';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,28 @@ export async function POST(request: NextRequest) {
         { error: 'Missing image data' },
         { status: 400 }
       );
+    }
+
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req: request,
+        toolSlug: 'ai-depth-photo',
+        actionType: 'depth-map',
+        provider: 'internal',
+        payload: {},
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for depth-map:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
     }
 
     // TODO: Replace with actual depth estimation model
@@ -26,9 +49,10 @@ export async function POST(request: NextRequest) {
 
     const depthMap = await generatePlaceholderDepthMap(imagePngBase64);
 
-    const response: DepthMapResponse = {
+    const response: DepthMapResponse & { credits?: { used: number; remaining: number } } = {
       depthPngBase64: depthMap,
       invertSuggested: false, // Suggest inversion based on scene analysis
+      credits,
     };
 
     return NextResponse.json(response);

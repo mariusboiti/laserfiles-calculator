@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'edge';
 
@@ -18,6 +19,28 @@ export async function POST(req: NextRequest) {
   try {
     const body: AIMultilayerRequest = await req.json();
     
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req,
+        toolSlug: 'multilayer-maker',
+        actionType: 'multilayer',
+        provider: 'internal',
+        payload: { style: body.style, layerCount: body.layerCount },
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for multilayer:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
+    }
+
     // Mock AI response for now
     // In production, this would call an AI service (Replicate, OpenAI, etc.)
     const mockResponse: AIMultilayerResponse = {
@@ -31,7 +54,10 @@ export async function POST(req: NextRequest) {
     // Simulate AI processing delay
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    return NextResponse.json(mockResponse);
+    return NextResponse.json({
+      ...mockResponse,
+      credits,
+    });
   } catch (error) {
     console.error('AI multilayer error:', error);
     return NextResponse.json(

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'nodejs';
 
@@ -198,6 +199,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
     }
 
+    // Consume AI credit before processing
+    let credits: { used: number; remaining: number } | undefined;
+    try {
+      credits = await consumeAiCreditViaBackend({
+        req,
+        toolSlug: 'bulk-name-tags',
+        actionType: 'ai-shape-spec',
+        provider: 'gemini',
+        payload: body as any,
+      });
+    } catch (error) {
+      if (isEntitlementError(error)) {
+        const entitlementError = error as EntitlementError;
+        return NextResponse.json({
+          error: entitlementError.message,
+          code: entitlementError.code
+        }, { status: entitlementError.httpStatus });
+      }
+      console.error('Credit consumption failed for ai-shape-spec:', error);
+      return NextResponse.json({ error: 'Failed to verify AI credits' }, { status: 500 });
+    }
+
     const apiKey = process.env.AI_API_KEY || process.env.GEMINI_API_KEY || process.env.VITE_AI_API_KEY || '';
 
     const endpoint =
@@ -218,7 +241,10 @@ export async function POST(req: NextRequest) {
     }
 
     const responseText = await generateShapeSpecJson({ apiKey, endpoint, model, prompt, simpler });
-    const res: AIShapeSpecResponse = { responseText };
+    const res: AIShapeSpecResponse & { credits?: { used: number; remaining: number } } = { 
+      responseText,
+      credits 
+    };
     return NextResponse.json(res);
   } catch (error) {
     console.error('AI shape spec error:', error);
