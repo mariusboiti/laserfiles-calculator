@@ -34,13 +34,42 @@ type AiRunResponse = {
   };
 };
 
-async function getCurrentUserId(): Promise<string | null> {
+function getUserIdFromJwt(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+  try {
+    const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
+    const payload = JSON.parse(payloadJson) as { sub?: string };
+    return typeof payload?.sub === 'string' && payload.sub.length > 0 ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getCurrentUserId(req: NextRequest): Promise<string | null> {
   const cookieStore = await cookies();
-  const userId = 
+
+  const explicitUserId =
     cookieStore.get('userId')?.value ||
     cookieStore.get('user_id')?.value ||
     cookieStore.get('studio_user_id')?.value;
-  return userId || null;
+  if (explicitUserId) return explicitUserId;
+
+  const accessTokenCookie =
+    cookieStore.get('lf_access_token')?.value ||
+    cookieStore.get('accessToken')?.value;
+  const userIdFromCookieJwt = getUserIdFromJwt(accessTokenCookie);
+  if (userIdFromCookieJwt) return userIdFromCookieJwt;
+
+  const authHeader = req.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const jwt = authHeader.slice(7);
+    const userIdFromHeaderJwt = getUserIdFromJwt(jwt);
+    if (userIdFromHeaderJwt) return userIdFromHeaderJwt;
+  }
+
+  return null;
 }
 
 function resolveGeminiConfig() {
@@ -219,17 +248,18 @@ async function executeAiCall(
 export async function POST(req: NextRequest): Promise<NextResponse<AiRunResponse>> {
   try {
     // Get user ID
-    let userId = await getCurrentUserId();
-    
+    const userId = await getCurrentUserId(req);
     if (!userId) {
-      const authHeader = req.headers.get('authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        userId = authHeader.slice(7);
-      }
-    }
-    
-    if (!userId) {
-      userId = 'demo-user';
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Missing or invalid authentication token',
+          },
+        },
+        { status: 401 },
+      );
     }
 
     // Parse request body
