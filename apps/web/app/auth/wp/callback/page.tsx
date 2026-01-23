@@ -20,10 +20,7 @@ export default function WpCallbackPage() {
           return;
         }
 
-        const apiBase =
-          process.env.NEXT_PUBLIC_API_URL || 'https://api.laserfilespro.com';
-
-        const res = await fetch(apiBase.replace(/\/$/, '') + '/auth/wp/exchange', {
+        const res = await fetch('/api-backend/auth/wp/exchange', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
