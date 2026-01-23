@@ -65,8 +65,8 @@ RUN corepack enable
 WORKDIR /app/apps/web
 
 # Copy workspace node_modules and built Next app
-COPY --from=deps /app/node_modules /app/node_modules
-COPY --from=deps /app/apps/web/node_modules ./node_modules
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/apps/web/node_modules ./node_modules
 COPY --from=build /app/apps/web/.next ./.next
 RUN mkdir -p ./public
 COPY --from=build /app/apps/web/public ./public

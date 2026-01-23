@@ -154,26 +154,34 @@ async function urlToDataUrl(url: string): Promise<string> {
 }
 
 export async function GET() {
-  const provider = getProvider();
+  try {
+    const provider = getProvider();
 
-  if (provider === 'openai') {
-    const ok = isOpenAIConfigured();
-    const res: SilhouetteStatusResponse = { configured: ok.ok, provider, ...(ok.message ? { message: ok.message } : {}) };
+    if (provider === 'openai') {
+      const ok = isOpenAIConfigured();
+      const res: SilhouetteStatusResponse = { configured: ok.ok, provider, ...(ok.message ? { message: ok.message } : {}) };
+      return NextResponse.json(res);
+    }
+
+    if (provider === 'gemini' || provider === 'google') {
+      const ok = isGeminiConfigured();
+      const res: SilhouetteStatusResponse = { configured: ok.ok, provider, ...(ok.message ? { message: ok.message } : {}) };
+      return NextResponse.json(res);
+    }
+
+    const res: SilhouetteStatusResponse = {
+      configured: false,
+      provider,
+      message: 'AI image generation not configured. Set AI_PROVIDER to gemini/google or openai and provide credentials.',
+    };
     return NextResponse.json(res);
+  } catch (error) {
+    console.error('AI status check error (GET):', error);
+    return NextResponse.json(
+      { configured: false, error: error instanceof Error ? error.message : 'Internal Server Error' },
+      { status: 500 }
+    );
   }
-
-  if (provider === 'gemini' || provider === 'google') {
-    const ok = isGeminiConfigured();
-    const res: SilhouetteStatusResponse = { configured: ok.ok, provider, ...(ok.message ? { message: ok.message } : {}) };
-    return NextResponse.json(res);
-  }
-
-  const res: SilhouetteStatusResponse = {
-    configured: false,
-    provider,
-    message: 'AI image generation not configured. Set AI_PROVIDER to gemini/google or openai and provide credentials.',
-  };
-  return NextResponse.json(res);
 }
 
 export async function POST(req: NextRequest) {
