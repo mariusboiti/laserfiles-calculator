@@ -9,12 +9,9 @@ export default function LoginPage() {
   function handleWpSso() {
     setError(null);
     setLoading(true);
-    const API_BASE =
-      process.env.NEXT_PUBLIC_API_URL || 'https://api.laserfilespro.com';
-    const returnUrl = encodeURIComponent(
-      'https://studio.laserfilespro.com/auth/wp/callback',
-    );
-    window.location.href = `${API_BASE.replace(/\/$/, '')}/auth/wp/start?returnUrl=${returnUrl}`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://studio.laserfilespro.com';
+    const returnUrl = encodeURIComponent(`${origin}/auth/wp/callback`);
+    window.location.href = `/api-backend/auth/wp/start?returnUrl=${returnUrl}`;
   }
 
   return (
