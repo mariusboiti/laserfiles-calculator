@@ -293,14 +293,24 @@ export class EntitlementsService {
     const nextTotal = baseTotal + topup;
 
     let effectiveTrialEndsAt: Date | null = null;
-    if (trialEndsAtInput) {
-      const t = new Date(trialEndsAtInput);
-      if (!Number.isNaN(t.getTime())) {
-        effectiveTrialEndsAt = t;
+    if (trialEndsAtInput !== undefined && trialEndsAtInput !== null) {
+      const raw = String(trialEndsAtInput).trim();
+      if (raw) {
+        const t = new Date(raw);
+        if (!Number.isNaN(t.getTime())) {
+          effectiveTrialEndsAt = t;
+        }
       }
-    } else if (entPlan === 'TRIALING' && existing?.trialEndsAt) {
-      // Preserve existing trial end if not provided in payload but still trialing
+    }
+
+    if (entPlan === 'TRIALING' && !effectiveTrialEndsAt && existing?.trialEndsAt) {
       effectiveTrialEndsAt = existing.trialEndsAt;
+    }
+
+    if (entPlan === 'TRIALING' && !effectiveTrialEndsAt) {
+      const defaultTrialDays = Number(process.env.TRIAL_DEFAULT_DAYS ?? '7');
+      const safeDays = Number.isFinite(defaultTrialDays) && defaultTrialDays > 0 ? defaultTrialDays : 7;
+      effectiveTrialEndsAt = new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000);
     }
 
     if (!existing) {
