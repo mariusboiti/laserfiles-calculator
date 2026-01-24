@@ -728,7 +728,7 @@ function ToolShellInner({
 
       <div className={`lfs-tool lfs-tool-${slug} flex-1 min-h-0 overflow-x-hidden relative`}>
         <ToolErrorBoundary toolSlug={effectiveToolSlug}>
-          {entitlementLoading ? (
+          {entitlementLoading && !entitlement ? (
             <div className="flex h-full items-center justify-center p-6">
               <div className="text-sm text-slate-400">{t('common.loading')}</div>
             </div>
@@ -760,8 +760,15 @@ function ToolShellInner({
               </div>
             </div>
           ) : (
-            <div key={resetNonce} className="h-full">
+            <div key={resetNonce} className="h-full relative">
               {children}
+              {entitlementLoading && entitlement && (
+                <div className="pointer-events-none absolute inset-0 flex items-start justify-end p-3">
+                  <div className="rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1 text-[11px] text-slate-300">
+                    {t('common.loading')}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </ToolErrorBoundary>
