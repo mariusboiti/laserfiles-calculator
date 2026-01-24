@@ -10,8 +10,12 @@ export async function consumeAiCreditViaBackend(args: {
 }): Promise<{ used: number; remaining: number }> {
   const { req, toolSlug, actionType, provider, payload } = args;
 
-  const apiUrl = `${req.nextUrl.origin}/api-backend/entitlements/consume-ai-credit`;
-  console.log(`[AI-Credit-Util] Consuming credit: ${toolSlug}/${actionType} via ${apiUrl}`);
+  const internalBaseUrl = process.env.INTERNAL_API_URL;
+  const baseUrl = internalBaseUrl && internalBaseUrl.length > 0 ? internalBaseUrl : req.nextUrl.origin;
+  const apiUrl = `${baseUrl}/api-backend/entitlements/consume-ai-credit`;
+  console.log(
+    `[AI-Credit-Util] Consuming credit: ${toolSlug}/${actionType} via ${apiUrl} (internal=${Boolean(internalBaseUrl)})`
+  );
 
   const res = await fetch(apiUrl, {
     method: 'POST',
@@ -37,7 +41,12 @@ export async function consumeAiCreditViaBackend(args: {
   if (!res.ok || !json?.ok) {
     const code = json?.error?.code || json?.error?.name || 'AI_ERROR';
     const message = json?.error?.message || json?.message || 'Failed to consume AI credit';
-    console.error(`[AI-Credit-Util] Credit consumption FAILED: ${code} - ${message}`);
+    console.error(
+      `[AI-Credit-Util] Credit consumption FAILED: http=${res.status} code=${code} message=${message}`
+    );
+    if (json) {
+      console.error(`[AI-Credit-Util] Credit consumption response body: ${JSON.stringify(json)}`);
+    }
     const err: any = { code, message, httpStatus: res.status || 500 };
     throw err;
   }
