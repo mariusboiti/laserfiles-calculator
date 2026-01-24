@@ -11,10 +11,12 @@ export async function consumeAiCreditViaBackend(args: {
   const { req, toolSlug, actionType, provider, payload } = args;
 
   const internalBaseUrl = process.env.INTERNAL_API_URL;
-  const baseUrl = internalBaseUrl && internalBaseUrl.length > 0 ? internalBaseUrl : req.nextUrl.origin;
-  const apiUrl = `${baseUrl}/api-backend/entitlements/consume-ai-credit`;
+  const useInternal = Boolean(internalBaseUrl && internalBaseUrl.length > 0);
+  const baseUrl = useInternal ? (internalBaseUrl as string) : req.nextUrl.origin;
+  const apiPath = useInternal ? '/entitlements/consume-ai-credit' : '/api-backend/entitlements/consume-ai-credit';
+  const apiUrl = `${baseUrl}${apiPath}`;
   console.log(
-    `[AI-Credit-Util] Consuming credit: ${toolSlug}/${actionType} via ${apiUrl} (internal=${Boolean(internalBaseUrl)})`
+    `[AI-Credit-Util] Consuming credit: ${toolSlug}/${actionType} via ${apiUrl} (internal=${useInternal})`
   );
 
   const res = await fetch(apiUrl, {
