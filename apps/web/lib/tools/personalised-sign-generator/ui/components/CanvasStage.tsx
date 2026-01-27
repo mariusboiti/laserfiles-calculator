@@ -1296,17 +1296,17 @@ export const CanvasStage = React.forwardRef<
         // Ornament paths are in 0-100 viewBox, need to center at origin
         const ornamentAsset = getOrnamentById(element.assetId);
         if (!ornamentAsset) return null;
-        
-        const strokeColor = element.style.targetLayer === 'GUIDE' ? '#00ff00' : '#000';
+
+        const ornamentStrokeColor = element.style.targetLayer === 'GUIDE' ? '#00ff00' : '#000';
         const strokeWidth = (element.style.strokeMm ?? 0.5) / Math.abs(transform.scaleX || 1);
-        
+
         return (
           <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
             <g transform="translate(-50, -50)">
               {ornamentAsset.pathDs.map((pathD, i) => (
                 <g key={i}>
                   <path d={pathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
-                  <path d={pathD} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} />
+                  <path d={pathD} fill="none" stroke={ornamentStrokeColor} strokeWidth={strokeWidth} />
                 </g>
               ))}
             </g>
