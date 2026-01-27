@@ -573,7 +573,7 @@ export const CanvasStage = React.forwardRef<
         lastMoveDeltaRef.current = { x: 0, y: 0 };
         queuedMoveDeltaRef.current = { x: 0, y: 0 };
         movePreviewDeltaRef.current = { x: 0, y: 0 };
-        setMovePreviewDelta({ x: 0, y: 0 });
+        // Don't call setMovePreviewDelta here - avoid triggering re-renders
         return;
       }
 
@@ -644,7 +644,18 @@ export const CanvasStage = React.forwardRef<
               x: movePreviewDeltaRef.current.x + q.x,
               y: movePreviewDeltaRef.current.y + q.y,
             };
-            setMovePreviewDelta(movePreviewDeltaRef.current);
+            
+            // DIRECT DOM MANIPULATION - bypass React re-renders during drag
+            if (svgRef.current && dragState.startTransforms) {
+              const pxPerMm = DEFAULT_PX_PER_MM * viewTransform.zoom;
+              const translatePx = `translate(${movePreviewDeltaRef.current.x * pxPerMm}px, ${movePreviewDeltaRef.current.y * pxPerMm}px)`;
+              for (const [id] of dragState.startTransforms) {
+                const el = svgRef.current.querySelector(`[data-element-id="${id}"]`) as SVGGElement | null;
+                if (el) {
+                  el.style.transform = translatePx;
+                }
+              }
+            }
           });
         }
       }
@@ -723,6 +734,17 @@ export const CanvasStage = React.forwardRef<
         // Commit move once at end (prevents flicker while dragging)
         if (dragState.type === 'move' && dragState.startTransforms) {
           const delta = movePreviewDeltaRef.current;
+          
+          // Clear CSS transforms on DOM elements before committing
+          if (svgRef.current) {
+            for (const [id] of dragState.startTransforms) {
+              const el = svgRef.current.querySelector(`[data-element-id="${id}"]`) as SVGGElement | null;
+              if (el) {
+                el.style.transform = '';
+              }
+            }
+          }
+          
           if (Math.abs(delta.x) > 1e-9 || Math.abs(delta.y) > 1e-9) {
             const deltas: Array<{ id: string; deltaXMm: number; deltaYMm: number }> = [];
             for (const [id] of dragState.startTransforms) {
@@ -817,7 +839,7 @@ export const CanvasStage = React.forwardRef<
       lastMoveDeltaRef.current = { x: 0, y: 0 };
       queuedMoveDeltaRef.current = { x: 0, y: 0 };
       movePreviewDeltaRef.current = { x: 0, y: 0 };
-      setMovePreviewDelta({ x: 0, y: 0 });
+      // Don't call setMovePreviewDelta here - avoid triggering re-renders
 
       containerRef.current?.setPointerCapture(e.pointerId);
     },
@@ -1209,30 +1231,17 @@ export const CanvasStage = React.forwardRef<
   const renderElement = (element: Element, layer: Layer) => {
     const isSelected = selectedIds.includes(element.id);
     const transform = element.transform;
-    const isInMoveSession =
-      (dragState.type === 'move' || dragState.type === 'pendingMove') &&
-      !!dragState.startTransforms?.has(element.id);
 
-    // Use base SVG transform without preview delta
+    // SVG transform - position from document
     const transformStr = `translate(${transform.xMm}, ${transform.yMm}) rotate(${transform.rotateDeg}) scale(${transform.scaleX}, ${transform.scaleY})`;
 
-    // Apply preview delta via CSS transform (GPU-accelerated) during drag
-    const cssTransform =
-      isInMoveSession && (movePreviewDelta.x !== 0 || movePreviewDelta.y !== 0)
-        ? `translate(${movePreviewDelta.x * DEFAULT_PX_PER_MM * viewTransform.zoom}px, ${
-            movePreviewDelta.y * DEFAULT_PX_PER_MM * viewTransform.zoom
-          }px)`
-        : undefined;
-
+    // Note: CSS transform for drag preview is applied directly to DOM in handlePointerMove
+    // This eliminates React re-renders during drag for maximum performance
     const baseProps = {
       'data-element-id': element.id,
       'data-layer-id': layer.id,
       transform: transformStr,
-      style: {
-        cursor: layer.locked ? 'not-allowed' : 'move',
-        transform: cssTransform,
-        willChange: isInMoveSession ? 'transform' : undefined,
-      } as React.CSSProperties,
+      style: { cursor: layer.locked ? 'not-allowed' : 'move' } as React.CSSProperties,
       className: isSelected ? 'selected' : '',
     };
 
