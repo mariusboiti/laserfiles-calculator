@@ -649,11 +649,19 @@ export const CanvasStage = React.forwardRef<
             if (svgRef.current && dragState.startTransforms) {
               const pxPerMm = DEFAULT_PX_PER_MM * viewTransform.zoom;
               const translatePx = `translate(${movePreviewDeltaRef.current.x * pxPerMm}px, ${movePreviewDeltaRef.current.y * pxPerMm}px)`;
+              
+              // Move elements
               for (const [id] of dragState.startTransforms) {
                 const el = svgRef.current.querySelector(`[data-element-id="${id}"]`) as SVGGElement | null;
                 if (el) {
                   el.style.transform = translatePx;
                 }
+              }
+              
+              // Move selection overlay
+              const selectionOverlay = containerRef.current?.querySelector('[data-selection-overlay="true"]') as HTMLDivElement | null;
+              if (selectionOverlay) {
+                selectionOverlay.style.transform = translatePx;
               }
             }
           });
@@ -742,6 +750,14 @@ export const CanvasStage = React.forwardRef<
               if (el) {
                 el.style.transform = '';
               }
+            }
+          }
+          
+          // Clear transform on selection overlay
+          if (containerRef.current) {
+            const selectionOverlay = containerRef.current.querySelector('[data-selection-overlay="true"]') as HTMLDivElement | null;
+            if (selectionOverlay) {
+              selectionOverlay.style.transform = '';
             }
           }
           
@@ -1522,22 +1538,24 @@ export const CanvasStage = React.forwardRef<
         {renderOffsetPreview()}
       </svg>
 
-      {/* Selection overlay (rendered in screen space) */}
-      {selectionBoundsWithPreview && selectedIds.length > 0 && (
-        <SelectionOverlay
-          bounds={selectionBoundsWithPreview}
-          viewTransform={viewTransform}
-        />
-      )}
+      {/* Selection overlay and transform handles - wrapped for direct DOM manipulation during drag */}
+      <div data-selection-overlay="true" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+        {selectionBoundsWithPreview && selectedIds.length > 0 && (
+          <SelectionOverlay
+            bounds={selectionBoundsWithPreview}
+            viewTransform={viewTransform}
+          />
+        )}
 
-      {/* Transform handles */}
-      {selectionBoundsWithPreview && selectedIds.length > 0 && activeTool === 'select' && (
-        <TransformHandles
-          bounds={selectionBoundsWithPreview}
-          viewTransform={viewTransform}
-          onHandleStart={handleHandleStart}
-        />
-      )}
+        {/* Transform handles */}
+        {selectionBoundsWithPreview && selectedIds.length > 0 && activeTool === 'select' && (
+          <TransformHandles
+            bounds={selectionBoundsWithPreview}
+            viewTransform={viewTransform}
+            onHandleStart={handleHandleStart}
+          />
+        )}
+      </div>
 
       {marqueeRectPx && (
         <div
