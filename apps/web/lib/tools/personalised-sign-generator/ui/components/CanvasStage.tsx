@@ -1294,10 +1294,30 @@ export const CanvasStage = React.forwardRef<
       }
       case 'ornament': {
         // Ornament paths are in 0-100 viewBox, need to center at origin
+        const ornamentStrokeColor = element.style.targetLayer === 'GUIDE' ? '#00ff00' : '#000';
+
+        // While actively dragging, render only a simple bounding box.
+        // This avoids re-rendering complex ornament paths every frame.
+        const isDraggingOrnament = dragState.type === 'move' && isInMoveSession;
+        if (isDraggingOrnament) {
+          return (
+            <g key={element.id} {...baseProps}>
+              <rect
+                x={-50}
+                y={-50}
+                width={100}
+                height={100}
+                fill="none"
+                stroke={ornamentStrokeColor}
+                strokeWidth={0.3}
+              />
+            </g>
+          );
+        }
+
         const ornamentAsset = getOrnamentById(element.assetId);
         if (!ornamentAsset) return null;
 
-        const ornamentStrokeColor = element.style.targetLayer === 'GUIDE' ? '#00ff00' : '#000';
         const strokeWidth = (element.style.strokeMm ?? 0.5) / Math.abs(transform.scaleX || 1);
 
         return (
