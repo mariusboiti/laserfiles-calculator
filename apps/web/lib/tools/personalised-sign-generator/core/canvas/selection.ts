@@ -5,7 +5,7 @@
 
 import type { SignDocument, Element, Layer, ElementTransform } from '../../types/signPro';
 import type { BoundsMm, PointMm } from './coords';
-import { getBoundingBox, pointInBounds } from './coords';
+import { getBoundingBox, pointInBounds, applyTransform } from './coords';
 
 export interface SelectionState {
   selectedIds: string[];
@@ -84,10 +84,6 @@ export function clearSelection(): SelectionState {
  */
 export function getElementBounds(element: Element): BoundsMm {
   const t = element.transform;
-  const scaleX = Math.abs(t.scaleX || 1);
-  const scaleY = Math.abs(t.scaleY || 1);
-  const sx = t.scaleX || 1;
-  const sy = t.scaleY || 1;
   
   // Default bounds estimation based on element type
   let width = 50; // Default width in mm
@@ -218,23 +214,18 @@ export function getElementBounds(element: Element): BoundsMm {
     }
   }
 
-  // Apply scale (including negative scale) to local bounds, then translate.
-  const x0 = localX;
-  const x1 = localX + localW;
-  const y0 = localY;
-  const y1 = localY + localH;
+  // Apply full transform (scale, rotate, translate) to the local bounds corners,
+  // then compute the axis-aligned bounding box in world space. This keeps
+  // selection rectangles and hit testing aligned with rotated elements.
+  const corners: PointMm[] = [
+    applyTransform({ xMm: localX, yMm: localY }, t as any),
+    applyTransform({ xMm: localX + localW, yMm: localY }, t as any),
+    applyTransform({ xMm: localX, yMm: localY + localH }, t as any),
+    applyTransform({ xMm: localX + localW, yMm: localY + localH }, t as any),
+  ];
 
-  const minXScaled = Math.min(x0 * sx, x1 * sx);
-  const maxXScaled = Math.max(x0 * sx, x1 * sx);
-  const minYScaled = Math.min(y0 * sy, y1 * sy);
-  const maxYScaled = Math.max(y0 * sy, y1 * sy);
-
-  return {
-    xMm: t.xMm + minXScaled,
-    yMm: t.yMm + minYScaled,
-    widthMm: maxXScaled - minXScaled,
-    heightMm: maxYScaled - minYScaled,
-  };
+  const bounds = getBoundingBox(corners);
+  return bounds || { xMm: t.xMm, yMm: t.yMm, widthMm: 0, heightMm: 0 };
 }
 
 /**

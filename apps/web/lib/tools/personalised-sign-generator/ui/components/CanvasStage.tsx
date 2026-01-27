@@ -457,8 +457,6 @@ export const CanvasStage = React.forwardRef<
   // Handle wheel zoom
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
-      e.preventDefault();
-      
       const rect = getContainerRect();
       const centerX = e.clientX - rect.left;
       const centerY = e.clientY - rect.top;

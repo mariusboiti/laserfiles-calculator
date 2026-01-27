@@ -383,6 +383,36 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
     void ensureFontsLoaded(Array.from(new Set(fontIds)));
   }, [doc]);
 
+  const textShapeSignature = React.useMemo(() => {
+    const signatures: string[] = [];
+    for (const layer of doc.layers) {
+      for (const el of layer.elements) {
+        if (el.kind !== 'text') continue;
+        signatures.push(
+          [
+            el.id,
+            el.text,
+            el.fontId,
+            el.sizeMm,
+            el.align,
+            el.letterSpacingMm,
+            el.lineHeightRatio,
+            el.transformCase,
+            el.mode,
+            el.curvedMode || 'straight',
+            el.curvedIntensity ?? 0,
+            el.curved?.enabled ? '1' : '0',
+            el.curved?.radiusMm ?? '',
+            el.curved?.arcDeg ?? '',
+            el.curved?.placement ?? '',
+            el.curved?.direction ?? '',
+          ].join('|')
+        );
+      }
+    }
+    return signatures.join(';');
+  }, [doc.layers]);
+
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -488,7 +518,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [doc.layers, updateDoc]);
+  }, [textShapeSignature, updateDoc]);
 
   // Export handler
   const handleExport = useCallback(async () => {
