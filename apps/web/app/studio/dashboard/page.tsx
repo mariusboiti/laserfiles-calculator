@@ -205,6 +205,66 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+        <h2 className="mb-4 text-lg font-semibold text-slate-100">Stay connected with LaserFilesPro</h2>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2 text-sm text-slate-300">
+            <p>Follow us on social media to get updates, tips, and new tools.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="https://www.facebook.com/laserfilespro"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100 transition-colors hover:border-sky-500 hover:bg-slate-800"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/10 text-sky-400">
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5">
+                  <path
+                    fill="currentColor"
+                    d="M13.5 8.25H15V6h-1.5A3.75 3.75 0 0 0 9.75 9.75V11H8v2.25h1.75V18h2.5v-4.75H15V11h-2.75V9.75c0-.83.67-1.5 1.25-1.5Z"
+                  />
+                </svg>
+              </span>
+              <span>Facebook Page</span>
+            </Link>
+            <Link
+              href="https://www.facebook.com/groups/lasercutfilesdesign"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100 transition-colors hover:border-sky-500 hover:bg-slate-800"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/10 text-sky-400">
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5">
+                  <path
+                    fill="currentColor"
+                    d="M13.5 8.25H15V6h-1.5A3.75 3.75 0 0 0 9.75 9.75V11H8v2.25h1.75V18h2.5v-4.75H15V11h-2.75V9.75c0-.83.67-1.5 1.25-1.5Z"
+                  />
+                </svg>
+              </span>
+              <span>Facebook Group</span>
+            </Link>
+            <Link
+              href="https://www.youtube.com/@LaserFilesPro"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-100 transition-colors hover:border-sky-500 hover:bg-slate-800"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5">
+                  <path
+                    fill="currentColor"
+                    d="M10 9.5v5l4-2.5-4-2.5Zm10 .75s0-2.12-.27-3.05a1.88 1.88 0 0 0-1.32-1.33C17.48 5.5 12 5.5 12 5.5s-5.48 0-6.41.37c-.64.24-1.13.73-1.37 1.37C4 8.17 4 10.25 4 10.25S4 12.38 4.27 13.3c.24.64.73 1.13 1.37 1.37.93.37 6.36.37 6.36.37s5.48 0 6.41-.37a1.88 1.88 0 0 0 1.32-1.33c.27-.9.27-3.02.27-3.02Z"
+                  />
+                </svg>
+              </span>
+              <span>YouTube</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
