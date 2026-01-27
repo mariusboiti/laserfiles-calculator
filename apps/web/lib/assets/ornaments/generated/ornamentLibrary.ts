@@ -2082,6 +2082,20 @@ export const ORNAMENT_CATEGORIES: ReadonlyArray<string> = [
   "Round"
 ];
 
+let ORNAMENT_MAP: Record<string, OrnamentAsset> | null = null;
+
+function ensureOrnamentMap(): Record<string, OrnamentAsset> {
+  if (!ORNAMENT_MAP) {
+    const map: Record<string, OrnamentAsset> = {};
+    for (const asset of ORNAMENT_LIBRARY) {
+      map[asset.id] = asset;
+    }
+    ORNAMENT_MAP = map;
+  }
+  return ORNAMENT_MAP;
+}
+
 export function getOrnamentById(id: string): OrnamentAsset | undefined {
-  return ORNAMENT_LIBRARY.find((o) => o.id === id);
+  const map = ensureOrnamentMap();
+  return map[id];
 }
