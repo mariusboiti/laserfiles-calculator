@@ -294,10 +294,35 @@ export function updateArtboardSize(
     })),
   }));
 
+  // Update mounting holes to keep them aligned with the resized artboard
+  let newHoles = { ...doc.holes };
+
+  if (newHoles.enabled && newHoles.mode !== 'none') {
+    if (newHoles.mode === 'custom') {
+      // For custom holes, scale positions proportionally with the artboard
+      newHoles = {
+        ...newHoles,
+        holes: newHoles.holes.map(h => ({
+          ...h,
+          xMm: h.xMm * scaleX,
+          yMm: h.yMm * scaleY,
+        })),
+      };
+    } else {
+      // For preset modes (one/two/four), regenerate positions based on the new size
+      const { generateHolePositions } = require('../holesPro');
+      newHoles = {
+        ...newHoles,
+        holes: generateHolePositions(newHoles, newWmm, newHmm),
+      };
+    }
+  }
+
   return {
     ...doc,
     artboard: newArtboard,
     layers: newLayers,
+    holes: newHoles,
   };
 }
 
