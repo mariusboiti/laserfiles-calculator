@@ -1212,14 +1212,24 @@ export const CanvasStage = React.forwardRef<
     const isInMoveSession =
       (dragState.type === 'move' || dragState.type === 'pendingMove') &&
       !!dragState.startTransforms?.has(element.id);
-    const preview = isInMoveSession ? movePreviewDelta : { x: 0, y: 0 };
-    const transformStr = `translate(${transform.xMm + preview.x}, ${transform.yMm + preview.y}) rotate(${transform.rotateDeg}) scale(${transform.scaleX}, ${transform.scaleY})`;
+    
+    // Use base SVG transform without preview delta
+    const transformStr = `translate(${transform.xMm}, ${transform.yMm}) rotate(${transform.rotateDeg}) scale(${transform.scaleX}, ${transform.scaleY})`;
+    
+    // Apply preview delta via CSS transform (GPU-accelerated) during drag
+    const cssTransform = isInMoveSession && (movePreviewDelta.x !== 0 || movePreviewDelta.y !== 0)
+      ? `translate(${movePreviewDelta.x * viewTransform.scale}px, ${movePreviewDelta.y * viewTransform.scale}px)`
+      : undefined;
 
     const baseProps = {
       'data-element-id': element.id,
       'data-layer-id': layer.id,
       transform: transformStr,
-      style: { cursor: layer.locked ? 'not-allowed' : 'move' },
+      style: { 
+        cursor: layer.locked ? 'not-allowed' : 'move',
+        transform: cssTransform,
+        willChange: isInMoveSession ? 'transform' : undefined,
+      } as React.CSSProperties,
       className: isSelected ? 'selected' : '',
     };
 
