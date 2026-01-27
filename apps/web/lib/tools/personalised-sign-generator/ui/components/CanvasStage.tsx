@@ -1301,7 +1301,7 @@ export const CanvasStage = React.forwardRef<
         const isDraggingOrnament = dragState.type === 'move' && isInMoveSession;
         if (isDraggingOrnament) {
           return (
-            <g key={element.id} {...baseProps}>
+            <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
               <rect
                 x={-50}
                 y={-50}
@@ -1321,7 +1321,7 @@ export const CanvasStage = React.forwardRef<
         const strokeWidth = (element.style.strokeMm ?? 0.5) / Math.abs(transform.scaleX || 1);
 
         return (
-          <g key={element.id} {...baseProps}>
+          <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
             <g transform="translate(-50, -50)">
               {ornamentAsset.pathDs.map((pathD, i) => (
                 <g key={i}>
