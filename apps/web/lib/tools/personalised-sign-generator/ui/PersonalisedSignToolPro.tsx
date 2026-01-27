@@ -216,11 +216,9 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
       for (const id of ids) {
         const found = findElement(doc, id);
         if (!found) {
-          console.log('[Offset] Element not found:', id);
           continue;
         }
         const el = found.element as any;
-        console.log('[Offset] Processing element:', el.kind, id);
 
         if (el.kind === 'text' && el.text) {
           // Align using font metrics to match SVG dominantBaseline="middle".
@@ -258,9 +256,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
             console.error('[Offset] Text conversion failed:', err);
           }
         } else if (el.kind === 'shape' && el.svgPathD) {
-          console.log('[Offset] Generating offset for shape...');
           const res = await generateTextOutline(el.svgPathD, offsetMm);
-          console.log('[Offset] Shape result:', res.success, res.warning);
           if (res.success && res.pathD) {
             items.push({
               sourceElementId: id,
@@ -271,9 +267,7 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
             });
           }
         } else if (el.kind === 'tracedPath' && el.svgPathD) {
-          console.log('[Offset] Generating offset for tracedPath...');
           const res = await offsetPathOps(el.svgPathD, offsetMm);
-          console.log('[Offset] TracedPath result:', res.success, res.warning);
           if (res.success && res.pathD) {
             items.push({
               sourceElementId: id,
@@ -284,7 +278,6 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
             });
           }
         } else if (el.kind === 'tracedPathGroup' && Array.isArray(el.svgPathDs)) {
-          console.log('[Offset] Generating offset for tracedPathGroup...');
           const ds: string[] = [];
           for (const d of el.svgPathDs) {
             const res = await offsetPathOps(d, offsetMm);
@@ -299,12 +292,9 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
               transform: el.transform,
             });
           }
-        } else {
-          console.log('[Offset] Unsupported element kind:', el.kind);
         }
       }
 
-      console.log('[Offset] Generated items:', items.length);
       if (!cancelled) {
         setOffsetPreview(items);
       }
@@ -316,20 +306,15 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
   }, [offsetPreviewEnabled, offsetMm, selectedIds, doc]);
 
   const handleApplyOffset = useCallback(() => {
-    console.log('[ApplyOffset] Called, offsetPreview length:', offsetPreview.length);
     if (offsetPreview.length === 0) {
-      console.log('[ApplyOffset] No preview items to apply');
       return;
     }
 
     const targetLayer = findLayerByType(doc, offsetTargetLayerType);
-    console.log('[ApplyOffset] Target layer:', offsetTargetLayerType, targetLayer?.id, targetLayer?.locked);
     if (!targetLayer) {
-      console.log('[ApplyOffset] Target layer not found!');
       return;
     }
     if (targetLayer.locked) {
-      console.log('[ApplyOffset] Target layer is locked!');
       return;
     }
 
