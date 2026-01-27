@@ -111,14 +111,38 @@ interface MarqueeState {
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
+  if (!target || !(target instanceof HTMLElement)) return false;
+  const el = target;
   const tag = el.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
   if (el.isContentEditable) return true;
   const editableAncestor = el.closest?.('[contenteditable="true"]');
   return Boolean(editableAncestor);
 }
+
+// Memoized ornament paths component to prevent re-renders during drag
+const OrnamentPaths = React.memo(function OrnamentPaths({
+  pathDs,
+  strokeColor,
+  strokeWidth,
+  hitStrokeWidth,
+}: {
+  pathDs: string[];
+  strokeColor: string;
+  strokeWidth: number;
+  hitStrokeWidth: number;
+}) {
+  return (
+    <g transform="translate(-50, -50)">
+      {pathDs.map((pathD, i) => (
+        <g key={i}>
+          <path d={pathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
+          <path d={pathD} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} />
+        </g>
+      ))}
+    </g>
+  );
+});
 
 export const CanvasStage = React.forwardRef<
   { fitView: () => void; zoomIn: () => void; zoomOut: () => void },
@@ -1301,14 +1325,12 @@ export const CanvasStage = React.forwardRef<
 
         return (
           <g key={element.id} {...baseProps} onPointerDown={(e) => handleElementPointerDown(e, element.id, layer.id)}>
-            <g transform="translate(-50, -50)">
-              {ornamentAsset.pathDs.map((pathD, i) => (
-                <g key={i}>
-                  <path d={pathD} fill="transparent" stroke="transparent" strokeWidth={hitStrokeWidth} />
-                  <path d={pathD} fill="none" stroke={ornamentStrokeColor} strokeWidth={strokeWidth} />
-                </g>
-              ))}
-            </g>
+            <OrnamentPaths
+              pathDs={ornamentAsset.pathDs}
+              strokeColor={ornamentStrokeColor}
+              strokeWidth={strokeWidth}
+              hitStrokeWidth={hitStrokeWidth}
+            />
           </g>
         );
       }
