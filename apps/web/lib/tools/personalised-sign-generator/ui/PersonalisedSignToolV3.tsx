@@ -526,14 +526,37 @@ function Section({ title, icon, expanded, onToggle, children }: { title: string;
   );
 }
 
-function NumberInput({ label, value, onChange, min, max, step = 1, className = '' }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number; step?: number; className?: string }) {
+function NumberInput({ label, value, onChange, min, max, step = 1, className = '' }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number; className?: string }) {
+  const [text, setText] = useState<string>(String(value));
+
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+
   return (
     <div className={className}>
       {label && <label className="block text-xs text-slate-400 mb-1">{label}</label>}
       <input
         type="number"
-        value={value}
-        onChange={(e) => onChange(clamp(parseFloat(e.target.value) || min, min, max))}
+        value={text}
+        onChange={(e) => {
+          const next = e.target.value;
+          setText(next);
+          const v = Number(next);
+          if (Number.isFinite(v)) onChange(v);
+        }}
+        onBlur={() => {
+          const v = Number(text);
+          if (!Number.isFinite(v)) {
+            setText(String(value));
+            return;
+          }
+          const clamped = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, v));
+          if (clamped !== v) {
+            onChange(clamped);
+          }
+          setText(String(clamped));
+        }}
         min={min}
         max={max}
         step={step}

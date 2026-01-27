@@ -1005,14 +1005,14 @@ export default function PersonalisedSignToolPro({ featureFlags }: Props) {
                 label={t('personalised_sign.common.width_mm')}
                 value={doc.artboard.wMm}
                 onChange={(v) => updateDoc(d => updateArtboardSize(d, v, d.artboard.hMm))}
-                min={LIMITS.width.min}
+                min={undefined}
                 max={LIMITS.width.max}
               />
               <NumberInput
                 label={t('personalised_sign.common.height_mm')}
                 value={doc.artboard.hMm}
                 onChange={(v) => updateDoc(d => updateArtboardSize(d, d.artboard.wMm, v))}
-                min={LIMITS.height.min}
+                min={undefined}
                 max={LIMITS.height.max}
               />
             </div>
@@ -1329,20 +1329,40 @@ function NumberInput({ label, value, onChange, min, max, step = 1, className = '
   label: string;
   value: number;
   onChange: (v: number) => void;
-  min: number;
-  max: number;
+  min?: number;
+  max?: number;
   step?: number;
   className?: string;
 }) {
+  const [text, setText] = React.useState<string>(String(value));
+
+  React.useEffect(() => {
+    setText(String(value));
+  }, [value]);
+
   return (
     <div className={className}>
       {label && <label className="block text-xs text-slate-400 mb-1">{label}</label>}
       <input
         type="number"
-        value={value}
+        value={text}
         onChange={(e) => {
-          const v = parseFloat(e.target.value);
-          if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
+          const next = e.target.value;
+          setText(next);
+          const v = Number(next);
+          if (Number.isFinite(v)) onChange(v);
+        }}
+        onBlur={() => {
+          const v = Number(text);
+          if (!Number.isFinite(v)) {
+            setText(String(value));
+            return;
+          }
+          const clamped = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, v));
+          if (clamped !== v) {
+            onChange(clamped);
+          }
+          setText(String(clamped));
         }}
         min={min}
         max={max}
