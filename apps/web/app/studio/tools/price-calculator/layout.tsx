@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useT } from '@app/i18n';
+import { useT } from '@/app/(app)/i18n';
 
 export default function PriceCalculatorToolLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Upload, X, Loader2 } from 'lucide-react';
 import { jobManager } from '@/lib/jobs/jobManager';
 import { prepareForExport } from '@/lib/export/svgSafety';
-import { useT } from '@app/i18n';
+import { useT } from '@/app/(app)/i18n';
 import { createArtifact, addToPriceCalculator } from '@/lib/artifacts/client';
 import { showArtifactSavedToast } from '@/lib/tools/export/useExportArtifact';
 

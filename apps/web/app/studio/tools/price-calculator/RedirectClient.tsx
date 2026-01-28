@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
- import { useT } from '@app/i18n';
+import { useT } from '@/app/(app)/i18n';
 
 export default function RedirectClient({ to }: { to: string }) {
   const router = useRouter();
