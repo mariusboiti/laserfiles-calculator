@@ -1,22 +1,13 @@
 'use client';
 
-import { useAuth } from '@/lib/auth/AuthContext';
-import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { useEntitlement } from '@/lib/entitlements/client';
 import { Shield, Star, Clock } from 'lucide-react';
 
 export function CommunityBadge() {
-  const { entitlements } = useAuth();
+  const { entitlement } = useEntitlement();
 
-  if (!entitlements) return null;
-
-  const badge = entitlements.communityBadge;
-  const expiresAt = entitlements.communityBadgeExpiresAt;
+  const badge = (entitlement as any)?.communityBadge as 'NONE' | 'ADMIN_EDITION' | 'COMMUNITY_PARTNER' | undefined;
+  const expiresAt = (entitlement as any)?.communityBadgeExpiresAt as string | null | undefined;
 
   if (!badge || badge === 'NONE') return null;
 
@@ -59,36 +50,33 @@ export function CommunityBadge() {
     daysRemaining = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
   }
 
+  const titleParts: string[] = [config.description];
+  if (daysRemaining !== null) {
+    titleParts.push(
+      daysRemaining === 0
+        ? 'Expires today'
+        : daysRemaining === 1
+          ? '1 day remaining'
+          : `${daysRemaining} days remaining`,
+    );
+  }
+  if (expiresAt) {
+    titleParts.push(`Valid until ${new Date(expiresAt).toLocaleDateString()}`);
+  }
+
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge className={`${config.className} cursor-help gap-1 px-2 py-1`}>
-            <Icon className="h-3 w-3" />
-            <span className="text-xs font-medium">{config.label}</span>
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
-          <div className="space-y-1">
-            <p className="font-medium">{config.description}</p>
-            {daysRemaining !== null && (
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                {daysRemaining === 0
-                  ? 'Expires today'
-                  : daysRemaining === 1
-                    ? '1 day remaining'
-                    : `${daysRemaining} days remaining`}
-              </p>
-            )}
-            {expiresAt && (
-              <p className="text-xs text-muted-foreground">
-                Valid until {new Date(expiresAt).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <span
+      title={titleParts.join(' · ')}
+      className={`${config.className} inline-flex cursor-help items-center gap-1 rounded-full px-2 py-1`}
+    >
+      <Icon className="h-3 w-3" />
+      <span className="text-xs font-medium">{config.label}</span>
+      {daysRemaining !== null && (
+        <span className="ml-1 inline-flex items-center gap-1 text-[10px] opacity-90">
+          <Clock className="h-3 w-3" />
+          {daysRemaining === 0 ? 'today' : `${daysRemaining}d`}
+        </span>
+      )}
+    </span>
   );
 }

@@ -1,19 +1,18 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSearchParams } from 'next/navigation';
 import { CheckCircle, AlertCircle, Gift, Sparkles, LogIn, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api-client';
+import { toast } from '@/components/system';
+import { refreshEntitlements } from '@/lib/entitlements/client';
 
 function AdminEditionContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const { user, isLoading: authLoading, refetchUser } = useAuth();
   const token = searchParams.get('token');
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   const [checking, setChecking] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
@@ -36,17 +35,17 @@ function AdminEditionContent() {
   // Check invite when token is present and user is logged in
   useEffect(() => {
     if (!token) return;
-    if (authLoading) return;
+    if (loadingUser) return;
     if (!user) return;
 
     const checkInvite = async () => {
       setChecking(true);
       try {
-        const res = await fetch(`/api/invites/check?token=${encodeURIComponent(token)}`, {
-          credentials: 'include',
+        const res = await apiClient.get('/invites/check', {
+          params: { token },
+          withCredentials: true,
         });
-        const data = await res.json();
-        setInviteInfo(data);
+        setInviteInfo(res.data);
       } catch (error) {
         setInviteInfo({ valid: false, error: 'Failed to check invite' });
       } finally {
@@ -55,36 +54,50 @@ function AdminEditionContent() {
     };
 
     checkInvite();
-  }, [token, user, authLoading]);
+  }, [token, user, loadingUser]);
+
+  // Load current user (StudioLayout also does this, but this page needs user email)
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoadingUser(true);
+        const res = await apiClient.get('/auth/me', { withCredentials: true });
+        if (cancelled) return;
+        setUser(res.data?.user ?? null);
+      } catch {
+        if (cancelled) return;
+        setUser(null);
+      } finally {
+        if (cancelled) return;
+        setLoadingUser(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleRedeem = async () => {
     if (!token) return;
 
     setRedeeming(true);
     try {
-      const res = await fetch('/api/invites/redeem', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ token }),
-      });
+      const res = await apiClient.post(
+        '/invites/redeem',
+        { token },
+        { withCredentials: true },
+      );
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Failed to redeem invite');
-      }
-
-      setRedeemResult(data);
-      toast.success('Admin Edition activated!');
-      
-      // Refresh user data to update header badge
-      if (refetchUser) {
-        await refetchUser();
-      }
+      setRedeemResult(res.data);
+      toast('Admin Edition activated!', 'success');
+      refreshEntitlements();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to redeem invite');
-      setInviteInfo({ valid: false, error: error.message });
+      const msg = error?.response?.data?.message || error?.message || 'Failed to redeem invite';
+      toast(msg, 'error');
+      setInviteInfo({ valid: false, error: msg });
     } finally {
       setRedeeming(false);
     }
@@ -93,68 +106,68 @@ function AdminEditionContent() {
   // No token provided
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
-            <CardTitle>Missing Invite Token</CardTitle>
-            <CardDescription>
-              This page requires a valid invite link. Please use the link provided to you.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Link href="/studio">
-              <Button variant="outline">Go to Studio</Button>
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-center">
+          <AlertCircle className="mx-auto h-10 w-10 text-yellow-400" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-100">Missing Invite Token</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            This page requires a valid invite link. Please use the link provided to you.
+          </p>
+          <div className="mt-5">
+            <Link
+              href="/studio/dashboard"
+              className="inline-flex items-center justify-center rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Go to Studio
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
   // Not logged in
-  if (!authLoading && !user) {
+  if (!loadingUser && !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <Gift className="w-12 h-12 mx-auto text-primary mb-4" />
-            <CardTitle>Admin Edition Invite</CardTitle>
-            <CardDescription>
-              You've been invited to receive free PRO access! Please log in to redeem your invite.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <div className="p-4 bg-muted rounded-lg text-sm">
-              <p className="font-medium mb-2">What you'll get:</p>
-              <ul className="text-left space-y-1 text-muted-foreground">
-                <li>✅ 1 month of PRO access</li>
-                <li>✅ 200 AI credits</li>
-                <li>✅ Admin Edition badge</li>
-              </ul>
-            </div>
-            <Link href={`/auth/login?returnUrl=${encodeURIComponent(`/studio/admin-edition?token=${token}`)}`}>
-              <Button className="w-full">
-                <LogIn className="w-4 h-4 mr-2" />
-                Log in to Redeem
-              </Button>
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-center">
+          <Gift className="mx-auto h-10 w-10 text-sky-400" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-100">Admin Edition Invite</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            You've been invited to receive free PRO access! Please log in to redeem your invite.
+          </p>
+
+          <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-left text-sm">
+            <p className="font-medium text-slate-200">What you'll get:</p>
+            <ul className="mt-2 space-y-1 text-slate-400">
+              <li>1 month of PRO access</li>
+              <li>200 AI credits</li>
+              <li>Admin Edition badge</li>
+            </ul>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href={`/login?returnUrl=${encodeURIComponent(`/studio/admin-edition?token=${token}`)}`}
+              className="inline-flex w-full items-center justify-center rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              Log in to Redeem
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
   // Loading auth
-  if (authLoading || checking) {
+  if (loadingUser || checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-8 text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-            <p className="mt-4 text-muted-foreground">Checking your invite...</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-sky-400" />
+          <p className="mt-4 text-sm text-slate-400">Checking your invite...</p>
+        </div>
       </div>
     );
   }
@@ -162,36 +175,35 @@ function AdminEditionContent() {
   // Redeemed successfully
   if (redeemResult?.success) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-        <Card className="max-w-md w-full border-green-200 bg-green-50/50">
-          <CardHeader className="text-center">
-            <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
-            <CardTitle className="text-green-800">Admin Edition Activated!</CardTitle>
-            <CardDescription className="text-green-700">
-              Welcome to LaserFilesPro Admin Edition
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-white rounded-lg p-4 space-y-2 border border-green-200">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">PRO Access Until</span>
-                <span className="font-medium">
-                  {new Date(redeemResult.proAccessUntil).toLocaleDateString()}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">AI Credits Added</span>
-                <span className="font-medium">{redeemResult.creditsAdded}</span>
-              </div>
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-xl border border-emerald-700/40 bg-emerald-900/20 p-6 text-center">
+          <CheckCircle className="mx-auto h-12 w-12 text-emerald-400" />
+          <h1 className="mt-4 text-xl font-semibold text-emerald-200">Admin Edition Activated!</h1>
+          <p className="mt-2 text-sm text-emerald-200/80">Welcome to LaserFilesPro Admin Edition</p>
+
+          <div className="mt-5 rounded-lg border border-emerald-700/30 bg-slate-950/40 p-4 text-sm text-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">PRO Access Until</span>
+              <span className="font-medium">
+                {new Date(redeemResult.proAccessUntil).toLocaleDateString()}
+              </span>
             </div>
-            <Link href="/studio" className="block">
-              <Button className="w-full">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Start Using Studio
-              </Button>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-slate-400">AI Credits Added</span>
+              <span className="font-medium">{redeemResult.creditsAdded}</span>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/studio/dashboard"
+              className="inline-flex w-full items-center justify-center rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              Start Using Studio
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -199,21 +211,20 @@ function AdminEditionContent() {
   // Invalid invite
   if (inviteInfo && !inviteInfo.valid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-        <Card className="max-w-md w-full border-red-200">
-          <CardHeader className="text-center">
-            <AlertCircle className="w-12 h-12 mx-auto text-red-500 mb-4" />
-            <CardTitle>Invalid Invite</CardTitle>
-            <CardDescription>
-              {inviteInfo.error || 'This invite is no longer valid.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Link href="/studio">
-              <Button variant="outline">Go to Studio</Button>
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-xl border border-red-800/40 bg-red-900/20 p-6 text-center">
+          <AlertCircle className="mx-auto h-10 w-10 text-red-400" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-100">Invalid Invite</h1>
+          <p className="mt-2 text-sm text-slate-400">{inviteInfo.error || 'This invite is no longer valid.'}</p>
+          <div className="mt-5">
+            <Link
+              href="/studio/dashboard"
+              className="inline-flex items-center justify-center rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Go to Studio
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -221,26 +232,23 @@ function AdminEditionContent() {
   // Email mismatch
   if (inviteInfo?.valid && inviteInfo.email && user?.email?.toLowerCase() !== inviteInfo.email.toLowerCase()) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-        <Card className="max-w-md w-full border-yellow-200">
-          <CardHeader className="text-center">
-            <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
-            <CardTitle>Email Mismatch</CardTitle>
-            <CardDescription>
-              This invite was created for <strong>{inviteInfo.email}</strong>, but you're logged in as <strong>{user?.email}</strong>.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Please log in with the correct email to redeem this invite.
-            </p>
-            <Link href={`/auth/login?returnUrl=${encodeURIComponent(`/studio/admin-edition?token=${token}`)}`}>
-              <Button variant="outline" className="w-full">
-                Log in with Different Account
-              </Button>
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-xl border border-yellow-800/40 bg-yellow-900/20 p-6 text-center">
+          <AlertCircle className="mx-auto h-10 w-10 text-yellow-400" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-100">Email Mismatch</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            This invite was created for <strong>{inviteInfo.email}</strong>, but you're logged in as <strong>{user?.email}</strong>.
+          </p>
+          <p className="mt-3 text-sm text-slate-400">Please log in with the correct email to redeem this invite.</p>
+          <div className="mt-5">
+            <Link
+              href={`/login?returnUrl=${encodeURIComponent(`/studio/admin-edition?token=${token}`)}`}
+              className="inline-flex w-full items-center justify-center rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Log in with Different Account
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -248,61 +256,54 @@ function AdminEditionContent() {
   // Valid invite - show redeem form
   if (inviteInfo?.valid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-        <Card className="max-w-md w-full border-primary/20">
-          <CardHeader className="text-center">
-            <Gift className="w-16 h-16 mx-auto text-primary mb-4" />
-            <CardTitle>Admin Edition Invite</CardTitle>
-            <CardDescription>
-              You're about to receive free PRO access!
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-muted rounded-lg p-4 space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Account</span>
-                <span className="font-medium">{user?.email}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">PRO Duration</span>
-                <span className="font-medium">{inviteInfo.durationDays} days</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">AI Credits</span>
-                <span className="font-medium">{inviteInfo.creditsGrant}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Invite Expires</span>
-                <span className="font-medium">
-                  {inviteInfo.expiresAt ? new Date(inviteInfo.expiresAt).toLocaleDateString() : '-'}
-                </span>
-              </div>
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-center">
+          <Gift className="mx-auto h-12 w-12 text-sky-400" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-100">Admin Edition Invite</h1>
+          <p className="mt-2 text-sm text-slate-400">You're about to receive free PRO access!</p>
+
+          <div className="mt-5 rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-left text-sm text-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Account</span>
+              <span className="font-medium">{user?.email}</span>
             </div>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-slate-400">PRO Duration</span>
+              <span className="font-medium">{inviteInfo.durationDays} days</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-slate-400">AI Credits</span>
+              <span className="font-medium">{inviteInfo.creditsGrant}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-slate-400">Invite Expires</span>
+              <span className="font-medium">
+                {inviteInfo.expiresAt ? new Date(inviteInfo.expiresAt).toLocaleDateString() : '-'}
+              </span>
+            </div>
+          </div>
 
-            <Button
-              onClick={handleRedeem}
-              disabled={redeeming}
-              className="w-full"
-              size="lg"
-            >
-              {redeeming ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Activating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Activate Admin Edition
-                </>
-              )}
-            </Button>
+          <button
+            type="button"
+            onClick={handleRedeem}
+            disabled={redeeming}
+            className="mt-5 inline-flex w-full items-center justify-center rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
+          >
+            {redeeming ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Activating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Activate Admin Edition
+              </>
+            )}
+          </button>
 
-            <p className="text-xs text-center text-muted-foreground">
-              By redeeming, you agree to our Terms of Service
-            </p>
-          </CardContent>
-        </Card>
+          <p className="mt-3 text-xs text-slate-500">By redeeming, you agree to our Terms of Service</p>
+        </div>
       </div>
     );
   }
@@ -310,7 +311,7 @@ function AdminEditionContent() {
   // Fallback loading
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
     </div>
   );
 }
@@ -318,8 +319,8 @@ function AdminEditionContent() {
 export default function AdminEditionPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
       </div>
     }>
       <AdminEditionContent />
