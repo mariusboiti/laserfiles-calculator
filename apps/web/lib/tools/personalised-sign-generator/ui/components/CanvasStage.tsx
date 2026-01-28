@@ -565,10 +565,11 @@ export const CanvasStage = React.forwardRef<
         }
         dispatchSelection(setMode('dragging'));
 
+        // Keep the original dragStartWorld from pendingMove - don't reset it!
+        // This ensures the element stays exactly where clicked during drag
         setDragState(prev => ({
           ...prev,
           type: 'move',
-          dragStartWorld: clientToWorld(e.clientX, e.clientY),
         }));
         lastMoveDeltaRef.current = { x: 0, y: 0 };
         queuedMoveDeltaRef.current = { x: 0, y: 0 };
