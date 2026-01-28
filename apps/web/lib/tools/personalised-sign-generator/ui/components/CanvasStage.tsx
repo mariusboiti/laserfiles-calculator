@@ -647,18 +647,21 @@ export const CanvasStage = React.forwardRef<
             
             // DIRECT DOM MANIPULATION - bypass React re-renders during drag
             if (svgRef.current && dragState.startTransforms) {
-              const pxPerMm = DEFAULT_PX_PER_MM * viewTransform.zoom;
-              const translatePx = `translate(${movePreviewDeltaRef.current.x * pxPerMm}px, ${movePreviewDeltaRef.current.y * pxPerMm}px)`;
+              const deltaXMm = movePreviewDeltaRef.current.x;
+              const deltaYMm = movePreviewDeltaRef.current.y;
               
-              // Move elements
+              // Move SVG elements using mm (SVG uses mm coordinate system)
+              const translateMm = `translate(${deltaXMm}, ${deltaYMm})`;
               for (const [id] of dragState.startTransforms) {
                 const el = svgRef.current.querySelector(`[data-element-id="${id}"]`) as SVGGElement | null;
                 if (el) {
-                  el.style.transform = translatePx;
+                  el.style.transform = translateMm;
                 }
               }
               
-              // Move selection overlay
+              // Move selection overlay using pixels (HTML element in screen space)
+              const pxPerMm = DEFAULT_PX_PER_MM * viewTransform.zoom;
+              const translatePx = `translate(${deltaXMm * pxPerMm}px, ${deltaYMm * pxPerMm}px)`;
               const selectionOverlay = containerRef.current?.querySelector('[data-selection-overlay="true"]') as HTMLDivElement | null;
               if (selectionOverlay) {
                 selectionOverlay.style.transform = translatePx;
