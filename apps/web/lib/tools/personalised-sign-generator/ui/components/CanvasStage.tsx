@@ -650,12 +650,20 @@ export const CanvasStage = React.forwardRef<
               const deltaXMm = movePreviewDeltaRef.current.x;
               const deltaYMm = movePreviewDeltaRef.current.y;
               
-              // Move SVG elements using mm (SVG uses mm coordinate system)
-              const translateMm = `translate(${deltaXMm}, ${deltaYMm})`;
-              for (const [id] of dragState.startTransforms) {
+              // Move SVG elements by modifying the SVG transform attribute directly
+              for (const [id, startPos] of dragState.startTransforms) {
                 const el = svgRef.current.querySelector(`[data-element-id="${id}"]`) as SVGGElement | null;
                 if (el) {
-                  el.style.transform = translateMm;
+                  // Get the original transform and update the translate portion
+                  const origTransform = el.getAttribute('transform') || '';
+                  // Replace the translate values with updated position
+                  const newX = startPos.xMm + deltaXMm;
+                  const newY = startPos.yMm + deltaYMm;
+                  const newTransform = origTransform.replace(
+                    /translate\([^)]+\)/,
+                    `translate(${newX}, ${newY})`
+                  );
+                  el.setAttribute('transform', newTransform);
                 }
               }
               
