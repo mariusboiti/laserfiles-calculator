@@ -126,17 +126,19 @@ export class EntitlementsService {
     const communityBadgeExpiresAt = ent?.communityBadgeExpiresAt
       ? ent.communityBadgeExpiresAt.toISOString()
       : null;
-    const hasCommunityAccess =
+    const hasCommunityAccess: boolean = Boolean(
       communityBadge !== 'NONE' &&
-      ent?.communityBadgeExpiresAt &&
-      now.getTime() < ent.communityBadgeExpiresAt.getTime();
+        ent?.communityBadgeExpiresAt &&
+        now.getTime() < ent.communityBadgeExpiresAt.getTime(),
+    );
 
     // Gating logic per requirements - now includes community badge
-    const hasPaidAccess = plan === 'ACTIVE';
-    const hasTrialAccess = plan === 'TRIAL' && (!ent?.trialEndsAt || now.getTime() < ent.trialEndsAt.getTime());
-    const canUseStudio = hasPaidAccess || hasTrialAccess || hasCommunityAccess;
+    const hasPaidAccess: boolean = plan === 'ACTIVE';
+    const hasTrialAccess: boolean =
+      plan === 'TRIAL' && (!ent?.trialEndsAt || now.getTime() < ent.trialEndsAt.getTime());
+    const canUseStudio: boolean = Boolean(hasPaidAccess || hasTrialAccess || hasCommunityAccess);
 
-    const canUseAi = canUseStudio && used < total;
+    const canUseAi: boolean = Boolean(canUseStudio && used < total);
     
     let daysLeftInTrial: number | null = null;
     if (plan === 'TRIAL' && ent?.trialEndsAt) {
@@ -144,7 +146,7 @@ export class EntitlementsService {
       daysLeftInTrial = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
     }
 
-    const isActive = plan === 'ACTIVE' || plan === 'TRIAL' || hasCommunityAccess;
+    const isActive: boolean = Boolean(plan === 'ACTIVE' || plan === 'TRIAL' || hasCommunityAccess);
     const trialEligible = plan === 'NONE' && !hasCommunityAccess;
 
     // Effective access resolution
