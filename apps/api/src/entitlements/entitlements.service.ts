@@ -53,6 +53,14 @@ export class EntitlementsService {
     graceUntil: string | null;
     country: string | null;
     reason: string;
+    // Community badge fields
+    communityBadge: 'NONE' | 'ADMIN_EDITION' | 'COMMUNITY_PARTNER';
+    communityBadgeExpiresAt: string | null;
+    effectiveAccess: {
+      allowed: boolean;
+      reason: 'PAID_SUBSCRIPTION' | 'ADMIN_EDITION' | 'TRIAL' | 'INACTIVE';
+    };
+    planDisplayString: string;
   }> {
     if (!this.prisma) {
       return {
@@ -71,6 +79,10 @@ export class EntitlementsService {
         graceUntil: null,
         country: null,
         reason: 'PRISMA_UNAVAILABLE',
+        communityBadge: 'NONE',
+        communityBadgeExpiresAt: null,
+        effectiveAccess: { allowed: false, reason: 'INACTIVE' },
+        planDisplayString: 'Inactive',
       };
     }
 
@@ -106,10 +118,23 @@ export class EntitlementsService {
       return 'NONE';
     })();
 
-    // Gating logic per requirements
-    const canUseStudio =
-      plan === 'ACTIVE' ||
-      (plan === 'TRIAL' && (!ent?.trialEndsAt || now.getTime() < ent.trialEndsAt.getTime()));
+    // Community badge logic
+    const communityBadgeRaw = String((ent as any)?.communityBadge || 'NONE').toUpperCase();
+    const communityBadge = (['ADMIN_EDITION', 'COMMUNITY_PARTNER'].includes(communityBadgeRaw)
+      ? communityBadgeRaw
+      : 'NONE') as 'NONE' | 'ADMIN_EDITION' | 'COMMUNITY_PARTNER';
+    const communityBadgeExpiresAt = ent?.communityBadgeExpiresAt
+      ? ent.communityBadgeExpiresAt.toISOString()
+      : null;
+    const hasCommunityAccess =
+      communityBadge !== 'NONE' &&
+      ent?.communityBadgeExpiresAt &&
+      now.getTime() < ent.communityBadgeExpiresAt.getTime();
+
+    // Gating logic per requirements - now includes community badge
+    const hasPaidAccess = plan === 'ACTIVE';
+    const hasTrialAccess = plan === 'TRIAL' && (!ent?.trialEndsAt || now.getTime() < ent.trialEndsAt.getTime());
+    const canUseStudio = hasPaidAccess || hasTrialAccess || hasCommunityAccess;
 
     const canUseAi = canUseStudio && used < total;
     
@@ -119,8 +144,30 @@ export class EntitlementsService {
       daysLeftInTrial = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
     }
 
-    const isActive = plan === 'ACTIVE' || plan === 'TRIAL';
-    const trialEligible = plan === 'NONE';
+    const isActive = plan === 'ACTIVE' || plan === 'TRIAL' || hasCommunityAccess;
+    const trialEligible = plan === 'NONE' && !hasCommunityAccess;
+
+    // Effective access resolution
+    const effectiveAccess: {
+      allowed: boolean;
+      reason: 'PAID_SUBSCRIPTION' | 'ADMIN_EDITION' | 'TRIAL' | 'INACTIVE';
+    } = (() => {
+      if (hasPaidAccess) return { allowed: true, reason: 'PAID_SUBSCRIPTION' as const };
+      if (hasTrialAccess) return { allowed: true, reason: 'TRIAL' as const };
+      if (hasCommunityAccess && communityBadge === 'ADMIN_EDITION') {
+        return { allowed: true, reason: 'ADMIN_EDITION' as const };
+      }
+      return { allowed: false, reason: 'INACTIVE' as const };
+    })();
+
+    // Plan display string for UI
+    const planDisplayString = (() => {
+      if (hasPaidAccess) return 'PRO';
+      if (hasTrialAccess) return 'PRO (Trial)';
+      if (hasCommunityAccess && communityBadge === 'ADMIN_EDITION') return 'PRO (Admin Edition)';
+      if (hasCommunityAccess && communityBadge === 'COMMUNITY_PARTNER') return 'PRO (Community Partner)';
+      return 'Inactive';
+    })();
 
     return {
       plan,
@@ -137,7 +184,11 @@ export class EntitlementsService {
       trialEligible,
       graceUntil: null,
       country,
-      reason: plan === 'NONE' ? 'NO_ENTITLEMENT' : 'ENTITLEMENT_ACTIVE',
+      reason: plan === 'NONE' && !hasCommunityAccess ? 'NO_ENTITLEMENT' : 'ENTITLEMENT_ACTIVE',
+      communityBadge,
+      communityBadgeExpiresAt,
+      effectiveAccess,
+      planDisplayString,
     };
   }
 

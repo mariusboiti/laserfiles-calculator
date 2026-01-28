@@ -863,6 +863,9 @@ model UserEntitlement {
   creditsNextGrantAt    DateTime?
   creditsLastGrantAt    DateTime?
   trialCreditsGrantedAt DateTime?
+  // Community badge fields for Admin Edition
+  communityBadge        CommunityBadge  @default(NONE)
+  communityBadgeExpiresAt DateTime?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
@@ -957,6 +960,45 @@ enum FeedbackStatus {
   PLANNED
   DONE
   CLOSED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Edition Invite System
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AdminInviteStatus {
+  PENDING
+  REDEEMED
+  REVOKED
+  EXPIRED
+}
+
+enum CommunityBadge {
+  NONE
+  ADMIN_EDITION
+  COMMUNITY_PARTNER
+}
+
+model AdminInvite {
+  id                String            @id @default(uuid())
+  email             String
+  tokenHash         String            @unique
+  tokenLast4        String
+  plan              String            @default("PRO")
+  creditsGrant      Int               @default(200)
+  durationDays      Int               @default(30)
+  status            AdminInviteStatus @default(PENDING)
+  expiresAt         DateTime          // invite validity window
+  redeemedAt        DateTime?
+  redeemedByUserId  String?
+  createdByUserId   String
+  note              String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdByUserId])
 }
 
 model FeedbackTicket {

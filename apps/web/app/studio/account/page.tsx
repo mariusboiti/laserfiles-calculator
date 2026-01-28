@@ -130,6 +130,19 @@ export default function AccountPage() {
     return roleRaw;
   })();
 
+  // Community badge info
+  const communityBadge = user?.communityBadge || 'NONE';
+  const communityBadgeExpiresAt = user?.communityBadgeExpiresAt
+    ? new Date(user.communityBadgeExpiresAt)
+    : null;
+  const hasCommunityAccess =
+    communityBadge !== 'NONE' &&
+    communityBadgeExpiresAt &&
+    communityBadgeExpiresAt > new Date();
+  const communityDaysRemaining = communityBadgeExpiresAt
+    ? Math.max(0, Math.ceil((communityBadgeExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -222,6 +235,47 @@ export default function AccountPage() {
               )}
             </div>
           </div>
+
+          {/* Community Access Section */}
+          {hasCommunityAccess && (
+            <div className="rounded-xl border border-purple-800 bg-gradient-to-br from-purple-900/30 to-slate-900/60 p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+                <svg className="h-5 w-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Community Access
+              </h2>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Badge</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-600 px-2.5 py-0.5 text-xs font-medium text-white">
+                    {communityBadge === 'ADMIN_EDITION' ? 'Admin Edition' : 'Community Partner'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Status</span>
+                  <span className="font-medium text-green-400">Active</span>
+                </div>
+                {communityBadgeExpiresAt && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Expires</span>
+                    <span className="text-slate-200">
+                      {communityBadgeExpiresAt.toLocaleDateString()}
+                      {communityDaysRemaining !== null && (
+                        <span className="ml-1 text-slate-400">
+                          ({communityDaysRemaining} {communityDaysRemaining === 1 ? 'day' : 'days'} left)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <p className="mt-4 text-xs text-slate-400">
+                You have PRO access through the {communityBadge === 'ADMIN_EDITION' ? 'Admin Edition' : 'Community Partner'} program.
+                This access was granted via an invite link and includes full PRO features.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
