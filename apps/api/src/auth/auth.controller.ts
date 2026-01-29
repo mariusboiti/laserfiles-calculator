@@ -71,6 +71,11 @@ export class AuthController {
     const baseUrl = process.env.WP_PLUGIN_BASE_URL;
     const apiKey = process.env.WP_PLUGIN_API_KEY;
     if (!baseUrl || !apiKey) {
+      const isProd = process.env.NODE_ENV === 'production';
+      if (!isProd) {
+        const glue = returnUrl.includes('?') ? '&' : '?';
+        return res.redirect(`${returnUrl}${glue}code=dev-sso`);
+      }
       throw new BadRequestException('WP integration not configured');
     }
 
@@ -266,27 +271,85 @@ export class AuthController {
   @Post('wp/exchange')
   async wpExchange(@Body() dto: WpExchangeDto, @Res({ passthrough: true }) res: Response) {
     // curl -i -X POST http://127.0.0.1:4000/auth/wp/exchange -H "Content-Type: application/json" -d '{"code":"..."}'
-    const { wpUserId, email, displayName, name, entitlements } =
-      await this.wpSsoExchangeService.exchangeCode(dto.code);
+    const isProd = process.env.NODE_ENV === 'production';
+    const isDevSso = !isProd && dto.code === 'dev-sso';
 
-    // Proactively sync entitlements from WP to ensure DB is up to date
-    await this.entitlementsService.syncFromWordPressByEmail(email, `exchange-${wpUserId}`);
+    const exchangeResult =
+      isDevSso
+        ? {
+            wpUserId: 'dev-sso',
+            email: 'dev@local.test',
+            displayName: 'Dev User',
+            name: 'Dev User',
+            entitlements: {
+              plan: 'PRO',
+              entitlementsVersion: 'dev',
+              features: {},
+              limits: {},
+              validUntil: null,
+            },
+          }
+        : await this.wpSsoExchangeService.exchangeCode(dto.code);
 
-    const loginResult = await this.authService.loginWithWp({
-      wpUserId: String(wpUserId),
-      email,
-      displayName: displayName ?? name ?? email,
-      plan: (entitlements as any)?.plan ?? 'PRO',
-      entitlementsVersion: (entitlements as any)?.entitlementsVersion ?? 'unknown',
-      features: (entitlements as any)?.features ?? {},
-      limits: (entitlements as any)?.limits ?? {},
-      validUntil: (entitlements as any)?.validUntil ?? null,
-    } as any);
+    const { wpUserId, email, displayName, name, entitlements } = exchangeResult;
+
+    let loginResult: any;
+
+    if (isDevSso) {
+      // Local dev fallback: perform a minimal login without relying on AuthService
+      // to avoid DI issues in watch mode.
+      let user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        const randomPassword = Math.random().toString(36).slice(2);
+        const hashed = await bcrypt.hash(randomPassword, 10);
+
+        user = await prisma.user.create({
+          data: {
+            email,
+            name: displayName ?? name ?? email,
+            role: 'ADMIN',
+            password: hashed,
+          },
+        });
+      }
+
+      const tokens = this.signTokens({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      });
+
+      loginResult = {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+        entitlements,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      };
+    } else {
+      // Proactively sync entitlements from WP to ensure DB is up to date.
+      await this.entitlementsService?.syncFromWordPressByEmail?.(email, `exchange-${wpUserId}`);
+
+      loginResult = await this.authService.loginWithWp({
+        wpUserId: String(wpUserId),
+        email,
+        displayName: displayName ?? name ?? email,
+        plan: (entitlements as any)?.plan ?? 'PRO',
+        entitlementsVersion: (entitlements as any)?.entitlementsVersion ?? 'unknown',
+        features: (entitlements as any)?.features ?? {},
+        limits: (entitlements as any)?.limits ?? {},
+        validUntil: (entitlements as any)?.validUntil ?? null,
+      } as any);
+    }
 
     const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
     const cookieOptions = {
       httpOnly: true,
-      secure: true,
+      secure: isProd,
       sameSite: 'lax' as const,
       path: '/',
       ...(cookieDomain ? { domain: cookieDomain } : {}),
@@ -294,6 +357,29 @@ export class AuthController {
 
     res.cookie('lf_access_token', loginResult.accessToken, cookieOptions);
     res.cookie('lf_refresh_token', loginResult.refreshToken, cookieOptions);
+
+    if (isDevSso) {
+      const now = new Date();
+      const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await prisma.userEntitlement.upsert({
+        where: { userId: loginResult.user.id },
+        update: {
+          plan: 'TRIALING',
+          trialStartedAt: now,
+          trialEndsAt,
+          aiCreditsTotal: 25,
+          aiCreditsUsed: 0,
+        },
+        create: {
+          userId: loginResult.user.id,
+          plan: 'TRIALING',
+          trialStartedAt: now,
+          trialEndsAt,
+          aiCreditsTotal: 25,
+          aiCreditsUsed: 0,
+        },
+      });
+    }
 
     return {
       ok: true,

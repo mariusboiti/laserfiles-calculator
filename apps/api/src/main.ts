@@ -62,6 +62,7 @@ async function bootstrap() {
     origin: [
       'https://studio.laserfilespro.com',
       'https://laserfilespro.com',
+      'http://localhost:3000',
     ],
     credentials: true,
   });

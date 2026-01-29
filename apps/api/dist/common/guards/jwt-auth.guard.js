@@ -48,7 +48,7 @@ const core_1 = require("@nestjs/core");
 const jwt = __importStar(require("jsonwebtoken"));
 const public_decorator_1 = require("../decorators/public.decorator");
 let JwtAuthGuard = class JwtAuthGuard {
-    constructor(reflector) {
+    constructor(reflector = new core_1.Reflector()) {
         this.reflector = reflector;
     }
     async canActivate(context) {

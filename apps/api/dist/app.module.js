@@ -30,6 +30,7 @@ const webhooks_module_1 = require("./webhooks/webhooks.module");
 const billing_module_1 = require("./billing/billing.module");
 const email_module_1 = require("./email/email.module");
 const feedback_module_1 = require("./feedback/feedback.module");
+const admin_invites_module_1 = require("./admin-invites/admin-invites.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -58,6 +59,7 @@ exports.AppModule = AppModule = __decorate([
             billing_module_1.BillingModule,
             email_module_1.EmailModule,
             feedback_module_1.FeedbackModule,
+            admin_invites_module_1.AdminInvitesModule,
         ],
     })
 ], AppModule);

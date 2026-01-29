@@ -117,6 +117,11 @@ let AuthController = class AuthController {
         const baseUrl = process.env.WP_PLUGIN_BASE_URL;
         const apiKey = process.env.WP_PLUGIN_API_KEY;
         if (!baseUrl || !apiKey) {
+            const isProd = process.env.NODE_ENV === 'production';
+            if (!isProd) {
+                const glue = returnUrl.includes('?') ? '&' : '?';
+                return res.redirect(`${returnUrl}${glue}code=dev-sso`);
+            }
             throw new common_1.BadRequestException('WP integration not configured');
         }
         const url = `${baseUrl.replace(/\/$/, '')}/wp-json/laserfiles/v1/sso/start?returnUrl=${encodeURIComponent(returnUrl)}`;
@@ -267,7 +272,28 @@ let AuthController = class AuthController {
     }
     async wpExchange(dto, res) {
         // curl -i -X POST http://127.0.0.1:4000/auth/wp/exchange -H "Content-Type: application/json" -d '{"code":"..."}'
-        const { wpUserId, email, displayName, name, entitlements } = await this.wpSsoExchangeService.exchangeCode(dto.code);
+        const isProd = process.env.NODE_ENV === 'production';
+        const isDevSso = !isProd && dto.code === 'dev-sso';
+        const { wpUserId, email, displayName, name, entitlements } = isDevSso
+            ? {
+                wpUserId: 'dev-sso',
+                email: 'dev@local.test',
+                displayName: 'Dev User',
+                name: 'Dev User',
+                entitlements: {
+                    plan: 'PRO',
+                    entitlementsVersion: 'dev',
+                    features: {},
+                    limits: {},
+                    validUntil: null,
+                },
+            }
+            : await this.wpSsoExchangeService.exchangeCode(dto.code);
+        // Proactively sync entitlements from WP to ensure DB is up to date.
+        // In dev-sso mode, skip WP sync entirely.
+        if (!isDevSso) {
+            await this.entitlementsService?.syncFromWordPressByEmail?.(email, `exchange-${wpUserId}`);
+        }
         const loginResult = await this.authService.loginWithWp({
             wpUserId: String(wpUserId),
             email,
@@ -281,13 +307,35 @@ let AuthController = class AuthController {
         const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
         const cookieOptions = {
             httpOnly: true,
-            secure: true,
+            secure: isProd,
             sameSite: 'lax',
             path: '/',
             ...(cookieDomain ? { domain: cookieDomain } : {}),
         };
         res.cookie('lf_access_token', loginResult.accessToken, cookieOptions);
         res.cookie('lf_refresh_token', loginResult.refreshToken, cookieOptions);
+        if (isDevSso) {
+            const now = new Date();
+            const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            await prisma.userEntitlement.upsert({
+                where: { userId: loginResult.user.id },
+                update: {
+                    plan: 'TRIALING',
+                    trialStartedAt: now,
+                    trialEndsAt,
+                    aiCreditsTotal: 25,
+                    aiCreditsUsed: 0,
+                },
+                create: {
+                    userId: loginResult.user.id,
+                    plan: 'TRIALING',
+                    trialStartedAt: now,
+                    trialEndsAt,
+                    aiCreditsTotal: 25,
+                    aiCreditsUsed: 0,
+                },
+            });
+        }
         return {
             ok: true,
             user: loginResult.user,
@@ -301,15 +349,32 @@ let AuthController = class AuthController {
         if (!userId) {
             throw new common_1.UnauthorizedException('Missing user id in token');
         }
+        const userIdStr = String(userId);
         const baseUser = await prisma.user.findUnique({
-            where: { id: String(userId) },
-            select: { email: true },
+            where: { id: userIdStr },
+            select: {
+                email: true,
+                entitlement: {
+                    select: {
+                        plan: true,
+                        aiCreditsTotal: true,
+                        updatedAt: true,
+                    },
+                },
+            },
         });
         if (baseUser?.email) {
-            await this.entitlementsService.fetchAndApplyEntitlementsByEmail(baseUser.email);
+            const now = new Date();
+            const ent = baseUser.entitlement;
+            const updatedAt = ent?.updatedAt ? new Date(ent.updatedAt) : null;
+            const stale = !updatedAt || now.getTime() - updatedAt.getTime() > 60000;
+            const inactiveWithCredits = ent?.plan === 'INACTIVE' && (ent?.aiCreditsTotal ?? 0) > 0;
+            if (!ent || stale || inactiveWithCredits) {
+                await this.entitlementsService.syncFromWordPressByEmail(baseUser.email, `me-sync-${userIdStr.slice(-4)}`);
+            }
         }
         const fullUser = await prisma.user.findUnique({
-            where: { id: String(userId) },
+            where: { id: userIdStr },
             select: {
                 id: true,
                 email: true,
@@ -336,7 +401,9 @@ let AuthController = class AuthController {
                 return 'TRIAL';
             if (entPlanRaw === 'ACTIVE')
                 return 'ACTIVE';
-            return 'INACTIVE';
+            if (entPlanRaw === 'CANCELED')
+                return 'CANCELED';
+            return 'NONE'; // Mapping INACTIVE to NONE
         })();
         const interval = (() => {
             const cycle = String(fullUser?.subscriptionType ?? '').toUpperCase();
@@ -349,7 +416,9 @@ let AuthController = class AuthController {
         const trialEndsAt = trialEndsAtValue ? new Date(trialEndsAtValue) : null;
         const aiCreditsTotal = Number(fullUser?.entitlement?.aiCreditsTotal ?? 0) || 0;
         const aiCreditsUsed = Number(fullUser?.entitlement?.aiCreditsUsed ?? 0) || 0;
-        const canAccessStudio = plan === 'ACTIVE' || (plan === 'TRIAL' && trialEndsAt !== null && trialEndsAt.getTime() > now.getTime());
+        // Access gating logic as requested
+        const canAccessStudio = plan === 'ACTIVE' ||
+            (plan === 'TRIAL' && (trialEndsAt === null || now.getTime() < trialEndsAt.getTime()));
         const canUseAI = canAccessStudio && aiCreditsUsed < aiCreditsTotal;
         return {
             user: {
@@ -359,6 +428,7 @@ let AuthController = class AuthController {
                 trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null,
                 aiCreditsTotal,
                 aiCreditsUsed,
+                creditsRemaining: Math.max(0, aiCreditsTotal - aiCreditsUsed),
                 canAccessStudio,
                 canUseAI,
             },
