@@ -5,6 +5,8 @@ import { useEffect } from 'react';
 type AnyErrorPayload = {
   message?: string;
   stack?: string;
+  args?: string;
+  captureStack?: string;
   source?: string;
   line?: number;
   column?: number;
@@ -73,6 +75,30 @@ export function GlobalErrorLogger() {
         const errArg = args.find((a) => a instanceof Error) as Error | undefined;
         const msg = typeof first === 'string' ? first : errArg?.message;
 
+        const argsSummary = (() => {
+          try {
+            return args
+              .slice(0, 5)
+              .map((a) => {
+                if (typeof a === 'string') return a;
+                if (a instanceof Error) return `${a.name}: ${a.message}`;
+                return JSON.stringify(a);
+              })
+              .join(' | ')
+              .slice(0, 1000);
+          } catch {
+            return undefined;
+          }
+        })();
+
+        const captureStack = (() => {
+          try {
+            return new Error('console.error capture').stack?.slice(0, 1500);
+          } catch {
+            return undefined;
+          }
+        })();
+
         const looksLikeReact310 =
           typeof msg === 'string' &&
           (msg.includes('Minified React error #310') || msg.includes('react.dev/errors/310') || msg.includes('#310'));
@@ -82,6 +108,8 @@ export function GlobalErrorLogger() {
             type: 'error',
             message: msg ?? String(first ?? 'console.error'),
             stack: errArg?.stack,
+            args: argsSummary,
+            captureStack,
             url: typeof window !== 'undefined' ? window.location.href : undefined,
             timestamp: new Date().toISOString(),
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
