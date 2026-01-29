@@ -7,6 +7,9 @@ build
 .next
 .expo
 
+# monorepo build artifacts (avoid tracking compiled backend output)
+apps/api/dist
+
 # turbo cache
 .turbo
 
