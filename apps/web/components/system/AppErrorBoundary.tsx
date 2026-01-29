@@ -33,15 +33,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ errorInfo });
 
-    // Log error in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('AppErrorBoundary caught error:', error, errorInfo);
-    }
-
-    // Production telemetry stub - can be connected to error tracking service
-    if (process.env.NODE_ENV === 'production') {
-      this.logErrorTelemetry(error, errorInfo);
-    }
+    this.logErrorTelemetry(error, errorInfo);
   }
 
   logErrorTelemetry(error: Error, errorInfo: ErrorInfo): void {
@@ -56,8 +48,12 @@ export class AppErrorBoundary extends Component<Props, State> {
         timestamp: new Date().toISOString(),
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       };
-      
-      // Log to console in production for now
+
+      if (typeof window !== 'undefined') {
+        (window as any).__LF_LAST_ERROR__ = payload;
+      }
+
+      // Always log so it's visible even when env detection / filtering differs
       console.error('[Error Telemetry]', payload);
       
       // Future: send to error tracking endpoint
