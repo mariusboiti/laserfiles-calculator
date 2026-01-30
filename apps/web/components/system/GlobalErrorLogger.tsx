@@ -30,6 +30,10 @@ function storePayload(payload: AnyErrorPayload) {
     }
 
     (window as any).__LF_LAST_ERROR__ = merged;
+
+    const history = ((window as any).__LF_ERROR_HISTORY__ as AnyErrorPayload[] | undefined) ?? [];
+    history.push(merged);
+    (window as any).__LF_ERROR_HISTORY__ = history.slice(-50);
   } catch {
     // ignore
   }
