@@ -6,6 +6,7 @@ type AnyErrorPayload = {
   message?: string;
   stack?: string;
   args?: string;
+  argsDetails?: string;
   captureStack?: string;
   componentStack?: string;
   source?: string;
@@ -90,6 +91,43 @@ export function GlobalErrorLogger() {
         const errArg = args.find((a) => a instanceof Error) as Error | undefined;
         const msg = typeof first === 'string' ? first : errArg?.message;
 
+        const argsDetails = (() => {
+          try {
+            const pick = args.slice(0, 5).map((a) => {
+              if (a instanceof Error) {
+                const anyErr = a as any;
+                return {
+                  type: 'Error',
+                  name: a.name,
+                  message: a.message,
+                  digest: typeof anyErr?.digest === 'string' ? anyErr.digest : undefined,
+                  stack: typeof a.stack === 'string' ? a.stack.slice(0, 1200) : undefined,
+                };
+              }
+
+              if (typeof a === 'string') {
+                return { type: 'string', value: a.slice(0, 1200) };
+              }
+
+              if (a && typeof a === 'object') {
+                const anyObj = a as any;
+                return {
+                  type: 'object',
+                  keys: Object.keys(anyObj).slice(0, 20),
+                  digest: typeof anyObj?.digest === 'string' ? anyObj.digest : undefined,
+                  message: typeof anyObj?.message === 'string' ? anyObj.message.slice(0, 500) : undefined,
+                };
+              }
+
+              return { type: typeof a, value: String(a).slice(0, 500) };
+            });
+
+            return JSON.stringify(pick).slice(0, 2000);
+          } catch {
+            return undefined;
+          }
+        })();
+
         const componentStack = (() => {
           try {
             const stringArgs = args.filter((a) => typeof a === 'string') as string[];
@@ -147,6 +185,7 @@ export function GlobalErrorLogger() {
             message: msg ?? String(first ?? 'console.error'),
             stack: errArg?.stack,
             args: argsSummary,
+            argsDetails,
             captureStack,
             componentStack,
             url: typeof window !== 'undefined' ? window.location.href : undefined,
