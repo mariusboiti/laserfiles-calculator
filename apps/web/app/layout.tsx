@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 import { AnalyticsProvider } from '@/lib/analytics/useAnalyticsShortcut';
 import { GlobalErrorLogger } from '@/components/system/GlobalErrorLogger';
+import AppErrorBoundary from '@/components/system/AppErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'Laser Workshop Admin',
@@ -13,7 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-slate-950 text-slate-50 antialiased">
-        {children}
+        <AppErrorBoundary level="app">{children}</AppErrorBoundary>
         <GlobalErrorLogger />
         <AnalyticsProvider />
       </body>
