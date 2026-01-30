@@ -19,7 +19,17 @@ type AnyErrorPayload = {
 
 function storePayload(payload: AnyErrorPayload) {
   try {
-    (window as any).__LF_LAST_ERROR__ = payload;
+    const prev = (window as any).__LF_LAST_ERROR__ as AnyErrorPayload | undefined;
+    const merged: AnyErrorPayload = {
+      ...(prev ?? {}),
+      ...payload,
+    };
+
+    if (prev?.componentStack && !payload.componentStack) {
+      merged.componentStack = prev.componentStack;
+    }
+
+    (window as any).__LF_LAST_ERROR__ = merged;
   } catch {
     // ignore
   }
