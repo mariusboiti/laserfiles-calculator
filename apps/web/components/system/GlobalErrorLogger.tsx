@@ -7,6 +7,7 @@ type AnyErrorPayload = {
   stack?: string;
   args?: string;
   captureStack?: string;
+  componentStack?: string;
   source?: string;
   line?: number;
   column?: number;
@@ -75,6 +76,29 @@ export function GlobalErrorLogger() {
         const errArg = args.find((a) => a instanceof Error) as Error | undefined;
         const msg = typeof first === 'string' ? first : errArg?.message;
 
+        const componentStack = (() => {
+          try {
+            const stringArgs = args.filter((a) => typeof a === 'string') as string[];
+            const stackLike = stringArgs.find(
+              (s) => s.includes('\n    at ') || s.includes('The above error occurred in the')
+            );
+
+            if (stackLike) return stackLike.slice(0, 2000);
+
+            const objectWithComponentStack = args.find(
+              (a) => a && typeof a === 'object' && typeof (a as any).componentStack === 'string'
+            ) as { componentStack?: string } | undefined;
+
+            if (objectWithComponentStack?.componentStack) {
+              return objectWithComponentStack.componentStack.slice(0, 2000);
+            }
+
+            return undefined;
+          } catch {
+            return undefined;
+          }
+        })();
+
         const argsSummary = (() => {
           try {
             return args
@@ -110,6 +134,7 @@ export function GlobalErrorLogger() {
             stack: errArg?.stack,
             args: argsSummary,
             captureStack,
+            componentStack,
             url: typeof window !== 'undefined' ? window.location.href : undefined,
             timestamp: new Date().toISOString(),
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
