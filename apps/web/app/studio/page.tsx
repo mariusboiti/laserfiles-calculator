@@ -1,5 +1,14 @@
-import { redirect } from 'next/navigation';
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function StudioPage() {
-  redirect('/studio/dashboard');
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/studio/dashboard');
+  }, [router]);
+
+  return null;
 }
