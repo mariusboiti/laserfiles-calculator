@@ -22,6 +22,7 @@ import { BillingModule } from './billing/billing.module';
 import { EmailModule } from './email/email.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { AdminInvitesModule } from './admin-invites/admin-invites.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { AdminInvitesModule } from './admin-invites/admin-invites.module';
     EmailModule,
     FeedbackModule,
     AdminInvitesModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

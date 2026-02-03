@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   ADMIN
   WORKER
+  SUPPORT
 }
 
 enum UserPlan {
@@ -204,6 +205,8 @@ model User {
   identityLinks       UserIdentityLink[]
   usageEvents         UsageEvent[]
   entitlement         UserEntitlement?
+  adminAuditLogs      AdminAuditLog[]   @relation("AdminAuditLogs")
+  adminAuditTargets   AdminAuditLog[]   @relation("AdminAuditTargets")
 }
 
 // Identity provider types for SSO linking
@@ -1035,4 +1038,34 @@ model FeedbackAttachment {
   createdAt DateTime @default(now())
 
   @@index([ticketId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Backend Audit Log
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AdminAuditAction {
+  ADD_CREDITS
+  FORCE_SYNC_WP
+  UPDATE_USER
+  DELETE_USER
+}
+
+model AdminAuditLog {
+  id            String           @id @default(uuid())
+  adminUserId   String
+  adminUser     User             @relation("AdminAuditLogs", fields: [adminUserId], references: [id])
+  targetUserId  String?
+  targetUser    User?            @relation("AdminAuditTargets", fields: [targetUserId], references: [id])
+  action        AdminAuditAction
+  reason        String?
+  deltaCredits  Int?
+  payload       Json?
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime         @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([action])
 }
