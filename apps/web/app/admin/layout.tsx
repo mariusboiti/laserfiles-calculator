@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Shield, Users, LayoutDashboard, ChevronLeft } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -13,16 +14,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     async function checkAdmin() {
       try {
-        const res = await fetch('/api/me', { credentials: 'include' });
-        if (!res.ok) {
+        const res = await apiClient.get('/auth/me', { withCredentials: true });
+        const user = res.data?.user;
+
+        if (!user) {
           router.push('/studio');
           return;
         }
-        const data = await res.json();
-        if (data.user?.role !== 'ADMIN') {
+
+        if (user.role !== 'ADMIN') {
           router.push('/studio');
           return;
         }
+
         setIsAdmin(true);
       } catch {
         router.push('/studio');
