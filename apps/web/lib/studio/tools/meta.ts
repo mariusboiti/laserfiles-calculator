@@ -8,6 +8,9 @@ export type StudioToolMeta = {
   status: StudioToolStatus;
   usesAI?: boolean;
   isFree?: boolean;
+  isSemiFree?: boolean;
+  freeFeatures?: string[];
+  blockedFeatures?: string[];
 };
 
 export const studioToolMetas: StudioToolMeta[] = [
@@ -16,6 +19,7 @@ export const studioToolMetas: StudioToolMeta[] = [
     titleKey: 'tools.engraveprep.title',
     descriptionKey: 'tools.engraveprep.description',
     proFeatures: ['batch export', 'advanced dithering presets'],
+    isFree: true,
   },
   {
     slug: 'boxmaker',
@@ -117,6 +121,9 @@ export const studioToolMetas: StudioToolMeta[] = [
     titleKey: 'tools.price-calculator.title',
     descriptionKey: 'tools.price-calculator.description',
     proFeatures: ['Material Database', 'Time Estimates', 'Profit Margins', 'Order Management', 'Customer Database'],
+    isSemiFree: true,
+    freeFeatures: ['Basic pricing', 'Single material', 'Manual time entry'],
+    blockedFeatures: ['Order Management', 'Customer Database', 'Batch quotes', 'Export reports'],
   },
 ].map((t) => ({
   ...t,

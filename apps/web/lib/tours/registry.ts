@@ -11,6 +11,7 @@ import { engraveprepTour } from './configs/engraveprep';
 import { personalisedSignGeneratorTour } from './configs/personalised-sign-generator';
 import { jigsawMakerTour } from './configs/jigsaw-maker';
 import { aiDepthPhotoTour } from './configs/ai-depth-photo';
+import { nestingTour } from './configs/nesting';
 
 const tourRegistry: Record<string, TourConfig> = {
   'boxmaker': boxmakerTour,
@@ -23,6 +24,7 @@ const tourRegistry: Record<string, TourConfig> = {
   'puzzle-maker': jigsawMakerTour,
   'ai-depth-photo': aiDepthPhotoTour,
   'ai-depth-engraving': aiDepthPhotoTour,
+  'nesting': nestingTour,
 };
 
 /**

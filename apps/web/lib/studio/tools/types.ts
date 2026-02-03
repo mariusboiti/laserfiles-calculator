@@ -10,5 +10,9 @@ export type StudioTool = {
   proFeatures?: string[];
   status: StudioToolStatus;
   usesAI?: boolean;
+  isFree?: boolean;
+  isSemiFree?: boolean;
+  freeFeatures?: string[];
+  blockedFeatures?: string[];
   Component: ComponentType<any>;
 };

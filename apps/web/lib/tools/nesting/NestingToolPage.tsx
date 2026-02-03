@@ -518,8 +518,8 @@ export function NestingToolPage() {
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="space-y-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3">
+        <div className="space-y-4" data-tour="settings">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3" data-tour="upload">
             <h3 className="text-sm font-semibold text-slate-100">Input SVG</h3>
             <input
               type="file"
@@ -535,7 +535,7 @@ export function NestingToolPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3" data-tour="algorithm-settings">
             <h3 className="text-sm font-semibold text-slate-100">Algorithm</h3>
             <div className="flex flex-col gap-2 text-xs text-slate-300">
               <label className="inline-flex items-center gap-2">
@@ -684,7 +684,7 @@ export function NestingToolPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3" data-tour="sheet-settings">
             <h3 className="text-sm font-semibold text-slate-100">Sheet settings</h3>
             <div className="grid grid-cols-2 gap-3">
               <label className="text-xs text-slate-300 space-y-1">
@@ -742,7 +742,7 @@ export function NestingToolPage() {
               <span>Allow rotations (0°, 90°, 180°, 270°)</span>
             </label>
 
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 pt-2" data-tour="export">
               <button
                 type="button"
                 onClick={handleRunNesting}
@@ -931,7 +931,7 @@ export function NestingToolPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+        <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4" data-tour="canvas">
           <h3 className="mb-2 text-sm font-semibold text-slate-100">Preview</h3>
           {!currentSheet && (
             <p className="text-xs text-slate-400">

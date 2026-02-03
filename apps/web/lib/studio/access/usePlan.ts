@@ -28,6 +28,15 @@ export function usePlan() {
       if (toolSlug) {
         const toolMeta = getStudioToolMetaBySlug(toolSlug);
         if (toolMeta?.isFree) return true;
+        
+        // Semi-free tools allow basic features but block specific ones
+        if (toolMeta?.isSemiFree) {
+          // Check if feature is in blocked list
+          if (toolMeta.blockedFeatures?.includes(feature)) return false;
+          // Allow export for semi-free tools (basic export)
+          if (feature === 'export') return true;
+          return true;
+        }
       }
       
       return false;

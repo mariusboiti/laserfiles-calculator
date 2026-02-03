@@ -10,3 +10,4 @@ export { engraveprepTour } from './engraveprep';
 export { personalisedSignGeneratorTour } from './personalised-sign-generator';
 export { jigsawMakerTour } from './jigsaw-maker';
 export { aiDepthPhotoTour } from './ai-depth-photo';
+export { nestingTour } from './nesting';

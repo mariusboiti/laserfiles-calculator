@@ -1,0 +1,61 @@
+import type { TourConfig } from '../types';
+
+export const nestingTour: TourConfig = {
+  toolSlug: 'nesting',
+  steps: [
+    {
+      id: 'intro',
+      target: 'settings',
+      titleKey: 'tour.nesting.intro.title',
+      bodyKey: 'tour.nesting.intro.body',
+      titleFallback: 'Welcome to Nesting Tool',
+      bodyFallback: 'Optimize part placement on sheets to minimize material waste. Upload SVG parts and let the algorithm find the best arrangement.',
+      placement: 'right',
+    },
+    {
+      id: 'upload',
+      target: 'upload',
+      titleKey: 'tour.nesting.upload.title',
+      bodyKey: 'tour.nesting.upload.body',
+      titleFallback: 'Upload Your Parts',
+      bodyFallback: 'Upload an SVG file containing the parts you want to nest. Each closed shape will be detected as a separate part.',
+      placement: 'right',
+    },
+    {
+      id: 'sheet',
+      target: 'sheet-settings',
+      titleKey: 'tour.nesting.sheet.title',
+      bodyKey: 'tour.nesting.sheet.body',
+      titleFallback: 'Configure Sheet Size',
+      bodyFallback: 'Set your material sheet dimensions. The algorithm will fit as many parts as possible within these bounds.',
+      placement: 'right',
+    },
+    {
+      id: 'algorithm',
+      target: 'algorithm-settings',
+      titleKey: 'tour.nesting.algorithm.title',
+      bodyKey: 'tour.nesting.algorithm.body',
+      titleFallback: 'Choose Nesting Algorithm',
+      bodyFallback: 'Select between basic shelf nesting (fast) or shape-aware nesting (better fit). Enable rotation and mirroring for optimal results.',
+      placement: 'right',
+    },
+    {
+      id: 'canvas',
+      target: 'canvas',
+      titleKey: 'tour.nesting.canvas.title',
+      bodyKey: 'tour.nesting.canvas.body',
+      titleFallback: 'Preview Layout',
+      bodyFallback: 'See how your parts are arranged on the sheet. The preview shows the optimized placement with efficiency percentage.',
+      placement: 'left',
+    },
+    {
+      id: 'export',
+      target: 'export',
+      titleKey: 'tour.nesting.export.title',
+      bodyKey: 'tour.nesting.export.body',
+      titleFallback: 'Export Layout',
+      bodyFallback: 'Download the nested layout as an SVG file ready for laser cutting. All parts are positioned for minimal waste.',
+      placement: 'bottom',
+    },
+  ],
+};

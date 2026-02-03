@@ -2256,6 +2256,21 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.jigsaw-maker.description': 'Turn any image into a laser-cuttable jigsaw puzzle.',
     'tools.nesting.title': 'Nesting Tool',
     'tools.nesting.description': 'Optimize part placement on sheets to minimize material waste.',
+
+    // Nesting Tool Tour - English
+    'tour.nesting.intro.title': 'Welcome to Nesting Tool',
+    'tour.nesting.intro.body': 'Optimize part placement on sheets to minimize material waste. Upload SVG parts and let the algorithm find the best arrangement.',
+    'tour.nesting.upload.title': 'Upload Your Parts',
+    'tour.nesting.upload.body': 'Upload an SVG file containing the parts you want to nest. Each closed shape will be detected as a separate part.',
+    'tour.nesting.sheet.title': 'Configure Sheet Size',
+    'tour.nesting.sheet.body': 'Set your material sheet dimensions. The algorithm will fit as many parts as possible within these bounds.',
+    'tour.nesting.algorithm.title': 'Choose Nesting Algorithm',
+    'tour.nesting.algorithm.body': 'Select between basic shelf nesting (fast) or shape-aware nesting (better fit). Enable rotation and mirroring for optimal results.',
+    'tour.nesting.canvas.title': 'Preview Layout',
+    'tour.nesting.canvas.body': 'See how your parts are arranged on the sheet. The preview shows the optimized placement with efficiency percentage.',
+    'tour.nesting.export.title': 'Export Layout',
+    'tour.nesting.export.body': 'Download the nested layout as an SVG file ready for laser cutting. All parts are positioned for minimal waste.',
+
     'tools.price-calculator.title': 'Price Calculator',
     'tools.price-calculator.description': 'Calculate job pricing with material costs, time, and profit margins.',
 
@@ -3765,6 +3780,21 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.jigsaw-maker.description': 'Transformă orice imagine într-un puzzle tăiabil cu laser.',
     'tools.nesting.title': 'Nesting',
     'tools.nesting.description': 'Optimizează plasarea pieselor pe foi pentru a minimiza risipa de material.',
+
+    // Nesting Tool Tour - Romanian
+    'tour.nesting.intro.title': 'Bine ai venit la Nesting',
+    'tour.nesting.intro.body': 'Optimizează plasarea pieselor pe foi pentru a minimiza risipa de material. Încarcă piese SVG și lasă algoritmul să găsească cea mai bună aranjare.',
+    'tour.nesting.upload.title': 'Încarcă Piesele',
+    'tour.nesting.upload.body': 'Încarcă un fișier SVG cu piesele pe care vrei să le aranjezi. Fiecare formă închisă va fi detectată ca o piesă separată.',
+    'tour.nesting.sheet.title': 'Configurează Dimensiunea Foii',
+    'tour.nesting.sheet.body': 'Setează dimensiunile foii de material. Algoritmul va încerca să încadreze cât mai multe piese în aceste limite.',
+    'tour.nesting.algorithm.title': 'Alege Algoritmul de Nesting',
+    'tour.nesting.algorithm.body': 'Selectează între nesting de bază (rapid) sau nesting cu conștientizare de formă (potrivire mai bună). Activează rotația și oglindirea pentru rezultate optime.',
+    'tour.nesting.canvas.title': 'Previzualizare Layout',
+    'tour.nesting.canvas.body': 'Vezi cum sunt aranjate piesele pe foaie. Previzualizarea arată plasarea optimizată cu procentul de eficiență.',
+    'tour.nesting.export.title': 'Exportă Layout-ul',
+    'tour.nesting.export.body': 'Descarcă layout-ul aranjat ca fișier SVG gata pentru tăiere laser. Toate piesele sunt poziționate pentru risipă minimă.',
+
     'tools.inlay-offset-calculator.title': 'Calculator Incrustări',
     'tools.inlay-offset-calculator.description': 'Calculează offset-uri precise pentru incrustări și buzunare cu potrivire perfectă.',
 
@@ -7151,6 +7181,23 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'ai_depth_photo.photo.bottom_notch.helper': 'Añadir una muesca semicircular en el borde inferior',
     'tools.jigsaw-maker.title': 'Creador de Rompecabezas',
     'tools.jigsaw-maker.description': 'Convierte cualquier imagen en un rompecabezas cortable con láser.',
+    'tools.nesting.title': 'Herramienta de Anidado',
+    'tools.nesting.description': 'Optimiza la colocación de piezas en hojas para minimizar el desperdicio de material.',
+
+    // Nesting Tool Tour - Spanish
+    'tour.nesting.intro.title': 'Bienvenido a la Herramienta de Anidado',
+    'tour.nesting.intro.body': 'Optimiza la colocación de piezas en hojas para minimizar el desperdicio de material. Sube piezas SVG y deja que el algoritmo encuentre la mejor disposición.',
+    'tour.nesting.upload.title': 'Sube tus Piezas',
+    'tour.nesting.upload.body': 'Sube un archivo SVG con las piezas que quieres anidar. Cada forma cerrada será detectada como una pieza separada.',
+    'tour.nesting.sheet.title': 'Configura el Tamaño de la Hoja',
+    'tour.nesting.sheet.body': 'Establece las dimensiones de tu hoja de material. El algoritmo ajustará tantas piezas como sea posible dentro de estos límites.',
+    'tour.nesting.algorithm.title': 'Elige el Algoritmo de Anidado',
+    'tour.nesting.algorithm.body': 'Selecciona entre anidado básico (rápido) o anidado con reconocimiento de forma (mejor ajuste). Habilita rotación y espejo para resultados óptimos.',
+    'tour.nesting.canvas.title': 'Vista Previa del Diseño',
+    'tour.nesting.canvas.body': 'Mira cómo se organizan tus piezas en la hoja. La vista previa muestra la colocación optimizada con el porcentaje de eficiencia.',
+    'tour.nesting.export.title': 'Exportar Diseño',
+    'tour.nesting.export.body': 'Descarga el diseño anidado como archivo SVG listo para corte láser. Todas las piezas están posicionadas para mínimo desperdicio.',
+
     'tools.price-calculator.title': 'Calculadora de Precios',
     'tools.price-calculator.description': 'Calcula precios con costos de material, tiempo y márgenes de ganancia.',
     'tools.engraveprep.title': 'EngravePrep',
@@ -11153,6 +11200,23 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tour.jigsaw-maker.export.title': 'Exporter le Puzzle',
     'tour.jigsaw-maker.export.body': 'Téléchargez des fichiers séparés pour la découpe (pièces) et la gravure (image). Inclut une option de cadre pour le puzzle fini.',
 
+    'tools.nesting.title': 'Outil de Nesting',
+    'tools.nesting.description': 'Optimisez le placement des pièces sur les feuilles pour minimiser les déchets de matériau.',
+
+    // Nesting Tool Tour - French
+    'tour.nesting.intro.title': 'Bienvenue dans l\'Outil de Nesting',
+    'tour.nesting.intro.body': 'Optimisez le placement des pièces sur les feuilles pour minimiser les déchets de matériau. Téléchargez des pièces SVG et laissez l\'algorithme trouver le meilleur arrangement.',
+    'tour.nesting.upload.title': 'Téléchargez vos Pièces',
+    'tour.nesting.upload.body': 'Téléchargez un fichier SVG contenant les pièces que vous souhaitez imbriquer. Chaque forme fermée sera détectée comme une pièce séparée.',
+    'tour.nesting.sheet.title': 'Configurez la Taille de la Feuille',
+    'tour.nesting.sheet.body': 'Définissez les dimensions de votre feuille de matériau. L\'algorithme ajustera autant de pièces que possible dans ces limites.',
+    'tour.nesting.algorithm.title': 'Choisissez l\'Algorithme de Nesting',
+    'tour.nesting.algorithm.body': 'Sélectionnez entre le nesting de base (rapide) ou le nesting avec reconnaissance de forme (meilleur ajustement). Activez la rotation et le miroir pour des résultats optimaux.',
+    'tour.nesting.canvas.title': 'Aperçu du Layout',
+    'tour.nesting.canvas.body': 'Voyez comment vos pièces sont disposées sur la feuille. L\'aperçu montre le placement optimisé avec le pourcentage d\'efficacité.',
+    'tour.nesting.export.title': 'Exporter le Layout',
+    'tour.nesting.export.body': 'Téléchargez le layout imbriqué en fichier SVG prêt pour la découpe laser. Toutes les pièces sont positionnées pour un minimum de déchets.',
+
     // Jigsaw Puzzle Maker UI - French
     'jigsaw.quick_presets.title': 'Préréglages rapides',
     'tools.jigsaw-maker.title': 'Créateur de puzzle',
@@ -12023,6 +12087,23 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.ai-depth-photo.description': 'Generieren Sie Höhenkarten aus Fotos für Lasergravur mit 3D-Effekt.',
     'tools.jigsaw-maker.title': 'Puzzle-Ersteller',
     'tools.jigsaw-maker.description': 'Verwandeln Sie jedes Bild in ein laserschneidbares Puzzle.',
+    'tools.nesting.title': 'Nesting-Werkzeug',
+    'tools.nesting.description': 'Optimieren Sie die Platzierung von Teilen auf Platten, um Materialverschwendung zu minimieren.',
+
+    // Nesting Tool Tour - German
+    'tour.nesting.intro.title': 'Willkommen beim Nesting-Werkzeug',
+    'tour.nesting.intro.body': 'Optimieren Sie die Platzierung von Teilen auf Platten, um Materialverschwendung zu minimieren. Laden Sie SVG-Teile hoch und lassen Sie den Algorithmus die beste Anordnung finden.',
+    'tour.nesting.upload.title': 'Laden Sie Ihre Teile hoch',
+    'tour.nesting.upload.body': 'Laden Sie eine SVG-Datei mit den Teilen hoch, die Sie verschachteln möchten. Jede geschlossene Form wird als separates Teil erkannt.',
+    'tour.nesting.sheet.title': 'Blattgröße konfigurieren',
+    'tour.nesting.sheet.body': 'Legen Sie die Abmessungen Ihres Materialblatts fest. Der Algorithmus wird so viele Teile wie möglich innerhalb dieser Grenzen einpassen.',
+    'tour.nesting.algorithm.title': 'Nesting-Algorithmus wählen',
+    'tour.nesting.algorithm.body': 'Wählen Sie zwischen einfachem Nesting (schnell) oder formbewusstem Nesting (bessere Passform). Aktivieren Sie Rotation und Spiegelung für optimale Ergebnisse.',
+    'tour.nesting.canvas.title': 'Layout-Vorschau',
+    'tour.nesting.canvas.body': 'Sehen Sie, wie Ihre Teile auf dem Blatt angeordnet sind. Die Vorschau zeigt die optimierte Platzierung mit dem Effizienzprozentsatz.',
+    'tour.nesting.export.title': 'Layout exportieren',
+    'tour.nesting.export.body': 'Laden Sie das verschachtelte Layout als SVG-Datei herunter, bereit zum Laserschneiden. Alle Teile sind für minimalen Abfall positioniert.',
+
     'tools.price-calculator.title': 'Preisrechner',
     'tools.price-calculator.description': 'Berechnen Sie Preise mit Materialkosten, Zeit und Gewinnmargen.',
     'engraveprep.ui.app_title': 'EngravePrep',

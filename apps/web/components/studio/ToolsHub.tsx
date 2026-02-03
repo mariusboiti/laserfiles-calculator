@@ -192,6 +192,16 @@ function ToolCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold text-slate-100">{t(tool.titleKey)}</h3>
+            {tool.isFree && (
+              <span className="inline-flex items-center rounded-full bg-emerald-900/40 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                FREE
+              </span>
+            )}
+            {tool.isSemiFree && !tool.isFree && (
+              <span className="inline-flex items-center rounded-full bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                FREE TRIAL
+              </span>
+            )}
             {tool.usesAI && (
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-900/40 px-2 py-0.5 text-[10px] font-medium text-violet-300">
                 <Sparkles className="h-3 w-3" />
