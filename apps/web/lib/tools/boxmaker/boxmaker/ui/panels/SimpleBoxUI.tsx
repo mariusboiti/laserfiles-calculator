@@ -93,7 +93,7 @@ function faceToSvg(face: GeneratedFace): string {
   const oy = face.offset?.y ?? 0;
 
   const parts: string[] = [];
-  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">`);
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}">`);
   parts.push(`<g transform="translate(${ox} ${oy})">`);
   for (const p of face.paths) {
     const stroke = p.op === 'cut' ? '#ff0000' : p.op === 'score' ? '#0000ff' : 'none';
@@ -283,6 +283,16 @@ export function SimpleBoxUI({
     const map = new Map<string, string>();
     for (const f of faces) {
       const base = prepareSvgForPreview(faceToSvg(f));
+      const items = engraveItems.filter((it) => it.id.startsWith(`${f.name}:`));
+      map.set(f.name, mergeSvgWithOverlays(base, items));
+    }
+    return map;
+  }, [engraveItems, faces]);
+
+  const faceSvgsForExport = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const f of faces) {
+      const base = faceToSvg(f);
       const items = engraveItems.filter((it) => it.id.startsWith(`${f.name}:`));
       map.set(f.name, mergeSvgWithOverlays(base, items));
     }
@@ -569,7 +579,7 @@ export function SimpleBoxUI({
 
   function exportAllPanels() {
     for (const k of faceKeys) {
-      const svg = faceSvgs.get(k);
+      const svg = faceSvgsForExport.get(k);
       if (!svg) continue;
       exportSingleSvg(`boxmaker_simple_${k}.svg`, svg);
     }
@@ -577,7 +587,7 @@ export function SimpleBoxUI({
 
   async function exportAllZip() {
     const panels = faceKeys
-      .map((k) => ({ name: k, svg: faceSvgs.get(k) ?? '' }))
+      .map((k) => ({ name: k, svg: faceSvgsForExport.get(k) ?? '' }))
       .filter((p) => Boolean(p.svg));
     await exportSimpleBoxZip(panels, input.widthMm, input.depthMm, input.heightMm, input.thicknessMm, input.kerfMm);
   }
