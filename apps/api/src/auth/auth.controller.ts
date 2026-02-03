@@ -359,26 +359,24 @@ export class AuthController {
     res.cookie('lf_refresh_token', loginResult.refreshToken, cookieOptions);
 
     if (isDevSso) {
-      const now = new Date();
-      const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      await prisma.userEntitlement.upsert({
+      // Only create entitlement if it doesn't exist - don't overwrite existing plans
+      const existingEntitlement = await prisma.userEntitlement.findUnique({
         where: { userId: loginResult.user.id },
-        update: {
-          plan: 'TRIALING',
-          trialStartedAt: now,
-          trialEndsAt,
-          aiCreditsTotal: 15,
-          aiCreditsUsed: 0,
-        },
-        create: {
-          userId: loginResult.user.id,
-          plan: 'TRIALING',
-          trialStartedAt: now,
-          trialEndsAt,
-          aiCreditsTotal: 15,
-          aiCreditsUsed: 0,
-        },
       });
+      if (!existingEntitlement) {
+        const now = new Date();
+        const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await prisma.userEntitlement.create({
+          data: {
+            userId: loginResult.user.id,
+            plan: 'TRIALING',
+            trialStartedAt: now,
+            trialEndsAt,
+            aiCreditsTotal: 15,
+            aiCreditsUsed: 0,
+          },
+        });
+      }
     }
 
     return {
