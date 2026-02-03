@@ -233,7 +233,7 @@ function ToolShellInner({
   }
 
   function ensureCanExport() {
-    if (canUse('export')) return true;
+    if (canUse('export', effectiveToolSlug)) return true;
     requestPro('export');
     return false;
   }

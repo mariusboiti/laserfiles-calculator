@@ -7,6 +7,7 @@ export type StudioToolMeta = {
   proFeatures?: string[];
   status: StudioToolStatus;
   usesAI?: boolean;
+  isFree?: boolean;
 };
 
 export const studioToolMetas: StudioToolMeta[] = [
@@ -28,6 +29,7 @@ export const studioToolMetas: StudioToolMeta[] = [
     titleKey: 'tools.panel-splitter.title',
     descriptionKey: 'tools.panel-splitter.description',
     proFeatures: ['unlimited tiles', 'zip export presets'],
+    isFree: true,
   },
   {
     slug: 'bulk-name-tags',
@@ -41,6 +43,7 @@ export const studioToolMetas: StudioToolMeta[] = [
     titleKey: 'tools.product-label-generator.title',
     descriptionKey: 'tools.product-label-generator.description',
     proFeatures: ['Batch labels', 'CSV import', 'Custom layouts'],
+    isFree: true,
   },
   {
     slug: 'round-coaster-generator',
@@ -66,6 +69,7 @@ export const studioToolMetas: StudioToolMeta[] = [
     titleKey: 'tools.jig-fixture-generator.title',
     descriptionKey: 'tools.jig-fixture-generator.description',
     proFeatures: ['Multiple object types', 'Mixed layouts', 'Auto nesting'],
+    isFree: true,
   },
   {
     slug: 'personalised-sign-generator',
@@ -106,6 +110,7 @@ export const studioToolMetas: StudioToolMeta[] = [
     titleKey: 'tools.nesting.title',
     descriptionKey: 'tools.nesting.description',
     proFeatures: ['Shelf nesting', 'SVG export'],
+    isFree: true,
   },
   {
     slug: 'price-calculator',

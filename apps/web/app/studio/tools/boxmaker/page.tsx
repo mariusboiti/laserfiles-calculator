@@ -8,6 +8,7 @@ import { BoxMakerHelp } from '../../../../lib/tools/boxmaker/boxmaker/ui/BoxMake
 export default function BoxMakerPage() {
   const tool = getToolBySlug('boxmaker');
   const resetCallbackRef = useRef<(() => void) | null>(null);
+  const exportCallbackRef = useRef<(() => void) | null>(null);
   
   if (!tool) return null;
 
@@ -19,6 +20,12 @@ export default function BoxMakerPage() {
     }
   };
 
+  const handleExport = () => {
+    if (exportCallbackRef.current) {
+      exportCallbackRef.current();
+    }
+  };
+
   return (
     <ToolShell
       slug={tool.slug}
@@ -27,9 +34,13 @@ export default function BoxMakerPage() {
       proFeatures={tool.proFeatures}
       toolSlug="boxmaker"
       onReset={handleReset}
+      onExport={handleExport}
       help={<BoxMakerHelp />}
     >
-      <Tool onResetCallback={(callback: () => void) => { resetCallbackRef.current = callback; }} />
+      <Tool 
+        onResetCallback={(callback: () => void) => { resetCallbackRef.current = callback; }}
+        onExportCallback={(callback: () => void) => { exportCallbackRef.current = callback; }}
+      />
     </ToolShell>
   );
 }

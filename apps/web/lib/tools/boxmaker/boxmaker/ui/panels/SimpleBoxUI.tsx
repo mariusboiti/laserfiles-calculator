@@ -110,10 +110,12 @@ export function SimpleBoxUI({
   boxTypeSelector,
   unitSystem,
   onResetCallback,
+  onExportCallback,
 }: {
   boxTypeSelector?: ReactNode;
   unitSystem: 'mm' | 'in';
   onResetCallback?: (callback: () => void) => void;
+  onExportCallback?: (callback: () => void) => void;
 }) {
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
@@ -576,6 +578,12 @@ export function SimpleBoxUI({
       onResetCallback(resetToDefaults);
     }
   }, [onResetCallback]);
+
+  useEffect(() => {
+    if (onExportCallback) {
+      onExportCallback(exportAllZip);
+    }
+  }, [onExportCallback]);
 
   async function exportAllPanels() {
     for (let i = 0; i < faceKeys.length; i++) {

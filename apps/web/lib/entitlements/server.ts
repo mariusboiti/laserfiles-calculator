@@ -79,7 +79,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
         data: {
           userId,
           plan: 'INACTIVE',
-          aiCreditsTotal: 25,
+          aiCreditsTotal: 15,
           aiCreditsUsed: 0,
         },
       });
@@ -95,7 +95,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
       plan: 'INACTIVE',
       trialStartedAt: null,
       trialEndsAt: null,
-      aiCreditsTotal: 25,
+      aiCreditsTotal: 15,
       aiCreditsUsed: 0,
       stripeCustomerId: null,
       stripeSubscriptionId: null,
@@ -163,7 +163,7 @@ export async function requireEntitlementForAi(userId: string): Promise<UserEntit
   if (!canAccessStudio) {
     const error: EntitlementError = {
       code: 'TRIAL_REQUIRED',
-      message: 'AI features require an active trial or subscription. Start your free trial to get 25 AI credits.',
+      message: 'AI features require an active trial or subscription. Start your free trial to get 15 AI credits.',
       httpStatus: 403,
     };
     throw error;
@@ -257,7 +257,7 @@ export async function startTrial(params: {
       stripeCustomerId,
       stripeSubscriptionId,
       // Reset credits for new trial
-      aiCreditsTotal: 25,
+      aiCreditsTotal: 15,
       aiCreditsUsed: 0,
     },
     create: {
@@ -267,7 +267,7 @@ export async function startTrial(params: {
       trialEndsAt,
       stripeCustomerId,
       stripeSubscriptionId,
-      aiCreditsTotal: 25,
+      aiCreditsTotal: 15,
       aiCreditsUsed: 0,
     },
   });
@@ -403,7 +403,7 @@ export async function syncFromStripeSubscription(params: {
         stripeSubscriptionId,
         trialStartedAt: plan === 'TRIALING' ? new Date() : null,
         trialEndsAt,
-        aiCreditsTotal: 25,
+        aiCreditsTotal: 15,
         aiCreditsUsed: 0,
       },
     });

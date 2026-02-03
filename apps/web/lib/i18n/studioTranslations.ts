@@ -2254,6 +2254,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'ai_depth_photo.photo.bottom_notch.helper': 'Add semicircle notch at bottom edge',
     'tools.jigsaw-maker.title': 'Jigsaw Puzzle Maker',
     'tools.jigsaw-maker.description': 'Turn any image into a laser-cuttable jigsaw puzzle.',
+    'tools.nesting.title': 'Nesting Tool',
+    'tools.nesting.description': 'Optimize part placement on sheets to minimize material waste.',
     'tools.price-calculator.title': 'Price Calculator',
     'tools.price-calculator.description': 'Calculate job pricing with material costs, time, and profit margins.',
 
@@ -3761,6 +3763,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
 
     'tools.jigsaw-maker.title': 'Creator Puzzle',
     'tools.jigsaw-maker.description': 'Transformă orice imagine într-un puzzle tăiabil cu laser.',
+    'tools.nesting.title': 'Nesting',
+    'tools.nesting.description': 'Optimizează plasarea pieselor pe foi pentru a minimiza risipa de material.',
     'tools.inlay-offset-calculator.title': 'Calculator Incrustări',
     'tools.inlay-offset-calculator.description': 'Calculează offset-uri precise pentru incrustări și buzunare cu potrivire perfectă.',
 

@@ -18,7 +18,7 @@ const TOOL_CATEGORIES = {
     'bulk-name-tags',
   ],
   'Boxes & Frames': ['boxmaker', 'curved-photo-frame-v3'],
-  'Layout & Production': ['panel-splitter', 'ornament-layout-planner', 'jig-fixture-generator'],
+  'Layout & Production': ['panel-splitter', 'ornament-layout-planner', 'jig-fixture-generator', 'nesting'],
   'Image Processing': ['engraveprep', 'ai-depth-photo'],
   'Utilities': ['price-calculator', 'inlay-offset-calculator'],
   'Games & Puzzles': ['jigsaw-maker'],

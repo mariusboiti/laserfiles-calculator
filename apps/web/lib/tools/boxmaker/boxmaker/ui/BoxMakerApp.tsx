@@ -13,15 +13,17 @@ import { useUnitSystem } from '@/components/units/UnitSystemProvider';
 
 interface BoxMakerAppProps {
   onResetCallback?: (callback: () => void) => void;
+  onExportCallback?: (callback: () => void) => void;
 }
 
-export default function BoxMakerApp({ onResetCallback }: BoxMakerAppProps) {
+export default function BoxMakerApp({ onResetCallback, onExportCallback }: BoxMakerAppProps) {
   const { locale } = useLanguage();
   const t = useCallback((key: string) => getStudioTranslation(locale as any, key), [locale]);
 
   const [boxType, setBoxType] = useState<BoxType>(BoxType.simple);
   const { unitSystem, setUnitSystem } = useUnitSystem();
   const resetFnRef = useRef<(() => void) | null>(null);
+  const exportFnRef = useRef<(() => void) | null>(null);
 
   // Register reset callback with parent
   useEffect(() => {
@@ -29,6 +31,13 @@ export default function BoxMakerApp({ onResetCallback }: BoxMakerAppProps) {
       onResetCallback(resetFnRef.current);
     }
   }, [onResetCallback, boxType]);
+
+  // Register export callback with parent
+  useEffect(() => {
+    if (onExportCallback && exportFnRef.current) {
+      onExportCallback(exportFnRef.current);
+    }
+  }, [onExportCallback, boxType]);
 
   const boxTypeSelector = (
     <div className="grid gap-3">
@@ -83,6 +92,9 @@ export default function BoxMakerApp({ onResetCallback }: BoxMakerAppProps) {
           unitSystem={unitSystem}
           onResetCallback={(fn) => {
             resetFnRef.current = fn;
+          }}
+          onExportCallback={(fn) => {
+            exportFnRef.current = fn;
           }}
         />
       ) : boxType === BoxType.hinged ? (

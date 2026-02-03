@@ -290,14 +290,14 @@ export class EntitlementsService {
     const existing = await prisma.userEntitlement.findUnique({ where: { userId: user.id } });
     const existingTotal = Number(existing?.aiCreditsTotal ?? 0);
 
-    const defaultTrialCredits = Number(process.env.TRIAL_DEFAULT_AI_CREDITS ?? '25');
+    const defaultTrialCredits = Number(process.env.TRIAL_DEFAULT_AI_CREDITS ?? '15');
     const defaultMonthlyCredits = Number(process.env.MONTHLY_DEFAULT_AI_CREDITS ?? '200');
     const defaultAnnualCredits = Number(process.env.ANNUAL_DEFAULT_AI_CREDITS ?? '2400');
 
     const safeDefaultTrialCredits =
       Number.isFinite(defaultTrialCredits) && defaultTrialCredits >= 0
         ? defaultTrialCredits
-        : 25;
+        : 15;
     const safeDefaultMonthlyCredits =
       Number.isFinite(defaultMonthlyCredits) && defaultMonthlyCredits >= 0
         ? defaultMonthlyCredits
