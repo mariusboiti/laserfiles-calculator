@@ -367,7 +367,7 @@ export class AuthController {
           plan: 'TRIALING',
           trialStartedAt: now,
           trialEndsAt,
-          aiCreditsTotal: 25,
+          aiCreditsTotal: 15,
           aiCreditsUsed: 0,
         },
         create: {
@@ -375,7 +375,7 @@ export class AuthController {
           plan: 'TRIALING',
           trialStartedAt: now,
           trialEndsAt,
-          aiCreditsTotal: 25,
+          aiCreditsTotal: 15,
           aiCreditsUsed: 0,
         },
       });

@@ -320,7 +320,7 @@ export class BillingService implements OnModuleInit {
         await (this.prisma.userEntitlement as any).update({
           where: { userId },
           data: {
-            aiCreditsTotal: { increment: 25 },
+            aiCreditsTotal: { increment: 15 },
             trialCreditsGrantedAt: now,
           },
         });
