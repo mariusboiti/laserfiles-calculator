@@ -5,6 +5,7 @@ import { BulkNameTagsTool } from '@/lib/tools/bulk-name-tags/ui/BulkNameTagsTool
 import { ProductLabelTool } from '@/lib/tools/product-label-generator/ui/ProductLabelTool';
 import { RoundCoasterToolPro } from '@/lib/tools/round-coaster-badge-generator/ui/RoundCoasterToolPro';
 import { OrnamentLayoutTool } from '@/lib/tools/ornament-layout-planner/ui/OrnamentLayoutTool';
+import { NestingToolPage } from '@/lib/tools/nesting/NestingToolPage';
 import { InlayOffsetTool } from '@/lib/tools/inlay-offset-calculator/ui/InlayOffsetTool';
 import { JigFixtureTool } from '@/lib/tools/jig-fixture-generator/ui/JigFixtureTool';
 import PersonalisedSignToolPro from '@/lib/tools/personalised-sign-generator/ui/PersonalisedSignToolPro';
@@ -29,6 +30,7 @@ const componentBySlug: Record<string, StudioTool['Component']> = {
   'product-label-generator': ProductLabelTool,
   'round-coaster-generator': RoundCoasterToolPro,
   'ornament-layout-planner': OrnamentLayoutTool,
+  nesting: NestingToolPage,
   'inlay-offset-calculator': InlayOffsetTool,
   'jig-fixture-generator': JigFixtureTool,
   'personalised-sign-generator': PersonalisedSignToolPro,

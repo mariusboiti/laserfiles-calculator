@@ -102,6 +102,12 @@ export const studioToolMetas: StudioToolMeta[] = [
     usesAI: true,
   },
   {
+    slug: 'nesting',
+    titleKey: 'tools.nesting.title',
+    descriptionKey: 'tools.nesting.description',
+    proFeatures: ['Shelf nesting', 'SVG export'],
+  },
+  {
     slug: 'price-calculator',
     titleKey: 'tools.price-calculator.title',
     descriptionKey: 'tools.price-calculator.description',
