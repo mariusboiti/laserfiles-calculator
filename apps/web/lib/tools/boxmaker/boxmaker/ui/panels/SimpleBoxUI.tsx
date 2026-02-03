@@ -577,11 +577,15 @@ export function SimpleBoxUI({
     }
   }, [onResetCallback]);
 
-  function exportAllPanels() {
-    for (const k of faceKeys) {
+  async function exportAllPanels() {
+    for (let i = 0; i < faceKeys.length; i++) {
+      const k = faceKeys[i];
       const svg = faceSvgsForExport.get(k);
       if (!svg) continue;
       exportSingleSvg(`boxmaker_simple_${k}.svg`, svg);
+      if (i < faceKeys.length - 1) {
+        await new Promise((r) => setTimeout(r, 300));
+      }
     }
   }
 
