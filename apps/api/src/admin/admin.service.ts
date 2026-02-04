@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { ListUsersQueryDto } from './dto/admin.dto';
@@ -136,7 +136,7 @@ export class AdminService {
       throw new NotFoundException(`User ${userId} not found`);
     }
 
-    const auditLogs = await this.prisma.adminAuditLog.findMany({
+    const auditLogs = await (this.prisma as any).adminAuditLog.findMany({
       where: { targetUserId: userId },
       orderBy: { createdAt: 'desc' },
       take: 30,
@@ -218,7 +218,7 @@ export class AdminService {
     });
 
     // Write audit log
-    await this.prisma.adminAuditLog.create({
+    await (this.prisma as any).adminAuditLog.create({
       data: {
         adminUserId,
         targetUserId,
@@ -291,7 +291,7 @@ export class AdminService {
       : null;
 
     // Write audit log
-    await this.prisma.adminAuditLog.create({
+    await (this.prisma as any).adminAuditLog.create({
       data: {
         adminUserId,
         targetUserId,
@@ -318,6 +318,113 @@ export class AdminService {
         name: updatedUser?.name,
       },
       entitlement: afterSnapshot,
+    };
+  }
+
+  async updateEntitlementPlan(
+    adminUserId: string,
+    targetUserId: string,
+    plan: string,
+    trialEndsAt: string | undefined,
+    reason: string,
+    ip?: string,
+    userAgent?: string,
+  ) {
+    const normalizedPlan = String(plan || '').trim().toUpperCase();
+    const allowed = ['INACTIVE', 'TRIALING', 'ACTIVE', 'CANCELED'];
+    if (!allowed.includes(normalizedPlan)) {
+      throw new BadRequestException(`Invalid plan ${plan}`);
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { entitlement: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User ${targetUserId} not found`);
+    }
+
+    const beforeSnapshot = user.entitlement
+      ? {
+          plan: user.entitlement.plan,
+          trialStartedAt: user.entitlement.trialStartedAt,
+          trialEndsAt: user.entitlement.trialEndsAt,
+          aiCreditsTotal: user.entitlement.aiCreditsTotal,
+          aiCreditsUsed: user.entitlement.aiCreditsUsed,
+        }
+      : null;
+
+    const nextTrialEndsAt = (() => {
+      if (normalizedPlan !== 'TRIALING') return null;
+      if (trialEndsAt) {
+        const d = new Date(trialEndsAt);
+        if (!Number.isNaN(d.getTime())) return d;
+      }
+      if (user.entitlement?.trialEndsAt) return user.entitlement.trialEndsAt;
+      return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    })();
+
+    const nextTrialStartedAt = (() => {
+      if (normalizedPlan !== 'TRIALING') return null;
+      return user.entitlement?.trialStartedAt ?? new Date();
+    })();
+
+    const updatedEntitlement = await this.prisma.userEntitlement.upsert({
+      where: { userId: targetUserId },
+      update: {
+        plan: normalizedPlan as any,
+        trialStartedAt: nextTrialStartedAt,
+        trialEndsAt: nextTrialEndsAt,
+      },
+      create: {
+        userId: targetUserId,
+        plan: normalizedPlan as any,
+        trialStartedAt: nextTrialStartedAt,
+        trialEndsAt: nextTrialEndsAt,
+        aiCreditsTotal: 0,
+        aiCreditsUsed: 0,
+      },
+    });
+
+    const afterSnapshot = {
+      plan: updatedEntitlement.plan,
+      trialStartedAt: updatedEntitlement.trialStartedAt,
+      trialEndsAt: updatedEntitlement.trialEndsAt,
+      aiCreditsTotal: updatedEntitlement.aiCreditsTotal,
+      aiCreditsUsed: updatedEntitlement.aiCreditsUsed,
+    };
+
+    await (this.prisma as any).adminAuditLog.create({
+      data: {
+        adminUserId,
+        targetUserId,
+        action: 'UPDATE_USER',
+        reason,
+        payload: {
+          type: 'ENTITLEMENT_PLAN',
+          before: beforeSnapshot,
+          after: afterSnapshot,
+        },
+        ip,
+        userAgent,
+      },
+    });
+
+    this.logger.log(
+      `Admin ${adminUserId} updated entitlement plan for user ${targetUserId} to ${normalizedPlan}. Reason: ${reason}`,
+    );
+
+    return {
+      success: true,
+      entitlement: {
+        plan: updatedEntitlement.plan,
+        trialStartedAt: updatedEntitlement.trialStartedAt,
+        trialEndsAt: updatedEntitlement.trialEndsAt,
+        aiCreditsTotal: updatedEntitlement.aiCreditsTotal,
+        aiCreditsUsed: updatedEntitlement.aiCreditsUsed,
+        aiCreditsRemaining: updatedEntitlement.aiCreditsTotal - updatedEntitlement.aiCreditsUsed,
+      },
     };
   }
 }

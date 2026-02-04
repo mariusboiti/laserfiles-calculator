@@ -14,7 +14,12 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { User } from '../common/decorators/user.decorator';
-import { AddCreditsDto, ForceSyncDto, ListUsersQueryDto } from './dto/admin.dto';
+import {
+  AddCreditsDto,
+  ForceSyncDto,
+  ListUsersQueryDto,
+  UpdateEntitlementPlanDto,
+} from './dto/admin.dto';
 import type { Request } from 'express';
 
 @ApiTags('admin')
@@ -76,6 +81,27 @@ export class AdminController {
     return this.adminService.forceSyncFromWp(
       user.sub,
       id,
+      body.reason,
+      ip,
+      userAgent,
+    );
+  }
+
+  @Post('users/:id/plan')
+  @ApiOperation({ summary: 'Update user entitlement plan (access gating)' })
+  async updateUserPlan(
+    @Param('id') id: string,
+    @Body() body: UpdateEntitlementPlanDto,
+    @User() user: any,
+    @Req() req: Request,
+  ) {
+    const ip = (req.headers['x-forwarded-for'] as string) || req.ip || '';
+    const userAgent = req.headers['user-agent'] || '';
+    return this.adminService.updateEntitlementPlan(
+      user.sub,
+      id,
+      body.plan,
+      body.trialEndsAt,
       body.reason,
       ip,
       userAgent,

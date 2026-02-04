@@ -72,6 +72,12 @@ export default function AdminUserDetailsPage() {
   const [syncReason, setSyncReason] = useState('');
   const [syncing, setSyncing] = useState(false);
 
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planValue, setPlanValue] = useState('INACTIVE');
+  const [planReason, setPlanReason] = useState('');
+  const [trialEndsAt, setTrialEndsAt] = useState('');
+  const [updatingPlan, setUpdatingPlan] = useState(false);
+
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -89,6 +95,42 @@ export default function AdminUserDetailsPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUpdatePlan(e: React.FormEvent) {
+    e.preventDefault();
+    setActionError(null);
+    setActionSuccess(null);
+    setUpdatingPlan(true);
+
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${apiBase}/admin/users/${userId}/plan`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan: planValue,
+          trialEndsAt: trialEndsAt || undefined,
+          reason: planReason,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({} as any));
+        throw new Error(err.message || 'Failed to update plan');
+      }
+
+      setActionSuccess('Updated plan successfully');
+      setPlanOpen(false);
+      setPlanReason('');
+      setTrialEndsAt('');
+      fetchUser();
+    } catch (err: any) {
+      setActionError(err.message);
+    } finally {
+      setUpdatingPlan(false);
     }
   }
 
@@ -251,6 +293,17 @@ export default function AdminUserDetailsPage() {
           {/* Action Buttons */}
           <div className="flex gap-2">
             <button
+              onClick={() => {
+                setPlanValue(entitlement?.plan || 'INACTIVE');
+                setTrialEndsAt(entitlement?.trialEndsAt || '');
+                setPlanOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600"
+            >
+              <Clock className="h-4 w-4" />
+              Change Plan
+            </button>
+            <button
               onClick={() => setAddCreditsOpen(true)}
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
             >
@@ -259,7 +312,7 @@ export default function AdminUserDetailsPage() {
             </button>
             <button
               onClick={() => setSyncOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
             >
               <RefreshCw className="h-4 w-4" />
               Sync from WP
@@ -267,6 +320,81 @@ export default function AdminUserDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Change Plan Modal */}
+      {planOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-800 bg-slate-950 p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Change Plan</h2>
+              <button
+                onClick={() => setPlanOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdatePlan} className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-300">Entitlement Plan</label>
+                <select
+                  value={planValue}
+                  onChange={(e) => setPlanValue(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                >
+                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="TRIALING">TRIALING</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="CANCELED">CANCELED</option>
+                </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  This controls Studio access (via /auth/me canAccessStudio).
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-300">Trial Ends At (optional)</label>
+                <input
+                  value={trialEndsAt}
+                  onChange={(e) => setTrialEndsAt(e.target.value)}
+                  placeholder="2026-02-10T20:59:25.977Z"
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-300">Reason</label>
+                <input
+                  value={planReason}
+                  onChange={(e) => setPlanReason(e.target.value)}
+                  required
+                  minLength={3}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                  placeholder="e.g. manual upgrade"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPlanOpen(false)}
+                  className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingPlan}
+                  className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
+                >
+                  {updatingPlan ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Entitlement Details */}
       <div className="grid gap-6 lg:grid-cols-2">

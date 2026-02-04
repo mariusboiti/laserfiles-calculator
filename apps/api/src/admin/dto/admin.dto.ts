@@ -51,3 +51,27 @@ export class ForceSyncDto {
   @MinLength(3)
   reason: string;
 }
+
+export class UpdateEntitlementPlanDto {
+  @ApiProperty({
+    description: 'New entitlement plan',
+    enum: ['INACTIVE', 'TRIALING', 'ACTIVE', 'CANCELED'],
+  })
+  @IsString()
+  @IsNotEmpty()
+  plan: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional trial end date (ISO string). Used when plan=TRIALING.',
+    example: '2026-02-10T20:59:25.977Z',
+  })
+  @IsOptional()
+  @IsString()
+  trialEndsAt?: string;
+
+  @ApiProperty({ description: 'Reason for plan change', minLength: 3 })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(3)
+  reason: string;
+}
