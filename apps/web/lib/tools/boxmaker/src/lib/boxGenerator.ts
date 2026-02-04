@@ -689,6 +689,10 @@ function generateDividerFaces(settings: BoxSettings, dims: BoxDimensions): Gener
   const dividerHeight = Math.max(settings.lidType === 'none' ? dims.innerHeight : dims.innerHeight - 2 * t, 0.1)
   const slotDepth = Math.max(dividerHeight / 2, 0.1)
 
+  // Tab dimensions for divider-to-wall joints
+  const tabHeight = Math.min(t * 2, dividerHeight * 0.3) // Tab protrudes into wall slot
+  const tabWidth = Math.min(dividerHeight * 0.4, 20) // Width of each tab
+
   const faces: GeneratedFace[] = []
 
   const dividerXLength = Math.max(dims.innerDepth, 0.1)
@@ -710,31 +714,134 @@ function generateDividerFaces(settings: BoxSettings, dims: BoxDimensions): Gener
     }
   }
 
-  for (let i = 0; i < dividerCountX; i += 1) {
-    const base = createRectFace('divider_x', dividerXLength, dividerHeight, `x-${i + 1}`)
+  // Helper to create divider with tabs on left and right edges
+  function createDividerWithTabs(
+    name: FaceName,
+    length: number,
+    height: number,
+    idSuffix: string,
+    interlockSlots: { x: number; fromTop: boolean }[],
+  ): GeneratedFace {
+    // Create outline with tabs on both ends (left and right)
+    const tabY = (height - tabWidth) / 2 // Center the tab vertically
+    
+    // Build path with tabs
+    // Start at bottom-left, go right along bottom, up right edge with tab, left along top, down left edge with tab
+    const d: string[] = []
+    
+    // Bottom edge (straight)
+    d.push(`M 0 0`)
+    d.push(`H ${length.toFixed(3)}`)
+    
+    // Right edge with tab (going up)
+    d.push(`V ${tabY.toFixed(3)}`)
+    d.push(`H ${(length + tabHeight).toFixed(3)}`) // Tab protrudes right
+    d.push(`V ${(tabY + tabWidth).toFixed(3)}`)
+    d.push(`H ${length.toFixed(3)}`) // Back to main edge
+    d.push(`V ${height.toFixed(3)}`)
+    
+    // Top edge (straight, going left)
+    d.push(`H 0`)
+    
+    // Left edge with tab (going down)
+    d.push(`V ${(tabY + tabWidth).toFixed(3)}`)
+    d.push(`H ${(-tabHeight).toFixed(3)}`) // Tab protrudes left
+    d.push(`V ${tabY.toFixed(3)}`)
+    d.push(`H 0`) // Back to main edge
+    d.push(`Z`)
+    
+    const outlinePath = d.join(' ')
+    const faceWidth = length + 2 * tabHeight // Include tab protrusions
+    const faceHeight = height
+    
+    // Parse vertices from path for consistency
+    const vertices = outlinePathToVertices(outlinePath, faceHeight)
+    
+    // Add interlock slots
     const slotPaths: FacePath[] = []
-
-    for (const pos of slotsOnX) {
-      const x = clamp(pos - slotWidth / 2, 0, dividerXLength - slotWidth)
-      slotPaths.push({ d: openSlotTopPath(x, slotWidth, slotDepth), op: 'cut' })
+    for (const slot of interlockSlots) {
+      const x = clamp(slot.x - slotWidth / 2, 0, length - slotWidth)
+      if (slot.fromTop) {
+        slotPaths.push({ d: openSlotTopPath(x + tabHeight, slotWidth, slotDepth), op: 'cut' })
+      } else {
+        slotPaths.push({ d: openSlotBottomPath(x + tabHeight, height - slotDepth, slotWidth, slotDepth), op: 'cut' })
+      }
     }
-
-    faces.push(addExtraPaths(base, slotPaths))
+    
+    return {
+      id: `${name}-${idSuffix}`,
+      name,
+      width: faceWidth,
+      height: faceHeight,
+      outlinePath,
+      vertices,
+      paths: [{ d: outlinePath, op: 'cut' }, ...slotPaths],
+      offset: { x: -tabHeight, y: 0 }, // Offset so the main body aligns correctly
+    }
   }
 
+  // Divider X: runs along depth (front-to-back), tabs go into left/right walls
+  for (let i = 0; i < dividerCountX; i += 1) {
+    const interlockSlots = slotsOnX.map(pos => ({ x: pos, fromTop: true }))
+    faces.push(createDividerWithTabs('divider_x', dividerXLength, dividerHeight, `x-${i + 1}`, interlockSlots))
+  }
+
+  // Divider Z: runs along width (left-to-right), tabs go into front/back walls
   for (let i = 0; i < dividerCountZ; i += 1) {
-    const base = createRectFace('divider_z', dividerZLength, dividerHeight, `z-${i + 1}`)
-    const slotPaths: FacePath[] = []
-
-    for (const pos of slotsOnZ) {
-      const x = clamp(pos - slotWidth / 2, 0, dividerZLength - slotWidth)
-      slotPaths.push({ d: openSlotBottomPath(x, dividerHeight - slotDepth, slotWidth, slotDepth), op: 'cut' })
-    }
-
-    faces.push(addExtraPaths(base, slotPaths))
+    const interlockSlots = slotsOnZ.map(pos => ({ x: pos, fromTop: false }))
+    faces.push(createDividerWithTabs('divider_z', dividerZLength, dividerHeight, `z-${i + 1}`, interlockSlots))
   }
 
   return faces
+}
+
+// Helper to generate slots in wall faces for divider tabs
+function generateDividerSlotPaths(
+  settings: BoxSettings,
+  dims: BoxDimensions,
+  wallType: 'front' | 'back' | 'left' | 'right',
+  wallWidth: number,
+  wallHeight: number,
+  offsetX: number,
+): FacePath[] {
+  if (!settings.dividersEnabled) return []
+
+  const countX = Math.max(1, Math.floor(settings.dividerCountX))
+  const countZ = Math.max(1, Math.floor(settings.dividerCountZ))
+  const dividerCountX = Math.max(0, countX - 1)
+  const dividerCountZ = Math.max(0, countZ - 1)
+
+  const t = Math.max(settings.materialThickness, 0.1)
+  const clearance = Math.max(settings.dividerClearance, 0)
+  const slotWidth = Math.max(t + clearance, 0.1)
+
+  const dividerHeight = Math.max(settings.lidType === 'none' ? dims.innerHeight : dims.innerHeight - 2 * t, 0.1)
+  const tabWidth = Math.min(dividerHeight * 0.4, 20)
+  const tabY = (dividerHeight - tabWidth) / 2
+
+  const paths: FacePath[] = []
+
+  if ((wallType === 'left' || wallType === 'right') && dividerCountX > 0) {
+    // Slots for divider_x tabs in left/right walls
+    const step = dims.innerWidth / countX
+    for (let i = 1; i < countX; i += 1) {
+      const x = offsetX + i * step - slotWidth / 2
+      const y = tabY
+      paths.push({ d: rectPath(x, y, slotWidth, tabWidth), op: 'cut' })
+    }
+  }
+
+  if ((wallType === 'front' || wallType === 'back') && dividerCountZ > 0) {
+    // Slots for divider_z tabs in front/back walls
+    const step = dims.innerDepth / countZ
+    for (let i = 1; i < countZ; i += 1) {
+      const x = offsetX + i * step - slotWidth / 2
+      const y = tabY
+      paths.push({ d: rectPath(x, y, slotWidth, tabWidth), op: 'cut' })
+    }
+  }
+
+  return paths
 }
 
 export function buildVerticalEdgeDown(
@@ -1057,8 +1164,13 @@ function generateFingerAllFaces(settings: BoxSettings, dims: BoxDimensions): Gen
     useFingers: wallUseFingers,
     invertTabs: frontBackInverts,
   })
-  const front = createFaceFromVertices('front', 'front', frontBuilt.vertices, frontBuilt.faceWidth, frontBuilt.faceHeight)
-  const back = cloneFace(front, 'back', 'back')
+  const frontBase = createFaceFromVertices('front', 'front', frontBuilt.vertices, frontBuilt.faceWidth, frontBuilt.faceHeight)
+  const frontDividerSlots = generateDividerSlotPaths(settings, dims, 'front', frontBuilt.faceWidth, frontBuilt.faceHeight, t)
+  const front = addExtraPaths(frontBase, frontDividerSlots)
+  
+  const backBase = cloneFace(frontBase, 'back', 'back')
+  const backDividerSlots = generateDividerSlotPaths(settings, dims, 'back', frontBuilt.faceWidth, frontBuilt.faceHeight, t)
+  const back = addExtraPaths(backBase, backDividerSlots)
   faces.push(front, back)
 
   const leftBuilt = buildRectFaceVertices({
@@ -1072,9 +1184,13 @@ function generateFingerAllFaces(settings: BoxSettings, dims: BoxDimensions): Gen
   })
   const groovePaths =
     settings.lidType === 'sliding_lid' ? generateSlidingGroovePaths(t, t, dims.outerDepth, dims.outerHeight, settings) : []
+  const leftDividerSlots = generateDividerSlotPaths(settings, dims, 'left', leftBuilt.faceWidth, leftBuilt.faceHeight, t)
   const leftBase = createFaceFromVertices('left', 'left', leftBuilt.vertices, leftBuilt.faceWidth, leftBuilt.faceHeight)
-  const left = addExtraPaths(leftBase, groovePaths)
-  const right = cloneFace(left, 'right', 'right')
+  const left = addExtraPaths(leftBase, [...groovePaths, ...leftDividerSlots])
+  
+  const rightBase = cloneFace(leftBase, 'right', 'right')
+  const rightDividerSlots = generateDividerSlotPaths(settings, dims, 'right', leftBuilt.faceWidth, leftBuilt.faceHeight, t)
+  const right = addExtraPaths(rightBase, [...groovePaths, ...rightDividerSlots])
   faces.push(left, right)
 
   const bottomBuilt = buildRectFaceVertices({

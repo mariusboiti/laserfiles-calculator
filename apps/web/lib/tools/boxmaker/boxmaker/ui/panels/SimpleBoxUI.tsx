@@ -97,7 +97,7 @@ function faceToSvg(face: GeneratedFace): string {
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}">`);
   parts.push(`<g transform="translate(${ox} ${oy})">`);
   for (const p of face.paths) {
-    const stroke = p.op === 'cut' ? '#ff0000' : p.op === 'score' ? '#0000ff' : 'none';
+    const stroke = p.op === 'cut' ? '#ff0000' : p.op === 'score' ? '#000000' : 'none';
     const fill = p.op === 'engrave' ? '#000000' : 'none';
     const strokeWidth = p.op === 'engrave' ? 0 : 0.2;
     parts.push(`<path d="${p.d}" stroke="${stroke}" fill="${fill}" stroke-width="${strokeWidth}" vector-effect="non-scaling-stroke" />`);
@@ -413,7 +413,8 @@ export function SimpleBoxUI({
       // Enhance prompt based on selected model - always request white background
       let enhancedPrompt = prompt;
       if (faceArtworkModel === 'sketch') {
-        enhancedPrompt = `pencil sketch drawing, hand-drawn with pencil strokes, artistic pencil illustration, graphite drawing style, shading with pencil lines: ${prompt}, white background`;
+        // Use same prompt template as Sign Generator for consistent sketch results
+        enhancedPrompt = `Subject: ${prompt}. Pen/pencil sketch for laser engraving. Monochrome black lines only. Medium detail, clean contour lines, some cross-hatching. High contrast line art suitable for vector tracing. Single subject, centered, no background. No text, no watermark, no signatures. Transparent or white background.`;
       } else if (faceArtworkModel === 'geometric') {
         enhancedPrompt = `laser cut geometric pattern, horizontal rectangle panel, abstract geometric lines and shapes suitable for laser cutting, no thin fragile areas, bold connected lines forming geometric design, art deco style lattice pattern: ${prompt}, white background`;
       } else {
@@ -513,7 +514,7 @@ export function SimpleBoxUI({
         .map((d) => `<path d="${d}" />`)
         .join('')}</svg>`;
 
-      const op: PathOperation = 'engrave';
+      const op: PathOperation = 'score';
       const face = importSvgAsFace({
         svgText,
         id: `trace-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -942,17 +943,18 @@ export function SimpleBoxUI({
                     >
                       {t('boxmaker.clear')}
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveToLibrary}
-                      disabled={!faceArtworkByFace[selectedArtworkFace]?.imageDataUrl}
-                      className="rounded-md border border-emerald-700 bg-emerald-900/50 px-3 py-1.5 text-xs text-emerald-200 hover:bg-emerald-800 disabled:opacity-40"
-                      title={t('boxmaker.save_to_library') || 'Save to AI Library'}
-                    >
-                      <Save className="inline h-3 w-3 mr-1" />
-                      {t('boxmaker.save_to_library') || 'Save'}
-                    </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveToLibrary}
+                    disabled={!faceArtworkByFace[selectedArtworkFace]?.imageDataUrl}
+                    className="mt-2 w-full rounded-md border border-emerald-700 bg-emerald-900/50 px-3 py-1.5 text-xs text-emerald-200 hover:bg-emerald-800 disabled:opacity-40"
+                    title="Save to AI Library"
+                  >
+                    <Save className="inline h-3 w-3 mr-1" />
+                    Save to library
+                  </button>
 
                   {artworkError ? (
                     <div className="rounded-md border border-amber-800 bg-amber-950/30 p-2 text-[11px] text-amber-200">
@@ -1090,7 +1092,7 @@ export function SimpleBoxUI({
                   </div>
 
                   <div className="mt-3 border-t border-slate-800 pt-3">
-                    <div className="text-[11px] text-slate-400 mb-2">{t('boxmaker.copy_to_face') || 'Copy to face'}</div>
+                    <div className="text-[11px] text-slate-400 mb-2">Copy to face</div>
                     <div className="flex flex-wrap gap-1">
                       {faceKeys.filter((k) => k !== engraveTarget).map((k) => (
                         <button
