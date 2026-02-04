@@ -716,9 +716,15 @@ export function RoundCoasterToolPro({ onResetCallback, onGetExportPayload }: Rou
       id: 'round-coaster-ai-generate',
       label: t('round_coaster.ai.job_generating'),
       fn: async (signal) => {
+        const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        const accessToken = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
+        if (accessToken) {
+          authHeaders['Authorization'] = `Bearer ${accessToken}`;
+        }
         const imageRes = await fetch('/api/ai/silhouette', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
+          credentials: 'include',
           body: JSON.stringify({ prompt: cleanPrompt }),
           signal,
         });

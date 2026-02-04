@@ -339,9 +339,15 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
       // Always request white background for AI artwork
       const enhancedPrompt = `${prompt}, white background`;
 
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      const accessToken = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
+      if (accessToken) {
+        authHeaders['Authorization'] = `Bearer ${accessToken}`;
+      }
       const res = await fetch('/api/ai/silhouette', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
+        credentials: 'include',
         body: JSON.stringify({ prompt: enhancedPrompt }),
       });
 

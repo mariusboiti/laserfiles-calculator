@@ -25,11 +25,15 @@ export async function generateAIImage(
     const enhancedPrompt = buildEnhancedPrompt(settings);
 
     // Call API endpoint
+    const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    const accessToken = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
+    if (accessToken) {
+      authHeaders['Authorization'] = `Bearer ${accessToken}`;
+    }
     const response = await fetch('/api/ai/generate-puzzle-image', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders,
+      credentials: 'include',
       body: JSON.stringify({
         prompt: enhancedPrompt,
         stylePreset: settings.stylePreset,

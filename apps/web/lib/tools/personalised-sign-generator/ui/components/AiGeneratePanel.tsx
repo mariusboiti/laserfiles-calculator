@@ -85,10 +85,17 @@ export function AiGeneratePanel({
     setTraceError(null);
 
     try {
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      const accessToken = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
+      if (accessToken) {
+        authHeaders['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       if (mode === 'shapeSilhouette') {
         const response = await fetch('/api/ai/gemini/generate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
+          credentials: 'include',
           body: JSON.stringify({
             mode: 'shapeSilhouette',
             prompt: prompt.trim(),
@@ -123,7 +130,8 @@ export function AiGeneratePanel({
 
       const response = await fetch('/api/ai/gemini/image', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
+        credentials: 'include',
         body: JSON.stringify({
           mode: mode === 'engravingSketchImage' ? 'engravingSketch' : 'shapeSilhouette',
           prompt: promptUsed,

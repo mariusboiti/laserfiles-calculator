@@ -2,9 +2,15 @@ export async function generateSilhouetteImage(prompt: string): Promise<{ dataUrl
   const p = (prompt || '').trim();
   if (!p) throw new Error('Missing prompt');
 
+  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  const accessToken = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
+  if (accessToken) {
+    authHeaders['Authorization'] = `Bearer ${accessToken}`;
+  }
   const res = await fetch('/api/ai/silhouette', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders,
+    credentials: 'include',
     body: JSON.stringify({ prompt: p }),
   });
 

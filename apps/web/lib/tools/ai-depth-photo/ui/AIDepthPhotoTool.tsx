@@ -103,9 +103,15 @@ export function AIDepthPhotoTool() {
         };
       }
 
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      const accessToken = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
+      if (accessToken) {
+        authHeaders['Authorization'] = `Bearer ${accessToken}`;
+      }
       const response = await fetch('/api/ai/depth-image', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
+        credentials: 'include',
         body: JSON.stringify(requestBody),
       });
 
@@ -136,9 +142,15 @@ export function AIDepthPhotoTool() {
   const generateDepthMap = async (imageBase64: string) => {
     setIsGeneratingDepth(true);
     try {
+      const authHeaders2: Record<string, string> = { 'Content-Type': 'application/json' };
+      const accessToken2 = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
+      if (accessToken2) {
+        authHeaders2['Authorization'] = `Bearer ${accessToken2}`;
+      }
       const response = await fetch('/api/ai/depth-map', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders2,
+        credentials: 'include',
         body: JSON.stringify({ imagePngBase64: imageBase64 }),
       });
 
