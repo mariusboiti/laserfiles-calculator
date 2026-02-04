@@ -28,8 +28,12 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
 } from 'lucide-react';
+import { useProjectStorage } from '@/lib/projects';
+import { ProjectToolbar } from '@/components/projects';
 
 import type { SignConfigV3, SignShapeV3, HolePreset, CurvedMode, TextTransform, OutputMode, IconPlacement, MonogramConfig } from '../types/signV3';
+
+const TOOL_ID = 'sign-generator-v3';
 import { DEFAULTS_V3, LIMITS, SHAPE_OPTIONS, HOLE_PRESETS, FONT_FAMILIES, FONT_WEIGHTS, SHEET_PRESETS, sanitizeConfig, clamp } from '../config/defaultsV3';
 import { ICON_LIBRARY, getIconsByCategory } from '../core/iconsV3';
 import { renderPreviewSvg, renderExportSvg, renderSheetSvg, renderDesignSvg, generateFilename } from '../core/renderV3';
@@ -57,6 +61,18 @@ export default function PersonalisedSignToolV3({ featureFlags }: Props) {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [zoom, setZoom] = useState(1);
+
+  // Project storage
+  const getCurrentState = useCallback(() => config, [config]);
+  const applyState = useCallback((state: SignConfigV3) => {
+    setConfig(sanitizeConfig(state));
+  }, []);
+
+  const projectStorage = useProjectStorage<SignConfigV3>({
+    toolId: TOOL_ID,
+    getCurrentState,
+    applyState,
+  });
 
   const updateConfig = useCallback((updates: Partial<SignConfigV3>) => {
     setConfig((prev) => sanitizeConfig({ ...prev, ...updates }));
@@ -149,7 +165,11 @@ export default function PersonalisedSignToolV3({ featureFlags }: Props) {
   }, [aiPrompt]);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 p-4 min-h-0">
+    <div className="flex flex-col min-h-0">
+      {/* Project Toolbar */}
+      <ProjectToolbar projectStorage={projectStorage} toolDisplayName="Sign Generator" />
+      
+      <div className="flex flex-col lg:flex-row gap-6 p-4 min-h-0 flex-1">
       {/* Controls Panel */}
       <div className="w-full lg:w-[400px] lg:min-w-[400px] lg:flex-shrink-0 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)]">
         {/* Shape Section */}
@@ -504,6 +524,7 @@ export default function PersonalisedSignToolV3({ featureFlags }: Props) {
             />
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

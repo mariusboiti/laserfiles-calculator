@@ -1,11 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { WizardStep, ProjectState } from '@/lib/multilayer/types';
 import { DEFAULT_PROJECT_STATE } from '@/lib/multilayer/types';
 import { SourceStep } from './SourceStep';
 import { LayersStep } from './LayersStep';
 import { ExportStep } from './ExportStep';
+import { useProjectStorage } from '@/lib/projects';
+import { ProjectToolbar } from '@/components/projects';
+
+const TOOL_ID = 'multilayer-maker';
 
 interface MultiLayerWizardProps {
   onExport?: () => void;
@@ -13,6 +17,18 @@ interface MultiLayerWizardProps {
 
 export function MultiLayerWizard({ onExport }: MultiLayerWizardProps) {
   const [project, setProject] = useState<ProjectState>(DEFAULT_PROJECT_STATE);
+
+  // Project storage
+  const getCurrentState = useCallback(() => project, [project]);
+  const applyState = useCallback((state: ProjectState) => {
+    setProject(state);
+  }, []);
+
+  const projectStorage = useProjectStorage<ProjectState>({
+    toolId: TOOL_ID,
+    getCurrentState,
+    applyState,
+  });
 
   const steps: { id: WizardStep; label: string; disabled: boolean }[] = [
     { id: 'source', label: '1. Source', disabled: false },
@@ -33,6 +49,9 @@ export function MultiLayerWizard({ onExport }: MultiLayerWizardProps) {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Project Toolbar */}
+      <ProjectToolbar projectStorage={projectStorage} toolDisplayName="MultiLayer Maker" />
+      
       {/* Wizard Navigation */}
       <div className="flex gap-2 p-4 bg-slate-900/60 border-b border-slate-800">
         {steps.map(step => (
