@@ -10,6 +10,8 @@ export type EngraveOverlayItem = {
     y: number;
     rotation: number;
     scale: number;
+    scaleX?: number;
+    scaleY?: number;
   };
 };
 
@@ -32,14 +34,15 @@ export function buildOverlayGroupSvg(items: EngraveOverlayItem[]): string {
     const oy = item.face.offset?.y ?? 0;
 
     const rotDeg = (item.placement.rotation * 180) / Math.PI;
-    const s = Math.max(item.placement.scale, 0.01);
+    const sx = Math.max(item.placement.scaleX ?? item.placement.scale, 0.01);
+    const sy = Math.max(item.placement.scaleY ?? item.placement.scale, 0.01);
 
     // Place the imported artwork using the same convention as the legacy Simple Box:
     // (x,y) is the center position in the panel coordinate system.
     parts.push(
       `<g transform="translate(${item.placement.x.toFixed(3)} ${item.placement.y.toFixed(3)}) rotate(${rotDeg.toFixed(
         3,
-      )}) scale(${s.toFixed(5)}) translate(${(-w / 2 + ox).toFixed(3)} ${(-h / 2 + oy).toFixed(3)})">`,
+      )}) scale(${sx.toFixed(5)} ${sy.toFixed(5)}) translate(${(-w / 2 + ox).toFixed(3)} ${(-h / 2 + oy).toFixed(3)})">`,
     );
 
     for (const p of item.face.paths ?? []) {

@@ -11,6 +11,7 @@ type SilhouetteStatusResponse = {
 
 type SilhouetteGenerateRequest = {
   prompt: string;
+  rawPrompt?: boolean;
 };
 
 type SilhouetteGenerateResponse = {
@@ -194,7 +195,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
     }
 
-    const fullPrompt = buildSilhouettePrompt(userPrompt);
+    const fullPrompt = body?.rawPrompt ? userPrompt : buildSilhouettePrompt(userPrompt);
 
     // Consume AI credit before processing
     let credits: { used: number; remaining: number } | undefined;

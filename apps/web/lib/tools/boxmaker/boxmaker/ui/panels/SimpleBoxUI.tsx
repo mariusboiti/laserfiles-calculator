@@ -351,6 +351,8 @@ export function SimpleBoxUI({
           y: it.placement.y,
           rotation: it.placement.rotation,
           scale: it.placement.scale,
+          scaleX: (it.placement as any).scaleX,
+          scaleY: (it.placement as any).scaleY,
         },
       };
     });
@@ -425,7 +427,7 @@ export function SimpleBoxUI({
       const res = await fetch('/api/ai/silhouette', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: enhancedPrompt }),
+        body: JSON.stringify({ prompt: enhancedPrompt, rawPrompt: faceArtworkModel === 'sketch' }),
       });
 
       if (!res.ok) {
@@ -1086,6 +1088,37 @@ export function SimpleBoxUI({
                         min={0.01}
                         value={selectedEngraveItem.placement.scale}
                         onChange={(e) => setSelectedEngravePlacement({ scale: Math.max(0.01, Number(e.target.value)) })}
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>Scale X</span>
+                      <input
+                        type="number"
+                        step={0.01}
+                        min={0.01}
+                        value={Number(((selectedEngraveItem.placement as any).scaleX ?? selectedEngraveItem.placement.scale).toFixed(3))}
+                        onChange={(e) =>
+                          setSelectedEngravePlacement({
+                            scaleX: Math.max(0.01, Number(e.target.value)),
+                          } as any)
+                        }
+                        className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span>Scale Y</span>
+                      <input
+                        type="number"
+                        step={0.01}
+                        min={0.01}
+                        value={Number(((selectedEngraveItem.placement as any).scaleY ?? selectedEngraveItem.placement.scale).toFixed(3))}
+                        onChange={(e) =>
+                          setSelectedEngravePlacement({
+                            scaleY: Math.max(0.01, Number(e.target.value)),
+                          } as any)
+                        }
                         className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                       />
                     </label>
