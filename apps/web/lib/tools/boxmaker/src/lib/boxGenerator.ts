@@ -674,11 +674,8 @@ function clamp(value: number, min: number, max: number): number {
 function generateDividerFaces(settings: BoxSettings, dims: BoxDimensions): GeneratedFace[] {
   if (!settings.dividersEnabled) return []
 
-  const countX = Math.max(1, Math.floor(settings.dividerCountX))
-  const countZ = Math.max(1, Math.floor(settings.dividerCountZ))
-
-  const dividerCountX = Math.max(0, countX - 1)
-  const dividerCountZ = Math.max(0, countZ - 1)
+  const dividerCountX = Math.max(0, Math.floor(settings.dividerCountX))
+  const dividerCountZ = Math.max(0, Math.floor(settings.dividerCountZ))
 
   if (dividerCountX === 0 && dividerCountZ === 0) return []
 
@@ -695,17 +692,17 @@ function generateDividerFaces(settings: BoxSettings, dims: BoxDimensions): Gener
   const dividerZLength = Math.max(dims.innerWidth, 0.1)
 
   const slotsOnX: number[] = []
-  if (countZ > 1) {
-    const step = dividerXLength / countZ
-    for (let i = 1; i < countZ; i += 1) {
+  if (dividerCountZ > 0) {
+    const step = dividerXLength / (dividerCountZ + 1)
+    for (let i = 1; i <= dividerCountZ; i += 1) {
       slotsOnX.push(i * step)
     }
   }
 
   const slotsOnZ: number[] = []
-  if (countX > 1) {
-    const step = dividerZLength / countX
-    for (let i = 1; i < countX; i += 1) {
+  if (dividerCountX > 0) {
+    const step = dividerZLength / (dividerCountX + 1)
+    for (let i = 1; i <= dividerCountX; i += 1) {
       slotsOnZ.push(i * step)
     }
   }
