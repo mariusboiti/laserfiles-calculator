@@ -116,7 +116,8 @@ async function generateWithGemini(args: { apiKey: string; endpoint: string; mode
       ],
       generationConfig: {
         temperature: 0.4,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 8192,
+        responseModalities: ['TEXT', 'IMAGE'],
       },
     }),
   });

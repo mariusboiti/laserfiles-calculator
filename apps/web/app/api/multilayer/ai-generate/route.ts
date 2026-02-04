@@ -241,7 +241,8 @@ async function generateWithGemini(args: {
       // For image-preview models, inlineData image bytes may be returned.
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 8192,
+        responseModalities: ['TEXT', 'IMAGE'],
       },
     }),
   });
