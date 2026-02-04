@@ -1025,17 +1025,6 @@ export function SlidingDrawerUI({ boxTypeSelector, unitSystem, onResetCallback }
                       className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
                     />
                   </label>
-                  <label className="grid gap-1">
-                    <div className="text-[11px] text-slate-400">{t('boxmaker.front_face_style')}</div>
-                    <select
-                      value={frontFaceStyle}
-                      onChange={(e) => setFrontFaceStyle(e.target.value as 'flush' | 'lip')}
-                      className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-100"
-                    >
-                      <option value="flush">{t('boxmaker.flush')}</option>
-                      <option value="lip">{t('boxmaker.lip')}</option>
-                    </select>
-                  </label>
                 </div>
               </div>
 
