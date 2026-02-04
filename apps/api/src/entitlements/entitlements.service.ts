@@ -343,7 +343,8 @@ export class EntitlementsService {
       topup = 0;
     }
 
-    const nextTotal = baseTotal + topup;
+    const desiredTotal = baseTotal + topup;
+    const nextTotal = Math.max(existingTotal, desiredTotal);
 
     let effectiveTrialEndsAt: Date | null = null;
     if (trialEndsAtInput !== undefined && trialEndsAtInput !== null) {
