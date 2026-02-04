@@ -77,7 +77,7 @@ apiClient.interceptors.response.use(
 
     const reqAny = originalRequest as any;
 
-    if (status === 401 && originalRequest && !reqAny?.__isRetryRequest) {
+    if ((status === 401 || status === 403) && originalRequest && !reqAny?.__isRetryRequest) {
       reqAny.__isRetryRequest = true;
       const newAccessToken = await refreshAccessToken();
 

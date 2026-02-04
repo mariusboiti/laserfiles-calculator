@@ -18,6 +18,8 @@ import { saveImage } from '@/lib/ai/aiImageLibrary';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { refreshEntitlements } from '@/lib/entitlements/client';
+import { useProjectStorage } from '@/lib/projects';
+import { ProjectToolbar } from '@/components/projects';
 
 function clampNumber(n: number, min: number, max: number) {
   if (Number.isNaN(n)) return min;
@@ -36,6 +38,23 @@ type FaceArtworkConfig = {
   imageDataUrl: string;
   placement: FaceArtworkPlacement;
 };
+
+type BoxMakerProjectState = {
+  widthMm: number;
+  depthMm: number;
+  heightMm: number;
+  thicknessMm: number;
+  kerfMm: number;
+  fingerWidthMm: number;
+  hasLid: boolean;
+  dividersEnabled: boolean;
+  dividerCountX: number;
+  dividerCountZ: number;
+  engraveItems: EngraveOverlayItem[];
+  faceArtworkByFace: Record<string, FaceArtworkConfig | undefined>;
+};
+
+const TOOL_ID = 'boxmaker-simple';
 
 function parseLengthNum(value: string | null): number | null {
   if (!value) return null;
@@ -161,6 +180,43 @@ export function SimpleBoxUI({
   const [artworkError, setArtworkError] = useState<string | null>(null);
 
   const [previewMode, setPreviewMode] = useState<'2d' | 'faces' | '3d'>('2d');
+
+  // Project storage
+  const getCurrentState = useCallback((): BoxMakerProjectState => ({
+    widthMm,
+    depthMm,
+    heightMm,
+    thicknessMm,
+    kerfMm,
+    fingerWidthMm,
+    hasLid,
+    dividersEnabled,
+    dividerCountX,
+    dividerCountZ,
+    engraveItems,
+    faceArtworkByFace,
+  }), [widthMm, depthMm, heightMm, thicknessMm, kerfMm, fingerWidthMm, hasLid, dividersEnabled, dividerCountX, dividerCountZ, engraveItems, faceArtworkByFace]);
+
+  const applyState = useCallback((state: BoxMakerProjectState) => {
+    setWidthMm(state.widthMm);
+    setDepthMm(state.depthMm);
+    setHeightMm(state.heightMm);
+    setThicknessMm(state.thicknessMm);
+    setKerfMm(state.kerfMm);
+    setFingerWidthMm(state.fingerWidthMm);
+    setHasLid(state.hasLid);
+    setDividersEnabled(state.dividersEnabled);
+    setDividerCountX(state.dividerCountX);
+    setDividerCountZ(state.dividerCountZ);
+    setEngraveItems(state.engraveItems || []);
+    setFaceArtworkByFace(state.faceArtworkByFace || {});
+  }, []);
+
+  const projectStorage = useProjectStorage<BoxMakerProjectState>({
+    toolId: TOOL_ID,
+    getCurrentState,
+    applyState,
+  });
 
   const { input, settings, faces, validation } = useMemo(() => {
     const input = {
@@ -670,6 +726,7 @@ export function SimpleBoxUI({
             <p className="text-[11px] text-slate-400">{t('boxmaker.simple_subtitle')}</p>
           </div>
         </div>
+        <ProjectToolbar projectStorage={projectStorage} toolDisplayName="Box Maker" />
       </header>
 
       <main className="mx-auto flex w-full flex-1 flex-col gap-4 px-4 py-4 md:flex-row">

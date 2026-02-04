@@ -67,13 +67,13 @@ export class AuthService {
     const accessToken = (jwt as any).sign(
       payload,
       process.env.JWT_ACCESS_SECRET || 'dev-access-secret',
-      { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '24h' },
+      { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '365d' },
     );
 
     const refreshToken = (jwt as any).sign(
       payload,
       process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret',
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' },
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '365d' },
     );
 
     return { accessToken, refreshToken };
