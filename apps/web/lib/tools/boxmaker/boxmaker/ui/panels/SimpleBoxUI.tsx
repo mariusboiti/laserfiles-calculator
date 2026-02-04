@@ -13,7 +13,8 @@ import { importSvgAsFace } from '../../../src/lib/svgImport';
 import { mergeSvgWithOverlays, type EngraveOverlayItem } from '../../core/shared/mergeSvgWithOverlays';
 import { FONTS as SHARED_FONTS, loadFont, textToPathD, type FontId } from '@/lib/fonts/sharedFontRegistry';
 import { AIWarningBanner } from '@/components/ai';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Copy, Save } from 'lucide-react';
+import { saveImage } from '@/lib/ai/aiImageLibrary';
 import { useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { refreshEntitlements } from '@/lib/entitlements/client';
@@ -135,8 +136,8 @@ export function SimpleBoxUI({
 
   // Divider state
   const [dividersEnabled, setDividersEnabled] = useState(false);
-  const [dividerCountX, setDividerCountX] = useState(1);
-  const [dividerCountZ, setDividerCountZ] = useState(1);
+  const [dividerCountX, setDividerCountX] = useState(0);
+  const [dividerCountZ, setDividerCountZ] = useState(0);
 
   const [engraveOp, setEngraveOp] = useState<PathOperation>('engrave');
   const [engraveTarget, setEngraveTarget] = useState<string>('front');
@@ -412,11 +413,12 @@ export function SimpleBoxUI({
       // Enhance prompt based on selected model - always request white background
       let enhancedPrompt = prompt;
       if (faceArtworkModel === 'sketch') {
-        enhancedPrompt = `pencil sketch drawing style, hand-drawn, artistic sketch on white background: ${prompt}, white background`;
+        enhancedPrompt = `pencil sketch drawing, hand-drawn with pencil strokes, artistic pencil illustration, graphite drawing style, shading with pencil lines: ${prompt}, white background`;
       } else if (faceArtworkModel === 'geometric') {
-        enhancedPrompt = `geometric pattern, repeating geometric shapes, symmetrical design on white background: ${prompt}, white background`;
+        enhancedPrompt = `laser cut geometric pattern, horizontal rectangle panel, abstract geometric lines and shapes suitable for laser cutting, no thin fragile areas, bold connected lines forming geometric design, art deco style lattice pattern: ${prompt}, white background`;
       } else {
-        enhancedPrompt = `${prompt}, white background`;
+        // Silhouette mode - solid black silhouette shape
+        enhancedPrompt = `solid black silhouette, simple outline shape, filled black shape on white background: ${prompt}, white background`;
       }
 
       const res = await fetch('/api/ai/silhouette', {
@@ -511,7 +513,7 @@ export function SimpleBoxUI({
         .map((d) => `<path d="${d}" />`)
         .join('')}</svg>`;
 
-      const op: PathOperation = mode === 'CUT_SILHOUETTE' ? 'cut' : 'score';
+      const op: PathOperation = 'engrave';
       const face = importSvgAsFace({
         svgText,
         id: `trace-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -546,6 +548,58 @@ export function SimpleBoxUI({
     } finally {
       setIsArtworkGenerating(false);
     }
+  };
+
+  const handleSaveToLibrary = async () => {
+    const faceName = String(selectedArtworkFace || '').trim();
+    const art = faceName ? faceArtworkByFace[faceName] : null;
+    if (!art?.imageDataUrl) {
+      setArtworkError(t('boxmaker.save_error.no_artwork'));
+      return;
+    }
+
+    try {
+      const result = await saveImage({
+        toolSlug: 'box-maker',
+        title: art.prompt || `Box artwork - ${faceName}`,
+        prompt: art.prompt,
+        dataUrl: art.imageDataUrl,
+        mime: 'image/png',
+        tags: ['box-maker', faceArtworkModel],
+      });
+
+      if (result.success) {
+        setArtworkError(null);
+        alert(t('boxmaker.saved_to_library') || 'Saved to AI Library!');
+      } else {
+        setArtworkError(result.error);
+      }
+    } catch (e) {
+      setArtworkError(e instanceof Error ? e.message : 'Failed to save');
+    }
+  };
+
+  const handleCopyToFace = (targetFaceName: string) => {
+    if (!selectedEngraveItem) return;
+    
+    const targetFace = faceByName.get(targetFaceName);
+    if (!targetFace) return;
+
+    const newId = `${targetFaceName}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const copiedItem: EngraveOverlayItem = {
+      ...selectedEngraveItem,
+      id: newId,
+      fileName: `trace-${targetFaceName}.svg`,
+      placement: {
+        ...selectedEngraveItem.placement,
+        x: targetFace.width / 2,
+        y: targetFace.height / 2,
+      },
+    };
+
+    setEngraveItems((prev) => [...prev, copiedItem]);
+    setSelectedEngraveId(newId);
+    setEngraveTarget(targetFaceName);
   };
 
   const recommendedFinger = useMemo(
@@ -888,6 +942,16 @@ export function SimpleBoxUI({
                     >
                       {t('boxmaker.clear')}
                     </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveToLibrary}
+                      disabled={!faceArtworkByFace[selectedArtworkFace]?.imageDataUrl}
+                      className="rounded-md border border-emerald-700 bg-emerald-900/50 px-3 py-1.5 text-xs text-emerald-200 hover:bg-emerald-800 disabled:opacity-40"
+                      title={t('boxmaker.save_to_library') || 'Save to AI Library'}
+                    >
+                      <Save className="inline h-3 w-3 mr-1" />
+                      {t('boxmaker.save_to_library') || 'Save'}
+                    </button>
                   </div>
 
                   {artworkError ? (
@@ -979,22 +1043,22 @@ export function SimpleBoxUI({
 
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>{t('boxmaker.width')} ({unitLabel})</span>
+                      <span>X ({unitLabel})</span>
                       <input
                         type="number"
-                        step={unitSystem === 'in' ? 0.01 : 0.1}
-                        value={toUser(selectedEngraveItem.placement.x)}
-                        onChange={(e) => setSelectedEngravePlacement({ x: fromUser(Number(e.target.value)) })}
+                        step={unitSystem === 'in' ? 0.01 : 1}
+                        value={Math.round(toUser(selectedEngraveItem.placement.x))}
+                        onChange={(e) => setSelectedEngravePlacement({ x: fromUser(Math.round(Number(e.target.value))) })}
                         className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                      <span>{t('boxmaker.depth')} ({unitLabel})</span>
+                      <span>Y ({unitLabel})</span>
                       <input
                         type="number"
-                        step={unitSystem === 'in' ? 0.01 : 0.1}
-                        value={toUser(selectedEngraveItem.placement.y)}
-                        onChange={(e) => setSelectedEngravePlacement({ y: fromUser(Number(e.target.value)) })}
+                        step={unitSystem === 'in' ? 0.01 : 1}
+                        value={Math.round(toUser(selectedEngraveItem.placement.y))}
+                        onChange={(e) => setSelectedEngravePlacement({ y: fromUser(Math.round(Number(e.target.value))) })}
                         className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                       />
                     </label>
@@ -1023,6 +1087,23 @@ export function SimpleBoxUI({
                         className="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-200"
                       />
                     </label>
+                  </div>
+
+                  <div className="mt-3 border-t border-slate-800 pt-3">
+                    <div className="text-[11px] text-slate-400 mb-2">{t('boxmaker.copy_to_face') || 'Copy to face'}</div>
+                    <div className="flex flex-wrap gap-1">
+                      {faceKeys.filter((k) => k !== engraveTarget).map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => handleCopyToFace(k)}
+                          className="rounded px-2 py-1 text-[10px] border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
+                        >
+                          <Copy className="inline h-3 w-3 mr-1" />
+                          {k}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : null}
