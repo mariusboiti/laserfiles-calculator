@@ -187,7 +187,7 @@ export class AuthController {
         wpUserId: String(body.wpUserId),
       },
       process.env.JWT_ACCESS_SECRET || 'dev-access-secret',
-      { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' },
+      { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '365d' },
     );
 
     return { token: accessToken };
