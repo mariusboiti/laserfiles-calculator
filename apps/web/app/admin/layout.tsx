@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Shield, Users, LayoutDashboard, ChevronLeft } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -14,8 +13,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     async function checkAdmin() {
       try {
-        const res = await apiClient.get('/auth/me', { withCredentials: true });
-        const user = res.data?.user;
+        const res = await fetch('/api-backend/auth/me', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            ...(typeof window !== 'undefined' && window.localStorage.getItem('accessToken')
+              ? { Authorization: `Bearer ${window.localStorage.getItem('accessToken')}` }
+              : {}),
+          },
+          cache: 'no-store',
+        });
+
+        if (!res.ok) {
+          router.push('/studio');
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+        const user = data?.user;
 
         if (!user) {
           router.push('/studio');
