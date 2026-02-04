@@ -1,6 +1,7 @@
 import { Injectable, Optional, Logger, ForbiddenException, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
 import { ENTITLEMENTS_VERSION, IdentityEntitlements, PlanName, FeatureFlags, EntitlementLimits } from '@laser/shared/entitlements';
 import type { WpGetEntitlementsResponse } from '@laser/shared/wp-plugin-contract';
+import { EntitlementPlan } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { getRequestCountry, type RequestLike } from '../common/geo/country.resolver';
 import axios from 'axios';
@@ -38,7 +39,7 @@ export class EntitlementsService {
     userId: string,
     req?: RequestLike,
   ): Promise<{
-    plan: 'TRIAL' | 'ACTIVE' | 'NONE' | 'CANCELED';
+    plan: 'TRIAL' | 'ACTIVE' | 'NONE' | 'CANCELED' | 'FREE' | 'FREE_RO';
     trialStartedAt: string | null;
     trialEndsAt: string | null;
     aiCreditsTotal: number;
@@ -100,6 +101,72 @@ export class EntitlementsService {
 
     const now = new Date();
     const country = getRequestCountry(req);
+
+    if (!ent) {
+      const roFreeEnabled = String(process.env.RO_FREE_ENABLED ?? '').toLowerCase() === 'true';
+      const roCodesRaw = String(process.env.RO_FREE_COUNTRY_CODES ?? 'RO');
+      const roCodes = roCodesRaw
+        .split(',')
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean);
+
+      const nonRoGraceDaysRaw = Number(process.env.NON_RO_FREE_GRACE_DAYS ?? '0');
+      const nonRoGraceDays = Number.isFinite(nonRoGraceDaysRaw) && nonRoGraceDaysRaw > 0 ? nonRoGraceDaysRaw : 0;
+
+      const createdAt = user?.createdAt ? new Date(user.createdAt) : null;
+      const inRo = country ? roCodes.includes(country.toUpperCase()) : false;
+
+      if (roFreeEnabled && inRo) {
+        return {
+          plan: 'FREE_RO',
+          trialStartedAt: null,
+          trialEndsAt: null,
+          aiCreditsTotal: 0,
+          aiCreditsUsed: 0,
+          aiCreditsRemaining: 0,
+          isActive: true,
+          daysLeftInTrial: null,
+          stripeCustomerId: null,
+          canUseStudio: true,
+          canUseAi: false,
+          trialEligible: true,
+          graceUntil: null,
+          country,
+          reason: 'RO_FREE',
+          communityBadge: 'NONE',
+          communityBadgeExpiresAt: null,
+          effectiveAccess: { allowed: true, reason: 'INACTIVE' },
+          planDisplayString: 'FREE_RO',
+        };
+      }
+
+      if (nonRoGraceDays > 0 && createdAt) {
+        const graceUntilDate = new Date(createdAt.getTime() + nonRoGraceDays * 24 * 60 * 60 * 1000);
+        const inGrace = now.getTime() < graceUntilDate.getTime();
+
+        return {
+          plan: 'FREE',
+          trialStartedAt: null,
+          trialEndsAt: null,
+          aiCreditsTotal: 0,
+          aiCreditsUsed: 0,
+          aiCreditsRemaining: 0,
+          isActive: inGrace,
+          daysLeftInTrial: null,
+          stripeCustomerId: null,
+          canUseStudio: inGrace,
+          canUseAi: false,
+          trialEligible: true,
+          graceUntil: graceUntilDate.toISOString(),
+          country,
+          reason: inGrace ? 'NON_RO_GRACE' : 'NO_ENTITLEMENT',
+          communityBadge: 'NONE',
+          communityBadgeExpiresAt: null,
+          effectiveAccess: { allowed: inGrace, reason: 'INACTIVE' },
+          planDisplayString: 'FREE',
+        };
+      }
+    }
     
     const trialStartedAt = ent?.trialStartedAt ? ent.trialStartedAt.toISOString() : null;
     const trialEndsAt = ent?.trialEndsAt ? ent.trialEndsAt.toISOString() : null;
@@ -367,13 +434,35 @@ export class EntitlementsService {
       effectiveTrialEndsAt = new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000);
     }
 
+    const existingPlan: EntitlementPlan | null = (existing?.plan as any)
+      ? (String((existing as any).plan).toUpperCase() as EntitlementPlan)
+      : null;
+    const pickPlan = (current: EntitlementPlan | null, incoming: EntitlementPlan): EntitlementPlan => {
+      const inPlan = incoming;
+      if (!current) return inPlan;
+      const cur = current;
+
+      // Always allow CANCELED from WP to override (hard stop).
+      if (inPlan === 'CANCELED') return 'CANCELED';
+      if (cur === 'CANCELED') return 'CANCELED';
+
+      // Prevent WP downgrading a locally-set ACTIVE plan back to TRIALING/INACTIVE.
+      if (cur === 'ACTIVE' && (inPlan === 'TRIALING' || inPlan === 'INACTIVE')) return 'ACTIVE';
+
+      // Otherwise accept upgrades (e.g. TRIALING -> ACTIVE), and normal transitions.
+      return inPlan;
+    };
+
+    const nextPlan = pickPlan(existingPlan, entPlan as EntitlementPlan);
+    const nextTrialEndsAt = nextPlan === 'TRIALING' ? effectiveTrialEndsAt : null;
+
     if (!existing) {
       await prisma.userEntitlement.create({
         data: {
           userId: user.id,
-          plan: entPlan,
-          trialStartedAt: entPlan === 'TRIALING' ? new Date() : null,
-          trialEndsAt: effectiveTrialEndsAt,
+          plan: nextPlan,
+          trialStartedAt: nextPlan === 'TRIALING' ? new Date() : null,
+          trialEndsAt: nextTrialEndsAt,
           aiCreditsTotal: nextTotal,
           aiCreditsUsed: 0,
         },
@@ -382,11 +471,11 @@ export class EntitlementsService {
       await prisma.userEntitlement.update({
         where: { userId: user.id },
         data: {
-          plan: entPlan,
-          trialEndsAt: effectiveTrialEndsAt,
+          plan: nextPlan,
+          trialEndsAt: nextTrialEndsAt,
           // Intentionally keep aiCreditsUsed unchanged per requirements
           aiCreditsTotal: nextTotal,
-          ...(entPlan === 'TRIALING' && !existing.trialStartedAt
+          ...(nextPlan === 'TRIALING' && !existing.trialStartedAt
             ? { trialStartedAt: new Date() }
             : {}),
         },
