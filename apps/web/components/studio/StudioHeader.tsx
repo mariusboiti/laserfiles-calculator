@@ -8,6 +8,7 @@ import { AICreditsInfoPanel } from '@/components/ai';
 import { AiCreditsBadge } from '@/components/studio/AiCreditsBadge';
 import { CommunityBadge } from '@/components/studio/CommunityBadge';
 import { useDisclaimer } from '@/components/legal';
+import { MessagesButton } from '@/components/messages';
 import { LanguageSwitcher, useLanguage } from '@/app/(app)/i18n';
 import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 
@@ -88,13 +89,9 @@ export function StudioHeader() {
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
-            <button
-              type="button"
-              onClick={openDisclaimer}
-              className="hidden rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 md:inline-flex"
-            >
-              {t('shell.feedback')}
-            </button>
+            <div className="hidden md:inline-flex">
+              <MessagesButton />
+            </div>
             <div className="hidden items-center gap-2 md:flex">
               <CommunityBadge />
               <AiCreditsBadge />
@@ -173,16 +170,9 @@ export function StudioHeader() {
               })}
             </div>
             <div className="mt-4 border-t border-slate-800 pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  openDisclaimer();
-                }}
-                className="mb-2 block w-full rounded-md border border-slate-700 px-3 py-2 text-left text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
-              >
-                {t('shell.feedback')}
-              </button>
+              <div className="mb-2">
+                <MessagesButton />
+              </div>
               <button
                 type="button"
                 onClick={() => {

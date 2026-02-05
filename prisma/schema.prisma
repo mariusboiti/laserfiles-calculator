@@ -1069,3 +1069,32 @@ model AdminAuditLog {
   @@index([targetUserId, createdAt])
   @@index([action])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Messaging System
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Message {
+  id              String    @id @default(cuid())
+  senderId        String
+  senderEmail     String?
+  senderName      String?
+  recipientId     String?   // null = broadcast to all users
+  recipientEmail  String?
+  subject         String
+  body            String    @db.Text
+  isRead          Boolean   @default(false)
+  readAt          DateTime?
+  isArchived      Boolean   @default(false)
+  parentId        String?   // for replies - references the original message
+  parent          Message?  @relation("MessageReplies", fields: [parentId], references: [id])
+  replies         Message[] @relation("MessageReplies")
+  isBroadcast     Boolean   @default(false) // true if sent to all users
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([recipientId, isRead, createdAt])
+  @@index([senderId, createdAt])
+  @@index([parentId])
+  @@index([isBroadcast, createdAt])
+}
