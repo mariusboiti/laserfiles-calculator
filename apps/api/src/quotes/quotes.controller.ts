@@ -51,25 +51,21 @@ export class QuotesController {
     return this.quotesService ?? fallbackQuotesService;
   }
 
-  @Roles('ADMIN')
   @Get()
   async list(@Query() query: QuotesPaginationQuery) {
     return this.getService().list(query);
   }
 
-  @Roles('ADMIN')
   @Get(':id')
   async get(@Param('id') id: string) {
     return this.getService().findOne(id);
   }
 
-  @Roles('ADMIN')
   @Post()
   async create(@Body() body: CreateQuoteDto) {
     return this.getService().create(body);
   }
 
-  @Roles('ADMIN')
   @Post(':id/create-order')
   async createOrderFromQuote(@Param('id') id: string, @User() user: any) {
     return this.getService().createOrderFromQuote(id, user.sub);

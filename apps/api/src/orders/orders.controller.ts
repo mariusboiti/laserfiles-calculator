@@ -233,13 +233,11 @@ export class OrdersController {
     return this.getService().getExternalSyncStatus(id);
   }
 
-  @Roles('ADMIN')
   @Post()
   async create(@Body() body: CreateOrderDto, @User() user: any) {
     return this.getService().create(body, user.sub);
   }
 
-  @Roles('ADMIN')
   @Patch(':id')
   async update(
     @Param('id') id: string,
@@ -259,13 +257,11 @@ export class OrdersController {
     return this.getService().updateStatus(id, body.status, user.sub);
   }
 
-  @Roles('ADMIN')
   @Post(':id/external-status/retry')
   async retryExternalStatus(@Param('id') id: string) {
     return this.getService().retryExternalStatus(id);
   }
 
-  @Roles('ADMIN')
   @Post(':id/items')
   async addItem(
     @Param('id') id: string,
@@ -275,7 +271,6 @@ export class OrdersController {
     return this.getService().addItem(id, body, user.sub);
   }
 
-  @Roles('ADMIN')
   @Patch(':orderId/items/:itemId')
   async updateItem(
     @Param('orderId') orderId: string,

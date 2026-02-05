@@ -82,13 +82,11 @@ export class CustomersController {
     return this.getService().findOne(id);
   }
 
-  @Roles('ADMIN')
   @Post()
   async create(@Body() body: CreateCustomerDto) {
     return this.getService().create(body);
   }
 
-  @Roles('ADMIN')
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: UpdateCustomerDto) {
     return this.getService().update(id, body);

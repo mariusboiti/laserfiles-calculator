@@ -74,8 +74,7 @@ export class PricingController {
     return this.pricingService.preview(dto);
   }
 
-  // Persist price snapshot on an order item (ADMIN only)
-  @Roles('ADMIN')
+  // Persist price snapshot on an order item
   @Post('orders/:orderId/items/:itemId')
   async priceOrderItem(
     @Param('orderId') orderId: string,

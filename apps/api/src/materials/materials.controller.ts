@@ -187,13 +187,11 @@ export class MaterialsController {
     return this.getService().findOne(id);
   }
 
-  @Roles('ADMIN')
   @Post()
   async create(@Body() body: CreateMaterialDto) {
     return this.getService().create(body);
   }
 
-  @Roles('ADMIN')
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: UpdateMaterialDto) {
     return this.getService().update(id, body);
@@ -204,7 +202,6 @@ export class MaterialsController {
     return this.getService().listStockMovements(id);
   }
 
-  @Roles('ADMIN')
   @Post(':id/stock-movements')
   async createStockMovement(
     @Param('id') id: string,
