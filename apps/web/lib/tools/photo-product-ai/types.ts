@@ -352,6 +352,29 @@ export interface SizeRecommendation {
   reason: string;
 }
 
+// ─── Batch Generation (V2) ──────────────────────────────────────
+export interface BatchItem {
+  id: string;
+  fileName: string;
+  imageBase64: string;
+  status: 'queued' | 'processing' | 'complete' | 'error';
+  progress: number;           // 0-100
+  result: GenerateResponse | null;
+  error: string | null;
+}
+
+export interface BatchRequest {
+  images: { fileName: string; imageBase64: string }[];
+  productType: ProductType;
+  options: GenerateOptions;
+}
+
+export interface BatchResponse {
+  batchId: string;
+  items: BatchItem[];
+  totalCreditsUsed: number;
+}
+
 export interface GenerateResponse {
   engraveSvg: string;
   cutSvg: string;

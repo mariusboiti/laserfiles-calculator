@@ -13,7 +13,7 @@ import { getStudioTranslation } from '@/lib/i18n/studioTranslations';
 import { refreshEntitlements } from '@/lib/entitlements/client';
 import type {
   ProductType, ProcessingStage, GenerateOptions, GenerateResponse,
-  MaterialId, StyleId,
+  MaterialId, StyleId, BatchItem,
 } from '../types';
 import {
   PRODUCT_TYPES, DEFAULT_OPTIONS, MATERIAL_PROFILES, STYLE_OPTIONS, MOCKUP_SCENES,
@@ -108,6 +108,13 @@ export function PhotoProductAITool() {
   const [selectedLayer, setSelectedLayer] = useState(0);
   const [bottomPanel, setBottomPanel] = useState<'intelligence' | 'coach' | 'export'>('intelligence');
 
+  // Batch mode state
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [selectedBatchItem, setSelectedBatchItem] = useState(0);
+  const batchInputRef = useRef<HTMLInputElement>(null);
+
   const mat = MATERIAL_PROFILES[options.material];
 
   // ── File handling ──
@@ -175,6 +182,128 @@ export function PhotoProductAITool() {
   const handleReset = () => {
     setUploadedImage(null); setUploadedFileName(''); setResult(null); setStage('idle');
     setError(null); setOptions({ ...DEFAULT_OPTIONS }); setSelectedProduct('engraved-frame');
+    setBatchItems([]); setBatchMode(false); setBatchProcessing(false);
+  };
+
+  // ── Batch handlers ──
+  const handleBatchFiles = useCallback((files: FileList) => {
+    const validFiles = Array.from(files).filter(
+      (f) => ACCEPTED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE,
+    ).slice(0, 10);
+    if (validFiles.length === 0) { setError('No valid images selected.'); return; }
+    setError(null);
+
+    const items: BatchItem[] = [];
+    let loaded = 0;
+    validFiles.forEach((file, i) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        items.push({
+          id: `batch-${Date.now()}-${i}`,
+          fileName: file.name,
+          imageBase64: (e.target?.result as string).split(',')[1] || '',
+          status: 'queued',
+          progress: 0,
+          result: null,
+          error: null,
+        });
+        loaded++;
+        if (loaded === validFiles.length) {
+          setBatchItems(items);
+          setBatchMode(true);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const handleBatchGenerate = async () => {
+    if (batchItems.length === 0) return;
+    setBatchProcessing(true); setError(null);
+    analytics.trackAIGeneration();
+
+    // Mark all as processing
+    setBatchItems((prev) => prev.map((it) => ({ ...it, status: 'processing' as const, progress: 10 })));
+
+    try {
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      const accessToken = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
+      if (accessToken) authHeaders['Authorization'] = `Bearer ${accessToken}`;
+
+      // Resize all images first
+      const resizedImages = await Promise.all(
+        batchItems.map(async (it) => {
+          const dataUrl = `data:image/jpeg;base64,${it.imageBase64}`;
+          const resized = await resizeImageToBase64(dataUrl);
+          return { fileName: it.fileName, imageBase64: resized };
+        }),
+      );
+
+      setBatchItems((prev) => prev.map((it) => ({ ...it, progress: 30 })));
+
+      const response = await fetch('/api/ai/photo-product/batch', {
+        method: 'POST', headers: authHeaders, credentials: 'include',
+        body: JSON.stringify({
+          images: resizedImages,
+          productType: selectedProduct,
+          options,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || `Batch failed (${response.status})`);
+      }
+
+      const data = await response.json();
+      setBatchItems(data.items.map((it: any) => ({
+        ...it,
+        progress: 100,
+        status: it.result ? 'complete' : 'error',
+      })));
+      refreshEntitlements();
+    } catch (err: any) {
+      console.error('Batch generation failed:', err);
+      setError(err.message || 'Batch generation failed.');
+      setBatchItems((prev) => prev.map((it) => ({
+        ...it, status: 'error' as const, progress: 100, error: err.message,
+      })));
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
+
+  const handleBatchExportAll = async () => {
+    const completedItems = batchItems.filter((it) => it.status === 'complete' && it.result);
+    if (completedItems.length === 0) return;
+    analytics.trackExport();
+
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      completedItems.forEach((it, i) => {
+        const r = it.result!;
+        const folder = zip.folder(`${i + 1}-${it.fileName.replace(/\.[^.]+$/, '')}`)!;
+        folder.file('engrave.svg', svgForExport(r.engraveSvg));
+        folder.file('cut.svg', svgForExport(r.cutSvg));
+        folder.file('combined.svg', svgForExport(r.combinedSvg));
+        if (r.optimizedCutSvg) folder.file('optimized-cut.svg', svgForExport(r.optimizedCutSvg));
+        if (r.engravePreviewPng) folder.file('preview.png', b64toUint8(r.engravePreviewPng));
+        folder.file('production-report.json', JSON.stringify(r.productionInsights, null, 2));
+      });
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `batch-${selectedProduct}-${Date.now()}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Batch export failed:', err);
+      setError('Batch export failed.');
+    }
   };
 
   // ── Export helpers ──
@@ -335,7 +464,71 @@ export function PhotoProductAITool() {
           )}
         </div>
 
-        {uploadedImage && (
+        {/* Batch Mode Toggle + Upload */}
+        <div className="flex items-center justify-between rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-2">
+          <span className="text-[11px] text-slate-400">Batch Mode (Etsy sellers)</span>
+          <div onClick={() => { setBatchMode(!batchMode); if (batchMode) setBatchItems([]); }}
+            className={`relative h-5 w-9 cursor-pointer rounded-full transition-colors ${batchMode ? 'bg-fuchsia-500' : 'bg-slate-700'}`}>
+            <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${batchMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
+        </div>
+
+        {batchMode && (
+          <div className="space-y-2">
+            <input ref={batchInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" multiple
+              onChange={(e) => { if (e.target.files) handleBatchFiles(e.target.files); }}
+              className="hidden" />
+            <button
+              onClick={() => batchInputRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-fuchsia-700/50 bg-fuchsia-900/10 px-4 py-3 text-xs text-fuchsia-300 hover:border-fuchsia-600/50"
+            >
+              <Upload className="h-4 w-4" />
+              Select Multiple Photos (max 10)
+            </button>
+            {batchItems.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] text-slate-500">{batchItems.length} images queued</div>
+                {batchItems.map((it, i) => (
+                  <div key={it.id} className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-[10px] ${
+                    it.status === 'complete' ? 'bg-emerald-900/20 text-emerald-300'
+                      : it.status === 'error' ? 'bg-red-900/20 text-red-300'
+                        : it.status === 'processing' ? 'bg-sky-900/20 text-sky-300'
+                          : 'bg-slate-800/50 text-slate-400'
+                  }`}>
+                    <span className="truncate max-w-[180px]">{it.fileName}</span>
+                    <span className="shrink-0 ml-2">
+                      {it.status === 'complete' ? <CheckCircle className="h-3 w-3 text-emerald-400" />
+                        : it.status === 'error' ? <XCircle className="h-3 w-3 text-red-400" />
+                          : it.status === 'processing' ? <Activity className="h-3 w-3 animate-pulse text-sky-400" />
+                            : <div className="h-3 w-3 rounded-full border border-slate-600" />}
+                    </span>
+                  </div>
+                ))}
+                <button
+                  onClick={handleBatchGenerate}
+                  disabled={batchProcessing}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-fuchsia-500 to-violet-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg disabled:opacity-50"
+                >
+                  {batchProcessing ? (
+                    <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Processing batch...</>
+                  ) : (
+                    <><Sparkles className="h-3.5 w-3.5" /> Generate All ({batchItems.length})</>
+                  )}
+                </button>
+                {batchItems.some((it) => it.status === 'complete') && (
+                  <button
+                    onClick={handleBatchExportAll}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Export All as ZIP
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {(uploadedImage || batchMode) && (
           <>
             {/* ── Material Selector ── */}
             <Section title="Material" icon={<Box className="h-3.5 w-3.5 text-amber-400" />}>
