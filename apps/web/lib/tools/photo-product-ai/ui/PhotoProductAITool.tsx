@@ -182,6 +182,13 @@ export function PhotoProductAITool() {
     setSelectedProduct('engraved-frame');
   };
 
+  const svgForExport = (svg: string): string => {
+    return svg.replace(
+      /viewBox="([^"]+)"\s+data-width-mm="([^"]+)"\s+data-height-mm="([^"]+)"/,
+      'width="$2mm" height="$3mm" viewBox="$1"'
+    );
+  };
+
   const handleExportZip = async () => {
     if (!result) return;
     analytics.trackExport();
@@ -190,9 +197,9 @@ export function PhotoProductAITool() {
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
 
-      zip.file('engrave.svg', result.engraveSvg);
-      zip.file('cut.svg', result.cutSvg);
-      zip.file('combined.svg', result.combinedSvg);
+      zip.file('engrave.svg', svgForExport(result.engraveSvg));
+      zip.file('cut.svg', svgForExport(result.cutSvg));
+      zip.file('combined.svg', svgForExport(result.combinedSvg));
 
       if (result.engravePreviewPng) {
         const pngData = atob(result.engravePreviewPng);
@@ -225,7 +232,7 @@ export function PhotoProductAITool() {
   };
 
   const handleDownloadSvg = (svgContent: string, filename: string) => {
-    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+    const blob = new Blob([svgForExport(svgContent)], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -480,7 +487,7 @@ export function PhotoProductAITool() {
         )}
 
         {/* Preview Canvas */}
-        <div className="flex flex-1 items-center justify-center overflow-auto rounded-b-xl bg-slate-900/50 p-6">
+        <div className="flex flex-1 items-center justify-center overflow-auto rounded-b-xl bg-slate-900/50 p-6" style={{ minHeight: 420 }}>
           {!uploadedImage && !isProcessing && (
             <div className="text-center">
               <Image className="mx-auto mb-3 h-12 w-12 text-slate-600" />
@@ -515,17 +522,17 @@ export function PhotoProductAITool() {
           )}
 
           {result && previewTab === 'engrave' && (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex w-full flex-col items-center gap-4">
               {result.engravePreviewPng ? (
                 <img
                   src={`data:image/png;base64,${result.engravePreviewPng}`}
                   alt="Engrave preview"
-                  className="max-h-[500px] max-w-full rounded-lg shadow-lg"
+                  className="w-full max-w-2xl rounded-lg shadow-lg object-contain"
                   style={options.invertEngraving ? { filter: 'invert(1)' } : undefined}
                 />
               ) : (
                 <div
-                  className="max-h-[500px] overflow-auto rounded-lg border border-slate-700 bg-white p-2"
+                  className="w-full max-w-2xl overflow-auto rounded-lg border border-slate-700 bg-white p-2 [&>svg]:h-auto [&>svg]:w-full"
                   dangerouslySetInnerHTML={{ __html: result.engraveSvg }}
                 />
               )}
@@ -540,9 +547,9 @@ export function PhotoProductAITool() {
           )}
 
           {result && previewTab === 'cut' && (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex w-full flex-col items-center gap-4">
               <div
-                className="max-h-[500px] overflow-auto rounded-lg border border-slate-700 bg-white p-4"
+                className="w-full max-w-2xl overflow-auto rounded-lg border border-slate-700 bg-white p-4 [&>svg]:h-auto [&>svg]:w-full"
                 dangerouslySetInnerHTML={{ __html: result.cutSvg }}
               />
               <button
@@ -556,9 +563,9 @@ export function PhotoProductAITool() {
           )}
 
           {result && previewTab === 'combined' && (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex w-full flex-col items-center gap-4">
               <div
-                className="max-h-[500px] overflow-auto rounded-lg border border-slate-700 bg-white p-2"
+                className="w-full max-w-2xl overflow-auto rounded-lg border border-slate-700 bg-white p-2 [&>svg]:h-auto [&>svg]:w-full"
                 dangerouslySetInnerHTML={{ __html: result.combinedSvg }}
               />
               <button
@@ -579,7 +586,7 @@ export function PhotoProductAITool() {
                     <img
                       src={`data:image/png;base64,${result.mockupPng}`}
                       alt="Product mockup"
-                      className="max-h-[400px] max-w-full rounded"
+                      className="w-full max-w-lg rounded object-contain"
                       style={options.invertEngraving ? { filter: 'invert(1)' } : undefined}
                     />
                   </div>

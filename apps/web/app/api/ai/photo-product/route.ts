@@ -80,9 +80,11 @@ function generateSvgFromBase64(imageBase64: string, widthMm: number, heightMm: n
   const totalW = widthMm + padding * 2;
   const totalH = heightMm + padding * 2;
 
+  // SVGs use viewBox for aspect ratio but NO fixed width/height so they scale in the browser.
+  // The real mm dimensions are stored as data attributes for laser software export.
   const engraveSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="${totalW}mm" height="${totalH}mm" viewBox="0 0 ${totalW} ${totalH}">
+     viewBox="0 0 ${totalW} ${totalH}" data-width-mm="${totalW}" data-height-mm="${totalH}">
   <title>Engrave Layer</title>
   <image x="${padding}" y="${padding}" width="${widthMm}" height="${heightMm}"
          href="data:image/png;base64,${imageBase64}" />
@@ -90,7 +92,7 @@ function generateSvgFromBase64(imageBase64: string, widthMm: number, heightMm: n
 
   const cutSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg"
-     width="${totalW}mm" height="${totalH}mm" viewBox="0 0 ${totalW} ${totalH}">
+     viewBox="0 0 ${totalW} ${totalH}" data-width-mm="${totalW}" data-height-mm="${totalH}">
   <title>Cut Layer</title>
   <rect x="${kerfMm / 2}" y="${kerfMm / 2}"
         width="${totalW - kerfMm}" height="${totalH - kerfMm}"
@@ -100,7 +102,7 @@ function generateSvgFromBase64(imageBase64: string, widthMm: number, heightMm: n
 
   const combinedSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-     width="${totalW}mm" height="${totalH}mm" viewBox="0 0 ${totalW} ${totalH}">
+     viewBox="0 0 ${totalW} ${totalH}" data-width-mm="${totalW}" data-height-mm="${totalH}">
   <title>Combined - Engrave + Cut</title>
   <image x="${padding}" y="${padding}" width="${widthMm}" height="${heightMm}"
          href="data:image/png;base64,${imageBase64}" />
