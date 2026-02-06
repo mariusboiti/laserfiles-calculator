@@ -31,6 +31,31 @@ const STAGE_LABELS: Record<ProcessingStage, string> = {
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_DIMENSION = 1536; // Resize to cap payload size for the API
+
+function resizeImageToBase64(dataUrl: string, maxDim = MAX_DIMENSION, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = document.createElement('img');
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('Canvas context failed')); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      const resized = canvas.toDataURL('image/jpeg', quality);
+      resolve(resized.split(',')[1]);
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = dataUrl;
+  });
+}
 
 export function PhotoProductAITool() {
   const analytics = useAnalytics('photo-product-ai');
@@ -101,11 +126,10 @@ export function PhotoProductAITool() {
     setResult(null);
     analytics.trackAIGeneration();
 
-    const base64 = uploadedImage.includes(',') ? uploadedImage.split(',')[1] : uploadedImage;
-
     try {
       setStage('preprocessing');
-      await delay(400);
+      const base64 = await resizeImageToBase64(uploadedImage);
+      await delay(200);
       setStage('ai-generation');
 
       const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };

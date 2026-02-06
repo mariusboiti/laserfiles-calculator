@@ -23,7 +23,7 @@ export async function getInbox(options?: {
   if (options?.limit) params.set('limit', String(options.limit));
   if (options?.offset) params.set('offset', String(options.offset));
 
-  const url = `${API_BASE}/api-backend/messages/inbox?${params.toString()}`;
+  const url = `${API_BASE}/messages/inbox?${params.toString()}`;
   const res = await fetch(url, {
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -37,7 +37,7 @@ export async function getInbox(options?: {
 }
 
 export async function getUnreadCount(): Promise<number> {
-  const url = `${API_BASE}/api-backend/messages/unread-count`;
+  const url = `${API_BASE}/messages/unread-count`;
   const res = await fetch(url, {
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -52,7 +52,7 @@ export async function getUnreadCount(): Promise<number> {
 }
 
 export async function getMessage(id: string): Promise<Message> {
-  const url = `${API_BASE}/api-backend/messages/${id}`;
+  const url = `${API_BASE}/messages/${id}`;
   const res = await fetch(url, {
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -66,7 +66,7 @@ export async function getMessage(id: string): Promise<Message> {
 }
 
 export async function markAsRead(id: string): Promise<Message> {
-  const url = `${API_BASE}/api-backend/messages/${id}/read`;
+  const url = `${API_BASE}/messages/${id}/read`;
   const res = await fetch(url, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -81,7 +81,7 @@ export async function markAsRead(id: string): Promise<Message> {
 }
 
 export async function markAllAsRead(): Promise<void> {
-  const url = `${API_BASE}/api-backend/messages/mark-all-read`;
+  const url = `${API_BASE}/messages/mark-all-read`;
   const res = await fetch(url, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -94,7 +94,7 @@ export async function markAllAsRead(): Promise<void> {
 }
 
 export async function archiveMessage(id: string): Promise<Message> {
-  const url = `${API_BASE}/api-backend/messages/${id}/archive`;
+  const url = `${API_BASE}/messages/${id}/archive`;
   const res = await fetch(url, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -109,7 +109,7 @@ export async function archiveMessage(id: string): Promise<Message> {
 }
 
 export async function replyToMessage(id: string, body: string): Promise<Message> {
-  const url = `${API_BASE}/api-backend/messages/${id}/reply`;
+  const url = `${API_BASE}/messages/${id}/reply`;
   const res = await fetch(url, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -126,7 +126,7 @@ export async function replyToMessage(id: string, body: string): Promise<Message>
 
 // Admin endpoints
 export async function sendMessage(payload: SendMessagePayload): Promise<Message[]> {
-  const url = `${API_BASE}/api-backend/messages/send`;
+  const url = `${API_BASE}/messages/send`;
   const res = await fetch(url, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -150,7 +150,7 @@ export async function getSentMessages(options?: {
   if (options?.limit) params.set('limit', String(options.limit));
   if (options?.offset) params.set('offset', String(options.offset));
 
-  const url = `${API_BASE}/api-backend/messages/admin/sent?${params.toString()}`;
+  const url = `${API_BASE}/messages/admin/sent?${params.toString()}`;
   const res = await fetch(url, {
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -164,7 +164,7 @@ export async function getSentMessages(options?: {
 }
 
 export async function getAllUsers(): Promise<UserForSelect[]> {
-  const url = `${API_BASE}/api-backend/messages/admin/users`;
+  const url = `${API_BASE}/messages/admin/users`;
   const res = await fetch(url, {
     headers: getAuthHeaders(),
     credentials: 'include',
@@ -178,7 +178,7 @@ export async function getAllUsers(): Promise<UserForSelect[]> {
 }
 
 export async function deleteMessage(id: string): Promise<void> {
-  const url = `${API_BASE}/api-backend/messages/${id}/delete`;
+  const url = `${API_BASE}/messages/${id}/delete`;
   const res = await fetch(url, {
     method: 'POST',
     headers: getAuthHeaders(),

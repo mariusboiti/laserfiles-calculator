@@ -7,6 +7,9 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['sharp', 'potrace', 'jimp'],
+    serverActions: {
+      bodySizeLimit: '20mb',
+    },
   },
   webpack: (config, { dev, isServer, webpack }) => {
     if (!dev) {

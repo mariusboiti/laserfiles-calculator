@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { consumeAiCreditViaBackend, isEntitlementError, type EntitlementError } from '@/lib/ai/credit-consumption';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 
 function getProvider(): string {
   return (process.env.AI_PROVIDER || 'gemini').toLowerCase();
