@@ -13,6 +13,7 @@ import KeychainToolV2 from '@/lib/tools/keychain/ui/KeychainToolV2';
 import { CurvedPhotoFrameV3Tool } from '@/lib/tools/curved-photo-frame-generator-v3/ui/CurvedPhotoFrameV3Tool';
 import { AIDepthEngravingTool } from '@/lib/tools/ai-depth-photo/ui/AIDepthEngravingTool';
 import { JigsawMakerTool } from '@/lib/tools/jigsaw-maker/ui/JigsawMakerTool';
+import { PhotoProductAITool } from '@/lib/tools/photo-product-ai/ui/PhotoProductAITool';
 import type { StudioTool } from './types';
 import { studioToolMetas } from './meta';
 
@@ -38,6 +39,7 @@ const componentBySlug: Record<string, StudioTool['Component']> = {
   'curved-photo-frame-v3': CurvedPhotoFrameV3Tool,
   'ai-depth-photo': AIDepthEngravingTool,
   'jigsaw-maker': JigsawMakerTool,
+  'photo-product-ai': PhotoProductAITool,
   // 'multilayer-maker': MultiLayerMakerPlaceholder,
   'price-calculator': PriceCalculatorPlaceholder,
 };

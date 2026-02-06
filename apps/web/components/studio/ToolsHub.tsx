@@ -19,7 +19,7 @@ const TOOL_CATEGORIES = {
   ],
   'Boxes & Frames': ['boxmaker', 'curved-photo-frame-v3'],
   'Layout & Production': ['panel-splitter', 'ornament-layout-planner', 'jig-fixture-generator', 'nesting'],
-  'Image Processing': ['engraveprep', 'ai-depth-photo'],
+  'Image Processing': ['engraveprep', 'ai-depth-photo', 'photo-product-ai'],
   'Utilities': ['price-calculator', 'inlay-offset-calculator'],
   'Games & Puzzles': ['jigsaw-maker'],
 } as const;

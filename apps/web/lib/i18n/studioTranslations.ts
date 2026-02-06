@@ -2254,6 +2254,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'ai_depth_photo.photo.bottom_notch.helper': 'Add semicircle notch at bottom edge',
     'tools.jigsaw-maker.title': 'Jigsaw Puzzle Maker',
     'tools.jigsaw-maker.description': 'Turn any image into a laser-cuttable jigsaw puzzle.',
+    'tools.photo-product-ai.title': 'Photo → Laser Product',
+    'tools.photo-product-ai.description': 'Upload a photo and generate laser-ready engraving files, cut outlines, mockups, and pricing.',
     'tools.nesting.title': 'Nesting Tool',
     'tools.nesting.description': 'Optimize part placement on sheets to minimize material waste.',
 
@@ -3778,6 +3780,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
 
     'tools.jigsaw-maker.title': 'Creator Puzzle',
     'tools.jigsaw-maker.description': 'Transformă orice imagine într-un puzzle tăiabil cu laser.',
+    'tools.photo-product-ai.title': 'Foto → Produs Laser',
+    'tools.photo-product-ai.description': 'Încarcă o fotografie și generează fișiere de gravare, contururi de tăiere, mockup-uri și estimări de preț.',
     'tools.nesting.title': 'Nesting',
     'tools.nesting.description': 'Optimizează plasarea pieselor pe foi pentru a minimiza risipa de material.',
 
@@ -7181,6 +7185,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'ai_depth_photo.photo.bottom_notch.helper': 'Añadir una muesca semicircular en el borde inferior',
     'tools.jigsaw-maker.title': 'Creador de Rompecabezas',
     'tools.jigsaw-maker.description': 'Convierte cualquier imagen en un rompecabezas cortable con láser.',
+    'tools.photo-product-ai.title': 'Foto → Producto Láser',
+    'tools.photo-product-ai.description': 'Sube una foto y genera archivos de grabado, contornos de corte, maquetas y estimaciones de precios.',
     'tools.nesting.title': 'Herramienta de Anidado',
     'tools.nesting.description': 'Optimiza la colocación de piezas en hojas para minimizar el desperdicio de material.',
 
@@ -11220,6 +11226,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     // Jigsaw Puzzle Maker UI - French
     'jigsaw.quick_presets.title': 'Préréglages rapides',
     'tools.jigsaw-maker.title': 'Créateur de puzzle',
+    'tools.photo-product-ai.title': 'Photo → Produit Laser',
+    'tools.photo-product-ai.description': 'Téléchargez une photo et générez des fichiers de gravure, des contours de découpe, des maquettes et des estimations de prix.',
     'jigsaw.header.subtitle': 'Générez des puzzles SVG prêts pour la découpe laser',
     'jigsaw.puzzle_mode.title': 'Mode de puzzle',
     'jigsaw.mode.classic.label': 'Classique',
@@ -12087,6 +12095,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.ai-depth-photo.description': 'Generieren Sie Höhenkarten aus Fotos für Lasergravur mit 3D-Effekt.',
     'tools.jigsaw-maker.title': 'Puzzle-Ersteller',
     'tools.jigsaw-maker.description': 'Verwandeln Sie jedes Bild in ein laserschneidbares Puzzle.',
+    'tools.photo-product-ai.title': 'Foto → Laserprodukt',
+    'tools.photo-product-ai.description': 'Laden Sie ein Foto hoch und generieren Sie gravierfertige Dateien, Schnittumrisse, Mockups und Preisschätzungen.',
     'tools.nesting.title': 'Nesting-Werkzeug',
     'tools.nesting.description': 'Optimieren Sie die Platzierung von Teilen auf Platten, um Materialverschwendung zu minimieren.',
 

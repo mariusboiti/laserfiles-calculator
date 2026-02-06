@@ -117,6 +117,13 @@ export const studioToolMetas: StudioToolMeta[] = [
     isFree: true,
   },
   {
+    slug: 'photo-product-ai',
+    titleKey: 'tools.photo-product-ai.title',
+    descriptionKey: 'tools.photo-product-ai.description',
+    proFeatures: ['AI Photo Processing', 'SVG Vectorization', 'Product Mockups', 'Production Pricing', 'ZIP Export Pack'],
+    usesAI: true,
+  },
+  {
     slug: 'price-calculator',
     titleKey: 'tools.price-calculator.title',
     descriptionKey: 'tools.price-calculator.description',
