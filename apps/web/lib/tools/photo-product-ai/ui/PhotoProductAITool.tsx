@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Upload, Sparkles, Download, Image, Layers, DollarSign, Clock, Ruler,
   RotateCcw, Package, Eye, AlertTriangle, Shield, Palette, Box, Zap,
