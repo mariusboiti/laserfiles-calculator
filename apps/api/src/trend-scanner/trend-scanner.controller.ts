@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, Req, Logger } from '@nestjs/common';
 import { LaserTrendIntelligenceService } from './trend-intelligence.service';
 import { TrendAlertService } from './trend-alert.service';
 import { TrendProductGenerationService } from './trend-product-generation.service';
@@ -15,6 +15,8 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 @Controller('trend-scanner')
 @UseGuards(JwtAuthGuard)
 export class TrendScannerController {
+  private readonly logger = new Logger(TrendScannerController.name);
+
   constructor(
     private readonly intelligence: LaserTrendIntelligenceService,
     private readonly alerts: TrendAlertService,
@@ -34,19 +36,34 @@ export class TrendScannerController {
   @Post('scan')
   async runScan(@Req() req: any, @Body() body: { scanType?: string }) {
     const userId = req.user?.id || req.user?.sub;
-    return this.intelligence.runFullScan(userId, body.scanType || 'full');
+    try {
+      return await this.intelligence.runFullScan(userId, body.scanType || 'full');
+    } catch (err: any) {
+      this.logger.error(`runScan failed: ${err.message}`, err.stack);
+      return { error: 'Scan failed — database tables may not be migrated yet.', details: err.message };
+    }
   }
 
   @Get('scan/latest')
   async getLatestScan(@Req() req: any) {
     const userId = req.user?.id || req.user?.sub;
-    return this.intelligence.getLatestScan(userId);
+    try {
+      return await this.intelligence.getLatestScan(userId);
+    } catch (err: any) {
+      this.logger.error(`getLatestScan failed: ${err.message}`, err.stack);
+      return null;
+    }
   }
 
   @Get('scan/history')
   async getScanHistory(@Req() req: any, @Query('take') take?: string) {
     const userId = req.user?.id || req.user?.sub;
-    return this.intelligence.getScanHistory(userId, take ? parseInt(take) : 10);
+    try {
+      return await this.intelligence.getScanHistory(userId, take ? parseInt(take) : 10);
+    } catch (err: any) {
+      this.logger.error(`getScanHistory failed: ${err.message}`, err.stack);
+      return [];
+    }
   }
 
   // ─── Product Generation ─────────────────────────────────────────────────
@@ -216,19 +233,34 @@ export class TrendScannerController {
   @Get('subscription')
   async getSubscription(@Req() req: any) {
     const userId = req.user?.id || req.user?.sub;
-    return this.alerts.getSubscription(userId);
+    try {
+      return await this.alerts.getSubscription(userId);
+    } catch (err: any) {
+      this.logger.error(`getSubscription failed: ${err.message}`, err.stack);
+      return null;
+    }
   }
 
   @Post('subscription')
   async upsertSubscription(@Req() req: any, @Body() body: any) {
     const userId = req.user?.id || req.user?.sub;
-    return this.alerts.upsertSubscription(userId, body);
+    try {
+      return await this.alerts.upsertSubscription(userId, body);
+    } catch (err: any) {
+      this.logger.error(`upsertSubscription failed: ${err.message}`, err.stack);
+      return { error: 'Failed to save subscription', details: err.message };
+    }
   }
 
   @Patch('subscription/deactivate')
   async deactivateSubscription(@Req() req: any) {
     const userId = req.user?.id || req.user?.sub;
-    return this.alerts.deactivateSubscription(userId);
+    try {
+      return await this.alerts.deactivateSubscription(userId);
+    } catch (err: any) {
+      this.logger.error(`deactivateSubscription failed: ${err.message}`, err.stack);
+      return null;
+    }
   }
 
   // ─── Alerts ───────────────────────────────────────────────────────────────
@@ -236,24 +268,44 @@ export class TrendScannerController {
   @Get('alerts')
   async getAlerts(@Req() req: any, @Query('unreadOnly') unreadOnly?: string) {
     const userId = req.user?.id || req.user?.sub;
-    return this.alerts.getAlerts(userId, unreadOnly === 'true');
+    try {
+      return await this.alerts.getAlerts(userId, unreadOnly === 'true');
+    } catch (err: any) {
+      this.logger.error(`getAlerts failed: ${err.message}`, err.stack);
+      return [];
+    }
   }
 
   @Get('alerts/unread-count')
   async getUnreadCount(@Req() req: any) {
     const userId = req.user?.id || req.user?.sub;
-    return { count: await this.alerts.getUnreadCount(userId) };
+    try {
+      return { count: await this.alerts.getUnreadCount(userId) };
+    } catch (err: any) {
+      this.logger.error(`getUnreadCount failed: ${err.message}`, err.stack);
+      return { count: 0 };
+    }
   }
 
   @Patch('alerts/:id/read')
   async markAlertRead(@Req() req: any, @Param('id') id: string) {
     const userId = req.user?.id || req.user?.sub;
-    return this.alerts.markAlertRead(id, userId);
+    try {
+      return await this.alerts.markAlertRead(id, userId);
+    } catch (err: any) {
+      this.logger.error(`markAlertRead failed: ${err.message}`, err.stack);
+      return { error: 'Failed to mark alert as read' };
+    }
   }
 
   @Patch('alerts/read-all')
   async markAllRead(@Req() req: any) {
     const userId = req.user?.id || req.user?.sub;
-    return this.alerts.markAllRead(userId);
+    try {
+      return await this.alerts.markAllRead(userId);
+    } catch (err: any) {
+      this.logger.error(`markAllRead failed: ${err.message}`, err.stack);
+      return { error: 'Failed to mark alerts as read' };
+    }
   }
 }

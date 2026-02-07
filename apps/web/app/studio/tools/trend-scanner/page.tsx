@@ -329,7 +329,7 @@ export default function TrendScannerPage() {
     try {
       setLoading(true);
       const res = await apiClient.get('/trend-scanner/scan/latest');
-      if (res.data) setScan(res.data);
+      if (res.data && !res.data.error) setScan(res.data);
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -339,15 +339,15 @@ export default function TrendScannerPage() {
         apiClient.get('/trend-scanner/alerts'),
         apiClient.get('/trend-scanner/alerts/unread-count'),
       ]);
-      setAlerts(alertsRes.data || []);
-      setUnreadCount(countRes.data?.count || 0);
+      setAlerts(Array.isArray(alertsRes.data) ? alertsRes.data : []);
+      setUnreadCount(countRes.data?.count ?? 0);
     } catch {}
   }, []);
 
   const fetchMaterialTrends = useCallback(async () => {
     try {
       const res = await apiClient.get('/trend-scanner/materials/trends');
-      if (res.data) setMaterialTrends(res.data);
+      if (Array.isArray(res.data)) setMaterialTrends(res.data);
     } catch {}
   }, []);
 

@@ -38,7 +38,8 @@ RUN cp -r /app/apps/api/dist/entitlements /app/apps/api/dist/apps/api/src/entitl
     cp -r /app/apps/api/dist/production /app/apps/api/dist/apps/api/src/production || true && \
     cp -r /app/apps/api/dist/sales-channels /app/apps/api/dist/apps/api/src/sales-channels || true && \
     cp -r /app/apps/api/dist/template-products /app/apps/api/dist/apps/api/src/template-products || true && \
-    cp -r /app/apps/api/dist/offcuts /app/apps/api/dist/apps/api/src/offcuts || true
+    cp -r /app/apps/api/dist/offcuts /app/apps/api/dist/apps/api/src/offcuts || true && \
+    cp -r /app/apps/api/dist/trend-scanner /app/apps/api/dist/apps/api/src/trend-scanner || true
 
 # Manually wire workspace packages into node_modules so Node can resolve them at runtime
 RUN mkdir -p /app/node_modules/@laser /app/apps/api/node_modules/@laser && \
@@ -59,4 +60,4 @@ EXPOSE 4000
 
 # Run directly with node from /app root
 WORKDIR /app
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=./prisma/schema.prisma && node apps/api/dist/main.js"]
