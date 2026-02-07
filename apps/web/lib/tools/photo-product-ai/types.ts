@@ -300,6 +300,85 @@ export const MOCKUP_SCENES: Record<MockupScene, { label: string; icon: string }>
   'craft-fair-booth':  { label: 'Craft Fair Booth',  icon: '🎪' },
 };
 
+// ─── Subject Detection (V4 — real product pipeline) ──────────────
+export type SubjectType = 'animal' | 'human-portrait' | 'logo-text' | 'object' | 'landscape' | 'pattern' | 'vehicle' | 'building' | 'unknown';
+
+export interface SubjectDetection {
+  subjectType: SubjectType;
+  confidenceScore: number;           // 0-100
+  subjectLabel: string;              // e.g. "golden retriever dog"
+  boundingHint: { cx: number; cy: number; radiusNorm: number };
+  contourComplexity: 'simple' | 'moderate' | 'complex';
+  hasBackground: boolean;
+  suggestedProducts: string[];
+}
+
+// ─── Contour Extraction (V4) ─────────────────────────────────────
+export interface ContourExtraction {
+  method: 'ai-silhouette' | 'geometric-fallback';
+  pointCount: number;
+  smoothingApplied: boolean;
+  silhouettePng: string | null;
+}
+
+// ─── Product Template Info (V4) ──────────────────────────────────
+export interface ProductTemplateInfo {
+  totalWidthMm: number;
+  totalHeightMm: number;
+  engraveWidthMm: number;
+  engraveHeightMm: number;
+  hasHangingHole: boolean;
+  hasScoreLines: boolean;
+}
+
+// ─── Production Info (V4 — for ZIP export) ───────────────────────
+export interface ProductionInfoJson {
+  version: string;
+  generatedAt: string;
+  subject: {
+    type: string;
+    label: string;
+    confidence: number;
+    contourMethod: string;
+    contourPoints: number;
+  };
+  product: {
+    type: string;
+    label: string;
+    totalSizeMm: [number, number];
+    engraveSizeMm: [number, number];
+    hasHangingHole: boolean;
+    hasScoreLines: boolean;
+  };
+  material: {
+    id: string;
+    thicknessMm: number;
+    kerfMm: number;
+    costPerM2: number;
+  };
+  machine: {
+    label: string;
+    adjustedSpeedMmS: number;
+    adjustedPowerPct: number;
+  };
+  production: {
+    estimatedTimeMinutes: number;
+    engraveTimeSec: number;
+    cutTimeSec: number;
+    materialCost: number;
+    recommendedPrice: number;
+    profitMargin: number;
+  };
+  risks: any[];
+  layers: {
+    cut: string;
+    engrave: string;
+    score: string | null;
+    combined: string;
+  };
+  lightburnNotes: string[];
+}
+
 // ─── AI Product Intelligence (V3) ───────────────────────────────
 export interface ProductIntelligence {
   subjectClassification: string;       // e.g. "portrait", "pet", "landscape", "object"
@@ -417,8 +496,12 @@ export type ProcessingStage =
   | 'subject-analysis'
   | 'product-intelligence'
   | 'style-transform'
+  | 'contour-extraction'
+  | 'template-generation'
+  | 'svg-generation'
   | 'ai-generation'
   | 'design-refinement'
+  | 'production-insights'
   | 'simulation'
   | 'structural-analysis'
   | 'cut-optimization'
@@ -592,4 +675,10 @@ export interface GenerateResponse {
   styleProfile: StyleConsistencyProfile | null;
   refinement: RefinementResult | null;
   pipelineJob: PipelineJob | null;
+  // V4 — real product pipeline
+  scoreSvg: string | null;
+  subjectDetection: SubjectDetection | null;
+  contourExtraction: ContourExtraction | null;
+  productTemplate: ProductTemplateInfo | null;
+  productionInfo: ProductionInfoJson | null;
 }

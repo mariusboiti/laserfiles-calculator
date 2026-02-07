@@ -22,7 +22,7 @@ import {
 } from '../types';
 
 type PreviewTab =
-  | 'engrave' | 'cut' | 'combined' | 'optimized-cut'
+  | 'engrave' | 'cut' | 'combined' | 'score' | 'silhouette' | 'optimized-cut'
   | 'simulation' | 'structural' | 'multilayer' | 'mockups'
   | 'batch-layout' | 'refinement';
 
@@ -30,11 +30,15 @@ const STAGE_LABELS: Record<ProcessingStage, string> = {
   idle: '',
   uploading: 'Uploading...',
   enhancing: 'Enhancing photo...',
-  'subject-analysis': 'Analyzing subject...',
+  'subject-analysis': 'Detecting subject...',
   'product-intelligence': 'AI product intelligence...',
   'style-transform': 'Applying style...',
+  'contour-extraction': 'Extracting contour...',
+  'template-generation': 'Building product template...',
+  'svg-generation': 'Generating layered SVGs...',
   'ai-generation': 'AI generating engraving...',
   'design-refinement': 'AI refining design...',
+  'production-insights': 'Calculating production...',
   simulation: 'Running laser simulation...',
   'structural-analysis': 'Analyzing structural integrity...',
   'cut-optimization': 'Optimizing cut paths...',
@@ -52,11 +56,9 @@ const STAGE_LABELS: Record<ProcessingStage, string> = {
 };
 
 const STAGE_ORDER: ProcessingStage[] = [
-  'enhancing', 'subject-analysis', 'product-intelligence', 'style-transform',
-  'ai-generation', 'design-refinement', 'simulation', 'structural-analysis',
-  'cut-optimization', 'file-validation', 'multilayer', 'risk-analysis',
-  'waste-analysis', 'batch-builder', 'variants', 'mockups', 'market-pack',
-  'design-coach', 'complete',
+  'enhancing', 'subject-analysis', 'style-transform', 'contour-extraction',
+  'template-generation', 'svg-generation', 'production-insights',
+  'risk-analysis', 'simulation', 'structural-analysis', 'mockups', 'complete',
 ];
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024;
@@ -247,9 +249,7 @@ export function PhotoProductAITool() {
       setStage('enhancing');
       const base64 = await resizeImageToBase64(uploadedImage);
       setStage('subject-analysis'); await delay(100);
-      setStage('product-intelligence'); await delay(100);
-      setStage('style-transform'); await delay(100);
-      setStage('ai-generation');
+      setStage('style-transform');
       const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
       const at = typeof window !== 'undefined' ? window.localStorage.getItem('accessToken') : null;
       if (at) authHeaders['Authorization'] = `Bearer ${at}`;
@@ -258,20 +258,16 @@ export function PhotoProductAITool() {
         body: JSON.stringify({ imageBase64: base64, productType: selectedProduct, options }),
       });
       if (!response.ok) { const ed = await response.json().catch(() => null); throw new Error(ed?.error || `Generation failed (${response.status})`); }
-      setStage('design-refinement'); await delay(80);
-      setStage('simulation'); await delay(80);
-      setStage('structural-analysis'); await delay(80);
-      setStage('cut-optimization'); await delay(60);
-      setStage('file-validation'); await delay(60);
+      setStage('contour-extraction'); await delay(80);
+      setStage('template-generation'); await delay(80);
+      setStage('svg-generation'); await delay(80);
+      setStage('production-insights'); await delay(60);
       setStage('risk-analysis'); await delay(60);
-      setStage('waste-analysis'); await delay(60);
-      setStage('batch-builder'); await delay(60);
+      setStage('simulation'); await delay(60);
+      setStage('structural-analysis'); await delay(60);
       const data: GenerateResponse = await response.json();
-      setStage('variants'); await delay(60);
       setStage('mockups'); await delay(60);
-      setStage('market-pack'); await delay(60);
-      setStage('design-coach'); await delay(60);
-      setResult(data); setStage('complete'); setPreviewTab('engrave');
+      setResult(data); setStage('complete'); setPreviewTab('combined');
       refreshEntitlements();
     } catch (err: any) {
       console.error('Photo product generation failed:', err);
@@ -340,29 +336,29 @@ export function PhotoProductAITool() {
     if (!result) return; analytics.trackExport();
     try {
       const JSZip = (await import('jszip')).default; const zip = new JSZip();
-      const lf = zip.folder('laser-files')!;
-      lf.file('engrave.svg', svgForExport(result.engraveSvg)); lf.file('cut.svg', svgForExport(result.cutSvg)); lf.file('combined.svg', svgForExport(result.combinedSvg));
-      if (result.optimizedCutSvg) lf.file('optimized-cut.svg', svgForExport(result.optimizedCutSvg));
-      if (result.engravePreviewPng) lf.file('engrave-preview.png', b64toUint8(result.engravePreviewPng));
-      if (result.laserSimulation?.simulationPng) lf.file('simulation-preview.png', b64toUint8(result.laserSimulation.simulationPng));
-      if (result.multilayer) { const ml = zip.folder('multilayer')!; result.multilayer.layers.forEach((l) => ml.file(`layer-${l.index + 1}.svg`, svgForExport(l.svg))); }
+      // Core laser files — LightBurn compatible
+      zip.file('cut.svg', svgForExport(result.cutSvg));
+      zip.file('engrave.svg', svgForExport(result.engraveSvg));
+      zip.file('combined.svg', svgForExport(result.combinedSvg));
+      if (result.scoreSvg) zip.file('score.svg', svgForExport(result.scoreSvg));
+      if (result.engravePreviewPng) zip.file('preview.png', b64toUint8(result.engravePreviewPng));
+      // Production info JSON
+      if (result.productionInfo) zip.file('production-info.json', JSON.stringify(result.productionInfo, null, 2));
+      else zip.file('production-info.json', JSON.stringify(result.productionInsights, null, 2));
+      // Silhouette
+      if (result.contourExtraction?.silhouettePng) zip.file('silhouette.png', b64toUint8(result.contourExtraction.silhouettePng));
+      // Additional assets in subfolders
       if (result.mockups?.length) { const mk = zip.folder('mockups')!; result.mockups.forEach((m) => mk.file(`${m.scene}.png`, b64toUint8(m.png))); }
       if (result.variants?.length) { const vf = zip.folder('variants')!; result.variants.forEach((v) => { vf.file(`${v.productType}-engrave.svg`, svgForExport(v.engraveSvg)); vf.file(`${v.productType}-cut.svg`, svgForExport(v.cutSvg)); }); }
-      if (result.productionBatch?.sheetLayoutSvg) { const bf = zip.folder('batch-layouts')!; bf.file('sheet-layout.svg', svgForExport(result.productionBatch.sheetLayoutSvg)); bf.file('batch-manifest.json', JSON.stringify(result.productionBatch, null, 2)); }
-      if (result.marketPack) { const mf = zip.folder('market-assets')!; mf.file('product-listing.json', JSON.stringify(result.marketPack, null, 2)); mf.file('product-title.txt', result.marketPack.productTitle); mf.file('product-description.txt', result.marketPack.productDescription); mf.file('tags.txt', result.marketPack.tags.join(', ')); mf.file('seo-keywords.txt', result.marketPack.seoKeywords.join(', ')); }
-      const rp = zip.folder('production-reports')!;
-      rp.file('production-insights.json', JSON.stringify(result.productionInsights, null, 2)); rp.file('risk-warnings.json', JSON.stringify(result.riskWarnings, null, 2));
+      if (result.multilayer) { const ml = zip.folder('multilayer')!; result.multilayer.layers.forEach((l) => ml.file(`layer-${l.index + 1}.svg`, svgForExport(l.svg))); }
+      // Reports
+      const rp = zip.folder('reports')!;
+      rp.file('risk-warnings.json', JSON.stringify(result.riskWarnings, null, 2));
       if (result.laserSimulation) rp.file('laser-simulation.json', JSON.stringify(result.laserSimulation, null, 2));
       if (result.structuralAnalysis) rp.file('structural-analysis.json', JSON.stringify(result.structuralAnalysis, null, 2));
-      if (result.fileValidation) rp.file('file-validation.json', JSON.stringify(result.fileValidation, null, 2));
-      if (result.wasteAnalysis) rp.file('waste-analysis.json', JSON.stringify(result.wasteAnalysis, null, 2));
-      if (result.cutPathOptimization) rp.file('cut-optimization.json', JSON.stringify(result.cutPathOptimization, null, 2));
-      if (result.designCoachTips) rp.file('design-coach.json', JSON.stringify(result.designCoachTips, null, 2));
-      if (result.refinement) rp.file('refinement.json', JSON.stringify(result.refinement, null, 2));
-      const mp = zip.folder('machine-profiles')!;
-      mp.file('selected-machine.json', JSON.stringify({ machine: options.machineType, material: options.material, style: options.style }, null, 2));
-      zip.file('product-description.txt', result.description);
-      downloadBlob(await zip.generateAsync({ type: 'blob' }), `photo-product-v3-${selectedProduct}-${Date.now()}.zip`);
+      if (result.subjectDetection) rp.file('subject-detection.json', JSON.stringify(result.subjectDetection, null, 2));
+      zip.file('README.txt', `${result.description}\n\nFiles:\n- cut.svg: Cut layer (red) — import in LightBurn as Line mode\n- engrave.svg: Engrave layer (black) — import as Image/Fill mode\n${result.scoreSvg ? '- score.svg: Score layer (blue) — import as Line mode, low power\n' : ''}- combined.svg: All layers merged\n- preview.png: Engraving preview\n- production-info.json: Full production metadata\n`);
+      downloadBlob(await zip.generateAsync({ type: 'blob' }), `laser-product-${selectedProduct}-${Date.now()}.zip`);
     } catch (err) { setError('Export failed.'); }
   };
 
@@ -465,7 +461,7 @@ export function PhotoProductAITool() {
             {error && (<div className="flex items-start gap-2 rounded-lg border border-red-800/50 bg-red-900/20 p-3 text-xs text-red-300"><XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{error}</span></div>)}
             <div className="space-y-2">
               <button onClick={handleGenerate} disabled={isProcessing} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 via-violet-500 to-fuchsia-500 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-violet-500/20 transition-all hover:shadow-xl hover:shadow-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50">
-                {isProcessing ? (<><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{STAGE_LABELS[stage]}</>) : (<><Sparkles className="h-4 w-4" />{result ? 'Regenerate V3' : 'Generate Product V3'}</>)}
+                {isProcessing ? (<><div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />{STAGE_LABELS[stage]}</>) : (<><Sparkles className="h-4 w-4" />{result ? 'Regenerate Product' : 'Generate Laser Product'}</>)}
               </button>
               {(result || uploadedImage) && (<button onClick={handleReset} disabled={isProcessing} className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-xs text-slate-400 hover:bg-slate-800 disabled:opacity-50"><RotateCcw className="h-3 w-3" /> Start Over</button>)}
             </div>
@@ -475,26 +471,44 @@ export function PhotoProductAITool() {
 
       {/* RIGHT PANEL */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Product Intelligence Bar */}
-        {result?.productIntelligence && (
-          <div className="mb-3 rounded-xl border border-violet-700/30 bg-violet-900/10 p-3">
+        {/* Subject Detection + Contour Info Bar (V4) */}
+        {result?.subjectDetection && (
+          <div className="mb-3 rounded-xl border border-sky-700/30 bg-sky-900/10 p-3">
             <div className="flex items-center gap-2 mb-2">
-              <Brain className="h-4 w-4 text-violet-400" />
-              <h3 className="text-xs font-semibold text-violet-300">AI Product Intelligence</h3>
-              <span className="rounded-full bg-violet-800/40 px-2 py-0.5 text-[10px] text-violet-300">{result.productIntelligence.subjectClassification} — {result.productIntelligence.subjectConfidence}%</span>
-              <span className="ml-auto rounded-full bg-emerald-800/40 px-2 py-0.5 text-[10px] text-emerald-300">Profit: {result.productIntelligence.profitPriorityScore}/100</span>
+              <Brain className="h-4 w-4 text-sky-400" />
+              <h3 className="text-xs font-semibold text-sky-300">Subject Detection</h3>
+              <span className="rounded-full bg-sky-800/40 px-2 py-0.5 text-[10px] text-sky-300">{result.subjectDetection.subjectType} — {result.subjectDetection.confidenceScore}%</span>
+              <span className="rounded-full bg-slate-800/60 px-2 py-0.5 text-[10px] text-slate-400">{result.subjectDetection.subjectLabel}</span>
+              {result.contourExtraction && (
+                <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] ${result.contourExtraction.method === 'ai-silhouette' ? 'bg-emerald-800/40 text-emerald-300' : 'bg-amber-800/40 text-amber-300'}`}>
+                  Contour: {result.contourExtraction.method} ({result.contourExtraction.pointCount} pts)
+                </span>
+              )}
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {result.productIntelligence.recommendedProducts.slice(0, 5).map((p) => (
-                <button key={p.type} onClick={() => setSelectedProduct(p.type as ProductType)} className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all ${selectedProduct === p.type ? 'border-violet-500/70 bg-violet-500/10 text-violet-300' : 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-slate-600'}`}>
-                  <span>{p.icon}</span><span className="font-medium">{p.label}</span><span className="rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-500">{p.confidence}%</span>
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 text-[10px] text-slate-500">{result.productIntelligence.marketDemandHint}</p>
+            {result.productTemplate && (
+              <div className="flex gap-3 text-[10px] text-slate-500">
+                <span>Size: {result.productTemplate.totalWidthMm}×{result.productTemplate.totalHeightMm}mm</span>
+                <span>Engrave: {result.productTemplate.engraveWidthMm}×{result.productTemplate.engraveHeightMm}mm</span>
+                {result.productTemplate.hasHangingHole && <span className="text-amber-400">🔗 Hanging hole</span>}
+                {result.productTemplate.hasScoreLines && <span className="text-blue-400">✏️ Score lines</span>}
+              </div>
+            )}
+            {result.subjectDetection.suggestedProducts.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 mt-2">
+                {result.subjectDetection.suggestedProducts.map((type) => {
+                  const meta = PRODUCT_TYPES[type as ProductType];
+                  if (!meta) return null;
+                  return (
+                    <button key={type} onClick={() => setSelectedProduct(type as ProductType)} className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all ${selectedProduct === type ? 'border-sky-500/70 bg-sky-500/10 text-sky-300' : 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-slate-600'}`}>
+                      <span>{meta.icon}</span><span className="font-medium">{meta.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
-        {!result?.productIntelligence && result?.productSuggestions && result.productSuggestions.length > 0 && (
+        {!result?.subjectDetection && result?.productSuggestions && result.productSuggestions.length > 0 && (
           <div className="mb-3"><h3 className="mb-2 text-xs font-semibold text-slate-300">AI Suggested Products</h3>
             <div className="flex gap-2 overflow-x-auto pb-1">{result.productSuggestions.map((s) => (<button key={s.type} onClick={() => setSelectedProduct(s.type as ProductType)} className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all ${selectedProduct === s.type ? 'border-sky-500/70 bg-sky-500/10 text-sky-300' : 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-slate-600'}`}><span>{s.icon}</span><span className="font-medium">{s.label}</span><span className="rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-500">{Math.round(s.confidence * 100)}%</span></button>))}</div>
           </div>
@@ -504,10 +518,11 @@ export function PhotoProductAITool() {
         {result && (
           <div className="flex gap-0.5 overflow-x-auto border-b border-slate-700/50">
             {([
+              { key: 'combined' as const, label: 'Combined', icon: Eye },
               { key: 'engrave' as const, label: 'Engrave', icon: Image },
               { key: 'cut' as const, label: 'Cut', icon: Scissors },
-              { key: 'combined' as const, label: 'Combined', icon: Eye },
-              ...(result.optimizedCutSvg ? [{ key: 'optimized-cut' as const, label: 'Opt. Cut', icon: Target }] : []),
+              ...(result.scoreSvg ? [{ key: 'score' as const, label: 'Score', icon: Palette }] : []),
+              ...(result.contourExtraction?.silhouettePng ? [{ key: 'silhouette' as const, label: 'Silhouette', icon: Target }] : []),
               { key: 'simulation' as const, label: 'Laser Sim', icon: Zap },
               ...(result.structuralAnalysis ? [{ key: 'structural' as const, label: 'Structural', icon: Shield }] : []),
               ...(result.multilayer ? [{ key: 'multilayer' as const, label: 'Multilayer', icon: Layers }] : []),
@@ -524,12 +539,14 @@ export function PhotoProductAITool() {
 
         {/* Preview Canvas */}
         <div className="flex flex-1 items-center justify-center overflow-auto rounded-b-xl bg-slate-900/30 p-4" style={{ minHeight: 360 }}>
-          {!uploadedImage && !isProcessing && (<div className="text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/50"><Image className="h-8 w-8 text-slate-600" /></div><p className="text-sm font-medium text-slate-400">Upload a photo to get started</p><p className="mt-1 text-xs text-slate-600">V3 AI generates production-ready files with full automation</p></div>)}
-          {uploadedImage && !result && !isProcessing && (<div className="text-center"><img src={uploadedImage} alt="Preview" className="mx-auto max-h-[420px] max-w-full rounded-xl shadow-2xl" /><p className="mt-3 text-sm text-slate-400">Click <strong className="text-sky-400">Generate Product V3</strong></p></div>)}
+          {!uploadedImage && !isProcessing && (<div className="text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/50"><Image className="h-8 w-8 text-slate-600" /></div><p className="text-sm font-medium text-slate-400">Upload a photo to get started</p><p className="mt-1 text-xs text-slate-600">Upload a photo → get a complete laser product design</p></div>)}
+          {uploadedImage && !result && !isProcessing && (<div className="text-center"><img src={uploadedImage} alt="Preview" className="mx-auto max-h-[420px] max-w-full rounded-xl shadow-2xl" /><p className="mt-3 text-sm text-slate-400">Click <strong className="text-sky-400">Generate Laser Product</strong></p></div>)}
           {isProcessing && (<div className="w-full max-w-sm text-center"><div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-700 border-t-sky-500" /><p className="text-sm font-semibold text-slate-200">{STAGE_LABELS[stage]}</p><div className="mx-auto mt-4"><ProgressBar stage={stage} /></div><div className="mt-4 grid grid-cols-2 gap-1">{STAGE_ORDER.map((s) => { const idx = STAGE_ORDER.indexOf(stage); const sIdx = STAGE_ORDER.indexOf(s); const done = sIdx < idx; const current = s === stage; return (<div key={s} className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] ${done ? 'text-emerald-500' : current ? 'text-sky-400 font-medium' : 'text-slate-600'}`}>{done ? <CheckCircle className="h-2.5 w-2.5" /> : current ? <Activity className="h-2.5 w-2.5 animate-pulse" /> : <div className="h-2.5 w-2.5 rounded-full border border-slate-700" />}{STAGE_LABELS[s]?.replace('...', '')}</div>); })}</div></div>)}
           {result && previewTab === 'engrave' && (<PreviewPane><img src={`data:image/jpeg;base64,${result.engravePreviewPng}`} alt="Engrave" className="w-full max-w-2xl rounded-lg shadow-2xl object-contain" style={options.invertEngraving ? { filter: 'invert(1)' } : undefined} /><DlBtn onClick={() => handleDownloadSvg(result.engraveSvg, 'engrave.svg')} label="Download Engrave SVG" /></PreviewPane>)}
           {result && previewTab === 'cut' && (<PreviewPane><div className="w-full max-w-2xl overflow-auto rounded-lg border border-slate-700 bg-white p-4 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: result.cutSvg }} /><DlBtn onClick={() => handleDownloadSvg(result.cutSvg, 'cut.svg')} label="Download Cut SVG" /></PreviewPane>)}
-          {result && previewTab === 'combined' && (<PreviewPane><div className="w-full max-w-2xl overflow-auto rounded-lg border border-slate-700 bg-white p-2 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: result.combinedSvg }} /><DlBtn onClick={() => handleDownloadSvg(result.combinedSvg, 'combined.svg')} label="Download Combined SVG" /></PreviewPane>)}
+          {result && previewTab === 'combined' && (<PreviewPane><div className="w-full max-w-2xl overflow-auto rounded-lg border border-slate-700 bg-white p-2 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: result.combinedSvg }} /><div className="flex gap-2 mt-2"><DlBtn onClick={() => handleDownloadSvg(result.combinedSvg, 'combined.svg')} label="Download Combined SVG" /><DlBtn onClick={handleExportZip} label="Download ZIP Pack" /></div>{result.productionInfo && (<div className="mt-3 rounded-lg bg-slate-800/50 p-3 text-[10px] text-slate-400 space-y-1"><div className="text-[11px] font-semibold text-slate-300 mb-1">LightBurn Import Notes:</div>{result.productionInfo.lightburnNotes.map((note: string, i: number) => (<div key={i} className="flex items-start gap-1.5"><span className="text-sky-400 shrink-0">→</span><span>{note}</span></div>))}</div>)}</PreviewPane>)}
+          {result && previewTab === 'score' && result.scoreSvg && (<PreviewPane><div className="w-full max-w-2xl overflow-auto rounded-lg border border-blue-700/30 bg-white p-4 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: result.scoreSvg }} /><p className="mt-2 text-[10px] text-slate-500">Score layer (blue) — low power decorative lines. Import separately in LightBurn.</p><DlBtn onClick={() => handleDownloadSvg(result.scoreSvg!, 'score.svg')} label="Download Score SVG" /></PreviewPane>)}
+          {result && previewTab === 'silhouette' && result.contourExtraction?.silhouettePng && (<PreviewPane><img src={`data:image/jpeg;base64,${result.contourExtraction.silhouettePng}`} alt="Silhouette" className="w-full max-w-2xl rounded-lg shadow-2xl object-contain bg-white p-4" /><p className="mt-2 text-[10px] text-slate-500">AI-extracted silhouette used for contour generation ({result.contourExtraction.pointCount} vector points)</p></PreviewPane>)}
           {result && previewTab === 'optimized-cut' && result.optimizedCutSvg && (<PreviewPane><div className="w-full max-w-2xl overflow-auto rounded-lg border border-slate-700 bg-white p-2 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: result.optimizedCutSvg }} />{result.cutPathOptimization && (<div className="mt-2 flex gap-3 text-[10px] text-slate-400"><span className="text-emerald-400">Saved {result.cutPathOptimization.savedTravelMm}mm</span><span className="text-emerald-400">{result.cutPathOptimization.savedTimeSec}s</span></div>)}<DlBtn onClick={() => handleDownloadSvg(result.optimizedCutSvg!, 'optimized-cut.svg')} label="Download Opt. Cut SVG" /></PreviewPane>)}
           {result && previewTab === 'simulation' && (<PreviewPane><div className="relative w-full max-w-2xl"><div className="rounded-xl p-4 shadow-2xl" style={{ backgroundColor: mat.color }}><img src={`data:image/jpeg;base64,${result.laserSimulation?.simulationPng || result.engravePreviewPng}`} alt="Simulation" className="w-full rounded-lg object-contain mix-blend-multiply" style={{ filter: `contrast(${mat.engravingContrastCurve}) sepia(0.3) saturate(0.7)`, opacity: 0.85 }} />{result.laserSimulation && result.laserSimulation.smokeStainIntensity > 0.3 && (<div className="pointer-events-none absolute inset-4 rounded-lg" style={{ boxShadow: `inset 0 0 ${result.laserSimulation.smokeStainIntensity * 20}px rgba(80,50,20,${result.laserSimulation.smokeStainIntensity * 0.4})` }} />)}{result.laserSimulation && result.laserSimulation.acrylicFrostLevel > 0.3 && (<div className="pointer-events-none absolute inset-4 rounded-lg" style={{ background: `rgba(255,255,255,${result.laserSimulation.acrylicFrostLevel * 0.15})`, backdropFilter: `blur(${result.laserSimulation.acrylicFrostLevel}px)` }} />)}</div><div className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-800 px-3 py-1 text-[10px] font-medium text-slate-400 shadow">{mat.label} — {mach.label} — Quality: {result.laserSimulation?.qualityScore ?? '—'}/100</div></div>{result.laserSimulation && (<div className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-6"><SimMetric label="Kerf" value={`${result.laserSimulation.kerfWidthAtSpeed}mm`} color="sky" /><SimMetric label="Depth" value={`${result.laserSimulation.depthEstimateMm}mm`} color="amber" /><SimMetric label="Heat" value={`${result.laserSimulation.heatAccumulationZones}`} color="red" /><SimMetric label="Smoke" value={`${Math.round(result.laserSimulation.smokeStainIntensity * 100)}%`} color="orange" /><SimMetric label="Frost" value={`${Math.round(result.laserSimulation.acrylicFrostLevel * 100)}%`} color="cyan" /><SimMetric label="Quality" value={`${result.laserSimulation.qualityScore}/100`} color="emerald" /></div>)}</PreviewPane>)}
           {result && previewTab === 'structural' && result.structuralAnalysis && (<PreviewPane><div className="w-full max-w-2xl"><div className="mb-4 flex items-center justify-center gap-4"><ScoreGauge score={result.structuralAnalysis.strengthScore} label="Strength" /></div><div className="overflow-auto rounded-lg border border-slate-700 bg-white p-2 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: result.structuralAnalysis.overlaySvg }} /><div className="mt-3 grid grid-cols-4 gap-2"><MetricCard label="Bridges" value={result.structuralAnalysis.fragileBridges} warn={result.structuralAnalysis.fragileBridges > 0} /><MetricCard label="Thin" value={result.structuralAnalysis.thinParts} warn={result.structuralAnalysis.thinParts > 0} /><MetricCard label="Stress" value={result.structuralAnalysis.stressPoints} warn={result.structuralAnalysis.stressPoints > 2} /><MetricCard label="Break" value={result.structuralAnalysis.breakZones} warn={result.structuralAnalysis.breakZones > 0} /></div><div className="mt-3 space-y-1">{result.structuralAnalysis.warnings.map((w, i) => (<WarningRow key={i} severity={w.severity} message={w.message} confidence={w.confidence} />))}</div></div></PreviewPane>)}
@@ -555,9 +572,9 @@ function V3Header({ result }: { result: GenerateResponse | null }) {
     <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-900 via-slate-800/80 to-slate-900 p-4">
       <div className="flex items-center gap-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-violet-500"><Zap className="h-4 w-4 text-white" /></div>
-        <div><h2 className="text-base font-bold text-slate-100">Photo → Laser Product</h2><p className="text-[10px] text-slate-500">V3 — Full Production Automation Engine</p></div>
+        <div><h2 className="text-base font-bold text-slate-100">Photo → Laser Product</h2><p className="text-[10px] text-slate-500">V4 — Real Product Generation Pipeline</p></div>
       </div>
-      {result?.pipelineJob && (<div className="mt-2 flex items-center gap-2 text-[10px] text-slate-500"><CheckCircle className="h-3 w-3 text-emerald-400" /><span>Pipeline complete — {result.pipelineJob.completedSteps.length} steps</span></div>)}
+      {result?.pipelineJob && (<div className="mt-2 flex items-center gap-2 text-[10px] text-slate-500"><CheckCircle className="h-3 w-3 text-emerald-400" /><span>Pipeline complete — {result.pipelineJob.completedSteps.length} steps | Subject → Contour → Template → SVG</span></div>)}
     </div>
   );
 }
@@ -708,21 +725,25 @@ function BottomPanels({ result, bottomPanel, setBottomPanel, options, selectedPr
       {bottomPanel === 'export' && (
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
-            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-200"><Package className="h-3.5 w-3.5 text-sky-400" /> Export Product Pack V3</h3>
-            <p className="mb-3 text-[10px] text-slate-400">Complete ZIP: laser files, mockups, batch layouts, market assets, production reports, machine profiles.</p>
-            <button onClick={handleExportZip} className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl"><Download className="h-4 w-4" /> Download V3 Pack (.zip)</button>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-200"><Package className="h-3.5 w-3.5 text-sky-400" /> Export Laser Product Pack</h3>
+            <p className="mb-3 text-[10px] text-slate-400">Production-ready ZIP with layered SVGs (Cut/Engrave/Score), preview, and production info. Ready for LightBurn import.</p>
+            <button onClick={handleExportZip} className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl"><Download className="h-4 w-4" /> Download Product Pack (.zip)</button>
           </div>
           <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
-            <h3 className="mb-3 text-xs font-semibold text-slate-200">Contents</h3>
+            <h3 className="mb-3 text-xs font-semibold text-slate-200">ZIP Contents</h3>
             <div className="space-y-1">
-              <ExportFileRow name="laser-files/" desc="SVGs + previews" />
-              {result.multilayer && <ExportFileRow name="multilayer/" desc="Layer SVGs" />}
-              <ExportFileRow name="mockups/" desc="Scene PNGs" />
+              <ExportFileRow name="cut.svg" desc="Cut layer (red) — full power" />
+              <ExportFileRow name="engrave.svg" desc="Engrave layer (black) — raster" />
+              {result.scoreSvg && <ExportFileRow name="score.svg" desc="Score layer (blue) — decorative" />}
+              <ExportFileRow name="combined.svg" desc="All layers merged" />
+              <ExportFileRow name="preview.png" desc="Engraving preview" />
+              <ExportFileRow name="production-info.json" desc="Full production metadata" />
+              {result.contourExtraction?.silhouettePng && <ExportFileRow name="silhouette.png" desc="AI-extracted silhouette" />}
+              <ExportFileRow name="README.txt" desc="LightBurn import guide" />
+              {result.mockups?.length > 0 && <ExportFileRow name="mockups/" desc="Scene mockup PNGs" />}
               {result.variants?.length > 0 && <ExportFileRow name="variants/" desc="Variant SVGs" />}
-              {result.productionBatch && <ExportFileRow name="batch-layouts/" desc="Sheet + manifest" />}
-              {result.marketPack && <ExportFileRow name="market-assets/" desc="Listing, pricing, SEO" />}
-              <ExportFileRow name="production-reports/" desc="All analysis" />
-              <ExportFileRow name="machine-profiles/" desc="Config" />
+              {result.multilayer && <ExportFileRow name="multilayer/" desc="Layer SVGs" />}
+              <ExportFileRow name="reports/" desc="Risk, simulation, structural" />
             </div>
           </div>
         </div>
