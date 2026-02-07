@@ -22,6 +22,7 @@ const TOOL_CATEGORIES = {
   'Image Processing': ['engraveprep', 'ai-depth-photo', 'photo-product-ai'],
   'Utilities': ['price-calculator', 'inlay-offset-calculator'],
   'Games & Puzzles': ['jigsaw-maker'],
+  'Business Intelligence': ['trend-scanner'],
 } as const;
 
 const CATEGORY_KEY: Record<keyof typeof TOOL_CATEGORIES, string> = {
@@ -31,6 +32,7 @@ const CATEGORY_KEY: Record<keyof typeof TOOL_CATEGORIES, string> = {
   'Image Processing': 'tools.category.image_processing',
   Utilities: 'tools.category.utilities',
   'Games & Puzzles': 'tools.category.games_puzzles',
+  'Business Intelligence': 'tools.category.business_intelligence',
 };
 
 export function ToolsHub() {

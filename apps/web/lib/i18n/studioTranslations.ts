@@ -557,6 +557,7 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.category.image_processing': 'Image Processing',
     'tools.category.utilities': 'Utilities',
     'tools.category.games_puzzles': 'Games & Puzzles',
+    'tools.category.business_intelligence': 'Business Intelligence',
 
     // Tool names and descriptions
     'tools.engraveprep.title': 'EngravePrep',
@@ -2258,6 +2259,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.photo-product-ai.description': 'Upload a photo and generate laser-ready engraving files, cut outlines, mockups, and pricing.',
     'tools.nesting.title': 'Nesting Tool',
     'tools.nesting.description': 'Optimize part placement on sheets to minimize material waste.',
+    'tools.trend-scanner.title': 'Laser Trend Scanner AI',
+    'tools.trend-scanner.description': 'Discover trending laser products, underserved niches, seasonal opportunities, and pricing intelligence.',
 
     // Nesting Tool Tour - English
     'tour.nesting.intro.title': 'Welcome to Nesting Tool',
@@ -3777,6 +3780,7 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.category.image_processing': 'Procesare imagini',
     'tools.category.utilities': 'Utilitare',
     'tools.category.games_puzzles': 'Jocuri & puzzle',
+    'tools.category.business_intelligence': 'Inteligență de afaceri',
 
     'tools.jigsaw-maker.title': 'Creator Puzzle',
     'tools.jigsaw-maker.description': 'Transformă orice imagine într-un puzzle tăiabil cu laser.',
@@ -3784,6 +3788,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.photo-product-ai.description': 'Încarcă o fotografie și generează fișiere de gravare, contururi de tăiere, mockup-uri și estimări de preț.',
     'tools.nesting.title': 'Nesting',
     'tools.nesting.description': 'Optimizează plasarea pieselor pe foi pentru a minimiza risipa de material.',
+    'tools.trend-scanner.title': 'Scanner Tendințe Laser AI',
+    'tools.trend-scanner.description': 'Descoperă produse laser în tendință, nișe neexploatate, oportunități sezoniere și informații despre prețuri.',
 
     // Nesting Tool Tour - Romanian
     'tour.nesting.intro.title': 'Bine ai venit la Nesting',
@@ -7189,6 +7195,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.photo-product-ai.description': 'Sube una foto y genera archivos de grabado, contornos de corte, maquetas y estimaciones de precios.',
     'tools.nesting.title': 'Herramienta de Anidado',
     'tools.nesting.description': 'Optimiza la colocación de piezas en hojas para minimizar el desperdicio de material.',
+    'tools.trend-scanner.title': 'Escáner de Tendencias Láser AI',
+    'tools.trend-scanner.description': 'Descubre productos láser en tendencia, nichos desatendidos, oportunidades estacionales e inteligencia de precios.',
 
     // Nesting Tool Tour - Spanish
     'tour.nesting.intro.title': 'Bienvenido a la Herramienta de Anidado',
@@ -9027,6 +9035,7 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.category.image_processing': 'Traitement d’image',
     'tools.category.utilities': 'Utilitaires',
     'tools.category.games_puzzles': 'Jeux & puzzles',
+    'tools.category.business_intelligence': 'Intelligence commerciale',
 
     // Tool names and descriptions
     'tools.engraveprep.title': 'EngravePrep',
@@ -11228,6 +11237,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.jigsaw-maker.title': 'Créateur de puzzle',
     'tools.photo-product-ai.title': 'Photo → Produit Laser',
     'tools.photo-product-ai.description': 'Téléchargez une photo et générez des fichiers de gravure, des contours de découpe, des maquettes et des estimations de prix.',
+    'tools.trend-scanner.title': 'Scanner de Tendances Laser AI',
+    'tools.trend-scanner.description': 'Découvrez les produits laser tendance, les niches sous-exploitées, les opportunités saisonnières et les informations sur les prix.',
     'jigsaw.header.subtitle': 'Générez des puzzles SVG prêts pour la découpe laser',
     'jigsaw.puzzle_mode.title': 'Mode de puzzle',
     'jigsaw.mode.classic.label': 'Classique',
@@ -12085,6 +12096,7 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.category.image_processing': 'Bildverarbeitung',
     'tools.category.utilities': 'Utilities',
     'tools.category.games_puzzles': 'Spiele & Puzzles',
+    'tools.category.business_intelligence': 'Business Intelligence',
 
     // Tool names and descriptions
     'tools.engraveprep.title': 'EngravePrep',
@@ -12099,6 +12111,8 @@ export const studioTranslations: Record<Locale, Record<string, string>> = {
     'tools.photo-product-ai.description': 'Laden Sie ein Foto hoch und generieren Sie gravierfertige Dateien, Schnittumrisse, Mockups und Preisschätzungen.',
     'tools.nesting.title': 'Nesting-Werkzeug',
     'tools.nesting.description': 'Optimieren Sie die Platzierung von Teilen auf Platten, um Materialverschwendung zu minimieren.',
+    'tools.trend-scanner.title': 'Laser-Trendscanner AI',
+    'tools.trend-scanner.description': 'Entdecken Sie trendige Laserprodukte, unterversorgte Nischen, saisonale Chancen und Preisinformationen.',
 
     // Nesting Tool Tour - German
     'tour.nesting.intro.title': 'Willkommen beim Nesting-Werkzeug',

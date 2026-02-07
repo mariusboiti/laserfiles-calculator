@@ -1326,3 +1326,147 @@ model Message {
   @@index([parentId])
   @@index([isBroadcast, createdAt])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Laser Trend Scanner AI
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TrendSource {
+  ETSY
+  SHOPIFY
+  AMAZON_HANDMADE
+  PINTEREST
+  TIKTOK
+  INSTAGRAM
+  REDDIT
+  FACEBOOK
+  MAKER_FORUM
+  MANUAL
+}
+
+enum TrendCategory {
+  PRODUCT_TYPE
+  DESIGN_THEME
+  ENGRAVING_STYLE
+  MATERIAL
+  SEASONAL
+  NICHE
+}
+
+model TrendScan {
+  id                  String          @id @default(cuid())
+  userId              String
+  scanType            String          @default("full") // full | quick | seasonal | niche
+  status              String          @default("PENDING") // PENDING | SCANNING | ANALYZING | COMPLETE | FAILED
+
+  // ── Aggregated trend data ──
+  trendingProducts    Json?           // Array of trending product opportunities
+  styleTrends         Json?           // Array of trending design styles
+  seasonalForecast    Json?           // Upcoming seasonal demand predictions
+  opportunityRadar    Json?           // Low-competition niches / product gaps
+  priceInsights       Json?           // Pricing intelligence per category
+  sourceBreakdown     Json?           // Per-source signal counts & quality
+
+  // ── Metadata ──
+  totalSignalsScanned Int             @default(0)
+  totalTrendsFound    Int             @default(0)
+  scanDurationMs      Int?
+  aiModel             String?
+  errorMessage        String?
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  opportunities       TrendOpportunity[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model TrendOpportunity {
+  id                  String          @id @default(cuid())
+  scanId              String
+  scan                TrendScan       @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  // ── Core trend info ──
+  title               String          // e.g. "Pet Memorial Plaques"
+  description         String          @db.Text
+  category            TrendCategory
+  sources             TrendSource[]   // Which sources detected this
+  keywords            String[]        // Search terms / hashtags
+
+  // ── Scoring (0-100) ──
+  trendStrength       Int             @default(0)
+  growthVelocity      Int             @default(0)
+  competitionDensity  Int             @default(0) // lower = better opportunity
+  profitPotential     Int             @default(0)
+  seasonalityScore    Int             @default(0)
+  overallScore        Int             @default(0)
+
+  // ── Product suggestions ──
+  productIdeas        Json?           // Array of laser-ready product ideas
+  recommendedSizes    Json?           // Suggested dimensions
+  materialSuggestions String[]        // e.g. ["plywood-3mm", "acrylic-clear"]
+  styleHints          String[]        // e.g. ["minimalist", "rustic"]
+  priceRange          Json?           // { low, mid, high, premium }
+
+  // ── Seasonal ──
+  peakMonths          Int[]           // 1-12
+  daysUntilPeak       Int?
+
+  // ── Gap detection ──
+  isGapOpportunity    Boolean         @default(false)
+  demandLevel         String?         // HIGH | MEDIUM | LOW
+  supplyLevel         String?         // HIGH | MEDIUM | LOW
+  gapDescription      String?
+
+  createdAt           DateTime        @default(now())
+
+  @@index([scanId])
+  @@index([category])
+  @@index([overallScore])
+}
+
+model TrendSubscription {
+  id                  String          @id @default(cuid())
+  userId              String
+  isActive            Boolean         @default(true)
+
+  // ── What to watch ──
+  watchCategories     TrendCategory[]
+  watchKeywords       String[]
+  minTrendStrength    Int             @default(60)
+
+  // ── Notification prefs ──
+  notifyInApp         Boolean         @default(true)
+  notifyEmail         Boolean         @default(false)
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  alerts              TrendAlert[]
+
+  @@index([userId, isActive])
+}
+
+model TrendAlert {
+  id                  String            @id @default(cuid())
+  subscriptionId      String
+  subscription        TrendSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  userId              String
+
+  // ── Alert content ──
+  alertType           String            // NEW_TREND | SEASONAL_SPIKE | EMERGING_STYLE | GAP_FOUND
+  title               String
+  summary             String            @db.Text
+  trendData           Json?             // Snapshot of the trend that triggered the alert
+
+  isRead              Boolean           @default(false)
+  readAt              DateTime?
+  emailSent           Boolean           @default(false)
+
+  createdAt           DateTime          @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([subscriptionId])
+}

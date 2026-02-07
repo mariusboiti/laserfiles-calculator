@@ -23,6 +23,9 @@ import { studioToolMetas } from './meta';
 // PriceCalculator has its own app routing, placeholder for registry
 const PriceCalculatorPlaceholder = () => null;
 
+// TrendScanner has its own app routing, placeholder for registry
+const TrendScannerPlaceholder = () => null;
+
 const componentBySlug: Record<string, StudioTool['Component']> = {
   engraveprep: EngravePrepTool,
   boxmaker: BoxMakerTool,
@@ -42,6 +45,7 @@ const componentBySlug: Record<string, StudioTool['Component']> = {
   'photo-product-ai': PhotoProductAITool,
   // 'multilayer-maker': MultiLayerMakerPlaceholder,
   'price-calculator': PriceCalculatorPlaceholder,
+  'trend-scanner': TrendScannerPlaceholder,
 };
 
 export const studioTools: StudioTool[] = studioToolMetas.map((meta) => {

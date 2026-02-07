@@ -28,6 +28,7 @@ import { LaserMachinesModule } from './laser-machines/laser-machines.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { BusinessIntelligenceModule } from './business-intelligence/business-intelligence.module';
 import { LaserPipelineModule } from './laser-pipeline/laser-pipeline.module';
+import { TrendScannerModule } from './trend-scanner/trend-scanner.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { LaserPipelineModule } from './laser-pipeline/laser-pipeline.module';
     MarketplaceModule,
     BusinessIntelligenceModule,
     LaserPipelineModule,
+    TrendScannerModule,
   ],
 })
 export class AppModule {}

@@ -132,6 +132,13 @@ export const studioToolMetas: StudioToolMeta[] = [
     freeFeatures: ['Basic pricing', 'Single material', 'Manual time entry'],
     blockedFeatures: ['Order Management', 'Customer Database', 'Batch quotes', 'Export reports'],
   },
+  {
+    slug: 'trend-scanner',
+    titleKey: 'tools.trend-scanner.title',
+    descriptionKey: 'tools.trend-scanner.description',
+    proFeatures: ['Trend Scanning', 'Gap Detection', 'Seasonal Forecast', 'Price Intelligence', 'Alert System'],
+    usesAI: true,
+  },
 ].map((t) => ({
   ...t,
   status: 'stable' as const,
