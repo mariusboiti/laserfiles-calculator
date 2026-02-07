@@ -471,40 +471,44 @@ export function PhotoProductAITool() {
 
       {/* RIGHT PANEL */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Subject Detection + Contour Info Bar (V4) */}
+        {/* Subject Detection + Best Products Bar (V4) */}
         {result?.subjectDetection && (
           <div className="mb-3 rounded-xl border border-sky-700/30 bg-sky-900/10 p-3">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Brain className="h-4 w-4 text-sky-400" />
-              <h3 className="text-xs font-semibold text-sky-300">Subject Detection</h3>
+              <h3 className="text-xs font-semibold text-sky-300">AI Subject Analysis</h3>
               <span className="rounded-full bg-sky-800/40 px-2 py-0.5 text-[10px] text-sky-300">{result.subjectDetection.subjectType} — {result.subjectDetection.confidenceScore}%</span>
               <span className="rounded-full bg-slate-800/60 px-2 py-0.5 text-[10px] text-slate-400">{result.subjectDetection.subjectLabel}</span>
               {result.contourExtraction && (
                 <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] ${result.contourExtraction.method === 'ai-silhouette' ? 'bg-emerald-800/40 text-emerald-300' : 'bg-amber-800/40 text-amber-300'}`}>
-                  Contour: {result.contourExtraction.method} ({result.contourExtraction.pointCount} pts)
+                  {result.contourExtraction.method === 'ai-silhouette' ? '✓ AI Contour' : '⚠ Geometric'} ({result.contourExtraction.pointCount} pts)
                 </span>
               )}
             </div>
             {result.productTemplate && (
-              <div className="flex gap-3 text-[10px] text-slate-500">
-                <span>Size: {result.productTemplate.totalWidthMm}×{result.productTemplate.totalHeightMm}mm</span>
-                <span>Engrave: {result.productTemplate.engraveWidthMm}×{result.productTemplate.engraveHeightMm}mm</span>
-                {result.productTemplate.hasHangingHole && <span className="text-amber-400">🔗 Hanging hole</span>}
-                {result.productTemplate.hasScoreLines && <span className="text-blue-400">✏️ Score lines</span>}
+              <div className="flex gap-3 text-[10px] text-slate-500 flex-wrap">
+                <span>Product: <strong className="text-slate-300">{result.productTemplate.totalWidthMm}×{result.productTemplate.totalHeightMm}mm</strong></span>
+                <span>Engrave zone: {result.productTemplate.engraveWidthMm}×{result.productTemplate.engraveHeightMm}mm</span>
+                {result.productTemplate.hasHangingHole && <span className="text-amber-400">🔗 Hole</span>}
+                {result.productTemplate.hasScoreLines && <span className="text-blue-400">✏️ Score</span>}
               </div>
             )}
             {result.subjectDetection.suggestedProducts.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 mt-2">
-                {result.subjectDetection.suggestedProducts.map((type) => {
-                  const meta = PRODUCT_TYPES[type as ProductType];
-                  if (!meta) return null;
-                  return (
-                    <button key={type} onClick={() => setSelectedProduct(type as ProductType)} className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all ${selectedProduct === type ? 'border-sky-500/70 bg-sky-500/10 text-sky-300' : 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-slate-600'}`}>
-                      <span>{meta.icon}</span><span className="font-medium">{meta.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                <div className="mt-2 mb-1 text-[10px] font-semibold text-emerald-400">👉 Best Products From Your Photo</div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {result.subjectDetection.suggestedProducts.map((type) => {
+                    const meta = PRODUCT_TYPES[type as ProductType];
+                    if (!meta) return null;
+                    return (
+                      <button key={type} onClick={() => setSelectedProduct(type as ProductType)} className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all ${selectedProduct === type ? 'border-sky-500/70 bg-sky-500/10 text-sky-300' : 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-slate-600'}`}>
+                        <span>{meta.icon}</span><span className="font-medium">{meta.label}</span>
+                        <span className={`rounded-full px-1 py-0.5 text-[8px] ${meta.profitTier === 'premium' ? 'bg-violet-900/50 text-violet-300' : meta.profitTier === 'high' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>{meta.profitTier}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -647,6 +651,7 @@ function BottomPanels({ result, bottomPanel, setBottomPanel, options, selectedPr
             <div className="space-y-1">{result.riskWarnings.slice(0, 4).map((w: any, i: number) => (<WarningRow key={i} severity={w.severity} message={w.message} confidence={w.confidence} compact />))}</div>
           </IntelCard>
           {result.structuralAnalysis && (<IntelCard title="Structural" icon={<Shield className="h-3.5 w-3.5 text-sky-400" />}><ScoreGauge score={result.structuralAnalysis.strengthScore} label="Strength" small /></IntelCard>)}
+          {result.cutPathOptimization && (<IntelCard title="Cut Order" icon={<Scissors className="h-3.5 w-3.5 text-emerald-400" />}><div className="space-y-1 text-[10px]"><div className="flex justify-between"><span className="text-slate-500">Strategy</span><span className="text-emerald-300 font-medium">{result.cutPathOptimization.strategy}</span></div><div className="flex justify-between"><span className="text-slate-500">Segments</span><span className="text-slate-300">{result.cutPathOptimization.segmentCount}</span></div><div className="flex justify-between"><span className="text-slate-500">Travel saved</span><span className="text-emerald-400">{result.cutPathOptimization.savedTravelMm}mm</span></div><div className="flex justify-between"><span className="text-slate-500">Time saved</span><span className="text-emerald-400">{result.cutPathOptimization.savedTimeSec}s</span></div></div></IntelCard>)}
           {result.wasteAnalysis && (<IntelCard title="Efficiency" icon={<Recycle className="h-3.5 w-3.5 text-emerald-400" />}><div className="text-2xl font-bold text-emerald-400">{result.wasteAnalysis.usagePercent}%</div><div className="mt-1 text-[10px] text-slate-500">of {result.wasteAnalysis.sheetSizeMm[0]}x{result.wasteAnalysis.sheetSizeMm[1]}mm</div></IntelCard>)}
           {result.fileValidation && (<IntelCard title="Validation" icon={<FileCheck className="h-3.5 w-3.5 text-sky-400" />}><div className="flex items-center gap-2">{result.fileValidation.isValid ? <CheckCircle className="h-5 w-5 text-emerald-400" /> : <XCircle className="h-5 w-5 text-red-400" />}<span className={`text-lg font-bold ${result.fileValidation.isValid ? 'text-emerald-400' : 'text-red-400'}`}>{result.fileValidation.score}/100</span></div></IntelCard>)}
           <IntelCard title="Cost & Pricing" icon={<DollarSign className="h-3.5 w-3.5 text-emerald-400" />}>

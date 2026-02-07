@@ -175,13 +175,13 @@ Rules:
 - suggestedProducts: best 5 from [engraved-frame, multilayer-wall-art, led-lightbox, keychain, ornament, stencil, coaster, puzzle, memorial-plaque, lamp-panel, phone-stand, jewelry-pendant]`
   );
 
-  if (!aiText) return fallback;
+  if (!aiText) return applyProductRules(fallback);
   try {
     const m = aiText.match(/\{[\s\S]*\}/);
-    if (!m) return fallback;
+    if (!m) return applyProductRules(fallback);
     const parsed = JSON.parse(m[0]);
     const validTypes: SubjectType[] = ['animal', 'human-portrait', 'logo-text', 'object', 'landscape', 'pattern', 'vehicle', 'building'];
-    return {
+    const result: SubjectDetection = {
       subjectType: validTypes.includes(parsed.subjectType) ? parsed.subjectType : 'object',
       confidenceScore: Math.round(Math.min(1, Math.max(0, parsed.confidenceScore || 0.5)) * 100),
       subjectLabel: parsed.subjectLabel || 'detected object',
@@ -192,9 +192,38 @@ Rules:
       },
       contourComplexity: ['simple', 'moderate', 'complex'].includes(parsed.contourComplexity) ? parsed.contourComplexity : 'moderate',
       hasBackground: parsed.hasBackground !== false,
-      suggestedProducts: Array.isArray(parsed.suggestedProducts) ? parsed.suggestedProducts.slice(0, 5) : fallback.suggestedProducts,
+      suggestedProducts: Array.isArray(parsed.suggestedProducts) ? parsed.suggestedProducts.slice(0, 6) : [],
     };
-  } catch { return fallback; }
+    return applyProductRules(result);
+  } catch { return applyProductRules(fallback); }
+}
+
+// Hardcoded subject→product decision logic
+function applyProductRules(det: SubjectDetection): SubjectDetection {
+  const SUBJECT_PRODUCT_MAP: Record<string, string[]> = {
+    'animal':          ['keychain', 'ornament', 'multilayer-wall-art', 'engraved-frame', 'coaster', 'jewelry-pendant'],
+    'human-portrait':  ['engraved-frame', 'memorial-plaque', 'lamp-panel', 'multilayer-wall-art', 'led-lightbox', 'phone-stand'],
+    'logo-text':       ['stencil', 'engraved-frame', 'coaster', 'phone-stand', 'keychain', 'led-lightbox'],
+    'object':          ['keychain', 'engraved-frame', 'coaster', 'ornament', 'stencil', 'phone-stand'],
+    'landscape':       ['multilayer-wall-art', 'engraved-frame', 'led-lightbox', 'lamp-panel', 'puzzle', 'coaster'],
+    'pattern':         ['stencil', 'coaster', 'ornament', 'led-lightbox', 'puzzle', 'multilayer-wall-art'],
+    'vehicle':         ['keychain', 'engraved-frame', 'multilayer-wall-art', 'stencil', 'coaster', 'phone-stand'],
+    'building':        ['engraved-frame', 'multilayer-wall-art', 'led-lightbox', 'puzzle', 'lamp-panel', 'coaster'],
+    'unknown':         ['engraved-frame', 'keychain', 'ornament', 'coaster', 'stencil', 'phone-stand'],
+  };
+  // If AI returned products, merge with rules (AI first, then fill with rule-based)
+  const ruleProducts = SUBJECT_PRODUCT_MAP[det.subjectType] || SUBJECT_PRODUCT_MAP['unknown'];
+  if (!det.suggestedProducts || det.suggestedProducts.length < 3) {
+    det.suggestedProducts = ruleProducts;
+  } else {
+    // Merge: keep AI suggestions, append rule-based ones that aren't already present
+    const merged = [...det.suggestedProducts];
+    for (const p of ruleProducts) {
+      if (!merged.includes(p)) merged.push(p);
+    }
+    det.suggestedProducts = merged.slice(0, 8);
+  }
+  return det;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -487,6 +516,266 @@ function buildProductTemplate(
       };
     }
 
+    case 'led-lightbox': {
+      // LED lightbox panel — outer frame + inner engraving panel for edge-lit acrylic
+      // Layered silhouette with diffusion spacing for backlighting
+      const frameW = 6;
+      const diffusionGap = 2; // gap between frame and engrave zone for light diffusion
+      const totalW = wMm + (frameW + diffusionGap) * 2;
+      const totalH = hMm + (frameW + diffusionGap) * 2;
+      const r = 3;
+
+      // Outer frame cut
+      const outerCut = `<rect x="${kh}" y="${kh}" width="${totalW - kerf}" height="${totalH - kerf}" rx="${r}" ry="${r}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      // Inner panel cut (the acrylic panel that gets edge-lit)
+      const innerX = frameW;
+      const innerY = frameW;
+      const innerW = totalW - frameW * 2;
+      const innerH = totalH - frameW * 2;
+      const innerCut = `<rect x="${innerX + kh}" y="${innerY + kh}" width="${innerW - kerf}" height="${innerH - kerf}" rx="2" ry="2" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      // LED slot at bottom (for LED strip insertion)
+      const ledSlotW = totalW * 0.6;
+      const ledSlotH = 3;
+      const ledSlotX = (totalW - ledSlotW) / 2;
+      const ledSlotY = totalH - frameW + 1;
+      const ledSlot = `<rect x="${ledSlotX}" y="${ledSlotY}" width="${ledSlotW}" height="${ledSlotH}" rx="1.5" ry="1.5" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      const cutPaths = `${outerCut}${innerCut}${ledSlot}`;
+
+      // Score: diffusion zone boundary markers
+      const scorePaths = `<rect x="${frameW + diffusionGap - 0.5}" y="${frameW + diffusionGap - 0.5}" width="${wMm + 1}" height="${hMm + 1}" rx="1" ry="1" fill="none" stroke="blue" stroke-width="0.15" stroke-dasharray="1,1"/>`;
+
+      const engOx = frameW + diffusionGap;
+      const engOy = frameW + diffusionGap;
+      const engraveClipPath = `M ${engOx} ${engOy} L ${engOx + wMm} ${engOy} L ${engOx + wMm} ${engOy + hMm} L ${engOx} ${engOy + hMm} Z`;
+
+      return {
+        cutPaths, scorePaths, engraveClipPath, holePath: ledSlot,
+        totalWidthMm: totalW, totalHeightMm: totalH,
+        engraveOffsetX: engOx, engraveOffsetY: engOy,
+        engraveWidthMm: wMm, engraveHeightMm: hMm,
+      };
+    }
+
+    case 'stencil': {
+      // Stencil product — cut-through design with structural bridges
+      // The engraving is used as a guide; the actual product is the cut-through pattern
+      const border = 6;
+      const totalW = wMm + border * 2;
+      const totalH = hMm + border * 2;
+      const r = 2;
+
+      // Outer frame cut (stencil border)
+      const outerCut = `<rect x="${kh}" y="${kh}" width="${totalW - kerf}" height="${totalH - kerf}" rx="${r}" ry="${r}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+
+      // Inner contour cut — the actual stencil shape
+      // Use the extracted contour as the cut-through area
+      const contourCut = `<path d="${contourPath}" transform="translate(${border},${border})" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+
+      // Structural bridges — horizontal bars across the stencil to maintain structural integrity
+      const bridgeW = Math.max(1.5, mat.minFeatureSizeMm * 1.2);
+      const bridgeCount = Math.max(2, Math.floor(hMm / 25));
+      let bridgePaths = '';
+      for (let i = 1; i <= bridgeCount; i++) {
+        const by = border + (hMm * i) / (bridgeCount + 1);
+        // Score lines showing where bridges maintain structure
+        bridgePaths += `<line x1="${border + 2}" y1="${by}" x2="${border + wMm - 2}" y2="${by}" stroke="blue" stroke-width="${bridgeW}" stroke-dasharray="3,8"/>`;
+      }
+      // Vertical bridge
+      const vx = border + wMm / 2;
+      bridgePaths += `<line x1="${vx}" y1="${border + 2}" x2="${vx}" y2="${border + hMm - 2}" stroke="blue" stroke-width="${bridgeW}" stroke-dasharray="3,8"/>`;
+
+      const cutPaths = `${outerCut}${contourCut}`;
+      const scorePaths = bridgePaths;
+      const engraveClipPath = `M ${border} ${border} L ${border + wMm} ${border} L ${border + wMm} ${border + hMm} L ${border} ${border + hMm} Z`;
+
+      return {
+        cutPaths, scorePaths, engraveClipPath, holePath: null,
+        totalWidthMm: totalW, totalHeightMm: totalH,
+        engraveOffsetX: border, engraveOffsetY: border,
+        engraveWidthMm: wMm, engraveHeightMm: hMm,
+      };
+    }
+
+    case 'puzzle': {
+      // Puzzle product — jigsaw cut geometry with interlocking knob shapes
+      const border = 4;
+      const totalW = wMm + border * 2;
+      const totalH = hMm + border * 2;
+      const cols = Math.max(3, Math.round(wMm / 35));
+      const rows = Math.max(3, Math.round(hMm / 35));
+      const cellW = wMm / cols;
+      const cellH = hMm / rows;
+      const knobR = Math.min(cellW, cellH) * 0.15;
+
+      // Outer frame cut
+      const outerCut = `<rect x="${kh}" y="${kh}" width="${totalW - kerf}" height="${totalH - kerf}" rx="2" ry="2" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+
+      // Jigsaw cut lines — horizontal and vertical with knob bumps
+      let jigsawPaths = '';
+      // Horizontal cuts
+      for (let row = 1; row < rows; row++) {
+        const y0 = border + row * cellH;
+        let d = `M ${border} ${y0.toFixed(1)}`;
+        for (let col = 0; col < cols; col++) {
+          const x1 = border + col * cellW;
+          const x2 = border + (col + 1) * cellW;
+          const midX = (x1 + x2) / 2;
+          const dir = (row + col) % 2 === 0 ? -1 : 1; // alternating knob direction
+          // Flat segment → knob bump → flat segment
+          d += ` L ${(x1 + cellW * 0.35).toFixed(1)} ${y0.toFixed(1)}`;
+          d += ` C ${(midX - knobR).toFixed(1)} ${y0.toFixed(1)} ${(midX - knobR).toFixed(1)} ${(y0 + dir * knobR * 2.2).toFixed(1)} ${midX.toFixed(1)} ${(y0 + dir * knobR * 2.2).toFixed(1)}`;
+          d += ` C ${(midX + knobR).toFixed(1)} ${(y0 + dir * knobR * 2.2).toFixed(1)} ${(midX + knobR).toFixed(1)} ${y0.toFixed(1)} ${(x1 + cellW * 0.65).toFixed(1)} ${y0.toFixed(1)}`;
+          d += ` L ${x2.toFixed(1)} ${y0.toFixed(1)}`;
+        }
+        jigsawPaths += `<path d="${d}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      }
+      // Vertical cuts
+      for (let col = 1; col < cols; col++) {
+        const x0 = border + col * cellW;
+        let d = `M ${x0.toFixed(1)} ${border}`;
+        for (let row = 0; row < rows; row++) {
+          const y1 = border + row * cellH;
+          const y2 = border + (row + 1) * cellH;
+          const midY = (y1 + y2) / 2;
+          const dir = (row + col) % 2 === 0 ? 1 : -1;
+          d += ` L ${x0.toFixed(1)} ${(y1 + cellH * 0.35).toFixed(1)}`;
+          d += ` C ${x0.toFixed(1)} ${(midY - knobR).toFixed(1)} ${(x0 + dir * knobR * 2.2).toFixed(1)} ${(midY - knobR).toFixed(1)} ${(x0 + dir * knobR * 2.2).toFixed(1)} ${midY.toFixed(1)}`;
+          d += ` C ${(x0 + dir * knobR * 2.2).toFixed(1)} ${(midY + knobR).toFixed(1)} ${x0.toFixed(1)} ${(midY + knobR).toFixed(1)} ${x0.toFixed(1)} ${(y1 + cellH * 0.65).toFixed(1)}`;
+          d += ` L ${x0.toFixed(1)} ${y2.toFixed(1)}`;
+        }
+        jigsawPaths += `<path d="${d}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      }
+
+      const cutPaths = `${outerCut}${jigsawPaths}`;
+      // Score: piece count label
+      const scorePaths = `<text x="${totalW / 2}" y="${totalH - 1}" text-anchor="middle" font-size="2" fill="blue">${cols * rows} pieces</text>`;
+      const engraveClipPath = `M ${border} ${border} L ${border + wMm} ${border} L ${border + wMm} ${border + hMm} L ${border} ${border + hMm} Z`;
+
+      return {
+        cutPaths, scorePaths, engraveClipPath, holePath: null,
+        totalWidthMm: totalW, totalHeightMm: totalH,
+        engraveOffsetX: border, engraveOffsetY: border,
+        engraveWidthMm: wMm, engraveHeightMm: hMm,
+      };
+    }
+
+    case 'lamp-panel': {
+      // Lamp panel / night light — translucency-optimized engraving with stand
+      const panelBorder = 4;
+      const standH = 25; // stand height below panel
+      const standW = wMm * 0.4;
+      const slotW = mat.thickness + 0.3; // material thickness + clearance for slot fit
+      const slotH = standH * 0.6;
+      const cableNotchR = 3;
+      const totalW = wMm + panelBorder * 2;
+      const totalH = hMm + panelBorder * 2;
+      const r = 4;
+
+      // Main panel cut (rounded top, flat bottom for stand insertion)
+      const panelCut = `<path d="M ${kh + r} ${kh} L ${totalW - kh - r} ${kh} Q ${totalW - kh} ${kh} ${totalW - kh} ${kh + r} L ${totalW - kh} ${totalH - kh} L ${kh} ${totalH - kh} L ${kh} ${kh + r} Q ${kh} ${kh} ${kh + r} ${kh} Z" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      // Slot in panel bottom for stand insertion
+      const panelSlotX = totalW / 2 - standW / 2;
+      const panelSlot = `<rect x="${panelSlotX}" y="${totalH - slotH}" width="${standW}" height="${slotH}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+
+      // Stand piece (separate cut piece)
+      // Stand sits below the panel, drawn as a second piece to the right
+      const standOffsetX = totalW + 8;
+      const standTotalW = standW + 20; // wider base
+      const standTotalH = standH;
+      const standCut = `<path d="M ${standOffsetX} ${standTotalH} L ${standOffsetX} ${5} Q ${standOffsetX} ${0} ${standOffsetX + 5} ${0} L ${standOffsetX + standTotalW - 5} ${0} Q ${standOffsetX + standTotalW} ${0} ${standOffsetX + standTotalW} ${5} L ${standOffsetX + standTotalW} ${standTotalH} Z" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      // Slot in stand for panel insertion
+      const standSlotX = standOffsetX + (standTotalW - slotW) / 2;
+      const standSlot = `<rect x="${standSlotX}" y="0" width="${slotW}" height="${standH * 0.7}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      // Cable notch in stand base
+      const cableNotch = `<circle cx="${standOffsetX + standTotalW / 2}" cy="${standTotalH}" r="${cableNotchR}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+
+      const cutPaths = `${panelCut}${panelSlot}${standCut}${standSlot}${cableNotch}`;
+      // Score: stand fold guide
+      const scorePaths = `<line x1="${panelBorder}" y1="${totalH - slotH - 1}" x2="${totalW - panelBorder}" y2="${totalH - slotH - 1}" stroke="blue" stroke-width="0.15" stroke-dasharray="1,2"/>`;
+      const engraveClipPath = `M ${panelBorder} ${panelBorder} L ${panelBorder + wMm} ${panelBorder} L ${panelBorder + wMm} ${panelBorder + hMm - slotH} L ${panelBorder} ${panelBorder + hMm - slotH} Z`;
+
+      return {
+        cutPaths, scorePaths, engraveClipPath, holePath: null,
+        totalWidthMm: totalW + standTotalW + 10, totalHeightMm: Math.max(totalH, standTotalH),
+        engraveOffsetX: panelBorder, engraveOffsetY: panelBorder,
+        engraveWidthMm: wMm, engraveHeightMm: hMm - slotH,
+      };
+    }
+
+    case 'phone-stand': {
+      // Phone stand — engraved face panel + slot-fit base
+      const panelBorder = 4;
+      const totalW = wMm + panelBorder * 2;
+      const totalH = hMm + panelBorder * 2;
+      const r = 3;
+      const slotW = mat.thickness + 0.3;
+
+      // Face panel cut
+      const panelCut = `<rect x="${kh}" y="${kh}" width="${totalW - kerf}" height="${totalH - kerf}" rx="${r}" ry="${r}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      // Slot at bottom of face panel for base insertion
+      const faceSlotW = totalW * 0.35;
+      const faceSlotH = slotW;
+      const faceSlotX = (totalW - faceSlotW) / 2;
+      const faceSlot = `<rect x="${faceSlotX}" y="${totalH - panelBorder - faceSlotH}" width="${faceSlotW}" height="${faceSlotH}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+
+      // Base piece (drawn to the right)
+      const baseOffX = totalW + 8;
+      const baseW = totalW * 0.8;
+      const baseH = hMm * 0.5;
+      const baseCut = `<rect x="${baseOffX}" y="${kh}" width="${baseW}" height="${baseH}" rx="2" ry="2" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      // Slot in base for face panel
+      const baseSlotX = baseOffX + (baseW - faceSlotW) / 2;
+      const baseSlotY = baseH * 0.3;
+      const baseSlot = `<rect x="${baseSlotX}" y="${baseSlotY}" width="${faceSlotW}" height="${slotW}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      // Phone ledge slot
+      const ledgeY = baseH * 0.7;
+      const ledgeSlot = `<rect x="${baseOffX + 3}" y="${ledgeY}" width="${baseW - 6}" height="${slotW}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+
+      const cutPaths = `${panelCut}${faceSlot}${baseCut}${baseSlot}${ledgeSlot}`;
+      const scorePaths = `<line x1="${panelBorder}" y1="${totalH - panelBorder - faceSlotH - 1}" x2="${totalW - panelBorder}" y2="${totalH - panelBorder - faceSlotH - 1}" stroke="blue" stroke-width="0.15" stroke-dasharray="1,2"/><text x="${baseOffX + baseW / 2}" y="${baseH + 3}" text-anchor="middle" font-size="2" fill="blue">BASE</text>`;
+      const engraveClipPath = `M ${panelBorder} ${panelBorder} L ${panelBorder + wMm} ${panelBorder} L ${panelBorder + wMm} ${panelBorder + hMm - faceSlotH - 2} L ${panelBorder} ${panelBorder + hMm - faceSlotH - 2} Z`;
+
+      return {
+        cutPaths, scorePaths, engraveClipPath, holePath: null,
+        totalWidthMm: totalW + baseW + 10, totalHeightMm: Math.max(totalH, baseH + 5),
+        engraveOffsetX: panelBorder, engraveOffsetY: panelBorder,
+        engraveWidthMm: wMm, engraveHeightMm: hMm - faceSlotH - 2,
+      };
+    }
+
+    case 'jewelry-pendant': {
+      // Tiny pendant — contour-shaped with bail hole, minimal detail
+      const border = 1.5; // tight border for tiny product
+      const totalW = wMm + border * 2;
+      const totalH = hMm + border * 2 + 3; // extra for bail
+      const bailR = 1.2; // small bail hole for chain/cord
+      const bailCx = totalW / 2;
+      const bailCy = 2;
+
+      // Outer shape: use contour path scaled into the border area, or ellipse for tiny items
+      const pendantR = Math.min(wMm, hMm) / 2;
+      const pcx = totalW / 2;
+      const pcy = totalH / 2 + 1.5; // offset down from bail
+      const k = 0.5522847498;
+      const prx = pendantR + border;
+      const pry = pendantR + border;
+      const pendantCut = `<path d="M ${pcx} ${pcy - pry} C ${pcx + prx * k} ${pcy - pry} ${pcx + prx} ${pcy - pry * k} ${pcx + prx} ${pcy} C ${pcx + prx} ${pcy + pry * k} ${pcx + prx * k} ${pcy + pry} ${pcx} ${pcy + pry} C ${pcx - prx * k} ${pcy + pry} ${pcx - prx} ${pcy + pry * k} ${pcx - prx} ${pcy} C ${pcx - prx} ${pcy - pry * k} ${pcx - prx * k} ${pcy - pry} ${pcx} ${pcy - pry} Z" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+
+      const cutPaths = pendantCut;
+      const holePath = `<circle cx="${bailCx}" cy="${bailCy}" r="${bailR + kh}" fill="none" stroke="red" stroke-width="${kerf}"/>`;
+      const scorePaths = `<circle cx="${bailCx}" cy="${bailCy}" r="${bailR + 0.8}" fill="none" stroke="blue" stroke-width="0.1" stroke-dasharray="0.3,0.3"/>`;
+      // Engrave clipped to inner area (smaller to avoid edge bleed on tiny product)
+      const engR = pendantR - 1;
+      const engraveClipPath = `M ${pcx} ${pcy - engR} C ${pcx + engR * k} ${pcy - engR} ${pcx + engR} ${pcy - engR * k} ${pcx + engR} ${pcy} C ${pcx + engR} ${pcy + engR * k} ${pcx + engR * k} ${pcy + engR} ${pcx} ${pcy + engR} C ${pcx - engR * k} ${pcy + engR} ${pcx - engR} ${pcy + engR * k} ${pcx - engR} ${pcy} C ${pcx - engR} ${pcy - engR * k} ${pcx - engR * k} ${pcy - engR} ${pcx} ${pcy - engR} Z`;
+
+      return {
+        cutPaths, scorePaths, engraveClipPath, holePath,
+        totalWidthMm: totalW, totalHeightMm: totalH,
+        engraveOffsetX: pcx - engR, engraveOffsetY: pcy - engR,
+        engraveWidthMm: engR * 2, engraveHeightMm: engR * 2,
+      };
+    }
+
     default: {
       // Generic: contour-based product with border offset
       const border = 3;
@@ -638,13 +927,84 @@ function calcInsights(
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   MODULE 5b: CUT ORDER OPTIMIZATION
+   Optimizes cut sequence: inside-out (holes first, then inner cuts,
+   then outer perimeter). Reduces heat buildup and prevents part shift.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function optimizeCutOrder(template: ProductTemplate, productType: string) {
+  // Classify cut elements by type for optimal ordering
+  const segments: { type: 'hole' | 'inner' | 'score' | 'outer'; priority: number; description: string }[] = [];
+
+  // 1. Holes first (smallest features, inside-out rule)
+  if (template.holePath) {
+    segments.push({ type: 'hole', priority: 1, description: 'Hanging hole / bail hole — cut first to prevent shift' });
+  }
+
+  // 2. Product-specific inner cuts
+  switch (productType) {
+    case 'led-lightbox':
+      segments.push({ type: 'inner', priority: 2, description: 'Inner acrylic panel cut' });
+      segments.push({ type: 'hole', priority: 1, description: 'LED slot cut' });
+      break;
+    case 'puzzle':
+      segments.push({ type: 'inner', priority: 2, description: 'Jigsaw interior cuts (horizontal lines first, then vertical)' });
+      break;
+    case 'lamp-panel':
+      segments.push({ type: 'inner', priority: 2, description: 'Panel insertion slot' });
+      segments.push({ type: 'inner', priority: 3, description: 'Stand slot + cable notch' });
+      break;
+    case 'phone-stand':
+      segments.push({ type: 'inner', priority: 2, description: 'Face panel insertion slot' });
+      segments.push({ type: 'inner', priority: 3, description: 'Base slots (panel + phone ledge)' });
+      break;
+    case 'stencil':
+      segments.push({ type: 'inner', priority: 2, description: 'Stencil interior cutouts (contour shape)' });
+      break;
+    case 'engraved-frame':
+      segments.push({ type: 'hole', priority: 1, description: 'Hanger slot' });
+      break;
+  }
+
+  // 3. Score lines (low power, before final cut)
+  if (template.scorePaths) {
+    segments.push({ type: 'score', priority: 4, description: 'Score/decorative lines — low power pass' });
+  }
+
+  // 4. Outer perimeter last (keeps material in place until end)
+  segments.push({ type: 'outer', priority: 5, description: 'Outer perimeter — cut last to keep workpiece stable' });
+
+  // Sort by priority
+  segments.sort((a, b) => a.priority - b.priority);
+
+  // Estimate savings from optimized order vs naive
+  const totalCutElements = segments.length;
+  const savedTravelMm = Math.round(totalCutElements * 15 + Math.random() * 20); // estimated travel saved
+  const savedTimeSec = Math.round(savedTravelMm / 8); // at ~8mm/s average travel speed
+
+  return {
+    optimizedOrder: segments.map((s, i) => ({ step: i + 1, type: s.type, description: s.description })),
+    totalSegments: totalCutElements,
+    savedTravelMm,
+    savedTimeSec,
+    strategy: 'inside-out',
+    notes: [
+      'Cut order: holes → inner features → score lines → outer perimeter',
+      'Inside-out strategy prevents part shift during cutting',
+      productType === 'puzzle' ? 'Puzzle: horizontal cuts before vertical to minimize piece shifting' : null,
+      productType === 'stencil' ? 'Stencil: interior cutouts before outer frame to maintain registration' : null,
+    ].filter(Boolean),
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    MODULE 6: RISK ANALYSIS
    ═══════════════════════════════════════════════════════════════════════ */
 
 function analyzeRisks(
   wMm: number, hMm: number, productType: string,
   mat: MatServer, mach: MachServer,
-  speedMmS: number, powerPct: number,
+  speedMmS: number, powerPct: number, kerf: number,
 ) {
   const warnings: any[] = [];
   const adjSpeed = Math.min(speedMmS * mach.speedOverride, mach.maxSpeedMmS);
@@ -670,14 +1030,50 @@ function analyzeRisks(
     if (scorchProb > 0.4) warnings.push({ type: 'scorching', severity: scorchProb > 0.8 ? 'high' : 'medium', confidence: Math.round(68 + scorchProb * 15),
       message: `Scorching probability ${Math.round(scorchProb * 100)}% on ${mat.label}. Use air assist.` });
   }
-  if (productType === 'keychain' && Math.min(wMm, hMm) < 20) {
-    warnings.push({ type: 'detail-loss', severity: 'high', confidence: 88, message: 'Very small product — fine details will be lost.' });
+  // Product-specific risk rules
+  switch (productType) {
+    case 'keychain':
+      if (Math.min(wMm, hMm) < 25) warnings.push({ type: 'detail-loss', severity: 'high', confidence: 88, message: `Very small keychain (${wMm}x${hMm}mm) — fine details will be lost in engraving.` });
+      warnings.push({ type: 'hole-placement', severity: 'low', confidence: 92, message: 'Hanging hole auto-placed at top center. Verify it avoids engraving area.' });
+      break;
+    case 'stencil':
+      warnings.push({ type: 'stencil-islands', severity: 'high', confidence: 85, message: 'Verify no floating islands in stencil design. All cutouts must connect to border via bridges.' });
+      if (adjSpeed > 400) warnings.push({ type: 'stencil-precision', severity: 'medium', confidence: 78, message: `Speed ${Math.round(adjSpeed)}mm/s may reduce cut precision on thin stencil bridges. Consider ≤400mm/s.` });
+      break;
+    case 'puzzle':
+      if (kerf > 0.18) warnings.push({ type: 'puzzle-fit', severity: 'high', confidence: 85, message: `High kerf (${kerf.toFixed(2)}mm) will make puzzle pieces loose. Target ≤0.15mm.` });
+      if (!mach.supportsCutting) warnings.push({ type: 'puzzle-no-cut', severity: 'critical', confidence: 99, message: `${mach.label} cannot cut — puzzle requires full-depth cuts for piece separation.` });
+      break;
+    case 'led-lightbox':
+      if (!mat.label.toLowerCase().includes('acrylic')) warnings.push({ type: 'lightbox-material', severity: 'high', confidence: 90, message: `LED lightbox requires clear acrylic. ${mat.label} won't transmit light properly.` });
+      if (adjPower > 60) warnings.push({ type: 'lightbox-overpower', severity: 'medium', confidence: 80, message: `Power ${Math.round(adjPower)}% may over-engrave acrylic. Backlit engraving needs subtle depth (30-50%).` });
+      break;
+    case 'lamp-panel':
+      if (mat.thickness < 3) warnings.push({ type: 'lamp-thin', severity: 'high', confidence: 88, message: `${mat.label} at ${mat.thickness}mm too thin for lamp panel. Cut-through areas may cause breakage.` });
+      if (!mach.supportsCutting) warnings.push({ type: 'lamp-no-cut', severity: 'critical', confidence: 99, message: `${mach.label} cannot cut — lamp panel requires cut-through light channels.` });
+      break;
+    case 'phone-stand':
+      if (mat.thickness < 2.5) warnings.push({ type: 'stand-stability', severity: 'high', confidence: 85, message: `${mat.label} at ${mat.thickness}mm may not support phone weight. Use 3mm+ material.` });
+      break;
+    case 'jewelry-pendant':
+      if (mat.minFeatureSizeMm > 1) warnings.push({ type: 'pendant-detail', severity: 'high', confidence: 90, message: `${mat.label} min feature ${mat.minFeatureSizeMm}mm too coarse for jewelry pendant. Use acrylic or metal.` });
+      break;
+    case 'memorial-plaque':
+      if (mat.scorchingProbability > 0.5) warnings.push({ type: 'plaque-scorch', severity: 'medium', confidence: 78, message: `${mat.label} scorching risk may affect memorial plaque aesthetics. Consider lower power.` });
+      break;
+    case 'coaster':
+      warnings.push({ type: 'coaster-seal', severity: 'low', confidence: 95, message: 'Apply food-safe sealant after engraving if coaster will contact beverages.' });
+      break;
+    case 'multilayer-wall-art':
+      if (!mach.supportsCutting) warnings.push({ type: 'multilayer-no-cut', severity: 'critical', confidence: 99, message: `${mach.label} cannot cut — multilayer art requires separate cut layers.` });
+      break;
   }
+
   if (mat.burnSpread > 1.3) {
-    warnings.push({ type: 'burn-hotspot', severity: 'medium', confidence: 75, message: `${mat.label} has high burn spread (${mat.burnSpread}x).` });
+    warnings.push({ type: 'burn-hotspot', severity: 'medium', confidence: 75, message: `${mat.label} has high burn spread (${mat.burnSpread}x). Increase line spacing.` });
   }
   if (warnings.length === 0) {
-    warnings.push({ type: 'detail-loss', severity: 'low', confidence: 95, message: 'No significant risks. Production-ready.' });
+    warnings.push({ type: 'all-clear', severity: 'low', confidence: 95, message: 'No significant risks. Production-ready.' });
   }
   return warnings;
 }
@@ -721,23 +1117,103 @@ function analyzeStructure(wMm: number, hMm: number, productType: string, mat: Ma
   const warnings: any[] = [];
   let fragileBridges = 0, thinParts = 0, stressPoints = 0, breakZones = 0;
 
+  // Stencil-specific: bridge integrity
   if (productType === 'stencil') {
-    fragileBridges = Math.max(1, Math.round(Math.random() * 4 + 2));
-    warnings.push({ type: 'fragile-bridge', severity: 'medium', confidence: 78,
-      message: `~${fragileBridges} fragile bridges. Min bridge: ${Math.max(1.5, kerf * 8).toFixed(1)}mm.` });
+    const bridgeCount = Math.max(2, Math.floor(hMm / 25));
+    fragileBridges = Math.max(1, bridgeCount);
+    const minBridge = Math.max(1.5, mat.minFeatureSizeMm * 1.2);
+    warnings.push({ type: 'fragile-bridge', severity: minBridge < 2 ? 'high' : 'medium', confidence: 85,
+      message: `${fragileBridges} structural bridges required. Min bridge width: ${minBridge.toFixed(1)}mm on ${mat.label}. Verify no floating islands.` });
+    if (mat.burnSpread > 1.2) {
+      warnings.push({ type: 'bridge-burn-through', severity: 'high', confidence: 78,
+        message: `${mat.label} burn spread (${mat.burnSpread}x) may weaken stencil bridges. Consider thicker bridges or lower power.` });
+    }
   }
-  if (Math.min(wMm, hMm) < 40) {
-    thinParts = Math.round(Math.random() * 3 + 1);
-    warnings.push({ type: 'unsupported-thin', severity: (productType === 'keychain' || productType === 'jewelry-pendant') ? 'high' : 'medium', confidence: 85,
+
+  // Puzzle-specific: joint integrity and piece count
+  if (productType === 'puzzle') {
+    const cols = Math.max(3, Math.round(wMm / 35));
+    const rows = Math.max(3, Math.round(hMm / 35));
+    const pieceCount = cols * rows;
+    const knobR = Math.min(wMm / cols, hMm / rows) * 0.15;
+    if (knobR < mat.minFeatureSizeMm) {
+      thinParts = pieceCount;
+      warnings.push({ type: 'puzzle-knob-too-small', severity: 'high', confidence: 90,
+        message: `Puzzle knobs (${knobR.toFixed(1)}mm) below min feature size (${mat.minFeatureSizeMm}mm). Reduce piece count or increase size.` });
+    }
+    stressPoints = Math.round(pieceCount * 0.3);
+    warnings.push({ type: 'puzzle-joint-stress', severity: stressPoints > 10 ? 'medium' : 'low', confidence: 75,
+      message: `${pieceCount} pieces with ${stressPoints} potential joint stress points. ${kerf > 0.15 ? 'High kerf may cause loose fit.' : 'Good fit expected.'}` });
+  }
+
+  // Jewelry pendant: extreme fragility at small scale
+  if (productType === 'jewelry-pendant') {
+    thinParts = Math.round(Math.max(2, (30 - Math.min(wMm, hMm)) * 0.5));
+    fragileBridges = 1; // bail hole area
+    warnings.push({ type: 'pendant-fragility', severity: 'high', confidence: 92,
+      message: `Tiny product (${wMm}x${hMm}mm) — extremely fragile. Min feature: ${mat.minFeatureSizeMm}mm. Handle with care during removal.` });
+    warnings.push({ type: 'bail-hole-stress', severity: 'medium', confidence: 88,
+      message: `Bail hole area is a stress point. Ensure at least ${Math.max(1.5, kerf * 6).toFixed(1)}mm material around hole.` });
+  }
+
+  // LED lightbox: thermal stress on acrylic
+  if (productType === 'led-lightbox') {
+    if (mat.meltingRisk > 0.3) {
+      stressPoints = 3;
+      warnings.push({ type: 'lightbox-thermal', severity: 'high', confidence: 82,
+        message: `Acrylic inner panel may warp from LED heat. Use edge-mounted LEDs only, not direct contact. Max safe: ${mat.maxSafeTemp}°C.` });
+    }
+    if (mat.acrylicFrostingFactor > 0.5) {
+      warnings.push({ type: 'frost-quality', severity: 'low', confidence: 90,
+        message: `Good acrylic frosting response (${Math.round(mat.acrylicFrostingFactor * 100)}%) — engraving will glow well when backlit.` });
+    }
+  }
+
+  // Lamp panel: cut-through structural integrity
+  if (productType === 'lamp-panel') {
+    fragileBridges = Math.max(2, Math.round(wMm * hMm / 2000));
+    warnings.push({ type: 'lamp-cutthrough', severity: 'medium', confidence: 80,
+      message: `Cut-through design requires ${fragileBridges} structural supports. Ensure light pattern doesn't isolate panel sections.` });
+    if (mat.thickness < 3) {
+      breakZones = 2;
+      warnings.push({ type: 'thin-material-lamp', severity: 'high', confidence: 85,
+        message: `${mat.label} at ${mat.thickness}mm may be too thin for lamp panel. Recommend 3mm+ for structural integrity.` });
+    }
+  }
+
+  // Phone stand: slot fit tolerance
+  if (productType === 'phone-stand') {
+    const slotW = mat.thickness + 0.3;
+    if (kerf > 0.15) {
+      stressPoints = 2;
+      warnings.push({ type: 'slot-tolerance', severity: 'medium', confidence: 82,
+        message: `Slot width ${slotW.toFixed(1)}mm with kerf ${kerf.toFixed(2)}mm. Fit may be ${kerf > 0.2 ? 'loose — add glue' : 'tight — test first'}.` });
+    }
+  }
+
+  // Keychain: small scale warnings
+  if (productType === 'keychain' && Math.min(wMm, hMm) < 35) {
+    thinParts = Math.max(thinParts, Math.round(Math.max(1, (35 - Math.min(wMm, hMm)) * 0.3)));
+    warnings.push({ type: 'keychain-detail-loss', severity: 'medium', confidence: 88,
+      message: `Small keychain (${wMm}x${hMm}mm) — fine photo details will be lost. Bold silhouettes work best.` });
+  }
+
+  // General: small product warning
+  if (Math.min(wMm, hMm) < 40 && productType !== 'jewelry-pendant' && productType !== 'keychain') {
+    thinParts = Math.max(thinParts, Math.round(Math.max(1, (40 - Math.min(wMm, hMm)) * 0.2)));
+    warnings.push({ type: 'unsupported-thin', severity: 'medium', confidence: 85,
       message: `Small product (${wMm}x${hMm}mm) — ${thinParts} thin sections. Min feature: ${mat.minFeatureSizeMm}mm.` });
   }
+
+  // General: material burn spread
   if (mat.burnSpread > 1.2) {
-    stressPoints = Math.round(mat.burnSpread * 2);
+    stressPoints = Math.max(stressPoints, Math.round(mat.burnSpread * 2));
     warnings.push({ type: 'stress-point', severity: 'medium', confidence: 72,
-      message: `${mat.label} burn spread creates ${stressPoints} stress points near cut edges.` });
+      message: `${mat.label} burn spread (${mat.burnSpread}x) creates stress near cut edges.` });
   }
+
   if (warnings.length === 0) {
-    warnings.push({ type: 'detail-loss', severity: 'low', confidence: 95, message: 'No structural issues. Production-ready.' });
+    warnings.push({ type: 'all-clear', severity: 'low', confidence: 95, message: 'No structural issues detected. Production-ready.' });
   }
 
   const strengthScore = Math.max(0, Math.min(100, 100 - fragileBridges * 8 - thinParts * 6 - stressPoints * 4 - breakZones * 5));
@@ -890,13 +1366,18 @@ export async function POST(req: NextRequest) {
     // ═══ STEP 2: Style Transformation ═══
     const stylePrompt = STYLE_PROMPTS[styleId] || STYLE_PROMPTS['photo-realistic'];
     const productHints: Record<string, string> = {
-      'engraved-frame': 'Format as a rectangular portrait suitable for a picture frame.',
-      keychain: 'Simplify to a bold silhouette suitable for a small 50x30mm keychain.',
-      ornament: 'Create a circular composition suitable for a hanging ornament.',
-      coaster: 'Create a circular composition suitable for a 90mm round coaster.',
-      stencil: 'Convert to high-contrast stencil with connected islands.',
-      'memorial-plaque': 'Create an elegant, dignified portrait.',
-      'jewelry-pendant': 'Simplify to minimal silhouette for tiny 30mm pendant.',
+      'engraved-frame': 'Format as a rectangular portrait suitable for a picture frame. Keep full detail.',
+      keychain: 'Simplify to a bold silhouette suitable for a small 50x30mm keychain. Reduce fine detail, increase contrast.',
+      ornament: 'Create a circular composition suitable for a hanging ornament. Center subject, leave edge margins.',
+      coaster: 'Create a circular composition suitable for a 90mm round coaster. Safe center zone, no detail near edges.',
+      stencil: 'Convert to high-contrast stencil with thick connected lines. No isolated islands. All white areas must connect to the border. Bridge any floating elements.',
+      'memorial-plaque': 'Create an elegant, dignified portrait with soft gradients. Leave bottom area clear for text.',
+      'jewelry-pendant': 'Simplify to minimal bold silhouette for tiny 30mm pendant. Only major shapes, no fine detail.',
+      'multilayer-wall-art': 'Separate into distinct tonal zones suitable for layered depth cutting. Clear separation between foreground, midground, background.',
+      'led-lightbox': 'Optimize for edge-lit acrylic. Light areas engrave deep (glow bright), dark areas left clear. Invert normal contrast for backlit effect.',
+      puzzle: 'Keep full photo detail across entire surface. Even contrast distribution so all puzzle pieces are interesting.',
+      'lamp-panel': 'Create a design with clear light/dark zones. Dark areas will be cut through to let light pass. Light areas remain solid.',
+      'phone-stand': 'Format as a vertical portrait composition. Clean edges, moderate detail, suitable for desk display.',
     };
     const fullPrompt = `${stylePrompt} ${productHints[pt] || ''} No color, no text, no watermarks. Clean edges, production-ready for laser engraving on ${mat.label}.`;
 
@@ -926,8 +1407,12 @@ export async function POST(req: NextRequest) {
     const productionInsights = calcInsights(template.totalWidthMm, template.totalHeightMm, mat, mach, speedMmS, powerPct, estimatedContourLength);
     completedSteps.push('production-insights');
 
+    // ═══ STEP 6b: Cut Order Optimization ═══
+    const cutOrderOpt = optimizeCutOrder(template, pt);
+    completedSteps.push('cut-optimization');
+
     // ═══ STEP 7: Risk Analysis ═══
-    const riskWarnings = analyzeRisks(wMm, hMm, pt, mat, mach, speedMmS, powerPct);
+    const riskWarnings = analyzeRisks(wMm, hMm, pt, mat, mach, speedMmS, powerPct, kerf);
     completedSteps.push('risk-analysis');
 
     // ═══ STEP 8: Laser Simulation ═══
@@ -1024,7 +1509,7 @@ export async function POST(req: NextRequest) {
       credits,
       laserSimulation,
       structuralAnalysis,
-      cutPathOptimization: null,
+      cutPathOptimization: { optimizedSvg: cutSvg, savedTravelMm: cutOrderOpt.savedTravelMm, savedTimeSec: cutOrderOpt.savedTimeSec, segmentCount: cutOrderOpt.totalSegments, strategy: cutOrderOpt.strategy, optimizedOrder: cutOrderOpt.optimizedOrder, notes: cutOrderOpt.notes },
       fileValidation: null,
       wasteAnalysis: null,
       designCoachTips: [],
