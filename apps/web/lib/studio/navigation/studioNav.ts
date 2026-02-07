@@ -9,6 +9,7 @@ export type StudioNavItem = {
 export const STUDIO_NAV: StudioNavItem[] = [
   { label: 'Dashboard', href: '/studio/dashboard', match: 'exact' },
   { label: 'Tools', href: '/studio/tools', match: 'prefix' },
+  { label: 'Production', href: '/studio/production', match: 'prefix' },
   { label: 'Pricing', href: '/studio/pricing', match: 'exact' },
   { label: 'Help', href: '/studio/help', match: 'prefix' },
   { label: 'Account', href: '/studio/account', match: 'exact' },

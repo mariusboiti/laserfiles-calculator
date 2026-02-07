@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp, LayoutGrid, Activity, CheckCircle, XCircle,
   Gauge, Scissors, FileCheck, Recycle, Lightbulb, Target,
   Brain, Factory, ShoppingBag, RefreshCw, Cpu, TrendingUp,
+  Send, Monitor, Loader2 as Loader2Icon, Store, Globe,
 } from 'lucide-react';
 import { useAnalytics } from '@/lib/analytics/useAnalytics';
 import { useLanguage } from '@/lib/i18n/i18n';
@@ -621,12 +622,175 @@ function BatchPanel({ batchInputRef, batchItems, batchProcessing, handleBatchFil
   );
 }
 
+function LaserActionsPanel({ result, selectedProduct, options }: any) {
+  const [machines, setMachines] = useState<any[]>([]);
+  const [selectedMachine, setSelectedMachine] = useState<string>('');
+  const [sendingJob, setSendingJob] = useState(false);
+  const [jobResult, setJobResult] = useState<any>(null);
+  const [publishingListing, setPublishingListing] = useState(false);
+  const [listingResult, setListingResult] = useState<any>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState('INTERNAL');
+  const [machinesLoaded, setMachinesLoaded] = useState(false);
+
+  const loadMachines = useCallback(async () => {
+    if (machinesLoaded) return;
+    try {
+      const { apiClient } = await import('@/lib/api-client');
+      const res = await apiClient.get('/laser-machines');
+      setMachines(res.data || []);
+      if (res.data?.length > 0) setSelectedMachine(res.data[0].id);
+    } catch {} finally { setMachinesLoaded(true); }
+  }, [machinesLoaded]);
+
+  useEffect(() => { loadMachines(); }, [loadMachines]);
+
+  const handleSendToLaser = async () => {
+    if (!selectedMachine) return;
+    setSendingJob(true);
+    setJobResult(null);
+    try {
+      const { apiClient } = await import('@/lib/api-client');
+      const meRes = await apiClient.get('/auth/me');
+      const userId = meRes.data?.user?.id;
+      const res = await apiClient.post('/laser-pipeline/product-to-job', {
+        userId,
+        machineId: selectedMachine,
+        productType: selectedProduct,
+        materialLabel: result.productionInsights?.materialLabel || options.material,
+        thicknessMm: result.productionInsights?.thicknessMm,
+        jobWidthMm: result.productionInsights?.widthMm,
+        jobHeightMm: result.productionInsights?.heightMm,
+        estimatedTimeSec: result.productionInsights ? (result.productionInsights.engraveTimeSec + result.productionInsights.cutTimeSec) : undefined,
+        speedMmS: result.productionInsights?.machineAdjustedSpeed,
+        powerPct: result.productionInsights?.adjustedPower,
+      });
+      setJobResult(res.data);
+    } catch (err: any) {
+      setJobResult({ error: err?.response?.data?.message || 'Failed to create job' });
+    } finally { setSendingJob(false); }
+  };
+
+  const handlePublishProduct = async () => {
+    setPublishingListing(true);
+    setListingResult(null);
+    try {
+      const { apiClient } = await import('@/lib/api-client');
+      const meRes = await apiClient.get('/auth/me');
+      const userId = meRes.data?.user?.id;
+      const wMm = result.productionInsights?.widthMm || 100;
+      const hMm = result.productionInsights?.heightMm || 100;
+      const res = await apiClient.post('/laser-pipeline/product-to-listing', {
+        userId,
+        platform: selectedPlatform,
+        productType: selectedProduct,
+        materialLabel: result.productionInsights?.materialLabel || options.material,
+        sizeMm: `${wMm}x${hMm}`,
+        subjectLabel: result.subjectDetection?.label,
+        subjectType: result.subjectDetection?.type,
+        costOfGoods: result.productionInsights?.materialCostEstimate,
+      });
+      setListingResult(res.data);
+    } catch (err: any) {
+      setListingResult({ error: err?.response?.data?.message || 'Failed to create listing' });
+    } finally { setPublishingListing(false); }
+  };
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {/* Send to Laser */}
+      <div className="rounded-xl border border-orange-800/30 bg-orange-900/10 p-4">
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold text-orange-300">
+          <Zap className="h-4 w-4" /> Send to Laser Machine
+        </h3>
+        {machines.length === 0 ? (
+          <div className="text-center py-4">
+            <Monitor className="mx-auto h-8 w-8 text-slate-600 mb-2" />
+            <p className="text-[11px] text-slate-500">No machines configured</p>
+            <a href="/studio/production/machines" className="mt-2 inline-flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300">
+              Add Machine →
+            </a>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10px] text-slate-500">Select Machine</label>
+              <select value={selectedMachine} onChange={e => setSelectedMachine(e.target.value)} className="mt-0.5 w-full rounded border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-200 focus:border-orange-600 focus:outline-none">
+                {machines.map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.machineType || 'Manual'}) — {m.connectionStatus?.toLowerCase()}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="rounded bg-slate-800/50 px-2 py-1"><span className="text-slate-500">Product:</span> <span className="text-slate-300">{selectedProduct}</span></div>
+              <div className="rounded bg-slate-800/50 px-2 py-1"><span className="text-slate-500">Material:</span> <span className="text-slate-300">{result.productionInsights?.materialLabel || options.material}</span></div>
+              <div className="rounded bg-slate-800/50 px-2 py-1"><span className="text-slate-500">Size:</span> <span className="text-slate-300">{result.productionInsights?.widthMm}×{result.productionInsights?.heightMm}mm</span></div>
+              <div className="rounded bg-slate-800/50 px-2 py-1"><span className="text-slate-500">Time:</span> <span className="text-slate-300">~{result.productionInsights?.estimatedTimeMinutes}min</span></div>
+            </div>
+            <button onClick={handleSendToLaser} disabled={sendingJob || !selectedMachine} className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-orange-500/20 hover:shadow-xl disabled:opacity-50 transition-all">
+              {sendingJob ? <><Loader2Icon className="h-3.5 w-3.5 animate-spin" /> Creating Job...</> : <><Send className="h-3.5 w-3.5" /> Send to Laser</>}
+            </button>
+            {jobResult && !jobResult.error && (
+              <div className="rounded-lg border border-emerald-800/40 bg-emerald-900/20 p-2.5 text-[10px]">
+                <div className="flex items-center gap-1.5 text-emerald-400 font-medium mb-1"><CheckCircle className="h-3 w-3" /> Job Created</div>
+                <div className="text-slate-400">Job &quot;{jobResult.job?.jobName}&quot; is ready. {jobResult.readyToSend ? 'Ready to send!' : 'Review warnings first.'}</div>
+                <a href="/studio/production/jobs" className="mt-1 inline-flex items-center gap-1 text-sky-400 hover:text-sky-300">View Jobs →</a>
+              </div>
+            )}
+            {jobResult?.error && (
+              <div className="rounded-lg border border-red-800/40 bg-red-900/20 p-2.5 text-[10px] text-red-400">{jobResult.error}</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Publish Product */}
+      <div className="rounded-xl border border-emerald-800/30 bg-emerald-900/10 p-4">
+        <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold text-emerald-300">
+          <ShoppingBag className="h-4 w-4" /> Publish to Marketplace
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] text-slate-500">Platform</label>
+            <select value={selectedPlatform} onChange={e => setSelectedPlatform(e.target.value)} className="mt-0.5 w-full rounded border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-200 focus:border-emerald-600 focus:outline-none">
+              <option value="INTERNAL">Internal (Draft)</option>
+              <option value="ETSY">Etsy</option>
+              <option value="SHOPIFY">Shopify</option>
+              <option value="WOOCOMMERCE">WooCommerce</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="rounded bg-slate-800/50 px-2 py-1"><span className="text-slate-500">Product:</span> <span className="text-slate-300">{selectedProduct}</span></div>
+            <div className="rounded bg-slate-800/50 px-2 py-1"><span className="text-slate-500">Subject:</span> <span className="text-slate-300">{result.subjectDetection?.label || 'custom'}</span></div>
+            <div className="rounded bg-slate-800/50 px-2 py-1"><span className="text-slate-500">Price:</span> <span className="text-emerald-400">${result.productionInsights?.recommendedPrice}</span></div>
+            <div className="rounded bg-slate-800/50 px-2 py-1"><span className="text-slate-500">Margin:</span> <span className="text-emerald-400">{result.productionInsights?.profitMargin}%</span></div>
+          </div>
+          <button onClick={handlePublishProduct} disabled={publishingListing} className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl disabled:opacity-50 transition-all">
+            {publishingListing ? <><Loader2Icon className="h-3.5 w-3.5 animate-spin" /> Creating Listing...</> : <><Globe className="h-3.5 w-3.5" /> Create Listing</>}
+          </button>
+          {listingResult && !listingResult.error && (
+            <div className="rounded-lg border border-emerald-800/40 bg-emerald-900/20 p-2.5 text-[10px]">
+              <div className="flex items-center gap-1.5 text-emerald-400 font-medium mb-1"><CheckCircle className="h-3 w-3" /> Listing Created</div>
+              <div className="text-slate-400">&quot;{listingResult.listing?.title?.slice(0, 60)}...&quot;</div>
+              <div className="text-slate-500 mt-0.5">SKU: {listingResult.listing?.sku} — ${Number(listingResult.listing?.price || 0).toFixed(2)}</div>
+              <a href="/studio/production/marketplace" className="mt-1 inline-flex items-center gap-1 text-sky-400 hover:text-sky-300">View Listings →</a>
+            </div>
+          )}
+          {listingResult?.error && (
+            <div className="rounded-lg border border-red-800/40 bg-red-900/20 p-2.5 text-[10px] text-red-400">{listingResult.error}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BottomPanels({ result, bottomPanel, setBottomPanel, options, selectedProduct, handleDownloadSvg, handleExportZip }: any) {
   return (
     <div className="mt-4">
       <div className="mb-3 flex gap-1 overflow-x-auto">
         {([
           { key: 'intelligence', label: 'Production', icon: Activity },
+          { key: 'laser', label: 'Laser', icon: Zap },
           { key: 'coach', label: 'AI Coach', icon: Lightbulb },
           { key: 'batch', label: 'Batch', icon: Factory },
           { key: 'market', label: 'Market', icon: ShoppingBag },
@@ -663,6 +827,10 @@ function BottomPanels({ result, bottomPanel, setBottomPanel, options, selectedPr
           </IntelCard>
           {result.laserSimulation && (<IntelCard title="Simulation" icon={<Gauge className="h-3.5 w-3.5 text-orange-400" />}><ScoreGauge score={result.laserSimulation.qualityScore} label="Quality" small /></IntelCard>)}
         </div>
+      )}
+
+      {bottomPanel === 'laser' && (
+        <LaserActionsPanel result={result} selectedProduct={selectedProduct} options={options} />
       )}
 
       {bottomPanel === 'coach' && (

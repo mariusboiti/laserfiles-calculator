@@ -25,6 +25,7 @@ export function StudioHeader() {
   const navLabel = (href: string) => {
     if (href === '/studio/dashboard') return t('nav.dashboard');
     if (href.startsWith('/studio/tools')) return t('nav.tools');
+    if (href.startsWith('/studio/production')) return 'Production';
     if (href === '/studio/pricing') return t('nav.pricing');
     if (href.startsWith('/studio/help')) return t('nav.help');
     if (href === '/studio/account') return t('nav.account');
