@@ -696,7 +696,16 @@ function LaserActionsPanel({ result, selectedProduct, options }: any) {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="space-y-4">
+      {/* WIP Banner */}
+      <div className="flex items-center gap-3 rounded-xl border border-amber-700/40 bg-amber-900/15 px-4 py-3">
+        <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400" />
+        <div>
+          <p className="text-[11px] font-semibold text-amber-300">Work in Progress</p>
+          <p className="text-[10px] text-amber-400/70">These features are under active development and are not yet functional or tested.</p>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
       {/* Send to Laser */}
       <div className="rounded-xl border border-orange-800/30 bg-orange-900/10 p-4">
         <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold text-orange-300">
@@ -779,6 +788,7 @@ function LaserActionsPanel({ result, selectedProduct, options }: any) {
             <div className="rounded-lg border border-red-800/40 bg-red-900/20 p-2.5 text-[10px] text-red-400">{listingResult.error}</div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

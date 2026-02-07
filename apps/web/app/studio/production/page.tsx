@@ -89,6 +89,15 @@ export default function ProductionDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* WIP Banner */}
+      <div className="flex items-center gap-3 rounded-xl border border-amber-700/40 bg-amber-900/15 px-4 py-3">
+        <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400" />
+        <div>
+          <p className="text-sm font-semibold text-amber-300">Work in Progress</p>
+          <p className="text-xs text-amber-400/70">This section is currently under development. Features shown here are not yet functional or tested. We are actively building this experience.</p>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
