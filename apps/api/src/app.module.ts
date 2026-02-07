@@ -24,6 +24,10 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { AdminInvitesModule } from './admin-invites/admin-invites.module';
 import { AdminModule } from './admin/admin.module';
 import { MessagesModule } from './messages/messages.module';
+import { LaserMachinesModule } from './laser-machines/laser-machines.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+import { BusinessIntelligenceModule } from './business-intelligence/business-intelligence.module';
+import { LaserPipelineModule } from './laser-pipeline/laser-pipeline.module';
 
 @Module({
   imports: [
@@ -52,6 +56,11 @@ import { MessagesModule } from './messages/messages.module';
     AdminInvitesModule,
     AdminModule,
     MessagesModule,
+    // V5+ Laser Production Ecosystem
+    LaserMachinesModule,
+    MarketplaceModule,
+    BusinessIntelligenceModule,
+    LaserPipelineModule,
   ],
 })
 export class AppModule {}

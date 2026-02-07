@@ -303,12 +303,240 @@ model Material {
   offcuts             Offcut[]
 }
 
+enum LaserMachineType {
+  DIODE
+  CO2
+  FIBER
+  GALVO
+}
+
+enum MachineConnectionType {
+  RUIDA
+  GRBL
+  LIGHTBURN_BRIDGE
+  GLOWFORGE_CLOUD
+  MANUAL
+}
+
+enum MachineConnectionStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+  ERROR
+}
+
+enum LaserJobStatus {
+  DRAFT
+  QUEUED
+  VALIDATING
+  SENDING
+  CUTTING
+  ENGRAVING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum LaserJobPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  PAUSED
+  EXPIRED
+  DELETED
+}
+
+enum ListingPlatform {
+  ETSY
+  SHOPIFY
+  WOOCOMMERCE
+  AMAZON_HANDMADE
+  EBAY
+  INTERNAL
+}
+
 model Machine {
-  id          String   @id @default(cuid())
-  name        String
-  hourlyCost  Decimal? @db.Decimal(10, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  String                  @id @default(cuid())
+  name                String
+  hourlyCost          Decimal?                @db.Decimal(10, 2)
+  // Laser machine integration fields
+  machineType         LaserMachineType?
+  connectionType      MachineConnectionType?
+  connectionStatus    MachineConnectionStatus @default(OFFLINE)
+  ipAddress           String?
+  port                Int?
+  usbBridgePath       String?
+  bedWidthMm          Int?
+  bedHeightMm         Int?
+  maxPowerW           Int?
+  minPowerW           Int?
+  maxSpeedMmS         Int?
+  accelerationMmS2    Int?
+  homePosition        String?                 // "top-left", "bottom-left"
+  materialPresetsJson Json?                   // Array of { material, speed, power, passes }
+  credentialsJson     Json?                   // Encrypted connection credentials
+  lastPingAt          DateTime?
+  lastJobAt           DateTime?
+  firmwareVersion     String?
+  userId              String?                 // Owner of this machine profile
+  isShared            Boolean                 @default(false)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  laserJobs           LaserJob[]
+
+  @@index([userId])
+  @@index([connectionStatus])
+}
+
+model LaserJob {
+  id                  String          @id @default(cuid())
+  machineId           String
+  machine             Machine         @relation(fields: [machineId], references: [id])
+  userId              String
+  status              LaserJobStatus  @default(DRAFT)
+  priority            LaserJobPriority @default(NORMAL)
+  // Job content
+  jobName             String
+  productType         String?
+  materialId          String?
+  materialLabel       String?
+  thicknessMm         Float?
+  // SVG data
+  cutSvgUrl           String?
+  engraveSvgUrl       String?
+  scoreSvgUrl         String?
+  combinedSvgUrl      String?
+  gcodeUrl            String?          // Generated gcode for GRBL machines
+  // Machine parameters
+  speedMmS            Int?
+  powerPct            Int?
+  passes              Int?             @default(1)
+  kerfMm              Float?
+  // Dimensions
+  jobWidthMm          Float?
+  jobHeightMm         Float?
+  bedPositionX        Float?           @default(0)
+  bedPositionY        Float?           @default(0)
+  // Timing
+  estimatedTimeSec    Int?
+  actualTimeSec       Int?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  // Progress
+  progressPct         Int              @default(0)
+  currentOperation    String?          // "engraving", "cutting", "scoring"
+  // Safety validation
+  safetyValidated     Boolean          @default(false)
+  safetyWarningsJson  Json?
+  // Cost tracking
+  materialCost        Decimal?         @db.Decimal(10, 2)
+  machineCost         Decimal?         @db.Decimal(10, 2)
+  totalCost           Decimal?         @db.Decimal(10, 2)
+  // Error handling
+  retryCount          Int              @default(0)
+  maxRetries          Int              @default(3)
+  errorMessage        String?
+  errorCode           String?
+  // Metadata
+  sourceArtifactId    String?          // Link to Photo Product AI artifact
+  productionBatchId   String?
+  metadataJson        Json?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([machineId, status])
+  @@index([userId, createdAt])
+  @@index([status, priority])
+  @@index([productionBatchId])
+}
+
+model MarketplaceListing {
+  id                  String          @id @default(cuid())
+  userId              String
+  platform            ListingPlatform
+  connectionId        String?         // StoreConnection reference
+  // Listing content
+  title               String
+  description         String          @db.Text
+  tagsJson            Json?           // String array
+  category            String?
+  // Product info
+  productType         String?
+  materialLabel       String?
+  sizeMm              String?         // "200x150"
+  // Pricing
+  price               Decimal?        @db.Decimal(10, 2)
+  currency            String          @default("USD")
+  costOfGoods         Decimal?        @db.Decimal(10, 2)
+  profitMargin        Float?
+  // SKU
+  sku                 String?
+  quantity            Int             @default(999)
+  // Media
+  mockupUrlsJson      Json?           // Array of mockup image URLs
+  previewPngUrl       String?
+  // External
+  externalListingId   String?
+  externalUrl         String?
+  externalStatus      String?
+  // Status
+  status              ListingStatus   @default(DRAFT)
+  publishedAt         DateTime?
+  // SEO
+  seoKeywordsJson     Json?
+  // Source
+  sourceArtifactId    String?         // Link to Photo Product AI artifact
+  productionInfoJson  Json?           // Production metadata from AI pipeline
+  metadataJson        Json?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([userId, status])
+  @@index([platform, status])
+  @@index([connectionId])
+  @@index([sku])
+}
+
+model BusinessAnalyticsSnapshot {
+  id                  String   @id @default(cuid())
+  userId              String
+  periodStart         DateTime
+  periodEnd           DateTime
+  periodType          String   // "daily", "weekly", "monthly"
+  // Production metrics
+  totalJobsCompleted  Int      @default(0)
+  totalJobsFailed     Int      @default(0)
+  totalMachineTimeSec Int      @default(0)
+  machineUtilization  Float?   // 0-1
+  // Financial metrics
+  totalRevenue        Decimal? @db.Decimal(12, 2)
+  totalCosts          Decimal? @db.Decimal(12, 2)
+  totalProfit         Decimal? @db.Decimal(12, 2)
+  avgProfitMargin     Float?
+  // Product metrics
+  topProductsJson     Json?    // Array of { productType, count, revenue }
+  topMaterialsJson    Json?    // Array of { material, count, cost }
+  // Marketplace metrics
+  totalListingsActive Int      @default(0)
+  totalOrdersReceived Int      @default(0)
+  // Efficiency
+  avgJobTimeSec       Int?
+  materialWastePct    Float?
+  // Bottlenecks
+  bottlenecksJson     Json?    // Array of { type, description, severity }
+  createdAt           DateTime @default(now())
+
+  @@index([userId, periodType, periodStart])
+  @@unique([userId, periodType, periodStart])
 }
 
 model AddOn {
